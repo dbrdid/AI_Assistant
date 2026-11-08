@@ -34,3 +34,7 @@ uploads/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Container env and temporary test output
+server/.env
+.next/
