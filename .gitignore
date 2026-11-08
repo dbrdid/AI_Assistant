@@ -1,0 +1,36 @@
+# Dependencies and generated builds
+node_modules/
+.expo/
+dist/
+build/
+coverage/
+__pycache__/
+.venv/
+*.log
+
+# Secrets and runtime configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.keystore
+*.jks
+
+# User data, local databases, model weights
+data/
+uploads/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.gguf
+*.safetensors
+
+# Local editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
