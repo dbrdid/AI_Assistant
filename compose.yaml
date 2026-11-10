@@ -1,6 +1,6 @@
 services:
   api:
-    build: ./server
+    build: ./backend/cloud
     restart: unless-stopped
     environment:
       HOST: 0.0.0.0

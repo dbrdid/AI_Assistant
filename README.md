@@ -14,7 +14,7 @@
 
 ## 문서
 
-- [AI 서버 실행과 설정](server/README.md)
+- [AI 서버 실행과 설정](backend/cloud/README.md)
 - [AI 서버 구조·API 계약](docs/SERVER.md)
 - [서버 검증 결과와 미검증 범위](docs/VERIFICATION.md)
 
@@ -38,3 +38,10 @@
 ## 공유 범위
 
 기존 현재 앱의 제품·아키텍처·M1·AI·데이터 설계에서 팀 개발에 필요한 골자를 정리하고 서버 코드를 추가했습니다. 과거 기기 내 추론 우선 정책은 서버 추론 결정으로 대체합니다. 다른 독립 프로젝트의 코드·기능·검증 결과, 사용자 데이터, 모델 파일, 비밀 키, 발표자료와 과거 보관본은 포함하지 않습니다.
+
+## 팀별 모노레포 구조
+
+frontend/, backend/local/, backend/cloud/, ai/, shared/, tests/, docs/, .github/로 구분합니다. 기존 server/는 backend/cloud/로 이동했습니다. 나머지 앱 영역은 책임을 명시한 준비 폴더이며 구현 완료를 뜻하지 않습니다. [팀 개발 규칙](docs/CONTRIBUTING.md)을 따릅니다.
+
+서버 시험: npm --prefix backend/cloud test
+

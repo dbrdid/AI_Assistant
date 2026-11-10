@@ -1,6 +1,6 @@
 # AI 서버 상세 설계
 
-작성일: 2026-11-09. 현재 구현: Node.js + Fastify HTTP API / Ollama 어댑터. 실행법은 [서버 README](../server/README.md)에 있습니다.
+작성일: 2026-11-09. 현재 구현: Node.js + Fastify HTTP API / Ollama 어댑터. 실행법은 [서버 README](../backend/cloud/README.md)에 있습니다.
 
 ## 구조
 
@@ -23,12 +23,12 @@ flowchart LR
 
 | 파일 | 책임 |
 | --- | --- |
-| server/src/index.js | 설정 읽기, 시작·종료 |
-| server/src/config.js | 환경 설정 검증, 토큰 레코드 |
-| server/src/app.js | 라우팅·인증·요청 제한·동시성·취소·기한·안전한 오류 |
-| server/src/contracts.js | 요청/결과 JSON Schema와 날짜·근거 의미 검증 |
-| server/src/ollama.js | Ollama 요청 생성·응답 크기 제한·오류 변환 |
-| server/scripts/create-token.js | 소규모 팀 시험용 개인 토큰 발급 |
+| backend/cloud/src/index.js | 설정 읽기, 시작·종료 |
+| backend/cloud/src/config.js | 환경 설정 검증, 토큰 레코드 |
+| backend/cloud/src/app.js | 라우팅·인증·요청 제한·동시성·취소·기한·안전한 오류 |
+| backend/cloud/src/contracts.js | 요청/결과 JSON Schema와 날짜·근거 의미 검증 |
+| backend/cloud/src/ollama.js | Ollama 요청 생성·응답 크기 제한·오류 변환 |
+| backend/cloud/scripts/create-token.js | 소규모 팀 시험용 개인 토큰 발급 |
 
 ## API 계약
 

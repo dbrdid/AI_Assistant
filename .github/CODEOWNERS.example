@@ -1,0 +1,10 @@
+# 실제 write 권한이 있는 팀/사용자명으로 교체한 뒤 CODEOWNERS로 이름을 바꾸세요.
+# 예시는 활성 규칙이 아닙니다. 여러 소유자 지정은 모두의 승인을 강제하지 않습니다.
+# /frontend/       @ORG/frontend
+# /backend/local/  @ORG/local
+# /backend/cloud/  @ORG/cloud
+# /ai/             @ORG/ai
+# /shared/         @ORG/frontend @ORG/local @ORG/cloud @ORG/ai
+# /backend/cloud/src/ollama.js @ORG/ai
+# /backend/cloud/src/contracts.js @ORG/cloud @ORG/local @ORG/ai
+# /.github/        @ORG/maintainers

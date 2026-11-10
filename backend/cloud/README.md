@@ -48,7 +48,7 @@ npm test
 저장소 루트에서 실행합니다. Docker Compose 및 Ollama 이미지의 대상 OS/CPU 지원을 확인해야 합니다.
 
 ```text
-docker compose --env-file server/.env up --build -d
+docker compose --env-file backend/cloud/.env up --build -d
 docker compose exec ollama ollama pull <선택한-모델명>
 ```
 
