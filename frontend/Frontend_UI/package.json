@@ -1,0 +1,21 @@
+{
+  "name": "planner",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "setup": "npm install && npx expo install expo-audio expo-camera expo-notifications expo-document-picker expo-status-bar expo-asset expo-constants react-native-svg react-native-safe-area-context @react-native-async-storage/async-storage && npx expo install --fix",
+    "doctor": "npx expo-doctor"
+  },
+  "dependencies": {
+    "expo": "~58.0.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-native": "0.88.0",
+    "react-native-web": "~0.21.0"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "오늘의 플래너",
+    "slug": "planner",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      ["expo-camera", { "cameraPermission": "사진을 찍어 메모와 파일 보관함에 저장하려고 카메라를 사용해요." }],
+      ["expo-audio", { "microphonePermission": "소리를 녹음해 파일 보관함에 저장하려고 마이크를 사용해요." }],
+      "expo-notifications"
+    ]
+  }
+}
