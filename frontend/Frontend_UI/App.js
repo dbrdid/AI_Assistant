@@ -1,11 +1,3 @@
-// ============================================================
-// App.js — 앱의 "입구" (가장 먼저 실행되는 파일)
-// ============================================================
-// 하는 일은 "감싸기"뿐입니다. 바깥에서 안쪽 순서로:
-//   SafeAreaProvider : 노치/상태바/하단 홈 바에 가려지지 않는 영역 정보를 모든 화면에 제공
-//   MenuProvider     : 사이드 메뉴 열림/닫힘 상태를 모든 화면에 공유 (MenuContext.js)
-//   AppNavigator     : 화면들과 화면 이동 (AppNavigator.js)
-
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
