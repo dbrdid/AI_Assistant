@@ -1,9 +1,7 @@
 // ============================================================
 // Permissions.js — 기기 권한 요청 (마이크 · 카메라 · 알림)
 // ============================================================
-// requestPermission('mic' | 'camera' | 'notification') → 'granted' | 'denied'
-//  - 카메라·마이크는 expo-camera 로 실제 요청해요.
-//  - 알림은 expo-notifications 로 실제 요청해요 (Notify.js).
+
 import { Platform } from 'react-native';
 import { Camera } from 'expo-camera';
 import { ensurePermission } from '../notify/Notify';

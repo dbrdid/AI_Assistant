@@ -1,11 +1,6 @@
 // ============================================================
-// ErrorViews.js — 오류 안내 화면/창 모음 (스토리보드 106 · 107 · 108 · 결제 실패 팝업)
+// ErrorViews.js — 오류 안내 화면/창 모음
 // ============================================================
-//  NetworkErrorView   : "네트워크 연결을 확인해주세요"  [다시 시도] [오프라인 모드로 이용]
-//  ServerErrorView    : "서버 일시적 오류"             [메인 화면으로 이동]
-//  AnalysisFailedView : "분석에 실패했습니다"          [다시 분석하기] [수동으로 등록]
-//  ErrorModal         : 위 세 가지를 "지금 보던 화면 위에 창으로" 띄움 (작성 중이던 내용이 그대로 남아요)
-//  PaymentFailedDialog: "결제 실패 / 결제수단을 다시 확인해 주세요" [확인]
 
 import React, { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';

@@ -1,28 +1,5 @@
 // CalendarSheet.js — 아래에서 위로 끌어올리는 캘린더 시트 (홈 화면 + 캘린더 화면 공용)
 
-//   (A) 홈 화면      : 평소엔 아래에 손잡이만 보이고, 끌어올리면 "중간"까지 올라옴.
-//                      더 끝까지 올리면 → 캘린더 화면으로 이동 (onReachTop)
-//   (B) 캘린더 화면   : 처음부터 "끝까지 올라온 상태"(startFull). 아래로 밀어 닫으면 → 이전 화면으로 (onClose)
-
-// 시트의 높이 단계 3가지 (이름 : 설명)
-//   closed : 닫힘. 손잡이만 보임
-//   half   : 중간. 달력 한 달이 보임                        (홈 화면 모드에서만)
-//   full   : 끝까지. 화면 거의 전체                          (홈에서 여기까지 올리면 캘린더 화면으로 이동)
-
-// 핵심 개념: "시트의 위치"를 숫자 하나(y)로 표현합니다.
-//   y = 0       → full  (시트의 맨 위가 화면 위쪽에 닿음)
-//   y = halfY   → half
-//   y = closedY → closed (시트 대부분이 화면 아래로 내려가고 손잡이만 보임)
-
-// props
-//   calendar    : 달력 상태 묶음 { today, cursor, selected, setSelected, shiftMonth, goToday }
-//                 (AppNavigator 가 만들어서 전달 → 홈 시트와 캘린더 화면이 같은 달/날짜를 공유)
-//   startFull   : true 면 처음부터 끝까지 올라온 상태로 시작 (캘린더 화면 모드)
-//   onReachTop  : (홈 모드) 끝까지 올렸을 때 호출 → 캘린더 화면으로 이동시키는 함수
-//   onAddTask(dateKey) : 일정 추가 화면으로 이동
-//   onEditTask(id)     : 일정 편집 화면으로 이동
-//   onClose     : (캘린더 화면 모드) 아래로 밀어 닫았을 때 호출 → 이전 화면으로 돌아가는 함수
-
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,

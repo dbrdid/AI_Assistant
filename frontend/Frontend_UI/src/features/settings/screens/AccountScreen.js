@@ -1,8 +1,6 @@
 // ============================================================
-// AccountScreen.js — 계정 / 프로필 수정 (스토리보드 85~86장)
+// AccountScreen.js — 계정 / 프로필 수정
 // ============================================================
-// 이름·소속 수정 + [저장하기], 비밀번호 변경 버튼, 연동된 계정(네이버 · 카카오) 상태
-// ※ 이메일은 가입 시 등록한 값이라 수정할 수 없음(표시만). 비밀번호 변경·계정 연동은 로그인 연결 후에 동작.
 
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';

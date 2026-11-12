@@ -1,19 +1,6 @@
 // ============================================================
-// MemoListScreen.js — 메모 화면 (메모 목록)  ※ "모든 메모" 와 "즐겨찾기" 가 같은 화면을 씁니다
+// MemoListScreen.js — 메모 화면 (메모 목록)
 // ============================================================
-// 하는 일 (스토리보드 "메모" 56~58장)
-//   1) 상단: 현재 위치(모든 메모 / 즐겨찾기) + 메모 개수, 오른쪽 ⋮ = 메뉴(모든 메모 · 즐겨찾기 · 휴지통 · 프로젝트)
-//   2) 메모 카드: 제목, 수정일 · 작성일, 본문 미리보기.  즐겨찾기한 메모는 ★ 표시 + 맨 위에 모임
-//   3) 메모를 "꾹 누르면" 선택 모드 (다른 앱과 같은 방식)
-//        - 꾹 누른 메모가 선택되고, 이어서 다른 메모를 눌러 여러 개를 선택/해제할 수 있음
-//        - 아래 줄: 취소 · 전체 · 즐겨찾기 · 삭제   (삭제 = 휴지통으로 이동, 잠깐 "되돌리기" 안내)
-//   4) 오른쪽 아래 ＋ 버튼 → 새 메모 쓰기 (MemoEditScreen.js), 카드를 짧게 누르면 편집
-//   5) 검색 결과 / AI 출처에서 이동해 오면 → 해당 메모로 자동 스크롤 + 2.5초 강조
-//
-// props (AppNavigator 가 넣어줌)
-//   navigation    : 화면 이동 도구
-//   route         : { name, params: { focusId } }
-//   favoritesOnly : true 면 즐겨찾기한 메모만 보여줌 (AppNavigator 의 FavoritesScreen 이 true 로 넘김)
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';

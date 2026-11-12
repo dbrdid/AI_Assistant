@@ -1,11 +1,7 @@
 // ============================================================
 // SettingsUi.js — 설정 화면들이 같이 쓰는 작은 부품
 // ============================================================
-//   SectionTitle : 작은 소제목
-//   Row          : 한 줄 항목 (왼쪽 글자 · 오른쪽 값/›). onPress 가 있으면 눌러서 이동
-//   ToggleRow    : 켜고 끄는 스위치 줄 (아래에 설명 글자 가능)
-//   SaveButton   : 맨 아래 "저장하기" (바뀐 게 없으면 흐리게 막힘)
-//   useNotice    : 아래에 잠깐 떴다 사라지는 안내 글자 → { show(글자), view(화면에 넣을 부품) }
+
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';

@@ -1,10 +1,6 @@
 // ============================================================
-// TeamScreen.js — 팀원 관리 (스토리보드 71~73장)
+// TeamScreen.js — 팀원 관리
 // ============================================================
-// route.params: { projectId }
-// 위: "팀원 N명" + 오른쪽 위 👥＋(팀원 초대)   목록: 이름 / 역할(팀장·팀원)
-// [선택]을 누르거나 팀원을 꾹 누르면 선택 모드: 취소 / 전체 / 이동(다른 프로젝트로) / 편집(이름·역할 팝업) / 삭제
-// 초대만 해 둔 사람(아직 수락 전)은 아래 "초대 대기" 에 이메일로 보입니다. (실제 발송은 서버 연결 후)
 
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';

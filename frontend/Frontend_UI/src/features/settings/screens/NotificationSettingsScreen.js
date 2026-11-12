@@ -1,8 +1,6 @@
 // ============================================================
-// NotificationSettingsScreen.js — 알림 설정 (스토리보드 92장)
+// NotificationSettingsScreen.js — 알림 설정
 // ============================================================
-// 알림 종류 스위치(일정 · 할 일 마감 · AI 확인 요청 · 브리핑) + 방해 금지 시간(시작~끝) → [저장하기]
-// ※ 선택한 값은 저장돼요. 실제 푸시 알림은 알림 기능(서버/기기 알림)을 연결할 때 이 값을 읽어서 보냅니다.
 
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';

@@ -1,7 +1,7 @@
 // ============================================================
 // ProposalListScreen.js — AI 제안 "검증 필요" 목록
 // ============================================================
-// 탭: 확인 대기 / 보류. 카드를 누르면 확인 화면(ProposalConfirm)으로 이동.
+
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';

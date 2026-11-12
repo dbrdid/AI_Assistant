@@ -1,12 +1,7 @@
 // ============================================================
 // ConfirmDialog.js — "~하시겠습니까?" 확인 창 (취소 / 확인)
 // ============================================================
-// props
-//   visible       : 보일지 여부
-//   title, sub    : 제목 / 보조 설명
-//   confirmText   : 확인 버튼 글자 (기본 "확인")
-//   danger        : true 면 확인 버튼이 코랄색(삭제처럼 위험한 동작)
-//   onCancel(), onConfirm()
+
 
 import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';

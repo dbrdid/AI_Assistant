@@ -1,9 +1,6 @@
 // ============================================================
-// AiSettingsScreen.js — AI 및 브리핑 설정 (스토리보드 88~89장)
+// AiSettingsScreen.js — AI 및 브리핑 설정
 // ============================================================
-// AI 자동 분석 토글 / AI 확인 방식(확인 후 저장 · 자동 저장) / 주간 브리핑(요일+시간) / 일간 브리핑(시간)
-// / 기기 내 AI 처리 토글 / 이용량 → AI 이용량 화면.   바꾼 뒤 [저장하기].
-// ※ 실제 AI·브리핑 알림은 서버 연결 후 동작해요. 지금은 선택한 값을 저장만 합니다.
 
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';

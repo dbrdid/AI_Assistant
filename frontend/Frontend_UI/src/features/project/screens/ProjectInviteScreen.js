@@ -1,11 +1,6 @@
 // ============================================================
-// ProjectInviteScreen.js — 팀원 초대 (스토리보드 74장)
+// ProjectInviteScreen.js — 팀원 초대 
 // ============================================================
-// route.params: { projectId }
-// 입력: 이메일(형식 검사) / 초대 방법(링크 · 메일) / 초대할 프로젝트 이름 표시 / 이번 달 남은 초대 횟수
-// 남은 횟수가 0 이면 발송이 막힙니다.
-// ※ 지금은 "초대 기록"만 저장합니다 (프로젝트 팀원 화면의 초대 대기에 표시). 실제 메일·링크 발송과
-//   초대 수락(스토리보드 75장)은 서버가 준비되면 sendInvite 자리에 연결합니다.
 
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';

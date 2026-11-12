@@ -1,20 +1,6 @@
 // ============================================================
-// InkCanvas.js — 손글씨 / 지우개 캔버스 (메모 편집 화면에서 글자 위에 겹쳐서 사용)
+// InkCanvas.js — 손글씨 / 지우개 캔버스
 // ============================================================
-// 하는 일
-//   - strokes(필기 목록)를 SVG 로 그려서 보여줌
-//   - mode 가 'pen'    이면: 손가락/펜으로 끌어서 선을 그림
-//   - mode 가 'eraser' 이면: 문지른 자리에 닿은 획을 지움 (획 단위로 지워짐)
-//   - mode 가 그 외('keyboard')이면: 그림만 보여주고 터치는 아래 글자 입력창으로 통과시킴
-//
-// props
-//   strokes  : 저장된 필기 목록  [{ id, c, w, p }]
-//   mode     : 'pen' | 'eraser' | 'keyboard'
-//   color    : 펜 색
-//   width    : 펜 굵기
-//   onChange : (새 strokes) => 획을 하나 그렸거나 지웠을 때 호출 (손가락을 뗄 때 한 번)
-//
-// 필요한 패키지: react-native-svg  (Expo Go / Snack 에 기본 포함)
 
 import React, { useMemo, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';

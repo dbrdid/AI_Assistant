@@ -1,9 +1,6 @@
 // ============================================================
-// ProjectEditScreen.js — 프로젝트 추가 / 편집 (스토리보드 66~68장)
+// ProjectEditScreen.js — 프로젝트 추가 / 편집
 // ============================================================
-// route.params: { projectId? }  (없으면 새 프로젝트)
-// 입력: 제목(필수) / 마감일 / 중요도 / 상태 / 알림 / 담당자 / 장소 / 설명.  AI 제안 없이 직접 입력.
-// 저장하면 프로젝트 목록에 바로 반영됩니다. (알림은 설정값만 저장, 실제 알림은 추후)
 
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';

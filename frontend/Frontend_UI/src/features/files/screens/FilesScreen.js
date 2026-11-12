@@ -1,16 +1,6 @@
 // ============================================================
-// FilesScreen.js — 파일 보관함 화면 (사이드 메뉴의 "파일 보관함" / 검색·AI 결과에서 이동하는 곳)
+// FilesScreen.js — 파일 보관함 화면
 // ============================================================
-// 파일을 "저장 위치"별로 나눠서 보여줍니다. (지금은 MemoStore.js 의 샘플 파일. 파일 추가/열기는 아직 없음)
-//   📱 로컬   : 사용자가 만들거나 업로드한 파일. 기본 저장 위치이고 이 기기에 저장됩니다.
-//   ☁️ 클라우드 : 나중에 프로젝트에 팀원을 초대해 만든 공유 공간의 파일이 저장되는 곳.
-//               (프로젝트/팀 기능이 아직 없어서 지금은 "준비 중" 안내만 보임)
-// 검색 결과나 AI 출처를 눌러 이동해 오면 route.params.focusId 로 전달된 파일로 자동 스크롤 + 2.5초 강조합니다.
-// (동작 방식은 MemoListScreen.js 와 같습니다)
-//
-// props (AppNavigator 가 넣어줌)
-//   navigation : 화면 이동 도구
-//   route      : { name, params: { focusId } }
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';

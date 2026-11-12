@@ -1,8 +1,7 @@
 // ============================================================
-// TaskListScreen.js — 할 일 목록 (스토리보드 78~81장)
+// TaskListScreen.js — 할 일 목록
 // ============================================================
-// 필터 칩: 전체 / 오늘 / 예정 / 임박 / 초과 / 완료 (각각 개수 표시)
-// 항목: 체크박스(완료) + 제목 + "MM/DD · 꼬리표". 누르면 편집, 완료 항목은 맨 아래.
+
 
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';

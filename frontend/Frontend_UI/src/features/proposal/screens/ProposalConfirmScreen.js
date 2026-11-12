@@ -1,9 +1,7 @@
 // ============================================================
 // ProposalConfirmScreen.js — AI 제안 확인 (스토리보드 99~101장)
 // ============================================================
-// 위: 일정/할 일/메모 선택 → 입력칸(고칠 수 있음) → 근거(AI가 참고한 문장) → [저장하기] [보류] [거절]
-// 메모를 고르면: 제목·본문 미리보기 + "AI 자동 이미지"(무료는 잠금 → 구독 화면)
-// 같은 일정이 이미 있으면 "그래도 저장할까요?" 창이 떠요.
+
 import React, { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';

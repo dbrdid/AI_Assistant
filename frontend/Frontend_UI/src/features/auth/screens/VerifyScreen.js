@@ -1,11 +1,6 @@
 // ============================================================
-// VerifyScreen.js — 이메일 인증 (스토리보드 10~13장). 회원가입 · 비밀번호 재설정이 같이 써요
+// VerifyScreen.js — 이메일 인증 . 회원가입 · 비밀번호 재설정
 // ============================================================
-// 6자리 인증번호 입력 · [확인] · 남은 시간(03:00) · [인증번호 재전송]
-// 틀리면 "인증코드 불일치", 시간이 지나면 "제한시간 초과" (그 인증번호는 무효, 이전 화면에서 다시 시도)
-// ※ 지금은 이메일을 보낼 수 없어서 인증번호를 화면에 보여줘요 (서버 연결 후 devCode 표시를 없애면 됨)
-//
-// props: email, initial{ expiresAt, devCode }, onVerified(), onBack(), onExpired()
 
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, Pressable } from 'react-native';

@@ -125,7 +125,7 @@ export default function SearchScreen({ navigation }) {
           autoFocus // 화면이 열리면 바로 키보드가 올라옴
           returnKeyType="search"
           onSubmitEditing={() => hasQuery && remember(query)} // 키보드의 검색 키 → 최근 검색어에 저장
-          accessibilityLabel="검색어 입력"
+          accessibilityLabel_2="검색어 입력"
         />
         {/* 지우기(✕): 글자가 있을 때만 */}
         {hasQuery && (

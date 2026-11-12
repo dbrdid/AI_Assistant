@@ -1,9 +1,7 @@
 // ============================================================
-// SubscriptionScreen.js — 구독 관리 (스토리보드 93~94장)
+// SubscriptionScreen.js — 구독 관리
 // ============================================================
-// 현재 요금제 · 다음 결제일 · [구독 해지] · [요금제 변경]
-// ※ 결제가 아직 연결되지 않아 지금은 항상 "무료"이고, 요금제 변경·구독 해지는 결제 연결 후에 동작해요.
-//    (결제 실패 팝업 "결제수단을 다시 확인해 주세요"는 결제 연결할 때 PaymentFailedDialog 로 쓰면 됩니다.)
+
 
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';

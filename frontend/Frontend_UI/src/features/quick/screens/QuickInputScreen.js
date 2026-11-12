@@ -1,13 +1,6 @@
 // ============================================================
-// QuickInputScreen.js — 빠른 입력 (스토리보드 36~38장)
+// QuickInputScreen.js — 빠른 입력
 // ============================================================
-// 홈 구슬을 길게 눌러 "빠른 입력" 으로 들어오는 화면. 위쪽 탭으로 두 가지를 오가요.
-//   [메모]       제목·분류 없이 내용만 적고 [저장]. (너무 길면 입력이 막히고 안내, 나가도 내용은 임시 보존)
-//   [사진·문서]  [＋ 사진·파일 선택] 으로 여러 개 고르고 [저장] 으로 올림. 형식/용량이 안 맞는 파일은 사유를 알려주고,
-//                실패한 파일은 [다시 올리기] 가능.
-// 아래 "연결" 목록(전체·일정·할 일·프로젝트)에서 체크한 일정/할 일/프로젝트가 저장되는 메모·파일과 연결돼요
-//   (프로젝트는 하나만, 일정/할 일은 여러 개 가능).
-// ※ 저장 뒤 AI 분석은 서버 연결 후에 시작돼요. 지금은 메모/파일 보관함에 저장까지만 해요.
 
 import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -188,7 +181,7 @@ export default function QuickInputScreen({ navigation }) {
                 multiline
                 textAlignVertical="top"
                 maxLength={MAX_LEN}
-                accessibilityLabel="메모 내용"
+                accessibilityLabel_1="메모 내용"
               />
               <Text style={[styles.counter, body.length >= MAX_LEN && { color: colors.coral, fontWeight: '800' }]}>
                 {body.length >= MAX_LEN ? `입력할 수 있는 길이를 넘었어요 (${MAX_LEN}자)` : `${body.length}/${MAX_LEN}`}

@@ -1,11 +1,7 @@
 // ============================================================
-// TaskEditScreen.js — 일정/할 일 추가 · 편집 (스토리보드 42~48장)
+// TaskEditScreen.js — 일정/할 일 추가 · 편집
 // ============================================================
-// route.params: { taskId? (편집), date? (추가 시 기본 날짜) }
-// - 제목 필수, 날짜 필수, 시간은 선택 (끝 시간은 시작 시간보다 뒤여야 함)
-// - 중요도 / 상태 / 알림은 칩으로 선택 (알림은 저장만 하고 실제 푸시는 아직 없음)
-// - 다른 일정과 시간이 겹치면 확인 창
-// - 편집 중이면 맨 아래에 삭제 버튼 (확인 창)
+
 
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';

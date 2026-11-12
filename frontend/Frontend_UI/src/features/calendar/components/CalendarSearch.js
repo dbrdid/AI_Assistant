@@ -1,15 +1,6 @@
 // ============================================================
-// CalendarSearch.js — 캘린더 일정 검색 (달력의 🔍 버튼)
+// CalendarSearch.js — 캘린더 일정 검색
 // ============================================================
-// 스토리보드 44장: "검색어와 일치하는 일정이 있는 날짜를 확인할 수 있다"
-//   - 검색어를 입력하면 일치하는 일정 목록이 나오고, 달력에서는 그 날짜들이 연한 민트색으로 표시됨 (CalendarSheet 가 처리)
-//   - 결과를 누르면 그 날짜로 이동
-//
-// props
-//   query / onChange(글자) : 검색어와 그 변경 함수 (상태는 CalendarSheet 가 들고 있음)
-//   matches                : 검색에 걸린 항목들
-//   onPick(항목)           : 결과를 눌렀을 때
-//   onClose()              : 검색 닫기
 
 import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';

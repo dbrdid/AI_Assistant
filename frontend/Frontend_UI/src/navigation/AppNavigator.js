@@ -1,29 +1,6 @@
 // ============================================================
 // AppNavigator.js — "어떤 화면을 보여줄지" 를 정하는 직접 만든 간단한 화면 이동기
 // ============================================================
-// 왜 직접 만들었나?
-//   React Navigation 은 react-native-screens 라는 네이티브 패키지가 필요한데,
-//   Snack 에서 이 패키지가 빌드 오류가 나서 쓸 수 없었습니다.
-//   우리 앱은 "메뉴에서 선택 / 뒤로가기" 정도만 필요하므로 useState 로 충분히 만들 수 있습니다.
-//
-// 동작 원리: "방문 기록(history)" 배열 하나만 관리합니다. 각 칸은 { name, params, key } 입니다.
-//   처음:                [홈]
-//   메뉴에서 메모 선택:    [홈, 메모]          → 맨 끝(메모) 화면을 보여줌
-//   뒤로가기:             [홈]               → 맨 끝을 빼서 이전 화면(홈)이 나옴
-//   메뉴에서 홈 선택:      [홈]               → 기록을 비우고 홈으로
-//
-// ★ params(전달값): 화면을 옮길 때 "무엇을 보여줄지" 같은 정보를 함께 보낼 수 있습니다.
-//   예) navigation.navigate('Memos', { focusId: 'memo-1' })  → 메모 화면이 열리면서 memo-1 로 자동 이동/강조
-//   받는 쪽 화면에서는 route.params.focusId 로 꺼내 씁니다.
-//
-// ★ key: 이동할 때마다 새 번호를 붙여서, 같은 화면이라도 params 가 바뀌면 화면을 새로 만들어 줍니다.
-//
-// 또 하나: 캘린더 상태(보고 있는 달, 선택한 날짜)를 여기서 들고 있다가 홈과 캘린더 화면에 똑같이 넘겨줍니다.
-//   → 홈에서 시트로 보던 달이 캘린더 화면에서도 그대로 이어집니다.
-//
-// 각 화면에는 React Navigation 과 똑같은 모양의 navigation 도구를 넘겨줍니다.
-//   navigation.navigate(화면이름, 전달값)  → 그 화면으로 이동
-//   navigation.goBack()                   → 이전 화면으로
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, StyleSheet, View } from 'react-native';

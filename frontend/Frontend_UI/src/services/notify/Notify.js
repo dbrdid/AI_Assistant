@@ -5,9 +5,6 @@
 //   ensurePermission()     : 알림 권한 요청 → true/false
 //   scheduleAll(list)      : 예약된 알림을 모두 지우고 list 대로 다시 예약  (list: [{ key, title, body, at(ms), data }])
 //   cancelAll()            : 예약된 알림 모두 취소 (로그아웃할 때)
-// ※ 필요한 패키지: expo-notifications  (Snack 의 package.json dependencies 에 추가: "expo-notifications": "~0.32.x")
-// ※ Expo Go 에서는 기기에 따라 알림이 제한될 수 있어요(특히 안드로이드). 제대로 확인하려면 개발용 빌드가 필요할 수 있습니다.
-//    알림 예약이 실패해도 앱은 멈추지 않고, 앱 안의 알림함(알림 화면)은 그대로 동작해요.
 
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';

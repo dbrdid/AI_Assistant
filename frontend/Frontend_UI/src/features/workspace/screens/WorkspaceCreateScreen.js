@@ -1,7 +1,6 @@
 // ============================================================
-// WorkspaceCreateScreen.js — 새 워크스페이스 만들기 (스토리보드 39장 3번)
+// WorkspaceCreateScreen.js — 새 워크스페이스 만들기
 // ============================================================
-// 조직 이름(필수) · 설명(선택)을 입력해 만들면, 만든 사용자가 "관리자"가 되고 그 공간으로 바로 전환됩니다.
 
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';

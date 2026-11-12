@@ -1,10 +1,6 @@
 // ============================================================
-// MemoCard.js — 메모 카드 (삼성 메모처럼 "미리보기"가 보이는 카드). 목록 보기 / 격자 보기 두 모양
+// MemoCard.js — 메모 미리보기
 // ============================================================
-// 미리보기: 사진을 붙인 메모는 첫 사진, 손글씨 메모는 손글씨 축소 그림, 글자 메모는 본문 앞부분
-// props
-//   memo, mode('list'|'grid'), selecting, selected, highlighted, projectTitle, photoUri
-//   onPress, onLongPress, onLayout
 
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';

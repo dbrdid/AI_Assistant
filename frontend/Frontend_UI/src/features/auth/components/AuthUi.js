@@ -1,10 +1,7 @@
 // ============================================================
 // AuthUi.js — 로그인/가입 화면들이 같이 쓰는 부품
 // ============================================================
-//  AuthFrame  : 제목 + 스크롤 + 키보드 피하기 (왼쪽 위 ‹ 뒤로가기는 onBack 이 있을 때만)
-//  AuthField  : 라벨 + 입력칸 (비밀번호 칸은 👁 표시/숨김 버튼)
-//  AuthButton : 큰 버튼 (primary / ghost)
-//  AuthDialog : 오류·안내 창 (스토리보드의 ⚠ / 🔒 메시지)
+
 
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';

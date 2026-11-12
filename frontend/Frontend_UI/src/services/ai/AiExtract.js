@@ -1,9 +1,7 @@
 // ============================================================
-// AiExtract.js — 글에서 일정·할 일 후보 찾기 (★ 지금은 "규칙" 방식. AI 서버가 생기면 이 함수만 바꾸면 돼요)
+// AiExtract.js — 글에서 일정·할 일 후보 찾기 
 // ============================================================
-// extractFromText(text, today=new Date()) → [{ kind:'event'|'task', title, date, start, end, place, assignee, evidence }]
-//  - 문장 단위로 보고, "날짜/시간 표현 + 일정·할 일 단서"가 있으면 후보로 만들어요.
-//  - evidence(근거)는 후보를 만든 원래 문장이에요.
+
 import { addDays, toKey } from '../../features/calendar/utils/DateUtils';
 
 const EVENT_CUES = ['회의', '미팅', '모임', '만나', '약속', '수업', '시험', '발표', '면접', '세미나', '행사', '진행', '오세요', '모여'];

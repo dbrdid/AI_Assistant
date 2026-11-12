@@ -1,7 +1,6 @@
 // ============================================================
-// BriefingScreen.js — 오늘의 브리핑 (스토리보드 40~43장)
+// BriefingScreen.js — 오늘의 브리핑
 // ============================================================
-// 오늘 일정(시간순) / 마감 임박(접기 가능) / 미해결 안건 = 기한 지난 미완료 (접기 가능)
 
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';

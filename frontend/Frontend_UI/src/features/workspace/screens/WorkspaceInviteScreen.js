@@ -1,11 +1,6 @@
 // ============================================================
-// WorkspaceInviteScreen.js — 워크스페이스 초대 (스토리보드 75~76장)
+// WorkspaceInviteScreen.js — 워크스페이스 초대
 // ============================================================
-// route.params: { name(공간 이름), inviter(초대한 관리자), role(내 역할), members(멤버 수), status('valid' | 'expired') }
-//   - valid   : 공간 이름 · 초대자 · 역할/멤버 + 안내 + [거절][수락]
-//   - expired : "초대가 만료되었습니다 / 관리자에게 다시 요청해주세요." 안내, 참여 버튼은 막힘
-// 수락하면 그 공간에 참여하고 바로 전환합니다. (서버가 없는 지금은 이 기기에 공간만 만들어 둠)
-// ※ 실제 초대 링크·메일로 이 화면이 열리는 것은 서버 연결 후에 붙입니다.
 
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';

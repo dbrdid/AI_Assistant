@@ -1,25 +1,7 @@
 // ============================================================
-// MonthCalendar.js — "한 달 달력" 화면 조각 (그리기만 담당)
+// MonthCalendar.js — "한 달 달력" 화면
 // ============================================================
-// 이 컴포넌트는 데이터를 스스로 들고 있지 않습니다.
-// 부모(CalendarSheet)가 "지금 몇 년 몇 월인지, 어떤 날짜가 선택됐는지"를 props 로 알려주고,
-// 사용자가 뭔가 누르면 onSelect / onPrev / onNext / onToday 등으로 부모에게 알려줍니다.
-//
-// 스토리보드 "캘린더" (44~47장)
-//   - 위쪽: ‹ 2026년 10월 › (달 이름을 누르면 연·월 고르기), 왼쪽 🔍 일정 검색, 오른쪽 [오늘]
-//   - 날짜 칸: 일정이 있는 날은 아래에 점, 공휴일·일요일은 빨간색, 토요일은 녹색
-//   - 달력 아래(children): 선택한 날의 일정 목록 등 (CalendarSheet 가 채워 넣음)
-//
-// props
-//   year, month : 보여줄 연도와 월(월은 0~11)
-//   selected    : 선택된 날짜(Date)
-//   today       : 오늘 날짜(Date)
-//   marks       : { '2026-10-15': { n: 일정 수, overdue: 기한 초과 있음, allDone: 전부 완료 } }  (점 표시용)
-//   holidays    : { '2026-10-03': '개천절', ... }  (공휴일은 빨간색)
-//   highlight   : Set<'2026-10-15'>  검색에 걸린 날짜들 (연한 민트 배경)
-//   searching   : 검색 중이면 true (🔍 버튼이 눌린 모양)
-//   onSelect(d) / onPrev() / onNext() / onToday() / onSearch() / onPickMonth(year, month)
-//   children    : 달력 아래에 이어 붙일 내용
+
 
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';

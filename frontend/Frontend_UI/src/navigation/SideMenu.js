@@ -1,15 +1,7 @@
 // ============================================================
 // SideMenu.js — 왼쪽에서 밀려 나오는 "사이드 메뉴 패널"
 // ============================================================
-// 하는 일
-//   1) MenuContext 의 visible 이 true 가 되면 왼쪽에서 슬라이드해서 나타남
-//   2) routes.js 의 MENU_ITEMS 를 목록으로 보여줌
-//   3) 항목을 누르면 메뉴를 닫고 그 화면으로 이동
-//   4) 지금 보고 있는 화면의 항목은 연한 민트색으로 강조
-//
-// props
-//   onNavigate(route) : 화면 이동을 요청하는 함수 (AppNavigator 에서 전달)
-//   currentRoute  : 지금 보고 있는 화면 이름 (강조 표시용)
+
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';

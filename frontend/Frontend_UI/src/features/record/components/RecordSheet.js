@@ -1,11 +1,7 @@
 // ============================================================
-// RecordSheet.js — 녹음이 끝난 뒤(또는 실패했을 때) 홈에 뜨는 창
+// RecordSheet.js — 녹음이 끝난 뒤 홈에 뜨는 창
 // ============================================================
-// state:
-//   'saved'  : "녹음을 저장했어요" + 길이 + [듣기] + [텍스트로 정리하기] + [보관함 보기]
-//   'denied' : "마이크 권한이 필요해요" + [설정 열기]
-//   'error'  : "녹음하지 못했어요"
-// props: sheet({ state, uri, seconds }) | null, onClose(), onOpenFiles()
+
 
 import React, { useEffect, useState } from 'react';
 import { Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';

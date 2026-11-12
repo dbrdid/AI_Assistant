@@ -1,9 +1,6 @@
 // ============================================================
-// WorkspacePicker.js — 홈에서 바로 여는 "공간 빠른 전환" 창 (아래에서 올라오는 시트)
+// WorkspacePicker.js — 홈에서 바로 여는 "워크스페이스" 창
 // ============================================================
-// 공간 목록(현재 표시) → 누르면 바로 전환하고 닫힘.
-// 아래: "＋ 새 워크스페이스 만들기" / "공간 관리" (전체 공간 전환 화면으로 이동)
-// props: visible, onClose, navigation(이동용), onSwitched(공간 이름) (전환 후 알림용, 선택)
 
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
