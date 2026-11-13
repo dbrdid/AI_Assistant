@@ -243,3 +243,16 @@ test('account deletion (F24) with AI rows: shared workspaces keep them unlinked,
     assert.deepEqual(budgets(t), [['', 0, 0], [A, 0, 0]]);
   } finally { t.close(); }
 });
+
+test('review fixes: FIFO within one clock tick, code-point lengths, an explicit expiry offset, braced ids in get_documents', () => {
+  const t = world();
+  try {
+    // The injected clock never moves: admissions in the same instant still claim in admission order.
+    const ids = [admit(t).job.id, admit(t).job.id, admit(t).job.id];
+    assert.deepEqual([1, 2, 3].map(() => t.exec('ai_claim_job', [60]).id), ids);
+    const emoji = '😀'.repeat(150);
+    assert.equal(t.exec('ai_set_route', [{ ...ROUTE, route_id: emoji }]).route_id, emoji);
+    rejects(() => consent(t, A, { expires_at: new Date(t.clock.t / 1000 + 3600000).toISOString().replace('Z', '') }), 'invalid_request');
+    assert.equal(t.as(A, 'get_documents', [W, [`{${D}}`], '1']).documents[0].id, D);
+  } finally { t.close(); }
+});

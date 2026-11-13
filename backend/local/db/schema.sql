@@ -225,7 +225,8 @@ create table ai_jobs(
   foreign key(workspace_id,workspace_scope,period) references ai_budgets(workspace_id,scope,period),
   foreign key(workspace_id,actor_scope,period) references ai_budgets(workspace_id,scope,period)
 ) strict;
-create index ai_queue on ai_jobs(created_at,id) where state='queued';
+-- Admission order: created_at, then insertion order (rowid, which every index entry carries) for equal timestamps.
+create index ai_queue on ai_jobs(created_at) where state='queued';
 create index ai_consents_actor on ai_consents(actor_id) where actor_id is not null;
 create index ai_jobs_actor on ai_jobs(actor_id) where actor_id is not null;
 create index ai_consents_document on ai_consents(workspace_id,document_id);

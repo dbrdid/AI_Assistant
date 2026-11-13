@@ -2,7 +2,7 @@
 // opened by rpc/index.js, so a throw anywhere rolls back every row it wrote (document, journal, audit, receipt,
 // head and signals stay one unit). SQLite admits one writer at a time, which replaces the workspace row locks.
 import {
-  fail, isPlainObject, canonicalJson, sha256, byteLength, charLength, utcText, uuidCast, isUuid,
+  fail, isPlainObject, canonicalJson, sha256, byteLength, charLength, utcText, uuidCast,
   lockWorkspace, roleRank, folderRank, documentRank, requireOwner, audit, signal, checkLimit, isVersionText, nextId,
   MAX_BIGINT, PAGE_BUDGET, TRASH_RETENTION_US,
 } from './core.js';
@@ -608,7 +608,7 @@ function getDocuments(ctx, { p_workspace_id: w, p_ids: ids, p_expected_epoch: ex
   if (roleRank(ctx, w) < 1) fail('forbidden');
   if (ids === null || ids.length < 1 || ids.length > 500) fail('invalid_request');
   // Every element a uuid (no null, no nested array), and no duplicates.
-  const canonical = ids.map(id => isUuid(id) ? id.toLowerCase() : fail('invalid_request'));
+  const canonical = ids.map(id => uuidCast(id) ?? fail('invalid_request'));
   if (new Set(canonical).size !== canonical.length) fail('invalid_request');
   const base = { head: String(x.head), access_epoch: String(x.access_epoch) };
   if (expected !== String(x.access_epoch)) return { restart_required: true, documents: [], processed: 0, ...base };

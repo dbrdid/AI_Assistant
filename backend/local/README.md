@@ -47,6 +47,7 @@ backend.deleteUser(userId);                                      // 계정 삭�
 - **잠금 대신 단일 작성자.** 각 RPC는 `BEGIN IMMEDIATE` 트랜잭션 하나에서 동기 실행됩니다. 실행 중에는 다른 호출이 끼어들 수 없으므로 workspace 행 잠금, 잠금 순서, `SKIP LOCKED`, `lock_timeout`이 필요 없습니다. 대신 쓰기가 직렬화되므로 동시 접속이 많은 서버에는 맞지 않습니다.
 - **계정 삭제는 함수 호출입니다.** 예전 `auth.users` BEFORE DELETE 트리거 대신 `backend.deleteUser(id)`가 같은 트랜잭션에서 정리하고 계정 행을 지웁니다.
 - **Realtime·PostgREST·Supabase Auth가 없습니다.** `user_signals` 테이블은 남아 있지만, 이를 클라이언트에 밀어 주는 경로와 HTTP API는 아직 없습니다.
+- **정수 범위.** 카운터와 금액은 JS 숫자로 다루므로 2^53을 넘는 값(펜싱 토큰, 비용, 예산 한도)은 `invalid_request`로 거부합니다. PostgreSQL bigint는 9.2×10^18까지 받았지만 실제로 도달할 수 없는 범위입니다. 문서 revision·ACL 버전 문자열은 여전히 19자리까지 형식 검사를 합니다.
 - 서명된 JWT 검증, 운영 KMS, 키 복구, 실제 AI 제공자, Storage 소비자(`storage_deletions`)는 여전히 미구현입니다.
 
 ## 권한과 데이터 규칙 (예전 SQL과 같음)

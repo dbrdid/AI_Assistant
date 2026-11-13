@@ -1,6 +1,6 @@
 // AI RPCs, ported from supabase/migrations/202611090002_ai.sql. Budget reservation and queue insertion happen in the
 // same transaction (rpc/index.js), so a job never exists without its hold, nor a hold without its job.
-import { fail, isPlainObject, canonicalJson, sha256, utcText, uuidCast, roleRank, documentRank, MAX_BIGINT } from './core.js';
+import { fail, isPlainObject, canonicalJson, sha256, utcText, uuidCast, charLength, roleRank, documentRank, MAX_BIGINT } from './core.js';
 
 const USER = ['authenticated'];
 const EXECUTOR = ['ai_executor'];
@@ -73,9 +73,10 @@ function grantConsent(ctx, { p_request: r }) {
     || !Number.isInteger(r.max_output_tokens) || r.max_output_tokens < 1 || r.max_output_tokens > 1000000
     || typeof r.payload_sha256 !== 'string' || !HEX64.test(r.payload_sha256)
     || r.purpose !== 'summary'
-    || typeof r.retention_version !== 'string' || r.retention_version.length < 1 || r.retention_version.length > 200
+    || typeof r.retention_version !== 'string' || charLength(r.retention_version) < 1 || charLength(r.retention_version) > 200
     || typeof r.expires_at !== 'string') fail('invalid_request');
-  const expiresMs = Date.parse(r.expires_at);
+  // An explicit offset is required: a bare local time would depend on the server time zone.
+  const expiresMs = /(Z|[+-]\d\d:?\d\d)$/i.test(r.expires_at) ? Date.parse(r.expires_at) : NaN;
   if (!Number.isFinite(expiresMs)) fail('invalid_request');
   const c = {
     id: uuidCast(r.consent_id), workspace_id: uuidCast(r.workspace_id), actor_id: ctx.uid, document_id: uuidCast(r.document_id),
@@ -137,7 +138,7 @@ function revokeConsent(ctx, { p_consent_id: id }) {
 function setRoute(ctx, { p_request: r }) {
   if (!isPlainObject(r) || !onlyKeys(r, ['route_id', 'provider_id', 'model_id', 'retention_version', 'max_cost_microusd', 'max_output_tokens'])) fail('invalid_route');
   const int = v => typeof v === 'number' ? (Number.isSafeInteger(v) ? v : NaN) : typeof v === 'string' && /^-?[0-9]{1,16}$/.test(v) ? Number(v) : NaN;
-  const text = v => typeof v === 'string' && v.length >= 1 && v.length <= 200;
+  const text = v => typeof v === 'string' && charLength(v) >= 1 && charLength(v) <= 200;
   const route = { route_id: r.route_id, provider_id: r.provider_id, model_id: r.model_id, retention_version: r.retention_version,
     max_cost_microusd: int(r.max_cost_microusd), max_output_tokens: int(r.max_output_tokens) };
   if (!text(route.route_id) || !text(route.provider_id) || !text(route.model_id) || !text(route.retention_version)
@@ -203,7 +204,7 @@ function claimJob(ctx, { p_lease_seconds: lease }) {
   // Oldest queued job of the lowest workspace id, as the PostgreSQL version picked its first unlocked workspace.
   const w = ctx.q.get("select min(workspace_id) as w from ai_jobs where state='queued'").w;
   if (!w) return null;
-  const j = ctx.q.get("select id from ai_jobs where workspace_id=? and state='queued' order by created_at,id limit 1", w);
+  const j = ctx.q.get("select id from ai_jobs where workspace_id=? and state='queued' order by created_at,rowid limit 1", w);
   ctx.q.run("update ai_jobs set state='claimed',fencing_token=fencing_token+1,lease_until=? where id=?", ctx.now() + lease * 1_000_000, j.id);
   return jobJson(ctx, getJob(ctx, j.id));
 }
@@ -252,7 +253,7 @@ function settleJob(ctx, { p_job_id: id, p_fencing_token: token, p_provider_event
   if ((j.state !== 'dispatched' && j.state !== 'outcome_unknown') || j.hold_released) fail('not_dispatched');
   if (cost === null || cost < 0 || cost > j.reserved_microusd) fail('invalid_cost');
   if ((outcome !== 'succeeded' && outcome !== 'failed') || (outcome === 'succeeded' && ref === null) || (outcome === 'failed' && ref !== null)) fail('invalid_outcome');
-  if (event === null || event.length < 1 || event.length > 200 || (ref !== null && !REF_RE.test(ref))) fail('invalid_request');
+  if (event === null || charLength(event) < 1 || charLength(event) > 200 || (ref !== null && !REF_RE.test(ref))) fail('invalid_request');
   if (ctx.q.get('select 1 from ai_usage_ledger where provider_event_id=?', event)) fail('event_id_reused');
   ctx.q.run('insert into ai_usage_ledger(workspace_id,job_id,provider_event_id,cost_microusd,outcome,result_ref,settled_at) values(?,?,?,?,?,?,?)',
     j.workspace_id, j.id, event, cost, outcome, ref, ctx.now());
