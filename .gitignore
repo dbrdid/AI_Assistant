@@ -36,5 +36,5 @@ uploads/
 Thumbs.db
 
 # Container env and temporary test output
-backend/cloud/.env
+
 .next/

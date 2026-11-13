@@ -1,47 +1,45 @@
 # SW 모바일 AI 비서 — AI Assistant
 
-사용자의 메모와 기록에서 할 일·일정 후보를 정리하고, 저장한 기록을 근거로 질문에 답하는 모바일 개인 비서 프로젝트입니다.
+사용자의 기록을 관리하고 AI 초안을 검토하는 모바일 개인 비서 프로젝트입니다.
 
-## 현재 상태
+## 현재 상태 (2026-11-14)
 
-2026-11-09 기준 개발 골자와 **실행 가능한 Node.js + Fastify AI API 서버**를 포함합니다. 서버는 별도 Ollama 추론 런타임에 연결합니다. 모바일 앱 연결·DB migration·실제 모델 품질/성능·운영 배포는 미완료입니다. 기존 브라우저 UI 체험은 제품·네이티브 앱·실제 서버 검증과 구분합니다.
+백엔드는 `backend/local/`의 SQLite(Node.js 내장 node:sqlite) 구현만 유지합니다. 기존 별도 Fastify AI 서버와 Docker Compose 실행 설정은 제거했습니다. 로컬 Gateway·Worker·암호화 보관 어댑터는 유지합니다. 이 변경은 모델을 사용자 기기에서 실행한다는 뜻이 아닙니다. 자체 호스팅 Gemma의 클라우드 실행과 외부 AI API 선택은 통합 설계이며, 실제 추론 경로·호스팅은 아직 연결하지 않았습니다.
 
-## 이번 변경
+프론트는 `frontend/Frontend_UI/`에 있습니다. Node.js 백엔드 코드를 Expo에 바로 import할 수는 없으며 네이티브 SQLite 연결·Store·통신 경로를 별도로 통합해야 합니다. 모델 파일·사용자 데이터·비밀 키는 포함하지 않습니다.
 
-모바일 기기에서 LLM을 직접 실행하는 기본 경로를 **별도로 구축할 AI 서버에서 추론하는 경로**로 변경합니다. 모바일 성능·메모리 부담을 줄이기 위한 설계 결정이며, 특정 모델이 모든 모바일에서 실행 불가능하다는 실험 결과는 아닙니다.
+## 실행과 검증
 
-로컬 SQLite 중심의 기록 관리, 기존 화면과 기능 범위, AI 초안 검토·사용자 승인 원칙은 유지합니다. AI 서버 사용은 데이터 동기화·클라우드 백업 동의와 별개입니다. 서버 연결이 없으면 AI 기능은 사용할 수 없으며, 수동 저장·수정·조회·기본 검색은 계속 동작하도록 설계합니다.
+Node.js 22.13 이상이 필요합니다. 저장소 루트에서:
+
+```sh
+npm --prefix backend/local ci --ignore-scripts
+npm --prefix backend/local test
+npm --prefix backend/local run demo:ai
+```
+
+AI 데모는 실제 SQLite와 합성 제공자를 사용하는 로컬 검증입니다. 실제 Gemma·외부 AI API·운영 배포의 증거가 아닙니다. GitHub Actions는 `local-tests`를 실행합니다.
+
+## 담당 영역
+
+| 폴더 | 역할 |
+| --- | --- |
+| frontend/ | 화면·입력·화면 상태 |
+| backend/local/ | SQLite·RPC·권한·AI Gateway·작업 큐·Worker |
+| ai/ | AI 담당 영역. 문서 AI 구현은 현재 별도 AI 작업 브랜치에서 관리 |
+| shared/ | 팀 공통 계약 |
+| tests/ | 영역 간 통합 시험 |
+| docs/ | 설계·검증 기록 |
 
 ## 문서
 
-- [AI 서버 실행과 설정](backend/cloud/README.md)
-- [AI 서버 구조·API 계약](docs/SERVER.md)
-- [서버 검증 결과와 미검증 범위](docs/VERIFICATION.md)
+- [로컬 백엔드 실행·구현 범위](backend/local/README.md)
+- [백엔드 구성과 계약](docs/SERVER.md)
+- [전체 구조](docs/ARCHITECTURE.md)
+- [AI 데이터·작업 큐](backend/local/AI-DATABASE.md)
+- [검증 기록](docs/VERIFICATION.md)
+- [팀 개발 규칙](docs/CONTRIBUTING.md)
+- [제품 범위](docs/PRODUCT.md) · [데이터 흐름](docs/DATA_FLOW.md) · [개발 순서](docs/ROADMAP.md)
+- [과거 서버 추론 결정](docs/decisions/0001-server-inference.md)
 
-- [제품 기능과 범위](docs/PRODUCT.md)
-- [전체 구조와 책임](docs/ARCHITECTURE.md)
-- [데이터와 AI 요청 흐름](docs/DATA_FLOW.md)
-- [개발 순서와 검증 기준](docs/ROADMAP.md)
-- [AI 실행 위치 변경 결정](docs/decisions/0001-server-inference.md)
-
-## 기술 방향
-
-| 영역 | 방향 | 상태 |
-| --- | --- | --- |
-| 모바일 | React Native / Expo 검토·기존 프론트엔드 방향 유지 | 패키지 버전·빌드 호환 검증 필요 |
-| 로컬 데이터 | SQLite와 앱 전용 첨부 파일 저장소 | 네이티브 연결·마이그레이션 미구현 |
-| AI | 앱 → Fastify API → 별도 Ollama 추론 런타임 | API·어댑터 구현, 실제 모델/모바일 연동·운영 배포 미검증 |
-| 계정·동기화 | SQLite 동기화·AI 큐 백엔드(backend/local, node:sqlite) | AI 서버와 별도 책임, 미구현 |
-
-서버는 JavaScript·Fastify와 Ollama 어댑터를 사용합니다. 초기 인증은 사용자별 만료 토큰이며 정식 계정 연동은 후속입니다. 호스팅·GPU·모델·운영 비용은 미확정입니다. 모바일 언어 선택과 상세 UI 이관은 이번 변경 범위에 포함하지 않습니다.
-
-## 공유 범위
-
-기존 현재 앱의 제품·아키텍처·M1·AI·데이터 설계에서 팀 개발에 필요한 골자를 정리하고 서버 코드를 추가했습니다. 과거 기기 내 추론 우선 정책은 서버 추론 결정으로 대체합니다. 다른 독립 프로젝트의 코드·기능·검증 결과, 사용자 데이터, 모델 파일, 비밀 키, 발표자료와 과거 보관본은 포함하지 않습니다.
-
-## 팀별 모노레포 구조
-
-frontend/, backend/local/, backend/cloud/, ai/, shared/, tests/, docs/, .github/로 구분합니다. 기존 server/는 backend/cloud/로 이동했습니다. 나머지 앱 영역은 책임을 명시한 준비 폴더이며 구현 완료를 뜻하지 않습니다. [팀 개발 규칙](docs/CONTRIBUTING.md)을 따릅니다.
-
-서버 시험: npm --prefix backend/cloud test
-
+AI 초안은 사용자 승인과 문서 버전 검사 후 적용합니다. AI 전송 동의는 동기화·백업 동의와 구분합니다. 삭제된 서버의 과거 구현·시험 기록은 Git 이력으로 확인하며 현재 실행 안내로 사용하지 않습니다.

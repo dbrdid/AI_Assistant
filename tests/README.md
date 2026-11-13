@@ -1,3 +1,3 @@
 # tests
 
-영역 간 통합 테스트를 위한 위치입니다. 현재 서버 API·모의 추론 HTTP 시험은 backend/cloud/test/server.test.js에서 실행합니다. 실제 모델·모바일·Azure 연동 시험은 아직 없습니다.
+영역 간 통합 시험을 위한 위치입니다. 현재 로컬 SQLite·Gateway·Worker 시험은 `npm --prefix backend/local test`로 실행합니다. 실제 모델·모바일·Azure 전체 연동은 아직 미검증입니다. 삭제된 서버의 시험을 실행하지 않습니다.

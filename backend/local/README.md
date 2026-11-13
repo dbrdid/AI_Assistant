@@ -4,7 +4,7 @@
 
 ## 현재 들어 있는 코드
 
-동기화·협업·계정 삭제와 AI 동의·예산·큐를 **SQLite(Node 내장 `node:sqlite`)** 위에서 처리하는 백엔드입니다. 2026-11-13에 Supabase(PostgreSQL) 마이그레이션과 PL/pgSQL 함수를 JS로 옮겼습니다. 저장소의 `backend/cloud`(Fastify + Ollama)와는 아직 연결되지 않았습니다.
+동기화·협업·계정 삭제와 AI 동의·예산·큐를 **SQLite(Node 내장 `node:sqlite`)** 위에서 처리하는 백엔드입니다. 2026-11-13에 Supabase(PostgreSQL) 마이그레이션과 PL/pgSQL 함수를 JS로 옮겼습니다. 2026-11-14 기존 별도 Fastify 서버를 제거했으며, 이 폴더의 DB·RPC·Gateway·Worker는 유지합니다. 실제 모델·모바일 연결은 여전히 별도 통합 대상입니다.
 
 | 경로 | 내용 |
 |---|---|
