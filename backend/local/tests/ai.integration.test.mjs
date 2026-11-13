@@ -4,8 +4,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { SERVER_ERRORS } from '../contracts/errors.js';
-import { asUser, rpc, uuid, cipher, enableAi } from '../supabase/tests/ai-harness.mjs';
-import { join as joinWorkspace, deleteUserAsAuthAdmin } from '../supabase/tests/harness.mjs';
+import { uuid, cipher } from './harness.mjs';
 import { sha256 } from '../worker/index.js';
 import { aiFixture } from './ai-fixture.mjs';
 
@@ -21,7 +20,9 @@ async function grant(t, { workspace = t.workspace, document = t.document, max_co
   assert.equal((await t.request('/v1/ai/consents', consent)).status, 201);
   return { job_id: randomUUID(), consent_id: consent.consent_id, input_ref: 'opaque_input', payload_sha256, route_id: t.route.id };
 }
-const jobCount = async t => (await t.db.query('select count(*)::int n from app.ai_jobs')).rows[0].n;
+const jobCount = async t => t.db.prepare('select count(*) n from ai_jobs').get().n;
+const documentRevision = t => String(t.db.prepare('select revision from documents where id=?').get(t.document).revision);
+const joinWorkspace = (t, w, user, role) => { t.as(t.actor, 'invite_member', [w, user, role]); t.as(user, 'respond_invitation', [w, true]); };
 
 test('signed JWT -> consent -> encrypted input -> durable job -> reviewed draft and settled budgets', async () => {
   const t = await aiFixture(); try {
@@ -31,7 +32,7 @@ test('signed JWT -> consent -> encrypted input -> durable job -> reviewed draft 
     const status = await t.status(job.id); assert.ok(status.result_ref); assert.equal(status.source_stale, false);
     const draft = await t.vault.readDraft(status); assert.match(draft.summary, /초안/);
     assert.deepEqual(await t.balances(), [{ held: '0', spent: '20' }, { held: '0', spent: '20' }]);
-    assert.equal((await t.db.query('select revision::text r from app.documents where id=$1', [t.document])).rows[0].r, '1');
+    assert.equal(documentRevision(t), '1');
     for (const file of await readdir(join(t.directory, 'vault'))) {
       const encrypted = await readFile(join(t.directory, 'vault', file), 'utf8');
       assert.equal(encrypted.includes(text), false); assert.equal(encrypted.includes(draft.summary), false);
@@ -80,7 +81,7 @@ test('cancel after submission settles real usage but suppresses and removes late
     assert.equal((await readdir(join(t.directory, 'vault'))).length, 1);
   } finally { await t.close(); }
 });
-test('queued jobs and held budgets survive PostgreSQL close/reopen', async () => {
+test('queued jobs and held budgets survive SQLite close/reopen', async () => {
   const t = await aiFixture({ persistent: true }); try {
     const { job } = await t.enqueue(); await t.reopen();
     assert.equal((await t.status(job.id)).state, 'queued');
@@ -96,12 +97,12 @@ test('source changing during generation marks draft stale and never overwrites c
     const { job } = await t.enqueue();
     const run = t.worker({ providers: { synthetic: { ...t.provider, complete: async args => {
       // Fixture-only simulated concurrent source edit; the worker has no source-write API.
-      await t.db.query('update app.documents set revision=2 where id=$1', [t.document]);
+      t.db.prepare('update documents set revision=2 where id=?').run(t.document);
       return t.provider.complete(args);
     } } } });
     const result = await run(); assert.equal(result.state, 'succeeded'); assert.equal(result.source_stale, true);
     const status = await t.status(job.id); assert.equal(status.source_revision, '1'); assert.equal(status.source_stale, true);
-    assert.equal((await t.db.query('select revision::text r from app.documents where id=$1', [t.document])).rows[0].r, '2');
+    assert.equal(documentRevision(t), '2');
   } finally { await t.close(); }
 });
 
@@ -139,9 +140,9 @@ test('an admission in a workspace without budgets for the month is budget_not_co
   const t = await aiFixture(); try {
     // A second workspace of the same actor, with no budget rows.
     const workspace = uuid(11), document = uuid(21);
-    await asUser(t.db, t.actor, () => rpc(t.db, 'create_workspace', [workspace, 'Synthetic unbudgeted']));
-    await enableAi(t.db, t.actor, workspace);
-    await asUser(t.db, t.actor, () => rpc(t.db, 'create_document', [workspace, document, null, 'note', cipher(workspace, document)]));
+    t.as(t.actor, 'create_workspace', [workspace, 'Synthetic unbudgeted']);
+    t.as(t.actor, 'set_ai_enabled', [workspace, true]);
+    t.as(t.actor, 'create_document', [workspace, document, null, 'note', cipher(workspace, document)]);
     const admission = await grant(t, { workspace, document });
     await expectRejection(await t.request('/v1/ai/jobs', admission), 'budget_not_configured');
     assert.equal(await jobCount(t), 0);
@@ -155,7 +156,7 @@ test('an admission in a workspace without budgets for the month is budget_not_co
 test("another user's job status or cancel is forbidden (403), the same as for a job that does not exist", async () => {
   const t = await aiFixture(); try {
     const { job } = await t.enqueue();
-    const outsider = uuid(2); await t.db.query('insert into auth.users values($1)', [outsider]);
+    const outsider = uuid(2); t.backend.createUser(outsider);
     await expectRejection(await t.requestAs(outsider, `/v1/ai/jobs/${job.id}`, undefined, 'GET'), 'forbidden');
     await expectRejection(await t.requestAs(outsider, `/v1/ai/jobs/${job.id}/cancel`, {}), 'forbidden');
     // A job ID that does not exist gets the same answer, so the outsider cannot tell whether a job exists.
@@ -168,7 +169,7 @@ test("another user's job status or cancel is forbidden (403), the same as for a 
 });
 test('with AI off in the workspace, consent and admission are ai_disabled (403) and nothing is reserved', async () => {
   const t = await aiFixture(); try {
-    const setAi = enabled => asUser(t.db, t.actor, () => rpc(t.db, 'set_ai_enabled', [t.workspace, enabled]));
+    const setAi = async enabled => t.as(t.actor, 'set_ai_enabled', [t.workspace, enabled]);
     await setAi(false);
     const consent = { approved: true, consent_id: randomUUID(), workspace_id: t.workspace, document_id: t.document, source_revision: '1', payload_sha256: sha256('합성 입력'), purpose: 'summary', route_id: t.route.id, retention_version: t.route.retention_version, max_cost_microusd: '100', max_output_tokens: 64, expires_at: new Date(Date.now() + 3600000).toISOString() };
     await expectRejection(await t.request('/v1/ai/consents', consent), 'ai_disabled');
@@ -185,8 +186,8 @@ test('with AI off in the workspace, consent and admission are ai_disabled (403) 
 test("a deleted member's queued job never reaches the provider and releases only the workspace hold", async () => {
   const t = await aiFixture(); try {
     // A second member with its own budget row; the fixture's actor owns the workspace.
-    const member = uuid(2); await t.db.query('insert into auth.users values($1)', [member]);
-    await joinWorkspace(t.db, t.actor, t.workspace, member, 'editor');
+    const member = uuid(2); t.backend.createUser(member);
+    joinWorkspace(t, t.workspace, member, 'editor');
     await t.bridge.privilegedRpc('ai_set_budget', { p_workspace_id: t.workspace, p_actor_id: member, p_period: new Date().toISOString().slice(0, 7), p_limit_microusd: '200' });
     const text = '합성 회의 기록입니다.';
     const consent = { approved: true, consent_id: randomUUID(), workspace_id: t.workspace, document_id: t.document, source_revision: '1', payload_sha256: sha256(text), purpose: 'summary', route_id: t.route.id, retention_version: t.route.retention_version, max_cost_microusd: '100', max_output_tokens: 64, expires_at: new Date(Date.now() + 3600000).toISOString() };
@@ -196,9 +197,9 @@ test("a deleted member's queued job never reaches the provider and releases only
     assert.equal((await t.requestAs(member, '/v1/ai/jobs', admission)).status, 202);
     // Budget rows by scope: the workspace, the owner, the member.
     assert.deepEqual(await t.balances(), [{ held: '100', spent: '0' }, { held: '0', spent: '0' }, { held: '100', spent: '0' }]);
-    assert.equal(await deleteUserAsAuthAdmin(t.db, member), 1);
+    assert.equal(t.backend.deleteUser(member), 1);
     // The job stays with the workspace, unlinked; the member's budget row went with the account.
-    assert.deepEqual((await t.db.query('select actor_id, state from app.ai_jobs where id = $1', [admission.job_id])).rows, [{ actor_id: null, state: 'queued' }]);
+    assert.deepEqual([{ ...t.db.prepare('select actor_id, state from ai_jobs where id = ?').get(admission.job_id) }], [{ actor_id: null, state: 'queued' }]);
     assert.deepEqual(await t.balances(), [{ held: '100', spent: '0' }, { held: '0', spent: '0' }]);
     // The vault cannot rebuild the input's binding without the actor, so the worker stops before dispatch.
     assert.deepEqual(await t.worker()(), { id: admission.job_id, state: 'failed' });

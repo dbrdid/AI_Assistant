@@ -188,7 +188,7 @@ test('store errors: contract reasons keep their status, transient failures are 5
  const dbError=(code,message)=>Object.assign(new Error(message),{code,detail:secret,hint:secret});
  const unavailable={error:'temporarily_unavailable'},internal={error:'internal_error'};
  const cases=[
-  // Every contract reason, shaped like a PGlite error: SQLSTATE in code, reason in message. The gateway verified the
+  // Every contract reason, shaped like a backend RpcError: PT<status> in code, reason in message. The gateway verified the
   // subject itself, so a store 'unauthenticated' (kind auth) is a server fault, not a request to sign in again.
   ...Object.entries(SERVER_ERRORS).map(([reason,{status,sqlstate,kind}])=>[dbError(sqlstate,reason),kind==='auth'?500:status,kind==='auth'?internal:{error:reason}]),
   // A plain object, such as a parsed PostgREST body, is read the same way.

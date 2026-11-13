@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { webcrypto, createHash } from 'node:crypto';
 import { createEncryptedVault } from '../adapters/encrypted-vault.js';
-import { createSqlAiBridge, createTransactionRunner } from '../adapters/sql-ai.js';
+import { createSqliteAiBridge } from '../adapters/sqlite-ai.js';
+import { openDatabase, transaction } from '../db/database.js';
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 test('encrypted vault binds actor/document/consent and rejects tampering and path traversal', async () => {
   const root = await mkdtemp(join(tmpdir(), 'ai-vault-test-')); try {
@@ -23,19 +24,33 @@ test('encrypted vault binds actor/document/consent and rejects tampering and pat
     assert.equal((await readdir(root)).length, 1);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
-test('SQL bridge rejects arbitrary methods/parameters and isolates role per transaction', async () => {
-  const queries = [];
-  const bridge = createSqlAiBridge({ transaction: async callback => callback({ query: async (text, values) => { queries.push({ text, values }); return { rows: [{ result: { state: 'queued' } }] }; } }) });
-  await bridge.userRpc(id(1), 'ai_job_status', { p_job_id: id(2) });
-  assert.equal(queries[0].text, 'SET LOCAL ROLE authenticated'); assert.equal(queries[1].values[0], id(1));
-  assert.match(queries[2].text, /p_job_id => \$1::uuid/);
+test('SQLite bridge rejects arbitrary methods/parameters and keeps the user and executor roles apart', async () => {
+  const calls = [];
+  const bridge = createSqliteAiBridge({ call: (identity, name, args) => { calls.push({ identity, name, args }); return { state: 'queued' }; } });
+  assert.deepEqual(await bridge.userRpc(id(1), 'ai_job_status', { p_job_id: id(2) }), { state: 'queued' });
+  assert.deepEqual(calls[0], { identity: { role: 'authenticated', uid: id(1) }, name: 'ai_job_status', args: { p_job_id: id(2) } });
+  await bridge.privilegedRpc('ai_reap_jobs', {});
+  assert.deepEqual(calls[1].identity, { role: 'ai_executor' });
   assert.throws(() => bridge.userRpc(id(1), 'ai_set_budget', {}));
+  assert.throws(() => bridge.userRpc('not-a-uuid', 'ai_job_status', { p_job_id: id(2) }));
   assert.throws(() => bridge.privilegedRpc('ai_claim_job; DROP TABLE users', {}));
   assert.throws(() => bridge.privilegedRpc('ai_claim_job', { p_lease_seconds: 60, malicious: 'x' }));
+  assert.throws(() => bridge.privilegedRpc('ai_claim_job', {}));
+  assert.throws(() => bridge.privilegedRpc('ai_job_status', { p_job_id: id(2) }));
+  assert.equal(calls.length, 2);
+  // A backend failure arrives as a rejected promise, never a synchronous throw.
+  const failing = createSqliteAiBridge({ call: () => { throw Object.assign(new Error('forbidden'), { code: 'PT403' }); } });
+  await assert.rejects(failing.userRpc(id(1), 'ai_job_status', { p_job_id: id(2) }), { code: 'PT403' });
 });
-test('PostgreSQL pool adapter always rolls back and releases on failure', async () => {
-  const calls = [];
-  const runner = createTransactionRunner({ connect: async () => ({ query: async text => calls.push(text), release: () => calls.push('release') }) });
-  await assert.rejects(runner(async () => { throw Error('synthetic failure'); }));
-  assert.deepEqual(calls, ['BEGIN', 'ROLLBACK', 'release']);
+test('SQLite transactions always roll back on failure and refuse async callbacks and nesting', () => {
+  const db = openDatabase();
+  try {
+    db.exec('create table t(x)');
+    assert.throws(() => transaction(db, () => { db.exec('insert into t values(1)'); throw Error('synthetic failure'); }), /synthetic failure/);
+    assert.throws(() => transaction(db, async () => { db.exec('insert into t values(2)'); }), /synchronous/);
+    assert.throws(() => transaction(db, () => transaction(db, () => 1)), /Nested/);
+    assert.equal(db.prepare('select count(*) n from t').get().n, 0);
+    assert.equal(db.isTransaction, false);
+    assert.equal(db.prepare('pragma foreign_keys').get().foreign_keys, 1);
+  } finally { db.close(); }
 });
