@@ -31,7 +31,7 @@ try {
     final_state: result.state,
     provider_calls: fixture.calls(),
     draft_encrypted_at_rest: !!after.result_ref && !!draft.summary && atRest,
-    source_revision_unchanged: (await fixture.db.query('select revision::text revision from app.documents where id=$1', [fixture.document])).rows[0].revision === '1',
+    source_revision_unchanged: fixture.db.prepare('select revision from documents where id=?').get(fixture.document).revision === 1,
     budget_accounts: await fixture.balances(),
     actual_money_charged: false,
   }, null, 2));

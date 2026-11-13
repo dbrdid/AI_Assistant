@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SERVER_ERRORS } from '../../contracts/errors.js';
 import { createWorker, sha256 } from '../index.js';
-// A contract error as PGlite reports it: SQLSTATE in code, reason in message.
+// A contract error as the backend reports it: PT<status> in code, reason in message.
 const contractError=reason=>Object.assign(new Error(reason),{code:SERVER_ERRORS[reason].sqlstate});
 const route={id:'synthetic-v1',provider:'synthetic',model:'synthetic-model',retention_version:'none-v1',max_cost_microusd:'1000',max_output_tokens:500};
 function fixture(options={}) {

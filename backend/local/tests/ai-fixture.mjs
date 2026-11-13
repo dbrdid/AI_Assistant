@@ -3,26 +3,29 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID, webcrypto } from 'node:crypto';
 import { generateKeyPair, exportJWK, SignJWT } from 'jose';
-import { aiDatabase, asUser, rpc, uuid, cipher, enableAi } from '../supabase/tests/ai-harness.mjs';
-import { createSqlAiBridge } from '../adapters/sql-ai.js';
+import { createBackend } from '../rpc/index.js';
+import { createSqliteAiBridge } from '../adapters/sqlite-ai.js';
 import { createEncryptedVault } from '../adapters/encrypted-vault.js';
 import { createJwtVerifier } from '../gateway/auth.js';
 import { createGatewayStore } from '../gateway/store.js';
 import { createGateway } from '../gateway/index.js';
 import { createWorkerStore } from '../worker/store.js';
 import { createWorker, sha256 } from '../worker/index.js';
+import { uuid, cipher } from './harness.mjs';
 export async function aiFixture({ persistent = false } = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'ai-gateway-test-'));
-  const dataDir = persistent ? join(directory, 'postgres') : undefined;
-  let db = await aiDatabase({ dataDir });
+  const path = persistent ? join(directory, 'backend.sqlite') : ':memory:';
+  let backend = createBackend({ path });
   const actor = uuid(1), workspace = uuid(10), document = uuid(20);
   const route = { id: 'synthetic-summary-v1', provider: 'synthetic', model: 'synthetic-summary', retention_version: 'local-test-only-v1', max_cost_microusd: '100', max_output_tokens: 128 };
-  const bridge = createSqlAiBridge({ transaction: callback => db.transaction(callback) });
-  await db.query('insert into auth.users values($1)', [actor]);
-  await asUser(db, actor, () => rpc(db, 'create_workspace', [workspace, 'Synthetic AI tests']));
+  // The bridge resolves the current backend on every call, so it survives reopen().
+  const bridge = createSqliteAiBridge({ call: (...args) => backend.call(...args) });
+  const as = (user, name, args) => backend.call({ role: 'authenticated', uid: user }, name, args);
+  backend.createUser(actor);
+  as(actor, 'create_workspace', [workspace, 'Synthetic AI tests']);
   // AI is off in a new workspace (F29 minimum); the actor owns this one and turns it on.
-  await enableAi(db, actor, workspace);
-  await asUser(db, actor, () => rpc(db, 'create_document', [workspace, document, null, 'note', cipher(workspace, document)]));
+  as(actor, 'set_ai_enabled', [workspace, true]);
+  as(actor, 'create_document', [workspace, document, null, 'note', cipher(workspace, document)]);
   await bridge.privilegedRpc('ai_set_route', { p_request: { route_id: route.id, provider_id: route.provider, model_id: route.model, retention_version: route.retention_version, max_cost_microusd: route.max_cost_microusd, max_output_tokens: route.max_output_tokens } });
   const period = new Date().toISOString().slice(0, 7);
   for (const who of [null, actor]) await bridge.privilegedRpc('ai_set_budget', { p_workspace_id: workspace, p_actor_id: who, p_period: period, p_limit_microusd: '200' });
@@ -57,10 +60,11 @@ export async function aiFixture({ persistent = false } = {}) {
   };
   const worker = overrides => createWorker({ store: createWorkerStore(bridge.privilegedRpc), loadInput: vault.loadInput, saveDraft: vault.saveDraft, deleteDraft: vault.remove, routes: [route], providers: { synthetic: provider }, ...overrides });
   return {
-    directory, actor, workspace, document, route, bridge, vault, request, requestAs, enqueue, worker, provider, get db() { return db; }, calls: () => calls,
+    directory, actor, workspace, document, route, bridge, vault, request, requestAs, enqueue, worker, provider, as, calls: () => calls,
+    get backend() { return backend; }, get db() { return backend.db; },
     status: async id => (await request(`/v1/ai/jobs/${id}`, undefined, 'GET')).json(),
-    balances: async () => (await db.query('select held_microusd::text held,spent_microusd::text spent from app.ai_budgets order by scope')).rows,
-    async reopen() { if (!persistent) throw new Error('Persistent fixture required'); await db.close(); db = await aiDatabase({ dataDir, initialize: false }); },
-    async close() { await db.close(); await rm(directory, { recursive: true, force: true }); },
+    balances: async () => backend.db.prepare('select cast(held_microusd as text) held,cast(spent_microusd as text) spent from ai_budgets order by scope').all().map(r => ({ ...r })),
+    async reopen() { if (!persistent) throw new Error('Persistent fixture required'); backend.close(); backend = createBackend({ path }); },
+    async close() { backend.close(); await rm(directory, { recursive: true, force: true }); },
   };
 }

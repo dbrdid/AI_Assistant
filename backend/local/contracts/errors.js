@@ -1,11 +1,11 @@
 /**
- * Error contract v1, shared by the SQL RPCs, PostgREST clients, the AI Gateway and the AI worker.
+ * Error contract v1, shared by the SQLite RPCs (rpc/), HTTP clients, the AI Gateway and the AI worker.
  *
- * SQL raises every business error as `raise exception '<reason>' using errcode='PT<status>'`.
- * PostgREST turns SQLSTATE PTxyz into HTTP status xyz with the body {code, message, details, hint},
- * so `message` carries the stable reason and `code` repeats the status. Any other SQLSTATE that reaches
- * a caller (42501 permission denied, 23505, 22P02, ...) is a server fault or misconfiguration, never a
- * business decision: callers treat it as unavailable and retry later without changing local state.
+ * The RPCs throw every business error as RpcError with code PT<status> and message <reason> (rpc/core.js).
+ * An HTTP layer maps PTxyz to status xyz with a body {code, message}, so `message` carries the stable
+ * reason and `code` repeats the status. Any other code that reaches a caller (RpcFault 42501 or 42883,
+ * a SQLite constraint error, ...) is a server fault or misconfiguration, never a business decision:
+ * callers treat it as unavailable and retry later without changing local state.
  *
  * Kinds tell callers what to do:
  *   auth       the request has no usable subject; sign in again
@@ -84,7 +84,7 @@ export function isRejectionReason(reason) {
 }
 
 /**
- * Classifies a failed PostgREST RPC from its HTTP status and parsed body ({code, message} or null).
+ * Classifies a failed RPC over HTTP from its status and parsed body ({code, message} or null).
  * Only allowlisted reasons are returned, so untrusted body text never reaches errors or logs.
  *   AUTH_REQUIRED     sign in again (any 401)
  *   ACCESS_DENIED     a business access denial, never an infrastructure 42501
