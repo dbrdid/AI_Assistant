@@ -1,0 +1,13 @@
+{
+  "name": "backend-local",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.13.0" },
+  "scripts": {
+    "test": "node --test supabase/tests/*.test.mjs gateway/tests/*.test.mjs worker/tests/*.test.mjs tests/*.test.mjs",
+    "test:sql": "node --test supabase/tests/*.test.mjs",
+    "demo:ai": "node demo-ai.mjs"
+  },
+  "devDependencies": { "@electric-sql/pglite": "0.5.15" },
+  "dependencies": { "jose": "6.2.16" }
+}
