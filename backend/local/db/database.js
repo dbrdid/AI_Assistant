@@ -1,8 +1,9 @@
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 const SCHEMA = new URL('./schema.sql', import.meta.url);
+const INDEX_MIGRATION = new URL('./migrations/002-query-indexes.sql', import.meta.url);
 
 /**
  * Opens (and on first use creates) the SQLite database. ':memory:' gives a throwaway database for tests.
@@ -17,6 +18,8 @@ export function openDatabase(path = ':memory:', { busyTimeoutMs = 5000 } = {}) {
     db.exec(`pragma busy_timeout=${Number.isSafeInteger(busyTimeoutMs) && busyTimeoutMs >= 0 ? busyTimeoutMs : 5000}`);
     if (path !== ':memory:') db.exec('pragma journal_mode=wal');
     migrate(db);
+    // Bounded statistics maintenance; no durability PRAGMAs are weakened.
+    db.exec('pragma optimize=0x10002');
     return db;
   } catch (error) { db.close(); throw error; }
 }
@@ -25,9 +28,13 @@ export function openDatabase(path = ':memory:', { busyTimeoutMs = 5000 } = {}) {
 export function migrate(db) {
   const { user_version: version } = db.prepare('pragma user_version').get();
   if (version === SCHEMA_VERSION) return;
-  if (version !== 0) throw new Error(`Unknown schema version ${version}`);
+  if (version < 0 || version > SCHEMA_VERSION) throw new Error(`Unknown schema version ${version}`);
   transaction(db, () => {
-    db.exec(readFileSync(SCHEMA, 'utf8'));
+    // Re-read under the write lock in case another connection migrated first.
+    const current = db.prepare('pragma user_version').get().user_version;
+    if (current > SCHEMA_VERSION) throw new Error(`Unknown schema version ${current}`);
+    if (current === 0) db.exec(readFileSync(SCHEMA, 'utf8'));
+    if (current < 2) db.exec(readFileSync(INDEX_MIGRATION, 'utf8'));
     db.exec(`pragma user_version=${SCHEMA_VERSION}`);
   });
 }
