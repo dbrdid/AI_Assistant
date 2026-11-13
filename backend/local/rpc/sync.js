@@ -335,7 +335,8 @@ function listFolders(ctx, { p_workspace_id: w, p_after_id: after, p_limit: limit
   if (roleRank(ctx, w) < 1) fail('forbidden');
   checkLimit(limit);
   const rows = [];
-  for (const f of ctx.q.all('select id,parent_id from folders where workspace_id=? and (? is null or id>?) order by id', w, after, after)) {
+  const folderSql = `select id,parent_id from folders where workspace_id=?${after === null ? '' : ' and id>?'} order by id`;
+  for (const f of ctx.q.iterate(folderSql, w, ...(after === null ? [] : [after]))) {
     const rank = folderRank(ctx, w, f.id);
     if (rank > 0) rows.push({ id: f.id, parent_id: f.parent_id, can_edit: rank >= 2 });
     if (rows.length > limit) break;
@@ -503,8 +504,9 @@ function listTrash(ctx, { p_workspace_id: w, p_after_id: after, p_limit: limit }
   if (roleRank(ctx, w) < 1) fail('forbidden');
   checkLimit(limit);
   const ids = [];
-  for (const { id } of ctx.q.all(`select id from documents where workspace_id=? and (? is null or id>?) and deleted=1 and ciphertext is not null
-      and deleted_at>? order by id`, w, after, after, ctx.now() - TRASH_RETENTION_US)) {
+  const trashSql = `select id from documents where workspace_id=?${after === null ? '' : ' and id>?'} and deleted=1 and ciphertext is not null
+      and deleted_at>? order by id`;
+  for (const { id } of ctx.q.iterate(trashSql, w, ...(after === null ? [] : [after]), ctx.now() - TRASH_RETENTION_US)) {
     if (documentRank(ctx, w, id) >= 2) ids.push(id);
     if (ids.length > limit) break;
   }
@@ -596,7 +598,8 @@ function listAccessibleDocuments(ctx, { p_workspace_id: w, p_after_id: after, p_
   }
   // Metadata only; content comes from get_documents. Access is evaluated row by row (F22).
   const rows = [];
-  for (const d of ctx.q.all('select id,revision from documents where workspace_id=? and (? is null or id>?) and deleted=0 order by id', w, after, after)) {
+  const documentSql = `select id,revision from documents where workspace_id=?${after === null ? '' : ' and id>?'} and deleted=0 order by id`;
+  for (const d of ctx.q.iterate(documentSql, w, ...(after === null ? [] : [after]))) {
     if (documentRank(ctx, w, d.id) > 0) rows.push({ id: d.id, revision: String(d.revision) });
     if (rows.length > limit) break;
   }

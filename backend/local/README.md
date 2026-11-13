@@ -87,3 +87,9 @@ AI RPC 13개는 [AI-DATABASE.md](AI-DATABASE.md)를 봅니다.
 - `tests/vault.test.mjs`, `gateway/tests`, `worker/tests`
 
 예전 PGlite 테스트 중 PostgreSQL에만 의미가 있던 검증(xmax 잠금 관찰, `pg_stat` 읽기 비용, hosted Supabase 권한 시뮬레이션, 함수 본문 잠금 순서)은 옮기지 않았습니다. SQLite에서는 대응하는 개념이 없습니다. 여러 프로세스가 같은 파일에 동시에 쓰는 경우(`busy_timeout`)는 검증하지 않았습니다.
+
+## SQLite 조회 최적화 (2026-11-14)
+
+스키마 v2는 데이터 변경 없이 조회 인덱스만 갱신합니다. 기존 v1 DB도 열 때 번호 마이그레이션을 적용합니다. 폴더·문서·휴지통 목록은 권한 검사를 유지하면서 커서 범위와 스트리밍 조회를 사용합니다. [적용 근거·성능 비교·복구 주의](OPTIMIZATION.md)를 확인하세요.
+
+성능 실험: 저장소 루트에서 `node backend/local/benchmarks/sqlite.mjs`. 합성 인메모리 SQL 비교이며 실제 모바일 성능 검증은 아닙니다. 운영 DB의 경로를 인자로 받지 않습니다.

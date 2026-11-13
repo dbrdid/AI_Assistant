@@ -121,6 +121,10 @@ export function queries(db) {
   return {
     get: (sql, ...params) => { const row = prepare(sql).get(...params); return row ? { ...row } : undefined; },
     all: (sql, ...params) => prepare(sql).all(...params).map(row => ({ ...row })),
+    // Early loop exit closes the SQLite iterator instead of materialising the full result set.
+    *iterate(sql, ...params) {
+      for (const row of prepare(sql).iterate(...params)) yield { ...row };
+    },
     run: (sql, ...params) => prepare(sql).run(...params).changes,
   };
 }
