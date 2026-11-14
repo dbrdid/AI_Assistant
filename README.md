@@ -31,7 +31,7 @@
 | 모바일 | React Native / Expo 검토·기존 프론트엔드 방향 유지 | 패키지 버전·빌드 호환 검증 필요 |
 | 로컬 데이터 | SQLite와 앱 전용 첨부 파일 저장소 | 네이티브 연결·마이그레이션 미구현 |
 | AI | 앱 → Fastify API → 별도 Ollama 추론 런타임 | API·어댑터 구현, 실제 모델/모바일 연동·운영 배포 미검증 |
-| 계정·동기화 | SQLite 동기화·AI 큐 백엔드(backend/local, node:sqlite) | AI 서버와 별도 책임, 미구현 |
+| 계정·동기화 | 기존 SQLite + Supabase/PostgreSQL 설계 방향 | AI 서버와 별도 책임, 미구현 |
 
 서버는 JavaScript·Fastify와 Ollama 어댑터를 사용합니다. 초기 인증은 사용자별 만료 토큰이며 정식 계정 연동은 후속입니다. 호스팅·GPU·모델·운영 비용은 미확정입니다. 모바일 언어 선택과 상세 UI 이관은 이번 변경 범위에 포함하지 않습니다.
 
