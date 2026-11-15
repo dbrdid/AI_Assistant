@@ -1,0 +1,14 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2",
+    "react-native": "./stubs/react-native.ts",
+    "react-native-url-polyfill/auto": "./stubs/empty.ts",
+    "@react-native-async-storage/async-storage": "./stubs/async-storage.ts",
+    "expo-auth-session": "./stubs/expo-auth-session.ts",
+    "expo-web-browser": "./stubs/expo-web-browser.ts",
+    "@noble/ciphers/aes": "npm:@noble/ciphers@1.3.0/aes"
+  },
+  "unstable": [
+    "sloppy-imports"
+  ]
+}
