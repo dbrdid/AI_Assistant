@@ -16,6 +16,7 @@ function pendingTargets(ctx, workspaceId) {
         for (const noteId of Array.isArray(data.note_ids) ? data.note_ids : []) favorites.add(noteId);
         continue;
       }
+      if (change.kind === 'upload') continue;   // 올리기를 기다리는 사진: 메모 내용과는 상관없음
       if (typeof change.id === 'string') ids.add(change.id);
       for (const [key, value] of Object.entries(data)) if (key.endsWith('_id') && typeof value === 'string') ids.add(value);
     }

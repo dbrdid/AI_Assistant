@@ -16,6 +16,8 @@
 //   6) 받은 데이터와 커서는 같은 트랜잭션에 저장 (중간에 앱이 꺼져도 어긋나지 않음)
 //   7) 기기 저장소(backend/local)가 넘기는 묶음은 handoffKey로 한 번만 받음 (넘긴 직후 앱이 꺼져 다시 넘겨도 중복 없음)
 //   8) 기기 DB는 한 계정 것. 계정이 바뀌면 bindSyncAccount가 남은 기록·보낼 목록을 지움 (앞사람 수정이 뒷사람 이름으로 안 올라감)
+//   9) 충돌은 먼저 스스로 합쳐 봄 (resolveConflict 'merge'): 서로 다른 칸을 고쳤거나, 본문의 다른 줄·다른 획을 고쳤으면 둘 다 살림
+//      같은 칸·같은 줄을 양쪽에서 고친 경우만 사용자에게 물음 ('keep_mine' | 'use_server' | 'keep_both')
 // =====================================================================
 import { SyncError } from './errors';
 import type {
@@ -76,14 +78,14 @@ export interface LocalRecord<T = Record<string, unknown>> {
 
 export type FlushResult =
   | { status: 'DONE'; sent: number }
-  | { status: 'OFFLINE'; sent: number; error: string }                                   // 나중에 같은 요청으로 다시 보냄
+  | { status: 'OFFLINE'; sent: number; error: string; code?: string; attempts?: number }  // 나중에 같은 요청으로 다시 보냄 (code: NETWORK·AUTH_REQUIRED 등, attempts: 이 묶음을 보낸 횟수)
   | { status: 'CONFLICT'; sent: number; outboxSeq: number; conflicts: PushConflict[] }   // 사용자 선택 필요
   | { status: 'BLOCKED'; sent: number; outboxSeq: number; code: string; error: string }; // 서버가 거절 → 버리거나 고쳐야 함
 
 export type PullOutcome =
   | { status: 'OK'; applied: number; lastSeq: number }
   | { status: 'RESYNCED'; lastSeq: number }     // 커서가 너무 오래돼서 전체를 다시 받음
-  | { status: 'OFFLINE'; error: string }        // 연결 안 됨 → 나중에 다시
+  | { status: 'OFFLINE'; error: string; code?: string }   // 연결 안 됨 → 나중에 다시 (code: NETWORK·AUTH_REQUIRED 등)
   | { status: 'CLOSED' };                       // 공간에서 나갔거나 내보내짐 (또는 공간 삭제)
 
 // ---------------------------------------------------------------------
@@ -120,7 +122,8 @@ export async function setupLocalSync(db: SqlDb): Promise<void> {
       attempts     integer not null default 0,
       last_error   text,
       conflicts    text,
-      created_at   text not null
+      created_at   text not null,
+      base         text                             -- ops를 고정할 때 서버 사본에 있던 값 (내가 바꾼 칸만). 충돌 때 합치는 기준
     );
     create index if not exists stella_outbox_ws on stella_outbox (workspace_id, seq);
     create table if not exists stella_handoffs (
@@ -133,6 +136,9 @@ export async function setupLocalSync(db: SqlDb): Promise<void> {
       value text not null
     );
   `);
+  // 이전 버전으로 만든 기기 DB에는 base 칸이 없음
+  const cols = await db.all<{ name: string }>('pragma table_info(stella_outbox)');
+  if (!cols.some((c) => c.name === 'base')) await db.exec('alter table stella_outbox add column base text');
 }
 
 // ---------------------------------------------------------------------
@@ -159,7 +165,7 @@ const tag = (entity: string, key: string) => `${entity}|${key}`;
 interface OutboxRow {
   seq: number; workspace_id: string; operation_id: string; intent: string; ops: string | null;
   status: 'PENDING' | 'CONFLICT' | 'FAILED'; attempts: number; last_error: string | null;
-  conflicts: string | null; created_at: string;
+  conflicts: string | null; created_at: string; base?: string | null;
 }
 interface RecordRow {
   workspace_id: string; entity: string; key: string; server_revision: number | null; server_data: string | null;
@@ -331,8 +337,9 @@ export async function saveLocal(ctx: SyncContext, changes: LocalChange[], opts: 
 // ---------------------------------------------------------------------
 // 2. 보내기
 // ---------------------------------------------------------------------
-async function buildOps(db: SqlDb, ws: string, intent: LocalChange[]): Promise<SyncOp[]> {
+async function buildOps(db: SqlDb, ws: string, intent: LocalChange[]): Promise<{ ops: SyncOp[]; base: Record<number, Json> }> {
   const ops: SyncOp[] = [];
+  const base: Record<number, Json> = {};   // 수정 op의 index → 그때 서버 사본에 있던 값 (내가 바꾼 칸만)
   for (const c of intent) {
     if (c.kind === 'link' || c.kind === 'unlink') {
       ops.push({ entity: c.entity, op: c.kind === 'link' ? 'UPSERT' : 'DELETE', data: c.data });
@@ -340,14 +347,20 @@ async function buildOps(db: SqlDb, ws: string, intent: LocalChange[]): Promise<S
     }
     if (c.kind === 'create') { ops.push({ entity: c.entity, op: 'UPSERT', id: c.id, data: c.data }); continue; }
     const rec = await db.get<RecordRow>(
-      'select server_revision from stella_records where workspace_id = ? and entity = ? and key = ?', [ws, c.entity, c.id]);
-    const base = rec?.server_revision;
-    if (base == null) throw new SyncError('NOT_FOUND', `서버에 없는 기록은 수정·삭제할 수 없습니다 (${c.entity} ${c.id})`);
+      'select server_revision, server_data from stella_records where workspace_id = ? and entity = ? and key = ?', [ws, c.entity, c.id]);
+    const rev = rec?.server_revision;
+    if (rev == null) throw new SyncError('NOT_FOUND', `서버에 없는 기록은 수정·삭제할 수 없습니다 (${c.entity} ${c.id})`);
+    if (c.kind === 'update') {
+      const server = parse(rec?.server_data ?? null) ?? {};
+      const was: Json = {};
+      for (const f of Object.keys(c.data)) was[f] = server[f] ?? null;
+      base[ops.length] = was;
+    }
     ops.push(c.kind === 'update'
-      ? { entity: c.entity, op: 'UPSERT', id: c.id, base_revision: base, data: c.data }
-      : { entity: c.entity, op: c.kind === 'restore' ? 'RESTORE' : c.kind === 'purge' ? 'PURGE' : 'DELETE', id: c.id, base_revision: base, data: {} });
+      ? { entity: c.entity, op: 'UPSERT', id: c.id, base_revision: rev, data: c.data }
+      : { entity: c.entity, op: c.kind === 'restore' ? 'RESTORE' : c.kind === 'purge' ? 'PURGE' : 'DELETE', id: c.id, base_revision: rev, data: {} });
   }
-  return ops;
+  return { ops, base };
 }
 
 /** 보낸 결과(ACCEPTED)를 서버 사본에 임시 반영 (정확한 행은 다음 pull로 옴) */
@@ -393,13 +406,15 @@ async function flushInner(ctx: SyncContext): Promise<FlushResult> {
       ops = JSON.parse(row.ops) as SyncOp[];
     } else {
       try {
-        ops = await buildOps(db, ws, JSON.parse(row.intent) as LocalChange[]);
+        const built = await buildOps(db, ws, JSON.parse(row.intent) as LocalChange[]);
+        ops = built.ops;
+        row.base = JSON.stringify(built.base);
       } catch (e) {
         const err = asSyncError(e);
         await db.run(`update stella_outbox set status = 'FAILED', last_error = ? where seq = ?`, [`${err.code}: ${err.message}`, row.seq]);
         return { status: 'BLOCKED', sent, outboxSeq: row.seq, code: err.code, error: err.message };
       }
-      await db.run('update stella_outbox set ops = ? where seq = ?', [JSON.stringify(ops), row.seq]);
+      await db.run('update stella_outbox set ops = ?, base = ? where seq = ?', [JSON.stringify(ops), row.base ?? null, row.seq]);
     }
 
     let receipt: PushReceipt;
@@ -417,7 +432,7 @@ async function flushInner(ctx: SyncContext): Promise<FlushResult> {
       }
       await db.run('update stella_outbox set attempts = attempts + 1, last_error = ? where seq = ?',
         [`${err.code}: ${err.message}`, row.seq]);
-      return { status: 'OFFLINE', sent, error: err.message };
+      return { status: 'OFFLINE', sent, error: err.message, code: err.code, attempts: row.attempts + 1 };
     }
 
     if (receipt.status === 'ACCEPTED') {
@@ -459,7 +474,7 @@ export function flushOutbox(ctx: SyncContext): Promise<FlushResult> {
  *   이미 휴지통에 간 기록(DELETED)·없는 기록(NOT_FOUND)은 keep_mine 불가 → use_server
  *   복구(restore): 아직 휴지통에 있으면 keep_mine으로 다시 복구, 이미 복구됐으면(NOT_DELETED) use_server
  */
-export async function resolveConflict(ctx: SyncContext, outboxSeq: number, choice: 'keep_mine' | 'use_server'): Promise<void> {
+export async function resolveConflict(ctx: SyncContext, outboxSeq: number, choice: 'keep_mine' | 'use_server' | 'merge' | 'keep_both'): Promise<void> {
   const { db, workspaceId: ws } = ctx;
   await syncLock(ctx, () => tx(db, async () => {
     const row = await db.get<OutboxRow>('select * from stella_outbox where seq = ? and workspace_id = ?', [outboxSeq, ws]);
@@ -468,7 +483,7 @@ export async function resolveConflict(ctx: SyncContext, outboxSeq: number, choic
       await db.run('delete from stella_outbox where seq = ?', [row.seq]);
     } else {
       const conflicts = JSON.parse(row.conflicts ?? '[]') as PushConflict[];
-      const intent = JSON.parse(row.intent) as LocalChange[];   // ops와 순서가 같음
+      let intent = JSON.parse(row.intent) as LocalChange[];   // ops와 순서가 같음
       const blocked = conflicts.find((c) => {
         if (c.reason !== 'REVISION_MISMATCH') return true;
         const restoring = intent[c.index]?.kind === 'restore' || intent[c.index]?.kind === 'purge';
@@ -480,9 +495,17 @@ export async function resolveConflict(ctx: SyncContext, outboxSeq: number, choic
           : blocked.reason;
         throw new SyncError('CANNOT_KEEP', `${why}: 이 충돌은 서버 값을 써야 합니다 (use_server)`);
       }
+      if (choice === 'merge' || choice === 'keep_both') {
+        const merged = mergeIntent(intent, conflicts, parseBase(row.base), choice === 'keep_both');
+        if (merged.unresolved.length) {
+          throw new SyncError('CANNOT_MERGE', `같은 칸을 양쪽에서 고쳤어요 (${merged.unresolved.map((u) => `${u.entity}.${u.field}`).join(', ')}): 고를 수 있는 것은 keep_mine·use_server·keep_both`,
+            { fields: merged.unresolved });
+        }
+        intent = merged.intent;
+      }
       await db.run(
-        `update stella_outbox set status = 'PENDING', ops = null, conflicts = null, attempts = 0, last_error = null,
-                operation_id = ? where seq = ?`, [newIdOf(ctx), row.seq]);
+        `update stella_outbox set status = 'PENDING', intent = ?, ops = null, base = null, conflicts = null, attempts = 0, last_error = null,
+                operation_id = ? where seq = ?`, [JSON.stringify(intent), newIdOf(ctx), row.seq]);
     }
     await rebuildAll(db, ws, touched([row]).values());
   }));
@@ -535,7 +558,7 @@ async function resyncInner(ctx: SyncContext): Promise<PullOutcome> {
   } catch (e) {
     const err = asSyncError(e);
     if (err.code === 'FORBIDDEN') { await closeWorkspace(ctx); return { status: 'CLOSED' }; }
-    if (!REJECTED.has(err.code)) return { status: 'OFFLINE', error: err.message };
+    if (!REJECTED.has(err.code)) return { status: 'OFFLINE', error: err.message, code: err.code };
     throw err;
   }
   await tx(db, async () => {
@@ -571,7 +594,7 @@ async function pullInner(ctx: SyncContext, limit: number): Promise<PullOutcome> 
     } catch (e) {
       const err = asSyncError(e);
       if (err.code === 'FORBIDDEN') { await closeWorkspace(ctx); return { status: 'CLOSED' }; }
-      if (!REJECTED.has(err.code)) return applied > 0 ? { status: 'OK', applied, lastSeq: seq } : { status: 'OFFLINE', error: err.message };
+      if (!REJECTED.has(err.code)) return applied > 0 ? { status: 'OK', applied, lastSeq: seq } : { status: 'OFFLINE', error: err.message, code: err.code };
       throw err;
     }
     if (res.status === 'SNAPSHOT_REQUIRED') return resyncInner(ctx);
@@ -660,6 +683,8 @@ export async function getSyncStatus(db: SqlDb, workspaceId: string) {
             coalesce(sum(case when status = 'CONFLICT' then 1 else 0 end), 0) as conflict,
             coalesce(sum(case when status = 'FAILED' then 1 else 0 end), 0) as failed
        from stella_outbox where workspace_id = ?`, [workspaceId]);
+  const head = await db.get<{ last_error: string | null; attempts: number }>(
+    'select last_error, attempts from stella_outbox where workspace_id = ? order by seq limit 1', [workspaceId]);
   return {
     lastSeq: st?.last_seq ?? null,
     authEpoch: st?.auth_epoch ?? null,
@@ -667,6 +692,8 @@ export async function getSyncStatus(db: SqlDb, workspaceId: string) {
     pending: Number(c?.pending ?? 0),     // 아직 안 보낸 묶음
     conflicts: Number(c?.conflict ?? 0),  // 사용자 선택이 필요한 묶음
     failed: Number(c?.failed ?? 0),       // 서버가 거절한 묶음
+    lastError: head?.last_error ?? null,  // 맨 앞 묶음의 마지막 오류 "CODE: 설명" (없으면 null)
+    attempts: Number(head?.attempts ?? 0),   // 맨 앞 묶음을 보낸 횟수 (계속 실패하면 커짐)
   };
 }
 
@@ -683,6 +710,209 @@ export async function listOutbox(db: SqlDb, workspaceId: string) {
     conflicts: r.conflicts ? (JSON.parse(r.conflicts) as PushConflict[]) : [],
     createdAt: r.created_at,
   }));
+}
+
+// ---------------------------------------------------------------------
+// 4-1. 충돌 합치기
+// ---------------------------------------------------------------------
+/** 여러 줄 글 칸: 줄 단위로 합침 (그 밖의 글 칸은 한 줄이라 통째로 비교) */
+const MULTILINE_FIELDS = new Set(['body', 'description']);
+/** 줄 비교표 크기 한도. 넘으면 바뀐 부분 전체를 한 덩어리로 봄 (결과는 맞고, 덜 잘게 합칠 뿐) */
+const DIFF_CELLS = 4_000_000;
+
+/** 값 비교 (객체 키 순서 무시: 서버 jsonb는 키 순서를 바꿈) */
+export function sameValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return a == null && b == null;
+  if (typeof a !== 'object' || typeof b !== 'object') return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((v, i) => sameValue(v, b[i]));
+  }
+  const ka = Object.keys(a as Json), kb = Object.keys(b as Json);
+  return ka.length === kb.length && ka.every((k) => k in (b as Json) && sameValue((a as Json)[k], (b as Json)[k]));
+}
+
+interface Edit { s: number; e: number; lines: string[] }   // base의 [s, e) 줄을 lines로 바꿈
+
+/** base → other의 바뀐 구간들 (앞에서부터, 서로 떨어져 있음) */
+function lineEdits(base: string[], other: string[]): Edit[] {
+  let head = 0;
+  while (head < base.length && head < other.length && base[head] === other[head]) head++;
+  let tail = 0;
+  while (tail < base.length - head && tail < other.length - head && base[base.length - 1 - tail] === other[other.length - 1 - tail]) tail++;
+  const a = base.slice(head, base.length - tail), b = other.slice(head, other.length - tail);
+  if (a.length === 0 && b.length === 0) return [];
+  if (a.length === 0 || b.length === 0 || a.length * b.length > DIFF_CELLS) return [{ s: head, e: head + a.length, lines: b }];
+  // 가장 긴 공통 줄 (뒤에서부터 채움)
+  const w = b.length + 1;
+  const lcs = new Uint32Array((a.length + 1) * w);
+  for (let i = a.length - 1; i >= 0; i--) {
+    for (let j = b.length - 1; j >= 0; j--) {
+      lcs[i * w + j] = a[i] === b[j] ? lcs[(i + 1) * w + j + 1] + 1 : Math.max(lcs[(i + 1) * w + j], lcs[i * w + j + 1]);
+    }
+  }
+  const edits: Edit[] = [];
+  let i = 0, j = 0, cur: Edit | null = null;
+  while (i < a.length || j < b.length) {
+    if (i < a.length && j < b.length && a[i] === b[j]) { cur = null; i++; j++; continue; }
+    if (!cur) { cur = { s: head + i, e: head + i, lines: [] }; edits.push(cur); }
+    if (j < b.length && (i === a.length || lcs[i * w + j + 1] >= lcs[(i + 1) * w + j])) cur.lines.push(b[j++]);
+    else { i++; cur.e = head + i; }
+  }
+  return edits;
+}
+
+/**
+ * 글 세 갈래 합치기 (줄 단위). base에서 mine·theirs가 각각 고친 것을 합침.
+ *   서로 다른 줄을 고쳤으면 둘 다 반영 (바로 옆줄이어도). 같은 자리에 둘 다 새 줄만 넣었으면 내 줄 다음에 상대 줄 (잃는 글 없음).
+ *   같은 줄을 다르게 고쳤으면 clean = false. union이면 그 구간을 "내 것, 그다음 상대 것"으로 둘 다 넣음.
+ */
+export function mergeText(base: string, mine: string, theirs: string, union = false): { text: string; clean: boolean } {
+  if (mine === theirs) return { text: mine, clean: true };
+  if (base === theirs) return { text: mine, clean: true };
+  if (base === mine) return { text: theirs, clean: true };
+  const o = base.split('\n');
+  const a = lineEdits(o, mine.split('\n')), b = lineEdits(o, theirs.split('\n'));
+  const out: string[] = [];
+  let pos = 0, i = 0, j = 0, clean = true;
+  const version = (edits: Edit[], s: number, e: number) => {
+    const lines: string[] = [];
+    let p = s;
+    for (const ed of edits) { lines.push(...o.slice(p, ed.s), ...ed.lines); p = ed.e; }
+    lines.push(...o.slice(p, e));
+    return lines;
+  };
+  const sameLines = (m: string[], t: string[]) => m.length === t.length && m.every((l, k) => l === t[k]);
+  while (i < a.length || j < b.length) {
+    const x = a[i], y = b[j];
+    if (x && y && x.s === x.e && y.s === y.e && x.s === y.s && sameLines(x.lines, y.lines)) {   // 같은 자리에 같은 줄을 넣음: 한 번만
+      out.push(...o.slice(pos, x.s), ...x.lines); pos = x.e; i++; j++; continue;
+    }
+    if (!(x && y && x.s < y.e && y.s < x.e)) {
+      // 고친 줄이 겹치지 않음: 앞선 것부터. 같은 자리면 새 줄만 넣은 쪽 먼저, 둘 다 새 줄만 넣었으면 내 것 다음에 상대 것
+      const mineFirst = !y || (x && (x.s < y.s || (x.s === y.s && x.e <= y.e)));
+      const ed = mineFirst ? x : y;
+      out.push(...o.slice(pos, ed.s), ...ed.lines);
+      pos = ed.e;
+      if (mineFirst) i++; else j++;
+      continue;
+    }
+    // 같은 줄을 양쪽에서 고침: 이어지는 구간을 한 덩어리로
+    let s = Math.min(x.s, y.s), e = Math.max(x.e, y.e);
+    const mineGroup: Edit[] = [], theirGroup: Edit[] = [];
+    for (;;) {
+      if (i < a.length && (a[i].s < e || mineGroup.length === 0)) { s = Math.min(s, a[i].s); e = Math.max(e, a[i].e); mineGroup.push(a[i++]); continue; }
+      if (j < b.length && (b[j].s < e || theirGroup.length === 0)) { s = Math.min(s, b[j].s); e = Math.max(e, b[j].e); theirGroup.push(b[j++]); continue; }
+      break;
+    }
+    const m = version(mineGroup, s, e), t = version(theirGroup, s, e);
+    out.push(...o.slice(pos, s));
+    if (sameLines(m, t)) out.push(...m);                     // 둘이 똑같이 고침
+    else if (union) out.push(...m, ...t);                    // 둘 다 남기기: 내 것 다음에 상대 것
+    else { clean = false; out.push(...m); }
+    pos = e;
+  }
+  out.push(...o.slice(pos));
+  return { text: out.join('\n'), clean };
+}
+
+type Stroke = { id?: unknown } & Json;
+/** 손글씨 합치기 (획 id 기준): 상대가 둔 순서에 내가 지운 획은 빼고, 내가 고친 획은 내 것으로, 내가 새로 그린 획은 뒤에 붙임 */
+export function mergeStrokes(base: unknown, mine: unknown, theirs: unknown): unknown[] {
+  const list = (v: unknown) => (Array.isArray(v) ? (v as Stroke[]) : []);
+  const byId = (v: Stroke[]) => new Map(v.map((s) => [String(s.id), s]));
+  const o = byId(list(base)), m = byId(list(mine)), t = byId(list(theirs));
+  const out: Stroke[] = [];
+  for (const s of list(theirs)) {
+    const id = String(s.id);
+    if (o.has(id) && !m.has(id)) continue;                                     // 내가 지움
+    const my = m.get(id);
+    out.push(my && o.has(id) && sameValue(o.get(id), s) && !sameValue(my, s) ? my : s);   // 나만 고친 획은 내 것
+  }
+  for (const s of list(mine)) if (!t.has(String(s.id)) && !o.has(String(s.id))) out.push(s);   // 내가 새로 그림
+  return out;
+}
+
+function parseBase(text: string | null | undefined): Record<number, Json> | null {
+  return text ? (JSON.parse(text) as Record<number, Json>) : null;
+}
+
+/** 수정 1건의 칸별 합치기. unresolved = 양쪽이 다르게 고쳐서 스스로 못 합친 칸 */
+function mergeFields(was: Json | null, mine: Json, server: Json, union: boolean): { data: Json; unresolved: string[] } {
+  const data: Json = {};
+  const unresolved: string[] = [];
+  for (const f of Object.keys(mine)) {
+    const m = mine[f], t = server[f] ?? null;
+    const known = was != null && f in was;
+    const o = known ? was![f] : undefined;
+    if (sameValue(m, t) || (known && sameValue(o, t))) { data[f] = m; continue; }          // 상대는 이 칸을 안 고침
+    if (known && sameValue(o, m)) { data[f] = t; continue; }
+    if (f === 'strokes' && Array.isArray(m) && Array.isArray(t)) { data[f] = mergeStrokes(known ? o : [], m, t); continue; }
+    if (MULTILINE_FIELDS.has(f) && typeof m === 'string' && typeof t === 'string' && (!known || typeof o === 'string' || o == null)) {
+      if (!known) {                                          // 기준을 모름: 둘 다 남기는 것만 가능
+        if (union) { data[f] = `${m}\n${t}`; continue; }
+        unresolved.push(f);
+        continue;
+      }
+      const r = mergeText(typeof o === 'string' ? o : '', m, t, union);
+      if (r.clean || union) { data[f] = r.text; continue; }
+      unresolved.push(f);
+      continue;
+    }
+    if (union) { data[f] = m; continue; }                    // 한 줄 칸·숫자·날짜: 둘 다 둘 수 없어 내 값
+    unresolved.push(f);
+  }
+  return { data, unresolved };
+}
+
+function mergeIntent(intent: LocalChange[], conflicts: PushConflict[], base: Record<number, Json> | null, union: boolean) {
+  const next = intent.slice();
+  const unresolved: { entity: string; id: string; field: string }[] = [];
+  for (const c of conflicts) {
+    const ch = intent[c.index];
+    if (!ch || ch.kind !== 'update' || !c.server) continue;   // 삭제·복구 충돌은 위에서 걸렀고, 남은 것은 그대로 다시 보냄
+    const r = mergeFields(base?.[c.index] ?? null, ch.data as Json, c.server as Json, union);
+    for (const field of r.unresolved) unresolved.push({ entity: c.entity, id: c.id, field });
+    next[c.index] = { ...ch, data: r.data };
+  }
+  return { intent: next, unresolved };
+}
+
+export interface ConflictField { field: string; base: unknown; mine: unknown; server: unknown }
+export interface ConflictDetail {
+  outboxSeq: number;
+  /** 스스로 합칠 수 있음 → resolveConflict(ctx, outboxSeq, 'merge') */
+  mergeable: boolean;
+  /** 내 수정을 살릴 수 있음. false면 use_server만 (이미 휴지통에 갔거나 없는 기록 등) */
+  canKeep: boolean;
+  items: { entity: string; id: string; kind: LocalChange['kind']; reason: string; serverDeleted: boolean; fields: ConflictField[] }[];
+}
+
+/** 충돌 화면용: 멈춘 묶음마다 어떤 기록의 어떤 칸이 어떻게 다른지 (fields = 양쪽이 다르게 고쳐서 사용자가 골라야 하는 칸) */
+export async function listConflicts(db: SqlDb, workspaceId: string): Promise<ConflictDetail[]> {
+  const rows = (await loadOutbox(db, workspaceId)).filter((r) => r.status === 'CONFLICT');
+  return rows.map((row) => {
+    const intent = JSON.parse(row.intent) as LocalChange[];
+    const conflicts = JSON.parse(row.conflicts ?? '[]') as PushConflict[];
+    const base = parseBase(row.base);
+    let canKeep = true;
+    const items = conflicts.map((c) => {
+      const ch = intent[c.index];
+      const serverDeleted = Boolean(c.server?.deleted_at);
+      const restoring = ch?.kind === 'restore' || ch?.kind === 'purge';
+      if (c.reason !== 'REVISION_MISMATCH' || (restoring ? !serverDeleted : serverDeleted)) canKeep = false;
+      const fields: ConflictField[] = [];
+      if (ch?.kind === 'update' && c.server) {
+        const was = base?.[c.index] ?? null;
+        for (const field of mergeFields(was, ch.data as Json, c.server as Json, false).unresolved) {
+          fields.push({ field, base: was && field in was ? was[field] : undefined, mine: (ch.data as Json)[field], server: (c.server as Json)[field] ?? null });
+        }
+      }
+      return { entity: c.entity as string, id: c.id, kind: (ch?.kind ?? 'update') as LocalChange['kind'], reason: c.reason as string, serverDeleted, fields };
+    });
+    return { outboxSeq: row.seq, mergeable: canKeep && items.every((it) => it.fields.length === 0), canKeep, items };
+  });
 }
 
 // ---------------------------------------------------------------------
