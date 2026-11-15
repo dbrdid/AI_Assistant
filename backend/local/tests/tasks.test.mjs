@@ -6,8 +6,8 @@ test('addTask fills the editor defaults and returns the task', () => {
   const t = setup();
   const task = t.store.addTask({ title: '팀 회의', date: '2026-11-16', start: '10:00', end: '11:00', place: '3층', project: '앱' });
   assert.deepEqual(task, {
-    id: task.id, title: '팀 회의', date: '2026-11-16', start: '10:00', end: '11:00', priority: '보통', status: '진행 전', alarm: '없음',
-    assignee: '', place: '3층', project: '앱', desc: '', revision: 1, createdAt: t.clock.t, updatedAt: t.clock.t,
+    id: task.id, kind: 'event', title: '팀 회의', date: '2026-11-16', endDate: '', start: '10:00', end: '11:00', priority: '보통', status: '진행 전', alarm: '없음',
+    assignee: '', place: '3층', project: '앱', projectId: null, desc: '', revision: 1, createdAt: t.clock.t, updatedAt: t.clock.t, deletedAt: null,
   });
   assert.ok(Object.isFrozen(task));
   assert.deepEqual(t.store.getTask(task.id), task);
@@ -22,7 +22,7 @@ test('task fields are validated: required title and date, real calendar dates, 2
   rejectsUnchanged(t, () => t.store.addTask({ title: '할 일' }), 'invalid_input', 'date');
   for (const date of ['2026-02-30', '2026-13-01', '2026-1-5', '16/11/2026', '']) rejectsUnchanged(t, () => t.store.addTask({ ...ok, date }), 'invalid_input', 'date');
   for (const start of ['24:00', '9:00', '10:60', '10시']) rejectsUnchanged(t, () => t.store.addTask({ ...ok, start }), 'invalid_input', 'start');
-  rejectsUnchanged(t, () => t.store.addTask({ ...ok, kind: 'event' }), 'invalid_input', 'kind');
+  rejectsUnchanged(t, () => t.store.addTask({ ...ok, kind: 'meeting' }), 'invalid_input', 'kind');
   rejectsUnchanged(t, () => t.store.addTask({ ...ok, priority: '' }), 'invalid_input', 'priority');
   rejectsUnchanged(t, () => t.store.addTask({ ...ok, desc: 3 }), 'invalid_input', 'desc');
   assert.equal(t.store.addTask({ ...ok, date: '2028-02-29' }).date, '2028-02-29');

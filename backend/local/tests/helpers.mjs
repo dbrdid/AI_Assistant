@@ -10,7 +10,7 @@ export function setup({ path = ':memory:', db, start = Date.UTC(2026, 10, 15, 1,
   const store = createLocalStore({
     db: database,
     now: () => clock.t,
-    newId: () => `id-${String(++n).padStart(4, '0')}`,
+    newId: () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`,
     onListenerError: onListenerError ?? (error => { throw error; }),
   });
   return { store, db: database, clock, tick: (ms = 1000) => { clock.t += ms; } };

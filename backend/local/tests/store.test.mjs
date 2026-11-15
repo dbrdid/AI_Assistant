@@ -22,7 +22,7 @@ test('createLocalStore needs an expo-sqlite style database and sane clock and id
   assert.throws(() => createLocalStore({ db: { execSync() {} } }), /openDatabaseSync/);
   // A new database creates the personal workspace right away, so bad functions fail at open.
   assert.throws(() => createLocalStore({ db: openDatabaseSync(), now: () => 1.5 }), /integer milliseconds/);
-  assert.throws(() => createLocalStore({ db: openDatabaseSync(), newId: () => 7 }), /non-empty string/);
+  assert.throws(() => createLocalStore({ db: openDatabaseSync(), newId: () => 7 }), /UUID/);
   let late = 0;
   const store = createLocalStore({ db: openDatabaseSync(), now: () => (late++ ? -1 : 1) });
   assert.throws(() => store.addMemo({ title: 'x' }), /integer milliseconds/);

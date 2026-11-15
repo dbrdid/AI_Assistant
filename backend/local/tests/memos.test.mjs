@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setup, rejects, rejectsUnchanged } from './helpers.mjs';
 
-const STROKES = [{ p: [[1, 2], [3, 4]], w: 2 }];
+const STROKES = [{ id: 's1', c: '#111111', w: 2, p: [[1, 2], [3, 4]] }];
 
 test('addMemo stores every field and returns a frozen memo that getMemo and getMemos agree on', () => {
   const t = setup();

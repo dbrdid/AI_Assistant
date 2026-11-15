@@ -1,6 +1,6 @@
 # Stella 백엔드 (Supabase) 현황
 
-> 저장소 위치: `backend/supabase/`. 앱 모듈은 `frontend/Frontend_UI/src/lib/stella/`, 두 기기 검증 도구는 `tests/sync-verify/`, 서버에 맞춘 기기 저장소는 `backend/local-store/`에 있어요. 아래 글의 `supabase/`·`fe/stella`·`stella-sync-verify`는 이 위치들을 가리켜요.
+> 저장소 위치: `backend/supabase/`. 앱 모듈은 `frontend/Frontend_UI/src/lib/stella/`, 두 기기 검증 도구는 `tests/sync-verify/`, 서버에 맞춘 기기 저장소는 `backend/local/`에 있어요. 아래 글의 `supabase/`·`fe/stella`·`stella-sync-verify`는 이 위치들을 가리켜요.
 
 > 담당: 유병욱 · 최종 업데이트: 2026-11-15 · 기능 동결 11/20 · 인수 11/30
 

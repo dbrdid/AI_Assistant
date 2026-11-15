@@ -5,6 +5,7 @@
   "main": "src/index.js",
   "engines": { "node": ">=22.13.0" },
   "scripts": {
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "verify:server": "node verify/server-roundtrip.mjs"
   }
 }

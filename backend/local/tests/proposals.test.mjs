@@ -20,7 +20,7 @@ test('addProposals stores waiting proposals with the memo revision; identical su
   const added = t.store.addProposals([found(memo), found(memo, { kind: 'task', title: '보고서 제출', date: '2026-11-20', start: '' })]);
   assert.equal(added.length, 2);
   assert.deepEqual(added[0], {
-    id: added[0].id, kind: 'event', title: '팀 회의', date: '2026-11-17', start: '10:00', end: '', place: '3층', assignee: '', body: '',
+    id: added[0].id, kind: 'event', title: '팀 회의', date: '2026-11-17', endDate: '', start: '10:00', end: '', place: '3층', assignee: '', priority: '', body: '',
     evidence: '내일 10시 3층에서 팀 회의', sourceType: 'memo', sourceId: memo.id, sourceTitle: '메모', sourceRevision: 1, status: 'pending',
     createdAt: t.clock.t, updatedAt: t.clock.t,
   });
@@ -69,8 +69,8 @@ test('approving saves the task, links it to the memo without a new memo revision
   const saved = t.store.approveProposal(p.id, { ...p, title: '팀 회의 (확정)', body: '팀 회의\n근거: 내일 10시', assignee: '민지' });
   assert.equal(saved.kind, 'task');
   assert.deepEqual(t.store.getTask(saved.id), {
-    id: saved.id, title: '팀 회의 (확정)', date: '2026-11-17', start: '10:00', end: '', priority: '보통', status: '진행 전', alarm: '없음',
-    assignee: '민지', place: '3층', project: '', desc: '팀 회의\n근거: 내일 10시', revision: 1, createdAt: t.clock.t, updatedAt: t.clock.t,
+    id: saved.id, kind: 'event', title: '팀 회의 (확정)', date: '2026-11-17', endDate: '', start: '10:00', end: '', priority: '보통', status: '진행 전', alarm: '없음',
+    assignee: '민지', place: '3층', project: '', projectId: null, desc: '팀 회의\n근거: 내일 10시', revision: 1, createdAt: t.clock.t, updatedAt: t.clock.t, deletedAt: null,
   });
   const after = t.store.getMemo(memo.id);
   assert.deepEqual([after.taskIds, after.revision], [[saved.id], 1]);
