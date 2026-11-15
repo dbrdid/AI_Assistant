@@ -1,0 +1,5 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": { "modules": ["StellaAudioSplitModule"] },
+  "android": { "modules": ["expo.modules.stellaaudiosplit.StellaAudioSplitModule"] }
+}

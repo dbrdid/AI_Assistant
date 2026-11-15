@@ -1,0 +1,4 @@
+node_modules/
+device-data/
+.env
+result-*.json

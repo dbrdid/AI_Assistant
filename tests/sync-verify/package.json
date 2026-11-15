@@ -1,0 +1,22 @@
+{
+  "name": "stella-sync-verify",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stella 두 기기 동기화 검증 (기기 A·B를 흉내 내서 원격 Supabase에 대고 실행)",
+  "main": "verify.js",
+  "scripts": {
+    "verify": "node --no-warnings verify.js",
+    "verify:local": "node --no-warnings verify.js --local",
+    "auth-test": "node auth-test.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "@noble/ciphers": "^1.3.0",
+    "@supabase/supabase-js": "^2.57.0"
+  },
+  "optionalDependencies": {
+    "pg": "^8.13.0"
+  }
+}
