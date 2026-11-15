@@ -4,3 +4,8 @@ export { LocalError } from './errors.js';
 export { candidatesToProposals, pendingOf } from './proposals.js';
 export { TASK_DEFAULTS, DONE } from './tasks.js';
 export { SCHEMA_VERSION } from './schema.js';
+export { LIMITS } from './validate.js';
+export { ROLE_LABELS } from './workspaces.js';
+export { DEFAULT_LABELS, createServerMap, localToIso, isoToLocal } from './server.js';
+export { EXPORT_FORMAT } from './backup.js';
+export { createBridge } from './bridge.js';

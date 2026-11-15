@@ -3,8 +3,13 @@ import * as memos from './memos.js';
 import * as tasks from './tasks.js';
 import * as proposals from './proposals.js';
 import * as workspaces from './workspaces.js';
+import * as backup from './backup.js';
+import { applyServer, applyFavorites, sharedState } from './apply.js';
+import { createServerMap } from './server.js';
+import { fail } from './errors.js';
+import { isUuid } from './validate.js';
 
-const AREAS = ['memos', 'tasks', 'proposals', 'workspaces'];
+const AREAS = ['memos', 'tasks', 'proposals', 'workspaces', 'outbox'];
 const DB_METHODS = ['execSync', 'runSync', 'getFirstSync', 'getAllSync', 'withTransactionSync'];
 
 /** A random RFC 4122 version 4 id. Pass expo-crypto's randomUUID as newId on devices without crypto.randomUUID. */
@@ -29,20 +34,20 @@ function deepFreeze(value) {
 }
 
 /**
- * The on-device store for memos, tasks (일정·할 일) and AI proposals, over an expo-sqlite database.
+ * 메모·일정·할 일·AI 제안을 담는 기기 저장소 (expo-sqlite). 화면이 부르는 함수 이름은 CONTRACT.md 그대로이고,
+ * 저장 규칙은 서버(Supabase) 스키마에 맞췄습니다.
  *
  *   import { openDatabaseSync } from 'expo-sqlite';
- *   const store = createLocalStore({ db: openDatabaseSync('planner.db') });
+ *   import { randomUUID } from 'expo-crypto';
+ *   const store = createLocalStore({ db: openDatabaseSync('planner.db'), newId: randomUUID });
  *
- * Every write runs in one SQLite transaction and returns synchronously, as the screens expect (addMemo returns the
- * memo). Lists (getMemos, getTasks, ...) are cached, frozen snapshots: the same array until something changes, which
- * is what React's useSyncExternalStore needs; see createHooks. Listeners run after the commit, never for a write
- * that failed or changed nothing.
+ * 쓰기는 SQLite 트랜잭션 하나로 끝나고 결과를 바로 돌려줍니다. 목록은 바뀔 때까지 같은 배열입니다(useSyncExternalStore용).
+ * 공유 공간(개인 공간이 아닌 곳)에서 한 저장은 같은 트랜잭션에서 보낼 목록(outbox)에 서버 형식으로 적힙니다.
  *
- * Options: now() returns epoch milliseconds; newId() returns a unique string id; onListenerError receives an error a
- * listener threw (by default it is rethrown asynchronously so it shows up without undoing the committed write).
+ * 옵션: now() 밀리초 · newId() UUID · timezone(기본 'Asia/Seoul', 서버 시각 변환에 씀)
+ *       labels(화면 글자 ↔ 서버 값, server.js의 DEFAULT_LABELS) · onListenerError
  */
-export function createLocalStore({ db, now = Date.now, newId = defaultId, onListenerError } = {}) {
+export function createLocalStore({ db, now = Date.now, newId = defaultId, timezone = 'Asia/Seoul', labels, onListenerError } = {}) {
   if (!db || DB_METHODS.some(m => typeof db[m] !== 'function')) throw new Error('An expo-sqlite database opened with openDatabaseSync is required');
   if (typeof now !== 'function' || typeof newId !== 'function') throw new Error('now and newId must be functions');
   const clock = () => {
@@ -52,7 +57,7 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, onList
   };
   const nextId = () => {
     const value = newId();
-    if (typeof value !== 'string' || !value || value.length > 200) throw new Error('newId() must return a non-empty string');
+    if (!isUuid(value)) throw new Error('newId() must return a UUID (서버 기록 id로 그대로 쓰입니다)');
     return value;
   };
   const reportListenerError = onListenerError ?? (error => { queueMicrotask(() => { throw error; }); });
@@ -64,13 +69,26 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, onList
 
   let touched = null;
   let current = null;
+  let queued = null;   // 이번 쓰기에서 서버로 보낼 변경: { ws, main, later, separate }
+  const currentRow = () => db.getFirstSync('select personal, role from workspaces where id=?', [current]);
+  const isShared = () => currentRow()?.personal === 0;
+  const group = () => (queued ??= { ws: current, main: [], later: [], separate: [] });
   const ctx = {
     db,
     now: clock,
     newId: nextId,
     freeze: deepFreeze,
+    map: createServerMap({ timezone, labels }),
     ws: () => current,
     setWs: workspaceId => { current = workspaceId; },
+    /** 현재 워크스페이스가 공유 공간(서버와 동기화하는 곳)인지 */
+    shared: isShared,
+    /** 공유 공간이면 이번 저장의 변경 묶음에 더함 (한 묶음 = 서버에서 같이 성공·실패) */
+    queue: changes => { if (changes.length && isShared()) group().main.push(...changes); },
+    /** 앞 묶음이 서버에 반영된 뒤에 보낼 변경 (삭제 다음의 영구 삭제) */
+    queueLater: changes => { if (changes.length && isShared()) group().later.push(...changes); },
+    /** 동기화가 아닌 다른 길로 가는 변경 (즐겨찾기) */
+    queueSeparate: changes => { if (changes.length && isShared()) group().separate.push(changes); },
     touch: area => {
       if (!touched) throw new Error('Write outside a transaction');
       touched.add(area);
@@ -78,14 +96,14 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, onList
   };
   current = workspaces.loadCurrent(ctx);
 
-  const cache = { memos: null, trashed: null, tasks: null, proposals: null, workspaces: null };
+  const cache = { memos: null, trashed: null, tasks: null, trashedTasks: null, proposals: null, workspaces: null };
   const reuse = { memos: new Map(), trashed: new Map() };
   const listeners = new Map(AREAS.map(area => [area, new Set()]));
   const anyListeners = new Set();
 
   function invalidate(areas) {
     if (areas.has('memos')) { cache.memos = null; cache.trashed = null; }
-    if (areas.has('tasks')) cache.tasks = null;
+    if (areas.has('tasks')) { cache.tasks = null; cache.trashedTasks = null; }
     if (areas.has('proposals')) cache.proposals = null;
     if (areas.has('workspaces')) cache.workspaces = null;
   }
@@ -106,17 +124,28 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, onList
     if (writing) throw new Error('A listener or callback tried to write during another write');
     writing = true;
     touched = new Set();
+    queued = null;
     const before = current;
     let result;
     try {
-      db.withTransactionSync(() => { result = fn(); });
+      db.withTransactionSync(() => {
+        result = fn();
+        if (queued) {
+          const t = clock();
+          for (const changes of [queued.main, queued.later, ...queued.separate]) {
+            if (changes.length) db.runSync('insert into outbox(workspace_id,changes,created_at) values(?,?,?)', [queued.ws, JSON.stringify(changes), t]);
+          }
+          touched.add('outbox');
+        }
+      });
     } catch (error) {
-      // Rolled back: forget the touched areas and an in-memory workspace switch made inside the transaction.
+      // 되돌려짐: 바뀐 영역과, 트랜잭션 안에서 바꾼 현재 워크스페이스를 잊음
       current = before;
       touched = null;
       throw error;
     } finally {
       writing = false;
+      queued = null;
     }
     const areas = touched;
     touched = null;
@@ -128,6 +157,13 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, onList
     }
     return result;
   }
+
+  /** 메모·일정·제안 쓰기: 공유 공간에서 보기 전용(VIEWER)이면 서버가 거절하므로 기기에서 먼저 막음 */
+  const edit = fn => write(() => {
+    const row = currentRow();
+    if (row && row.personal === 0 && row.role === 'VIEWER') fail('read_only');
+    return fn();
+  });
 
   function subscriber(area) {
     return fn => {
@@ -143,38 +179,42 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, onList
     getMemos: () => (cache.memos ??= Object.freeze(memos.listMemos(ctx, false, reuse.memos))),
     getTrashedMemos: () => (cache.trashed ??= Object.freeze(memos.listMemos(ctx, true, reuse.trashed))),
     getMemo: memoId => memos.getMemo(ctx, memoId),
-    addMemo: input => write(() => memos.addMemo(ctx, input)),
-    updateMemo: (memoId, patch, options) => write(() => memos.updateMemo(ctx, memoId, patch, options)),
-    trashMemo: memoId => write(() => memos.trashMemo(ctx, memoId)),
-    trashMemos: ids => write(() => memos.trashMemos(ctx, ids)),
-    restoreMemos: ids => write(() => memos.restoreMemos(ctx, ids)),
-    deleteMemoForever: memoId => write(() => memos.deleteMemoForever(ctx, memoId)),
-    deleteMemosForever: ids => write(() => memos.deleteMemosForever(ctx, ids)),
-    setFavorites: (ids, favorite) => write(() => memos.setFavorites(ctx, ids, favorite)),
-    attachPhoto: (memoId, fileId) => write(() => memos.attachPhoto(ctx, memoId, fileId)),
-    detachPhoto: (memoId, fileId) => write(() => memos.detachPhoto(ctx, memoId, fileId)),
+    addMemo: input => edit(() => memos.addMemo(ctx, input)),
+    updateMemo: (memoId, patch, options) => edit(() => memos.updateMemo(ctx, memoId, patch, options)),
+    trashMemo: memoId => edit(() => memos.trashMemo(ctx, memoId)),
+    trashMemos: ids => edit(() => memos.trashMemos(ctx, ids)),
+    restoreMemos: ids => edit(() => memos.restoreMemos(ctx, ids)),
+    deleteMemoForever: memoId => edit(() => memos.deleteMemoForever(ctx, memoId)),
+    deleteMemosForever: ids => edit(() => memos.deleteMemosForever(ctx, ids)),
+    setFavorites: (ids, favorite) => edit(() => memos.setFavorites(ctx, ids, favorite)),
+    attachPhoto: (memoId, fileId) => edit(() => memos.attachPhoto(ctx, memoId, fileId)),
+    detachPhoto: (memoId, fileId) => edit(() => memos.detachPhoto(ctx, memoId, fileId)),
     subscribeMemos: subscriber('memos'),
 
     // tasks (일정·할 일)
-    getTasks: () => (cache.tasks ??= Object.freeze(tasks.listTasks(ctx))),
+    getTasks: () => (cache.tasks ??= Object.freeze(tasks.listTasks(ctx, false))),
     getTask: taskId => tasks.getTask(ctx, taskId),
-    addTask: input => write(() => tasks.addTask(ctx, input)),
-    updateTask: (taskId, patch, options) => write(() => tasks.updateTask(ctx, taskId, patch, options)),
-    deleteTask: taskId => write(() => tasks.deleteTask(ctx, taskId)),
-    toggleDone: taskId => write(() => tasks.toggleDone(ctx, taskId)),
+    addTask: input => edit(() => tasks.addTask(ctx, input)),
+    updateTask: (taskId, patch, options) => edit(() => tasks.updateTask(ctx, taskId, patch, options)),
+    deleteTask: taskId => edit(() => tasks.deleteTask(ctx, taskId)),
+    toggleDone: taskId => edit(() => tasks.toggleDone(ctx, taskId)),
+    // 공유 공간의 일정·할 일 휴지통 (개인 공간은 바로 지워서 늘 비어 있음)
+    getTrashedTasks: () => (cache.trashedTasks ??= Object.freeze(tasks.listTasks(ctx, true))),
+    restoreTasks: ids => edit(() => tasks.restoreTasks(ctx, ids)),
+    deleteTasksForever: ids => edit(() => tasks.deleteTasksForever(ctx, ids)),
     findOverlap: (fields, excludeId) => tasks.findOverlap(ctx, fields, excludeId),
     subscribeTasks: subscriber('tasks'),
 
     // AI proposals
     getProposals: () => (cache.proposals ??= Object.freeze(proposals.listProposals(ctx))),
     getProposal: proposalId => proposals.getProposal(ctx, proposalId),
-    addProposals: items => write(() => proposals.addProposals(ctx, items)),
-    approveProposal: (proposalId, edits) => write(() => proposals.approveProposal(ctx, proposalId, edits)),
-    setProposalStatus: (proposalId, status) => write(() => proposals.setProposalStatus(ctx, proposalId, status)),
+    addProposals: items => edit(() => proposals.addProposals(ctx, items)),
+    approveProposal: (proposalId, edits) => edit(() => proposals.approveProposal(ctx, proposalId, edits)),
+    setProposalStatus: (proposalId, status) => edit(() => proposals.setProposalStatus(ctx, proposalId, status)),
     findDuplicate: fields => proposals.findDuplicate(ctx, fields),
     subscribeProposals: subscriber('proposals'),
 
-    // workspaces (this device only)
+    // 워크스페이스: 개인 공간(이 기기만) + 공유 공간(서버)
     getWorkspaces: () => store.getWorkspaceState().list,
     getCurrentWorkspace: () => store.getWorkspaceState().current,
     getWorkspaceState: () => (cache.workspaces ??= (() => {
@@ -184,7 +224,35 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, onList
     createWorkspace: input => write(() => workspaces.createWorkspace(ctx, input)),
     switchWorkspace: workspaceId => write(() => workspaces.switchWorkspace(ctx, workspaceId)),
     deleteWorkspace: workspaceId => write(() => workspaces.deleteWorkspace(ctx, workspaceId)),
+    linkWorkspace: (workspaceId, serverId) => write(() => workspaces.linkWorkspace(ctx, workspaceId, serverId)),
+    upsertServerWorkspace: input => write(() => workspaces.upsertServerWorkspace(ctx, input)),
+    joinWorkspace: input => write(() => workspaces.joinWorkspace(ctx, input)),
     subscribeWorkspaces: subscriber('workspaces'),
+
+    // 서버 연결 (동기화 다리가 씀): 보낼 목록 꺼내기 → 넘긴 뒤 지우기 → 받은 기록 반영
+    /** 공유 공간에서 한 저장들, 오래된 것부터. serverId가 null이면 아직 서버에 없는 공간이라 기다려야 함 */
+    peekOutbox: (limit = 20) => db.getAllSync(
+      'select o.seq, o.workspace_id, w.server_id, o.changes from outbox o join workspaces w on w.id = o.workspace_id order by o.seq limit ?', [limit],
+    ).map(r => ({ seq: r.seq, workspaceId: r.workspace_id, serverId: r.server_id, changes: JSON.parse(r.changes) })),
+    ackOutbox: seq => write(() => {
+      if (db.runSync('delete from outbox where seq=?', [seq]).changes) ctx.touch('outbox');
+      return true;
+    }),
+    outboxCount: () => db.getFirstSync('select count(*) as n from outbox').n,
+    subscribeOutbox: subscriber('outbox'),
+    applyServer: (workspaceRef, items) => write(() => applyServer(ctx, workspaceRef, items)),
+    applyFavorites: (workspaceRef, noteIds) => write(() => applyFavorites(ctx, workspaceRef, noteIds)),
+    sharedState: workspaceRef => sharedState(ctx, workspaceRef),
+    /** 화면 글자 ↔ 서버 값 변환 (server.js). AI 결과는 store.serverMap.proposalsFromAnalyze(draft, source) */
+    serverMap: ctx.map,
+
+    // 백업·계정
+    exportAll: () => backup.exportAll(ctx),
+    importAll: payload => write(() => backup.importAll(ctx, payload)),
+    clearAll: () => write(() => backup.clearAll(ctx)),
+    counts: () => backup.counts(ctx),
+    getAccount: () => backup.getAccount(ctx),
+    bindAccount: accountId => write(() => backup.bindAccount(ctx, accountId)),
 
     /** Called with the changed areas after every committed change. */
     subscribe: subscriber(null),

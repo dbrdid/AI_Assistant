@@ -1,13 +1,13 @@
 import { fail } from './errors.js';
 import { LIMITS, dateKey, id, isPlainObject, onlyKeys, optionalDateKey, positiveInt, text, timeOfDay } from './validate.js';
-import { addMemo, getMemo, linkTask, memoRow } from './memos.js';
+import { addMemo, getMemo, memoRow } from './memos.js';
 import { addTask, findSameTask, getTask } from './tasks.js';
 
 const KINDS = ['event', 'task', 'memo'];
-const ITEM_FIELDS = ['kind', 'title', 'date', 'start', 'end', 'place', 'assignee', 'body', 'evidence', 'sourceType', 'sourceId', 'sourceTitle', 'sourceRevision'];
+const ITEM_FIELDS = ['kind', 'title', 'date', 'endDate', 'start', 'end', 'place', 'assignee', 'priority', 'body', 'evidence', 'sourceType', 'sourceId', 'sourceTitle', 'sourceRevision'];
 /** What the confirm screen may change before approving. Other keys in the edits (the screen spreads the whole proposal) are ignored. */
-const EDITABLE = ['kind', 'title', 'date', 'start', 'end', 'place', 'assignee', 'body'];
-const COLUMNS = 'id,kind,title,date,start_time,end_time,place,assignee,body,evidence,source_type,source_id,source_title,source_revision,status,result_kind,result_id,created_at,updated_at';
+const EDITABLE = ['kind', 'title', 'date', 'endDate', 'start', 'end', 'place', 'assignee', 'priority', 'body'];
+const COLUMNS = 'id,kind,title,date,end_date,start_time,end_time,place,assignee,priority,body,evidence,source_type,source_id,source_title,source_revision,status,result_kind,result_id,created_at,updated_at';
 const OPEN = "status in ('pending','hold')";
 
 function toProposal(row) {
@@ -16,10 +16,12 @@ function toProposal(row) {
     kind: row.kind,
     title: row.title,
     date: row.date,
+    endDate: row.end_date,
     start: row.start_time,
     end: row.end_time,
     place: row.place,
     assignee: row.assignee,
+    priority: row.priority,          // AI가 매긴 중요도 글자 ('' = 없음)
     body: row.body,
     evidence: row.evidence,
     sourceType: row.source_type,
@@ -37,12 +39,14 @@ function checkItem(item) {
   if (!KINDS.includes(item.kind)) fail('invalid_input', 'kind');
   const v = {
     kind: item.kind,
-    title: text(item.title ?? '', 'title', LIMITS.short),
+    title: text(item.title ?? '', 'title', LIMITS.title),
     date: optionalDateKey(item.date ?? ''),
+    endDate: optionalDateKey(item.endDate ?? '', 'endDate'),
     start: timeOfDay(item.start ?? '', 'start'),
     end: timeOfDay(item.end ?? '', 'end'),
     place: text(item.place ?? '', 'place', LIMITS.short),
-    assignee: text(item.assignee ?? '', 'assignee', LIMITS.short),
+    assignee: text(item.assignee ?? '', 'assignee', LIMITS.assignee),
+    priority: text(item.priority ?? '', 'priority', LIMITS.label),
     body: text(item.body ?? '', 'body', LIMITS.desc),
     evidence: text(item.evidence ?? '', 'evidence', LIMITS.evidence),
     sourceType: text(item.sourceType ?? '', 'sourceType', LIMITS.label),
@@ -99,9 +103,9 @@ export function addProposals(ctx, items) {
     if (same) continue;
     const proposalId = ctx.newId();
     ctx.db.runSync(
-      `insert into proposals(workspace_id,id,kind,title,date,start_time,end_time,place,assignee,body,evidence,source_type,source_id,source_title,source_revision,status,created_at,updated_at)
-       values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`,
-      [ctx.ws(), proposalId, v.kind, v.title, v.date, v.start, v.end, v.place, v.assignee, v.body, v.evidence, v.sourceType, v.sourceId, v.sourceTitle, revision, t, t],
+      `insert into proposals(workspace_id,id,kind,title,date,end_date,start_time,end_time,place,assignee,priority,body,evidence,source_type,source_id,source_title,source_revision,status,created_at,updated_at)
+       values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`,
+      [ctx.ws(), proposalId, v.kind, v.title, v.date, v.endDate, v.start, v.end, v.place, v.assignee, v.priority, v.body, v.evidence, v.sourceType, v.sourceId, v.sourceTitle, revision, t, t],
     );
     ctx.touch('proposals');
     added.push(getProposal(ctx, proposalId));
@@ -111,7 +115,7 @@ export function addProposals(ctx, items) {
 
 function resultOf(ctx, row) {
   const item = row.result_kind === 'memo' ? getMemo(ctx, row.result_id) : getTask(ctx, row.result_id);
-  return item ? ctx.freeze({ ...item, kind: row.result_kind }) : null;
+  return item ? ctx.freeze({ ...item, kind: row.result_kind, ...(row.result_kind === 'task' ? { taskKind: item.kind } : {}) }) : null;
 }
 
 /**
@@ -140,17 +144,19 @@ export function approveProposal(ctx, proposalId, edits = {}) {
 
   let saved;
   if (v.kind === 'memo') {
-    saved = addMemo(ctx, { title: text(v.title, 'title', LIMITS.title), body: text(v.body, 'body', LIMITS.body) });
+    saved = addMemo(ctx, { title: text(v.title, 'title', LIMITS.memoTitle), body: text(v.body, 'body', LIMITS.body) });
   } else {
+    // kind를 그대로 넘겨서, 시간이 있는 할 일도 서버에서 할 일(tasks)로 남음. 원본 메모와의 연결도 같은 저장에 담음
     saved = addTask(ctx, {
-      title: v.title, date: dateKey(v.date), start: v.start, end: v.end, place: v.place, assignee: v.assignee, desc: v.body,
-    });
-    if (source) linkTask(ctx, source.id, saved.id);
+      kind: v.kind, title: v.title, date: dateKey(v.date), endDate: v.endDate, start: v.start, end: v.end, place: v.place, assignee: v.assignee, desc: v.body,
+      ...(v.priority ? { priority: v.priority } : {}),
+    }, { memoId: source ? source.id : null });
   }
   const resultKind = v.kind === 'memo' ? 'memo' : 'task';
   ctx.db.runSync("update proposals set status='approved',result_kind=?,result_id=?,updated_at=? where id=?", [resultKind, saved.id, ctx.now(), proposalId]);
   ctx.touch('proposals');
-  return ctx.freeze({ ...saved, kind: resultKind });
+  // kind는 약속대로 'task' | 'memo'. 일정·할 일의 종류('task' | 'event')는 taskKind
+  return ctx.freeze({ ...saved, kind: resultKind, ...(resultKind === 'task' ? { taskKind: saved.kind } : {}) });
 }
 
 /** Moves an open proposal to 'pending', 'hold' or 'rejected'. */
@@ -179,7 +185,7 @@ export function pendingOf(list) {
 }
 
 /**
- * Turns the candidates of backend/cloud's POST /v1/ai/organize ({kind, title, dueDate, sourceQuote}, docs/SERVER.md)
+ * (팀 서버용) Turns the candidates of backend/cloud's POST /v1/ai/organize ({kind, title, dueDate, sourceQuote}, docs/SERVER.md)
  * into items for addProposals. `source` is { sourceType, sourceId, sourceTitle, sourceRevision }.
  */
 export function candidatesToProposals(candidates, source = {}) {

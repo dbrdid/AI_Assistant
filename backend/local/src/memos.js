@@ -1,12 +1,15 @@
 import { fail } from './errors.js';
-import { LIMITS, bool, id, idList, onlyKeys, positiveInt, strokesJson, text } from './validate.js';
+import { LIMITS, bool, id, idList, onlyKeys, positiveInt, strokesJson, text, uuid } from './validate.js';
+import { noteIdOf, queueNoteLink } from './tasks.js';
 
 const FIELDS = ['title', 'body', 'strokes', 'photos', 'taskIds', 'favorite'];
 const COLUMNS = 'id,title,body,strokes,photos,favorite,revision,created_at,updated_at,deleted_at';
+// 휴지통에 있는 일정·할 일은 메모의 taskIds에서 빠짐
+const LINKS = 'select l.memo_id, l.task_id from memo_tasks l join tasks t on t.id = l.task_id and t.deleted_at is null';
 
 function linkMap(ctx) {
   const map = new Map();
-  for (const row of ctx.db.getAllSync('select memo_id,task_id from memo_tasks where workspace_id=? order by memo_id,position', [ctx.ws()])) {
+  for (const row of ctx.db.getAllSync(`${LINKS} where l.workspace_id=? order by l.memo_id, l.position`, [ctx.ws()])) {
     if (!map.has(row.memo_id)) map.set(row.memo_id, []);
     map.get(row.memo_id).push(row.task_id);
   }
@@ -29,10 +32,7 @@ function toMemo(row, taskIds) {
   };
 }
 
-/**
- * The memos of the current workspace, in the trash or not. Objects of memos that did not change since the previous
- * listing are reused (strokes are parsed only after an edit), so unchanged items keep their identity.
- */
+/** 현재 워크스페이스의 메모 (휴지통 안 또는 밖). 바뀌지 않은 메모는 이전 객체를 그대로 돌려줌 */
 export function listMemos(ctx, trashed, reuse) {
   const rows = ctx.db.getAllSync(
     `select ${COLUMNS} from memos where workspace_id=? and deleted_at is ${trashed ? 'not null order by deleted_at desc' : 'null order by updated_at desc'}, id`,
@@ -58,10 +58,10 @@ function row(ctx, memoId) {
 }
 
 function taskIdsOf(ctx, memoId) {
-  return ctx.db.getAllSync('select task_id from memo_tasks where memo_id=? order by position', [memoId]).map(r => r.task_id);
+  return ctx.db.getAllSync(`${LINKS} where l.memo_id=? order by l.position`, [memoId]).map(r => r.task_id);
 }
 
-/** One memo of the current workspace, also when it is in the trash; null when there is none. */
+/** 현재 워크스페이스의 메모 하나 (휴지통 포함). 없으면 null */
 export function getMemo(ctx, memoId) {
   if (typeof memoId !== 'string') return null;
   const r = row(ctx, memoId);
@@ -73,63 +73,76 @@ function requireMemo(ctx, memoId) {
   return row(ctx, memoId) ?? fail('not_found');
 }
 
+/**
+ * 메모의 연결된 일정·할 일을 통째로 바꿈.
+ * 공유 공간에서는 서버가 항목마다 메모 하나(note_id)만 담으므로, 다른 메모에 있던 연결은 이 메모로 옮김.
+ */
 function setLinks(ctx, memoId, taskIds) {
   for (const taskId of taskIds) {
-    if (!ctx.db.getFirstSync('select 1 as ok from tasks where workspace_id=? and id=?', [ctx.ws(), taskId])) fail('not_found', 'taskIds');
+    if (!ctx.db.getFirstSync('select 1 as ok from tasks where workspace_id=? and id=? and deleted_at is null', [ctx.ws(), taskId])) fail('not_found', 'taskIds');
   }
+  const shared = ctx.shared();
+  const affected = shared ? [...new Set([...ctx.db.getAllSync('select task_id from memo_tasks where memo_id=?', [memoId]).map(r => r.task_id), ...taskIds])] : [];
+  const before = new Map(affected.map(taskId => [taskId, noteIdOf(ctx, taskId)]));
   ctx.db.runSync('delete from memo_tasks where memo_id=?', [memoId]);
   taskIds.forEach((taskId, position) => {
+    if (shared) ctx.db.runSync('delete from memo_tasks where task_id=?', [taskId]);
     ctx.db.runSync('insert into memo_tasks(workspace_id,memo_id,task_id,position) values(?,?,?,?)', [ctx.ws(), memoId, taskId, position]);
   });
+  for (const taskId of affected) {
+    const after = noteIdOf(ctx, taskId);
+    if (after !== before.get(taskId)) queueNoteLink(ctx, taskId, after);
+  }
 }
 
-/** Appends a task link without touching the memo's content or revision (used when an AI proposal is approved). */
-export function linkTask(ctx, memoId, taskId) {
-  const exists = ctx.db.getFirstSync('select 1 as ok from memo_tasks where memo_id=? and task_id=?', [memoId, taskId]);
-  if (exists) return;
-  const { n } = ctx.db.getFirstSync('select count(*) as n from memo_tasks where memo_id=?', [memoId]);
-  ctx.db.runSync('insert into memo_tasks(workspace_id,memo_id,task_id,position) values(?,?,?,?)', [ctx.ws(), memoId, taskId, n]);
-  ctx.touch('memos');
-}
-
-function checkFields(input) {
+function checkFields(ctx, input) {
   const v = {};
-  if ('title' in input) v.title = text(input.title, 'title', LIMITS.title);
+  if ('title' in input) v.title = text(input.title, 'title', LIMITS.memoTitle);
   if ('body' in input) v.body = text(input.body, 'body', LIMITS.body);
   if ('strokes' in input) v.strokes = strokesJson(input.strokes);
-  if ('photos' in input) v.photos = JSON.stringify(idList(input.photos, 'photos'));
+  if ('photos' in input) {
+    const photos = idList(input.photos, 'photos');
+    // 공유 공간의 사진은 서버에 올린 첨부(assets) id여야 함: attachments.ts로 올린 뒤 받은 id
+    v.photos = JSON.stringify(ctx.shared() ? photos.map(p => uuid(p, 'photos')) : photos);
+  }
   if ('taskIds' in input) v.taskIds = idList(input.taskIds, 'taskIds');
   if ('favorite' in input) v.favorite = bool(input.favorite, 'favorite') ? 1 : 0;
   return v;
 }
 
 const isEmpty = (title, body, strokes) => !title.trim() && !body.trim() && strokes === '[]';
+const favoriteChange = (ids, favorite) => [{ kind: 'favorite', entity: 'note_favorites', data: { note_ids: ids, favorite } }];
+const photoLink = (kind, memoId, assetId, position) => ({ kind, entity: 'note_attachments', data: { note_id: memoId, asset_id: assetId, ...(kind === 'link' ? { position } : {}) } });
 
-/** Creates a memo in the current workspace. At least one of title, body or strokes must have content. */
+/** 현재 워크스페이스에 메모를 만듦. 제목·본문·손글씨 중 하나는 있어야 함 */
 export function addMemo(ctx, input) {
   onlyKeys(input, FIELDS);
-  const v = checkFields(input);
-  const title = v.title ?? '', body = v.body ?? '', strokes = v.strokes ?? '[]';
+  const v = checkFields(ctx, input);
+  const title = v.title ?? '', body = v.body ?? '', strokes = v.strokes ?? '[]', photos = v.photos ?? '[]';
   if (isEmpty(title, body, strokes)) fail('empty_memo');
   const memoId = ctx.newId(), t = ctx.now();
   ctx.db.runSync(
     'insert into memos(workspace_id,id,title,body,strokes,photos,favorite,revision,created_at,updated_at) values(?,?,?,?,?,?,?,1,?,?)',
-    [ctx.ws(), memoId, title, body, strokes, v.photos ?? '[]', v.favorite ?? 0, t, t],
+    [ctx.ws(), memoId, title, body, strokes, photos, v.favorite ?? 0, t, t],
   );
+  ctx.queue([
+    { kind: 'create', entity: 'notes', id: memoId, data: ctx.map.noteData({ title, body, strokes }) },
+    ...JSON.parse(photos).map((assetId, i) => photoLink('link', memoId, assetId, i)),
+  ]);
+  if (v.favorite) ctx.queueSeparate(favoriteChange([memoId], true));
   if (v.taskIds) setLinks(ctx, memoId, v.taskIds);
   ctx.touch('memos');
   return getMemo(ctx, memoId);
 }
 
 /**
- * Changes the given fields. A change to title, body or strokes raises the revision and updatedAt; photos, taskIds
- * and favorite change neither. Nothing is written when nothing differs. With expectedRevision, a memo edited since
- * fails with revision_conflict.
+ * 준 칸만 바꿈. 제목·본문·손글씨가 바뀌면 revision·updatedAt이 오르고, 사진·연결·즐겨찾기는 올리지 않음.
+ * 달라진 것이 없으면 아무것도 쓰지 않음. expectedRevision을 주면 그 사이 고쳐진 메모는 revision_conflict.
  */
 export function updateMemo(ctx, memoId, patch, { expectedRevision } = {}) {
   const current = requireMemo(ctx, memoId);
   onlyKeys(patch, FIELDS, 'patch');
-  const v = checkFields(patch);
+  const v = checkFields(ctx, patch);
   if (expectedRevision !== undefined && positiveInt(expectedRevision, 'expectedRevision') !== current.revision) fail('revision_conflict');
   const title = v.title ?? current.title, body = v.body ?? current.body, strokes = v.strokes ?? current.strokes;
   const contentChanged = title !== current.title || body !== current.body || strokes !== current.strokes;
@@ -140,6 +153,15 @@ export function updateMemo(ctx, memoId, patch, { expectedRevision } = {}) {
       'update memos set title=?,body=?,strokes=?,photos=?,favorite=?,revision=?,updated_at=? where id=?',
       [title, body, strokes, photos, favorite, current.revision + (contentChanged ? 1 : 0), contentChanged ? ctx.now() : current.updated_at, memoId],
     );
+    const changes = [];
+    if (contentChanged) changes.push({ kind: 'update', entity: 'notes', id: memoId, data: ctx.map.diff(ctx.map.noteData(current), ctx.map.noteData({ title, body, strokes })) });
+    if (photos !== current.photos) {
+      const was = JSON.parse(current.photos), now = JSON.parse(photos);
+      for (const assetId of was) if (!now.includes(assetId)) changes.push(photoLink('unlink', memoId, assetId));
+      now.forEach((assetId, i) => { if (!was.includes(assetId)) changes.push(photoLink('link', memoId, assetId, i)); });
+    }
+    ctx.queue(changes);
+    if (favorite !== current.favorite) ctx.queueSeparate(favoriteChange([memoId], favorite === 1));
     ctx.touch('memos');
   }
   if (v.taskIds && v.taskIds.join('\n') !== taskIdsOf(ctx, memoId).join('\n')) {
@@ -153,6 +175,7 @@ export function trashMemo(ctx, memoId) {
   const current = requireMemo(ctx, memoId);
   if (current.deleted_at === null) {
     ctx.db.runSync('update memos set deleted_at=? where id=?', [ctx.now(), memoId]);
+    ctx.queue([{ kind: 'delete', entity: 'notes', id: memoId }]);
     ctx.touch('memos');
   }
   return true;
@@ -168,29 +191,46 @@ function eachExisting(ctx, ids, field, fn) {
   return count;
 }
 
-/** Moves memos to the trash. Ids not in the current workspace are skipped. Returns how many moved. */
+/** 메모를 휴지통으로. 현재 워크스페이스에 없는 id는 건너뜀. 옮긴 개수 */
 export function trashMemos(ctx, ids) {
   const t = ctx.now();
-  return eachExisting(ctx, ids, 'ids', m => m.deleted_at === null && ctx.db.runSync('update memos set deleted_at=? where id=?', [t, m.id]).changes === 1);
+  return eachExisting(ctx, ids, 'ids', m => {
+    if (m.deleted_at !== null) return false;
+    ctx.db.runSync('update memos set deleted_at=? where id=?', [t, m.id]);
+    ctx.queue([{ kind: 'delete', entity: 'notes', id: m.id }]);
+    return true;
+  });
 }
 
-/** Takes memos out of the trash. Returns how many were restored. */
+/** 휴지통에서 꺼냄. 복구한 개수 */
 export function restoreMemos(ctx, ids) {
-  return eachExisting(ctx, ids, 'ids', m => m.deleted_at !== null && ctx.db.runSync('update memos set deleted_at=null where id=?', [m.id]).changes === 1);
+  return eachExisting(ctx, ids, 'ids', m => {
+    if (m.deleted_at === null) return false;
+    ctx.db.runSync('update memos set deleted_at=null where id=?', [m.id]);
+    ctx.queue([{ kind: 'restore', entity: 'notes', id: m.id }]);
+    return true;
+  });
 }
 
-/** Deletes memos for good, with their task links; their open AI proposals are withdrawn (superseded). */
+/**
+ * 메모를 영구 삭제. 연결도 지우고, 그 메모의 열린 AI 제안은 닫음(superseded).
+ * 공유 공간: 서버는 휴지통에 있는 것만 영구 삭제하므로, 휴지통에 없던 메모는 '삭제' 다음에 '영구 삭제'를 따로 보냄.
+ */
 export function deleteMemosForever(ctx, ids) {
   const t = ctx.now();
-  const removed = eachExisting(ctx, ids, 'ids', m => {
+  return eachExisting(ctx, ids, 'ids', m => {
     const withdrawn = ctx.db.runSync(
       "update proposals set status='superseded',updated_at=? where workspace_id=? and source_type='memo' and source_id=? and status in ('pending','hold')",
       [t, ctx.ws(), m.id],
     ).changes;
     if (withdrawn) ctx.touch('proposals');
+    if (ctx.shared()) {
+      // 연결된 일정·할 일의 note_id는 서버가 영구 삭제하면서 비우고 그 변경을 내려보냄
+      if (m.deleted_at === null) ctx.queue([{ kind: 'delete', entity: 'notes', id: m.id }]);
+      ctx.queueLater([{ kind: 'purge', entity: 'notes', id: m.id }]);
+    }
     return ctx.db.runSync('delete from memos where id=?', [m.id]).changes === 1;
   });
-  return removed;
 }
 
 export function deleteMemoForever(ctx, memoId) {
@@ -199,20 +239,30 @@ export function deleteMemoForever(ctx, memoId) {
   return true;
 }
 
-/** Marks or unmarks memos as favorites. Returns how many changed. */
+/** 즐겨찾기 켜기·끄기. 바뀐 개수. 공유 공간의 즐겨찾기는 사람마다 따로라 동기화와 다른 길(favorites.ts)로 감 */
 export function setFavorites(ctx, ids, favorite) {
   const value = bool(favorite, 'favorite') ? 1 : 0;
-  return eachExisting(ctx, ids, 'ids', m => m.favorite !== value && ctx.db.runSync('update memos set favorite=? where id=?', [value, m.id]).changes === 1);
+  const changedIds = [];
+  const count = eachExisting(ctx, ids, 'ids', m => {
+    if (m.favorite === value) return false;
+    ctx.db.runSync('update memos set favorite=? where id=?', [value, m.id]);
+    changedIds.push(m.id);
+    return true;
+  });
+  if (changedIds.length) ctx.queueSeparate(favoriteChange(changedIds, value === 1));
+  return count;
 }
 
-/** Adds a file id to the memo's photos (once). */
+/** 메모 사진에 파일 id를 더함 (한 번만). 공유 공간은 서버 첨부 id(UUID) */
 export function attachPhoto(ctx, memoId, fileId) {
   const current = requireMemo(ctx, memoId);
   id(fileId, 'fileId');
+  if (ctx.shared()) uuid(fileId, 'fileId');
   const photos = JSON.parse(current.photos);
   if (!photos.includes(fileId)) {
     photos.push(fileId);
     ctx.db.runSync('update memos set photos=? where id=?', [JSON.stringify(photos), memoId]);
+    ctx.queue([photoLink('link', memoId, fileId, photos.length - 1)]);
     ctx.touch('memos');
   }
   return getMemo(ctx, memoId);
@@ -224,12 +274,13 @@ export function detachPhoto(ctx, memoId, fileId) {
   const photos = JSON.parse(current.photos);
   if (photos.includes(fileId)) {
     ctx.db.runSync('update memos set photos=? where id=?', [JSON.stringify(photos.filter(p => p !== fileId)), memoId]);
+    ctx.queue([photoLink('unlink', memoId, fileId)]);
     ctx.touch('memos');
   }
   return getMemo(ctx, memoId);
 }
 
-/** The raw row, for proposals (revision checks and links). */
+/** 제안이 쓰는 원본 행 (revision 확인용) */
 export function memoRow(ctx, memoId) {
   return typeof memoId === 'string' ? row(ctx, memoId) : null;
 }

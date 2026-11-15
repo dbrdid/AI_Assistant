@@ -8,7 +8,7 @@ import { setup, rejects, rejectsUnchanged } from './helpers.mjs';
 test('a new database starts with the personal workspace selected', () => {
   const t = setup();
   const state = t.store.getWorkspaceState();
-  assert.deepEqual(state.list, [{ id: state.current.id, name: '개인 공간', desc: '', personal: true, createdAt: t.clock.t }]);
+  assert.deepEqual(state.list, [{ id: state.current.id, name: '개인 공간', desc: '', personal: true, createdAt: t.clock.t, serverId: null, roleCode: 'OWNER', role: '관리자', members: 1 }]);
   assert.equal(state.current, state.list[0]);
   assert.equal(t.store.getWorkspaceState(), state, 'cached until a workspace changes');
 });
@@ -43,11 +43,12 @@ test('workspaces keep memos, tasks and proposals apart', () => {
   assert.equal(calls, 3, 'switching to the current workspace changes nothing');
 });
 
-test('workspace names are required and unique; unknown ids are refused', () => {
+test('workspace names are required but may repeat (as on the server); unknown ids are refused', () => {
   const t = setup();
   t.store.createWorkspace({ name: '팀' });
-  rejectsUnchanged(t, () => t.store.createWorkspace({ name: ' 팀 ' }), 'name_taken');
-  rejectsUnchanged(t, () => t.store.createWorkspace({ name: '개인 공간' }), 'name_taken');
+  assert.notEqual(t.store.createWorkspace({ name: ' 팀 ' }), null);
+  assert.deepEqual(t.store.getWorkspaces().map(w => w.name), ['개인 공간', '팀', '팀']);
+  rejectsUnchanged(t, () => t.store.createWorkspace({ name: 'x'.repeat(61) }), 'invalid_input', 'name');
   rejectsUnchanged(t, () => t.store.createWorkspace({ name: '  ' }), 'invalid_input', 'name');
   rejectsUnchanged(t, () => t.store.createWorkspace({ name: '팀2', members: 3 }), 'invalid_input', 'members');
   rejectsUnchanged(t, () => t.store.switchWorkspace('missing'), 'not_found');
@@ -68,7 +69,7 @@ test('deleting a workspace deletes its data; the personal one stays; deleting th
   assert.equal(t.store.deleteWorkspace(team), true);
   assert.equal(t.store.getCurrentWorkspace().id, personal);
   assert.deepEqual(t.store.getWorkspaces().map(w => w.id), [personal]);
-  assert.deepEqual(seen, ['memos,proposals,tasks,workspaces']);
+  assert.deepEqual(seen, ['memos,outbox,proposals,tasks,workspaces']);
   for (const table of ['memos', 'tasks', 'memo_tasks', 'proposals']) {
     assert.equal(t.db.getFirstSync(`select count(*) as n from ${table} where workspace_id=?`, [team]).n, 0, table);
   }
@@ -97,7 +98,7 @@ test('the current workspace and all data survive closing and reopening the datab
     const first = setup({ path });
     const team = first.store.createWorkspace({ name: '팀' });
     first.store.switchWorkspace(team);
-    const memo = first.store.addMemo({ title: '남아 있어야 함', strokes: [{ p: [[0, 0]] }] });
+    const memo = first.store.addMemo({ title: '남아 있어야 함', strokes: [{ id: 's1', c: '#000000', w: 1, p: [[0, 0]] }] });
     first.db.closeSync();
 
     const second = setup({ path });

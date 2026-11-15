@@ -13,6 +13,7 @@ export function createHooks(useSyncExternalStore, store) {
     useMemos: hook(store.subscribeMemos, store.getMemos),
     useTrashedMemos: hook(store.subscribeMemos, store.getTrashedMemos),
     useTasks: hook(store.subscribeTasks, store.getTasks),
+    useTrashedTasks: hook(store.subscribeTasks, store.getTrashedTasks),
     useProposals: hook(store.subscribeProposals, store.getProposals),
     useWorkspaces: hook(store.subscribeWorkspaces, store.getWorkspaceState),
   });
