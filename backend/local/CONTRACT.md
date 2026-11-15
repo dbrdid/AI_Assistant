@@ -125,11 +125,12 @@
 
 | 함수 | 결과 |
 | --- | --- |
-| `peekOutbox(limit?)` | 공유 공간에서 한 저장들 `{seq, workspaceId, serverId, changes}`. `changes`는 `local-sync`의 `saveLocal`에 그대로 넘기는 모양 |
+| `peekOutbox(limit?, {workspaceId?, afterSeq?}?)` | 공유 공간에서 한 저장들 `{seq, workspaceId, serverId, changes, createdAt}`. `changes`는 `local-sync`의 `saveLocal`에 그대로 넘기는 모양이고 한 줄에 100개까지(넘으면 여러 줄로 나눠 적음). 옵션으로 공간 하나만, 또는 `afterSeq` 다음부터 |
 | `ackOutbox(seq)` / `outboxCount()` / `subscribeOutbox(fn)` | 넘긴 줄 지우기 / 남은 줄 수 / 구독 |
 | `applyServer(workspaceId, items)` | 서버에서 받은 행을 화면용 표에 반영 `{notes, tasks, photos}` 바뀐 개수 |
 | `applyFavorites(workspaceId, noteIds)` | 내 즐겨찾기를 서버 값으로 맞춤 |
-| `createBridge({store, engine, db, transport, accountId, favorites})` | `syncAll()`·`syncWorkspace(id)`·`refresh(id)`: 위 함수들을 `local-sync`와 이어 주는 다리 |
+| `createBridge({store, engine, db, transport, accountId, favorites})` | `syncAll()`·`syncWorkspace(id)`·`refresh(id)`: 위 함수들을 `local-sync`와 이어 주는 다리. 겹쳐 불러도 차례로 돌고, 공간별 결과(`OK`·`CLOSED`·`ERROR`, 막힌 줄은 `handOff`)를 돌려줌. `accountId`가 기기 저장소의 계정과 다르면 `account_mismatch` |
+| `applyServer` · `applyFavorites` | 보낼 목록에 아직 남은 저장이 건드린 기록·별표는 건너뜀 (방금 한 저장을 서버 값으로 덮지 않음) |
 | `exportAll()` / `importAll(payload)` / `counts()` | 개인 공간 내보내기 / 통째로 가져오기 / 개수 (`backup.ts`에 넘길 내용) |
 | `clearAll()` | 기기 기록을 모두 지우고 빈 개인 공간으로 (로그아웃·탈퇴 뒤) |
 | `bindAccount(accountId)` / `getAccount()` | 이 기기 DB를 쓰는 계정 기억. 다른 계정이면 `account_mismatch` |
