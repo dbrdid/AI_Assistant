@@ -278,6 +278,8 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, timezo
     subscribeOutbox: subscriber('outbox'),
     applyServer: (workspaceRef, items) => write(() => applyServer(ctx, workspaceRef, items)),
     applyFavorites: (workspaceRef, noteIds) => write(() => applyFavorites(ctx, workspaceRef, noteIds)),
+    /** 기기 파일을 서버에 올린 뒤: 메모의 그 사진을 첨부 id로 바꾸고 연결을 보낼 목록에 적음. 사진이 그새 지워졌으면 false */
+    resolveUpload: (workspaceRef, memoId, ref, assetId) => write(() => memos.resolveUpload(ctx, workspaceRef, memoId, ref, assetId)),
     sharedState: workspaceRef => sharedState(ctx, workspaceRef),
     /** 화면 글자 ↔ 서버 값 변환 (server.js). AI 결과는 store.serverMap.proposalsFromAnalyze(draft, source) */
     serverMap: ctx.map,

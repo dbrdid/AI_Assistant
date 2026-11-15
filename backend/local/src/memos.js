@@ -1,5 +1,5 @@
 import { fail } from './errors.js';
-import { LIMITS, bool, id, idList, onlyKeys, positiveInt, strokesJson, text, uuid } from './validate.js';
+import { LIMITS, bool, id, idList, isUuid, onlyKeys, positiveInt, strokesJson, text, uuid } from './validate.js';
 import { noteIdOf, queueNoteLink } from './tasks.js';
 
 const FIELDS = ['title', 'body', 'strokes', 'photos', 'taskIds', 'favorite'];
@@ -101,9 +101,8 @@ function checkFields(ctx, input) {
   if ('body' in input) v.body = text(input.body, 'body', LIMITS.body);
   if ('strokes' in input) v.strokes = strokesJson(input.strokes);
   if ('photos' in input) {
-    const photos = idList(input.photos, 'photos');
-    // 공유 공간의 사진은 서버에 올린 첨부(assets) id여야 함: attachments.ts로 올린 뒤 받은 id
-    v.photos = JSON.stringify(ctx.shared() ? photos.map(p => uuid(p, 'photos')) : photos);
+    // 공유 공간의 사진: UUID는 서버에 올린 첨부(assets) id, 그 밖의 글자는 아직 안 올린 기기 파일(올리기를 기다림)
+    v.photos = JSON.stringify(idList(input.photos, 'photos'));
   }
   if ('taskIds' in input) v.taskIds = idList(input.taskIds, 'taskIds');
   if ('favorite' in input) v.favorite = bool(input.favorite, 'favorite') ? 1 : 0;
@@ -113,6 +112,14 @@ function checkFields(ctx, input) {
 const isEmpty = (title, body, strokes) => !title.trim() && !body.trim() && strokes === '[]';
 const favoriteChange = (ids, favorite) => [{ kind: 'favorite', entity: 'note_favorites', data: { note_ids: ids, favorite } }];
 const photoLink = (kind, memoId, assetId, position) => ({ kind, entity: 'note_attachments', data: { note_id: memoId, asset_id: assetId, ...(kind === 'link' ? { position } : {}) } });
+/** 아직 서버에 안 올린 사진: 다리가 올린 뒤 resolveUpload로 첨부 id와 바꿈 (오프라인에서도 붙일 수 있음) */
+const photoUpload = (memoId, ref) => [{ kind: 'upload', entity: 'note_attachments', data: { note_id: memoId, ref } }];
+
+/** 공유 공간에서 사진을 더할 때: 올린 첨부는 연결을 보내고, 기기 파일은 올리기를 기다리게 함 */
+function queuePhoto(ctx, memoId, photoId, position) {
+  if (isUuid(photoId)) ctx.queue([photoLink('link', memoId, photoId, position)]);
+  else ctx.queueSeparate(photoUpload(memoId, photoId));
+}
 
 /** 현재 워크스페이스에 메모를 만듦. 제목·본문·손글씨 중 하나는 있어야 함 */
 export function addMemo(ctx, input) {
@@ -125,10 +132,8 @@ export function addMemo(ctx, input) {
     'insert into memos(workspace_id,id,title,body,strokes,photos,favorite,revision,created_at,updated_at) values(?,?,?,?,?,?,?,1,?,?)',
     [ctx.ws(), memoId, title, body, strokes, photos, v.favorite ?? 0, t, t],
   );
-  ctx.queue([
-    { kind: 'create', entity: 'notes', id: memoId, data: ctx.map.noteData({ title, body, strokes }) },
-    ...JSON.parse(photos).map((assetId, i) => photoLink('link', memoId, assetId, i)),
-  ]);
+  ctx.queue([{ kind: 'create', entity: 'notes', id: memoId, data: ctx.map.noteData({ title, body, strokes }) }]);
+  JSON.parse(photos).forEach((photoId, i) => queuePhoto(ctx, memoId, photoId, i));
   if (v.favorite) ctx.queueSeparate(favoriteChange([memoId], true));
   if (v.taskIds) setLinks(ctx, memoId, v.taskIds);
   ctx.touch('memos');
@@ -157,10 +162,14 @@ export function updateMemo(ctx, memoId, patch, { expectedRevision } = {}) {
     if (contentChanged) changes.push({ kind: 'update', entity: 'notes', id: memoId, data: ctx.map.diff(ctx.map.noteData(current), ctx.map.noteData({ title, body, strokes })) });
     if (photos !== current.photos) {
       const was = JSON.parse(current.photos), now = JSON.parse(photos);
-      for (const assetId of was) if (!now.includes(assetId)) changes.push(photoLink('unlink', memoId, assetId));
-      now.forEach((assetId, i) => { if (!was.includes(assetId)) changes.push(photoLink('link', memoId, assetId, i)); });
+      for (const assetId of was) if (!now.includes(assetId) && isUuid(assetId)) changes.push(photoLink('unlink', memoId, assetId));
+      now.forEach((assetId, i) => { if (!was.includes(assetId) && isUuid(assetId)) changes.push(photoLink('link', memoId, assetId, i)); });
     }
     ctx.queue(changes);
+    if (photos !== current.photos) {
+      const was = JSON.parse(current.photos);
+      for (const ref of JSON.parse(photos)) if (!was.includes(ref) && !isUuid(ref)) ctx.queueSeparate(photoUpload(memoId, ref));
+    }
     if (favorite !== current.favorite) ctx.queueSeparate(favoriteChange([memoId], favorite === 1));
     ctx.touch('memos');
   }
@@ -253,19 +262,41 @@ export function setFavorites(ctx, ids, favorite) {
   return count;
 }
 
-/** 메모 사진에 파일 id를 더함 (한 번만). 공유 공간은 서버 첨부 id(UUID) */
+/** 메모 사진에 파일 id를 더함 (한 번만). 공유 공간: UUID는 서버 첨부 id, 그 밖은 아직 안 올린 기기 파일 */
 export function attachPhoto(ctx, memoId, fileId) {
   const current = requireMemo(ctx, memoId);
   id(fileId, 'fileId');
-  if (ctx.shared()) uuid(fileId, 'fileId');
   const photos = JSON.parse(current.photos);
   if (!photos.includes(fileId)) {
     photos.push(fileId);
     ctx.db.runSync('update memos set photos=? where id=?', [JSON.stringify(photos), memoId]);
-    ctx.queue([photoLink('link', memoId, fileId, photos.length - 1)]);
+    queuePhoto(ctx, memoId, fileId, photos.length - 1);
     ctx.touch('memos');
   }
   return getMemo(ctx, memoId);
+}
+
+/**
+ * 기기 파일(ref)을 서버에 올린 뒤 부름: 메모의 그 사진을 첨부 id로 바꾸고 연결을 보낼 목록에 적음 (동기화 다리가 씀).
+ * 그 사이 메모나 사진이 지워졌으면 아무것도 하지 않고 false.
+ */
+export function resolveUpload(ctx, workspaceRef, memoId, ref, assetId) {
+  const ws = ctx.db.getFirstSync('select id from workspaces where (server_id=? or id=?) and personal=0', [workspaceRef, workspaceRef]) ?? fail('not_found');
+  id(ref, 'ref');
+  uuid(assetId, 'assetId');
+  const memo = typeof memoId === 'string' ? ctx.db.getFirstSync('select photos from memos where workspace_id=? and id=?', [ws.id, memoId]) : null;
+  const photos = memo ? JSON.parse(memo.photos) : [];
+  const at = photos.indexOf(ref);
+  if (at < 0) return false;
+  const already = photos.includes(assetId);
+  const next = already ? photos.filter(p => p !== ref) : photos.map(p => (p === ref ? assetId : p));
+  ctx.db.runSync('update memos set photos=? where id=?', [JSON.stringify(next), memoId]);
+  if (!already) {
+    ctx.db.runSync('insert into outbox(workspace_id,changes,created_at) values(?,?,?)', [ws.id, JSON.stringify([photoLink('link', memoId, assetId, at)]), ctx.now()]);
+    ctx.touch('outbox');
+  }
+  ctx.touch('memos');
+  return true;
 }
 
 export function detachPhoto(ctx, memoId, fileId) {
@@ -274,7 +305,7 @@ export function detachPhoto(ctx, memoId, fileId) {
   const photos = JSON.parse(current.photos);
   if (photos.includes(fileId)) {
     ctx.db.runSync('update memos set photos=? where id=?', [JSON.stringify(photos.filter(p => p !== fileId)), memoId]);
-    ctx.queue([photoLink('unlink', memoId, fileId)]);
+    if (isUuid(fileId)) ctx.queue([photoLink('unlink', memoId, fileId)]);   // 아직 안 올린 사진은 서버가 모르니 보낼 것이 없음
     ctx.touch('memos');
   }
   return getMemo(ctx, memoId);

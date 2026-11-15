@@ -256,6 +256,7 @@ const notes = await listLocal(db, workspaceId, 'notes');          // [{ data, pe
 const status = await getSyncStatus(db, workspaceId);              // { pending, conflicts, failed, lastSeq }
 
 // 충돌: 사용자가 고르면
+await resolveConflict(ctx, outboxSeq, 'merge');       // 먼저 스스로 합쳐 봄 (다른 칸·다른 줄·다른 획). 못 합치면 CANNOT_MERGE
 await resolveConflict(ctx, outboxSeq, 'keep_mine');   // 서버 최신 값 위에 내가 바꾼 필드만 다시 저장
 await resolveConflict(ctx, outboxSeq, 'use_server');  // 내 수정 버리기
 ```
@@ -269,6 +270,8 @@ await resolveConflict(ctx, outboxSeq, 'use_server');  // 내 수정 버리기
 - **기기 DB는 한 계정 것입니다 (11/15).** `bindSyncAccount(db, accountId)`는 같은 계정이면 그대로 두고, 다른 계정이면 앞 계정의 공유 공간 기록·보낼 목록을 지운 뒤 `{ cleared, droppedOutbox }`를 돌려줍니다. 앞사람이 못 보낸 수정이 뒷사람 이름으로 올라가지 않게 하려는 것입니다. 로그아웃·탈퇴 때는 `clearLocalSync(db)`를 부르세요(먼저 `getSyncStatus`의 `pending`으로 못 보낸 수정이 있는지 알려 주세요). `backend/local`의 다리(`createBridge`)는 `accountId`를 넘기면 첫 동기화 전에 `bindSyncAccount`를 대신 부릅니다.
 - **넘겨받는 묶음은 한 번만 (11/15).** `saveLocal(ctx, changes, { handoffKey })`: 같은 `handoffKey`로 다시 부르면 아무것도 더하지 않고 처음의 operation_id를 돌려줍니다. `backend/local`의 보낼 목록을 넘긴 직후 앱이 꺼져 같은 줄을 다시 넘겨도 중복이 생기지 않습니다. 화면에서 직접 부를 때는 `handoffKey` 없이 쓰면 됩니다.
 - 한 묶음은 1~100개입니다. `backend/local`은 저장할 때 100개씩 나눠 적습니다.
+- **충돌 스스로 합치기 (11/15).** 서버는 같은 기록을 두 기기가 고치면 칸이 달라도 충돌로 돌려줍니다. `resolveConflict(ctx, outboxSeq, 'merge')`는 서로 다른 칸, 본문·설명의 서로 다른 줄, 서로 다른 손글씨 획이면 둘 다 살려 다시 보낼 묶음으로 만듭니다. 같은 칸·같은 줄을 다르게 고쳤으면 `CANNOT_MERGE`(아무것도 바꾸지 않음)를 내고, 그때는 `keep_mine`·`use_server`·`keep_both`(본문은 내 줄 다음에 상대 줄, 한 줄 칸은 내 값) 가운데 사용자가 고릅니다. 합치는 기준은 보낼 내용을 고정한 때의 서버 값입니다. `listConflicts(db, workspaceId)`는 충돌 화면에 쓸 내용(어느 기록의 어느 칸이 `base`·`mine`·`server`로 어떻게 다른지, `mergeable`, `canKeep`)을 줍니다. `mergeText`·`mergeStrokes`도 따로 쓸 수 있습니다.
+- **오류 알림 (11/15).** 보내기·받기가 `OFFLINE`일 때 `code`(`NETWORK`·`AUTH_REQUIRED` 등)와 `attempts`(그 묶음을 보낸 횟수)가 같이 옵니다. `getSyncStatus`는 `lastError`("CODE: 설명")와 `attempts`를 돌려줍니다. 로그인이 만료된 채 계속 실패하는 경우를 화면이 알 수 있습니다.
 - 이 규칙들은 `stella-sync-verify` 검증(두 기기 흉내)으로 확인했습니다. 로컬 DB 50개(11/15, 복구·손글씨 포함), 실제 Supabase 45개 통과 (11/14).
 
 ### 프로젝트 팀원 · 초대 (`project-team.ts`, 11/15, 프론트 화면 기준)

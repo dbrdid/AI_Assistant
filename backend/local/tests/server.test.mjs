@@ -119,9 +119,6 @@ test('메모 연결·사진·즐겨찾기·삭제가 서버 모양으로 나간�
   t.store.updateMemo(a.id, { taskIds: [task.id] });
   t.store.updateMemo(b.id, { taskIds: [task.id] });          // 서버는 항목마다 메모 하나: A에서 B로 옮겨짐
   assert.deepEqual([t.store.getMemo(a.id).taskIds, t.store.getMemo(b.id).taskIds], [[], [task.id]]);
-  rejectsUnchanged(t, () => t.store.attachPhoto(a.id, 'file-1'), 'invalid_input', 'fileId');   // 공유 공간 사진은 서버 첨부 id
-  rejectsUnchanged(t, () => t.store.addMemo({ title: 'C', photos: ['file-1'] }), 'invalid_input', 'photos');
-  rejectsUnchanged(t, () => t.store.updateMemo(a.id, { photos: ['file-1'] }), 'invalid_input', 'photos');
   t.store.attachPhoto(a.id, ASSET);
   t.store.detachPhoto(a.id, ASSET);
   t.store.setFavorites([a.id, b.id], true);
@@ -310,4 +307,22 @@ test('화면이 그대로 부르는 모양: switchWorkspace(\'personal\'), joinW
   assert.deepEqual(map.projectData({ status: '완료' }), { progress_status: 'DONE' });
   rejects(() => map.projectData({ status: '모름' }), 'invalid_input', 'status');
   rejects(() => map.projectData({ due: '11/30' }), 'invalid_input', 'due');
+});
+
+test('스키마 단계 올리기: 다음 단계가 생겨도 기존 기록은 남고, 실패한 단계는 없던 일이 된다', async () => {
+  const { migrate } = await import('../src/schema.js');
+  const { createLocalStore } = await import('../src/index.js');
+  const t = setup();
+  const memo = t.store.addMemo({ title: '올리기 전의 메모' });
+  const opts = { now: () => 1, newId: () => '00000000-0000-4000-8000-000000009999' };
+  const version = () => t.db.getFirstSync('pragma user_version').user_version;
+  const columns = () => t.db.getAllSync('pragma table_info(memos)').map(c => c.name);
+  const next = 'alter table memos add column pinned integer not null default 0';
+  assert.throws(() => migrate(t.db, opts, ['', `${next}; insert into 없는_표 values (1)`]));
+  assert.deepEqual([version(), columns().includes('pinned')], [1, false]);                 // 실패한 단계는 통째로 되돌려짐
+  migrate(t.db, opts, ['', next]);
+  migrate(t.db, opts, ['', next]);                                                         // 이미 올린 DB는 그대로
+  assert.deepEqual([version(), columns().includes('pinned'), t.db.getFirstSync('select title, pinned from memos where id=?', [memo.id])], [2, true, { title: '올리기 전의 메모', pinned: 0 }]);
+  assert.equal(t.db.getAllSync('select id from workspaces').length, 1);                    // 개인 공간을 또 만들지 않음
+  assert.throws(() => createLocalStore({ db: t.db }), /Unsupported local database version 2/);   // 더 새 앱이 만든 DB를 예전 앱이 열면 알림
 });

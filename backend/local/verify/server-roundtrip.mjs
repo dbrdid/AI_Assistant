@@ -199,7 +199,45 @@ try {
     && (await engine.getSyncStatus(a.dev.db, ws)).pending === 0, JSON.stringify([firstTry, secondTry.flush, crashedRows.map(r => r.revision)]));
   await syncBoth();
 
-  check('마지막에 양쪽 보낼 목록이 비고 상태가 같음', a.store.outboxCount() === 0 && b.store.outboxCount() === 0 && same(view(a.store), view(b.store)));
+  // 12. 충돌 스스로 합치기: 같은 메모의 다른 줄·다른 칸을 두 기기가 동시에 고쳐도 화면에서 고를 것 없이 둘 다 남음
+  const shared = a.store.addMemo({ title: '회의 안건', body: '안건\n1. 일정\n2. 예산\n3. 역할' });
+  await syncBoth();
+  a.store.updateMemo(shared.id, { body: '안건\n1. 일정 확정\n2. 예산\n3. 역할\n4. A가 더한 줄' });
+  b.store.updateMemo(shared.id, { title: 'B가 고친 제목', body: '안건\n1. 일정\n2. 예산\n3. 역할 분담\n4. B가 더한 줄' });
+  [ra, rb] = await syncBoth();
+  await syncBoth();
+  const mergedRow = (await A.select('notes', 'id', shared.id))[0];
+  check('다른 줄·다른 칸 동시 수정이 스스로 합쳐져 서버·양쪽 기기에 둘 다 남음', flushOf(rb) === 'DONE' && Object.values(rb)[0].merged === 1 && mergedRow.title === 'B가 고친 제목'
+    && mergedRow.body === '안건\n1. 일정 확정\n2. 예산\n3. 역할 분담\n4. B가 더한 줄\n4. A가 더한 줄' && a.store.getMemo(shared.id).body === mergedRow.body && same(view(a.store), view(b.store)),
+    JSON.stringify([flushOf(rb), Object.values(rb)[0].merged, mergedRow.title, mergedRow.body]));
+  // 같은 줄을 다르게 고치면 스스로 합치지 않고, 화면에 무엇이 다른지 알려 준 뒤 고른 대로 품
+  a.store.updateMemo(shared.id, { body: mergedRow.body.replace('2. 예산', '2. 예산 100만') });
+  b.store.updateMemo(shared.id, { body: mergedRow.body.replace('2. 예산', '2. 예산 200만') });
+  [ra, rb] = await syncBoth();
+  const found = await b.bridge.issues(ws);
+  const field = found.conflicts[0]?.items[0]?.fields[0];
+  check('같은 줄 충돌은 멈추고, 어느 칸이 어떻게 다른지 알려 줌', flushOf(rb) === 'CONFLICT' && found.conflicts.length === 1 && found.conflicts[0].mergeable === false
+    && field?.field === 'body' && field.mine.includes('200만') && field.server.includes('100만') && field.base === mergedRow.body
+    && (await b.bridge.status()).state === 'attention' && b.store.getMemo(shared.id).body.includes('200만'), JSON.stringify([flushOf(rb), found]).slice(0, 500));
+  const solved = await b.bridge.resolve(ws, found.conflicts[0].outboxSeq, 'keep_both');
+  await syncBoth();
+  const bothRow = (await A.select('notes', 'id', shared.id))[0];
+  check("'둘 다 남기기'로 풀면 두 줄이 모두 서버·양쪽 기기에 남고 상태가 정상으로 돌아옴", solved.status === 'OK' && solved.flush.status === 'DONE'
+    && same(bothRow.body.split('\n').filter(l => l.startsWith('2.')), ['2. 예산 200만', '2. 예산 100만']) && same(view(a.store), view(b.store))
+    && (await b.bridge.status()).state === 'synced' && (await b.bridge.issues(ws)).conflicts.length === 0, JSON.stringify([solved.status, solved.flush, bothRow.body]));
+
+  // 13. 공간의 내 역할·멤버 수: 관리자가 B를 보기 전용으로 바꾸면 B 기기에서도 저장이 막힘
+  const wsB = () => b.store.getWorkspaces().find(w => w.serverId === ws);
+  const before = [wsB().role, wsB().members];
+  await A.rpc('change_member_role', { p_workspace_id: ws, p_account_id: idB, p_role: 'VIEWER' });
+  await syncBoth();
+  const blockedSave = (() => { try { b.store.addMemo({ title: '보기 전용이라 못 씀' }); return 'saved'; } catch (e) { return e.code; } })();
+  check('멤버 수와 내 역할이 기기에 맞춰지고, 보기 전용이 되면 기기에서 저장이 막힘', same(before, ['멤버', 2]) && wsB().role === '보기 전용' && blockedSave === 'read_only',
+    JSON.stringify([before, wsB().role, blockedSave]));
+  await A.rpc('change_member_role', { p_workspace_id: ws, p_account_id: idB, p_role: 'EDITOR' });
+  await syncBoth();
+
+  check('마지막에 양쪽 보낼 목록이 비고 상태가 같음', a.store.outboxCount() === 0 && b.store.outboxCount() === 0 && same(view(a.store), view(b.store)) && wsB().role === '멤버');
 
   // 11. 같은 기기에서 계정이 바뀜: A가 못 보낸 수정이 B 이름으로 올라가지 않음 (A의 기기 DB를 B가 이어서 씀)
   await engine.saveLocal({ db: a.dev.db, transport: A.transport(), workspaceId: ws, myAccountId: idA }, [{ kind: 'update', entity: 'notes', id: memo.id, data: { body: 'A가 못 보낸 수정' } }]);

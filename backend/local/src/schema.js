@@ -131,8 +131,14 @@ export function createPersonal(db, { now, newId }) {
   return personal;
 }
 
-/** DB를 SCHEMA_VERSION까지 올림. 단계와 버전 올리기는 한 트랜잭션. 새 DB면 개인 공간을 같이 만듦 */
-export function migrate(db, { now, newId }) {
+/**
+ * DB를 마지막 단계까지 올림. 단계와 버전 올리기는 한 트랜잭션이라, 도중에 실패하면 그 단계는 없던 일이 되고 다음에 다시 시도함.
+ * 새 DB면 개인 공간을 같이 만듦.
+ * 표를 바꿀 때: 위 V1은 고치지 말고, 바꾸는 SQL(alter table 등)을 새 문자열로 STEPS 끝에 더함. 이미 설치된 기기는 그 단계만 실행됨.
+ * steps는 테스트용 (다음 단계가 생겼을 때 기존 기록이 남는지 확인).
+ */
+export function migrate(db, { now, newId }, steps = STEPS) {
+  const SCHEMA_VERSION = steps.length;
   const version = db.getFirstSync('pragma user_version').user_version;
   if (!Number.isInteger(version) || version < 0 || version > SCHEMA_VERSION) {
     throw new Error(`Unsupported local database version ${version}`);
@@ -143,7 +149,7 @@ export function migrate(db, { now, newId }) {
   }
   for (let step = version; step < SCHEMA_VERSION; step++) {
     db.withTransactionSync(() => {
-      db.execSync(STEPS[step]);
+      db.execSync(steps[step]);
       if (step === 0) createPersonal(db, { now, newId });
       db.execSync(`pragma user_version = ${step + 1}`);
     });

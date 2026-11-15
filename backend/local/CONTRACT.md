@@ -129,7 +129,9 @@
 | `ackOutbox(seq)` / `outboxCount()` / `subscribeOutbox(fn)` | 넘긴 줄 지우기 / 남은 줄 수 / 구독 |
 | `applyServer(workspaceId, items)` | 서버에서 받은 행을 화면용 표에 반영 `{notes, tasks, photos}` 바뀐 개수 |
 | `applyFavorites(workspaceId, noteIds)` | 내 즐겨찾기를 서버 값으로 맞춤 |
-| `createBridge({store, engine, db, transport, accountId, favorites})` | `syncAll()`·`syncWorkspace(id)`·`refresh(id)`: 위 함수들을 `local-sync`와 이어 주는 다리. 겹쳐 불러도 차례로 돌고, 공간별 결과(`OK`·`CLOSED`·`ERROR`, 막힌 줄은 `handOff`)를 돌려줌. `accountId`가 기기 저장소의 계정과 다르면 `account_mismatch` |
+| `createBridge({store, engine, db, transport, accountId, favorites, photos, workspaces, conflicts})` | 위 함수들을 `local-sync`와 이어 주는 다리: `start()`·`syncAll()`·`syncWorkspace(id)`·`status()`·`issues(id)`·`resolve(id, seq, 선택)`·`discard(id, seq)`·`refresh(id)`·`signOut()`. 겹쳐 불러도 차례로 돌고, 공간별 결과(`OK`·`CLOSED`·`ERROR`, 막힌 줄은 `handOff`)를 돌려줌. `accountId`가 기기 저장소의 계정과 다르면 `account_mismatch`. 자세한 표는 README |
+| `resolveUpload(공간, memoId, ref, assetId)` | 기기 파일을 서버에 올린 뒤 메모의 그 사진을 첨부 id로 바꾸고 연결을 보낼 목록에 적음 (다리가 부름). 그새 지워졌으면 `false` |
+| 공유 공간의 `photos` | UUID는 서버 첨부 id, 그 밖의 값은 아직 안 올린 기기 파일(올리기를 기다림). 개인 공간은 아무 id |
 | `applyServer` · `applyFavorites` | 보낼 목록에 아직 남은 저장이 건드린 기록·별표는 건너뜀 (방금 한 저장을 서버 값으로 덮지 않음) |
 | `exportAll()` / `importAll(payload)` / `counts()` | 개인 공간 내보내기 / 통째로 가져오기 / 개수 (`backup.ts`에 넘길 내용) |
 | `clearAll()` | 기기 기록을 모두 지우고 빈 개인 공간으로 (로그아웃·탈퇴 뒤) |
