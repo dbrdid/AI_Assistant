@@ -15,7 +15,9 @@ export function loadConfig(env = process.env) {
   } catch {
     throw new Error('Invalid configuration: AI_AUTH_TOKENS JSON');
   }
-  if (!Array.isArray(tokens) || tokens.length < 1 || tokens.length > 100) {
+  const gatewaySecret = env.AI_GATEWAY_SECRET ?? '';
+  if (gatewaySecret && (gatewaySecret.length < 32 || gatewaySecret.length > 200)) throw new Error('Invalid gateway secret');
+  if (!Array.isArray(tokens) || (!tokens.length && !gatewaySecret) || tokens.length > 100) {
     throw new Error('Configure 1-100 per-user AI_AUTH_TOKENS records');
   }
   const hashes = new Set();
@@ -43,6 +45,10 @@ export function loadConfig(env = process.env) {
     model,
     ollamaBaseUrl: url.origin,
     tokens,
+    gatewaySecret,
+    internalMaxInputChars: integer(env, 'INTERNAL_MAX_INPUT_CHARS', 8000, 100, 80000),
+    contextTokens: integer(env, 'MODEL_CONTEXT_TOKENS', 8192, 1024, 131072),
+    outputTokens: integer(env, 'MODEL_OUTPUT_TOKENS', 2048, 128, 16384),
     modelTimeoutMs: integer(env, 'MODEL_TIMEOUT_MS', 30000, 100, 120000),
     maxConcurrent: integer(env, 'MAX_CONCURRENT', 2, 1, 16),
     requestsPerMinute: integer(env, 'REQUESTS_PER_MINUTE', 10, 1, 1000),

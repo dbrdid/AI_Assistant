@@ -1,3 +1,4 @@
+import { askFromDevice } from '../../../integration/runtime';
 // ============================================================
 // AiChatScreen.js — AI 채팅 화면
 // ============================================================
@@ -18,7 +19,7 @@ import {
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import useSwipeToOpenMenu from '../../../navigation/useSwipeToOpenMenu';
-import { answerFromApp, openParams } from '../../../data/memos/MemoStore';
+import { openParams } from '../../../data/memos/MemoStore';
 import { addUsage } from '../../../data/settings/SettingsStore';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 
@@ -161,8 +162,10 @@ export default function AiChatScreen({ navigation }) {
   }, []);
 
   // ---------- 메시지 보내기 ----------
+  const requestRef = useRef(null);
+  useEffect(() => () => requestRef.current?.abort(), []);
   const send = useCallback(
-    (raw) => {
+    async (raw) => {
       const text = raw.trim();
       if (!text || status !== 'idle') return; // 빈 글자이거나 AI 가 답하는 중이면 무시
 
@@ -172,7 +175,14 @@ export default function AiChatScreen({ navigation }) {
       setStatus('thinking'); // ● ● ● 표시 시작
 
       addUsage('question'); // 설정 > AI 이용량 집계
-      const answer = answerFromApp(text); // 앱 안의 기록을 찾아 만든 답변 { text, sources }
+      const controller = new AbortController(); requestRef.current = controller;
+      let answer;
+      try { answer = await askFromDevice(text, controller.signal); }
+      catch (error) {
+        if (!controller.signal.aborted) setMessages(prev => [...prev, { id: aiId, role: 'ai', text: error.message, done: true, sources: [] }]);
+        if (requestRef.current === controller) setStatus('idle'); return;
+      }
+      if (controller.signal.aborted || requestRef.current !== controller) return;
       const full = answer.text;          // 보여줄 전체 답변 글자
 
       // 0.9초 뒤에 답변 시작: 빈 말풍선을 만들고, 30ms 마다 2글자씩 채워 넣음
@@ -202,12 +212,16 @@ export default function AiChatScreen({ navigation }) {
 
   // 정지 버튼: 답변 생성을 중간에 멈춤 (지금까지 나온 글자는 그대로 남음)
   const stop = () => {
+    requestRef.current?.abort();
+    requestRef.current = null;
     clearTimers();
     setStatus('idle');
   };
 
   // 새 대화: 대화 내용을 모두 지우고 처음 상태로
   const newChat = () => {
+    requestRef.current?.abort();
+    requestRef.current = null;
     clearTimers();
     setMessages([]);
     setInput('');

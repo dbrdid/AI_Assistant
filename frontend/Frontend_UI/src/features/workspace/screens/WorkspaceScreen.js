@@ -30,9 +30,9 @@ export default function WorkspaceScreen({ navigation }) {
   const pick = async (w) => {
     if (busy || w.id === current.id) return;
     setBusy(true);
-    await switchWorkspace(w.id);
-    setBusy(false);
-    showNotice(`「${w.name}」로 전환했어요`);
+    try { await switchWorkspace(w.id); showNotice(`「${w.name}」로 전환했어요`); }
+    catch (e) { showNotice(e.message); }
+    finally { setBusy(false); }
   };
 
   const target = list.find((w) => w.id === delId);
@@ -129,8 +129,8 @@ export default function WorkspaceScreen({ navigation }) {
         onConfirm={async () => {
           const id = delId;
           setDelId(null);
-          await deleteWorkspace(id);
-          showNotice('처리했어요');
+          try { await deleteWorkspace(id); showNotice('처리했어요'); }
+          catch (e) { showNotice(e.message); }
         }}
       />
     </View>

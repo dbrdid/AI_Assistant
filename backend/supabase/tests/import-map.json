@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "fastify": "npm:fastify@5.12.8",
+    "ajv": "npm:ajv@8.20.0"
+  }
+}

@@ -3,7 +3,7 @@
 // ============================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, StyleSheet, View } from 'react-native';
+import { Alert, BackHandler, StyleSheet, View } from 'react-native';
 import SideMenu from './SideMenu';
 import HomeScreen from '../features/home/screens/HomeScreen';
 import PlaceholderScreen from '../shared/components/PlaceholderScreen';
@@ -136,6 +136,11 @@ export default function AppNavigator() {
 
   // ---------- 화면 이동 ----------
   const navigate = useCallback((route, params) => {
+    // These commands do not have a validated screen-to-server adapter yet. Do not fake local success.
+    if (/^(Project|Agenda|Backup|Subscription|Security|Withdraw)/.test(route)) {
+      Alert.alert('아직 사용할 수 없습니다', '이 기능은 연결과 데이터 보존 검증이 끝난 뒤 제공됩니다. 메모·일정·AI 초안 기능을 먼저 이용해 주세요.');
+      return;
+    }
     setHistory((prev) => {
       const top = prev[prev.length - 1];
 

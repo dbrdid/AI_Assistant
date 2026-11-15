@@ -38,3 +38,8 @@ Thumbs.db
 # Container env and temporary test output
 backend/cloud/.env
 .next/
+.integration-build/
+
+# UI adapters are source code, not runtime user data.
+!frontend/Frontend_UI/src/data/
+!frontend/Frontend_UI/src/data/**

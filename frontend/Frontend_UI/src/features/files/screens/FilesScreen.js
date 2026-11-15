@@ -133,9 +133,9 @@ export default function FilesScreen({ navigation, route }) {
         confirmText="삭제"
         danger
         onCancel={() => setDelId(null)}
-        onConfirm={() => {
-          deleteFile(delId);
-          setDelId(null);
+        onConfirm={async () => {
+          try { await deleteFile(delId); setDelId(null); }
+          catch (e) { Alert.alert('파일을 삭제하지 못했어요', e.message); }
         }}
       />
     </View>

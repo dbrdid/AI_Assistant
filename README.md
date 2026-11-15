@@ -4,7 +4,7 @@
 
 ## 현재 상태
 
-2026-11-09 기준 개발 골자와 **실행 가능한 Node.js + Fastify AI API 서버**를 포함합니다. 서버는 별도 Ollama 추론 런타임에 연결합니다. 모바일 앱 연결·DB migration·실제 모델 품질/성능·운영 배포는 미완료입니다. 기존 브라우저 UI 체험은 제품·네이티브 앱·실제 서버 검증과 구분합니다.
+2026-11-16 통합 브랜치에서는 Expo 화면을 계정별 SQLite/local Store·기존 Supabase 동기화·AI Gateway에 연결했습니다. 자체 추론 경로는 Gateway → Fastify → Ollama이며 외부 API 경로와 동의를 분리합니다. 로컬 합성 시험과 Android 번들 검사는 실제 앱·DB 배포·모델 품질 수용 시험과 구분합니다. 공유 첨부·백업·삭제 등 전체 기능 통합은 미완료입니다. [적용 범위·실행 준비·제한 사항](docs/INTEGRATION-2026-11-16.md)을 먼저 확인하세요.
 
 ## 이번 변경
 
@@ -14,6 +14,9 @@
 
 ## 문서
 
+- [통합 설계 검증 계획 v2와 Gate](docs/validation/PLAN-v2.md)
+- [수용 시험 기록표 V01~V34](docs/validation/cases-v2.csv)
+- [개발 시험 실행 증거와 미검증 범위](docs/validation/EXECUTION-2026-11-16.md)
 - [AI 서버 실행과 설정](backend/cloud/README.md)
 - [AI 서버 구조·API 계약](docs/SERVER.md)
 - [서버 검증 결과와 미검증 범위](docs/VERIFICATION.md)
@@ -28,12 +31,12 @@
 
 | 영역 | 방향 | 상태 |
 | --- | --- | --- |
-| 모바일 | React Native / Expo 검토·기존 프론트엔드 방향 유지 | 패키지 버전·빌드 호환 검증 필요 |
-| 로컬 데이터 | SQLite와 앱 전용 첨부 파일 저장소 | 네이티브 연결·마이그레이션 미구현 |
-| AI | 앱 → Fastify API → 별도 Ollama 추론 런타임 | API·어댑터 구현, 실제 모델/모바일 연동·운영 배포 미검증 |
-| 계정·동기화 | 기존 SQLite + Supabase/PostgreSQL 설계 방향 | AI 서버와 별도 책임, 미구현 |
+| 모바일 | React Native / Expo | Android 번들 확인, 실제 기기 실행 미검증 |
+| 로컬 데이터 | 계정별 SQLite와 local Store | UI 어댑터 연결, 기기 재시작·첨부 복구 미검증 |
+| AI | 기기 client → Supabase Gateway → 자체 Fastify/Ollama 또는 허용 외부 API | 텍스트 경로 연결, 실제 모델·배포 미검증 |
+| 계정·동기화 | 기존 Supabase Auth/RPC와 기기 sync Bridge | 코드 연결, 실제 DB·권한·두 기기 수용 시험 미실행 |
 
-서버는 JavaScript·Fastify와 Ollama 어댑터를 사용합니다. 초기 인증은 사용자별 만료 토큰이며 정식 계정 연동은 후속입니다. 호스팅·GPU·모델·운영 비용은 미확정입니다. 모바일 언어 선택과 상세 UI 이관은 이번 변경 범위에 포함하지 않습니다.
+서버는 JavaScript·Fastify와 Ollama 어댑터를 사용합니다. 기존 사용자별 만료 토큰 API는 유지하며 앱 통합 경로는 Supabase 계정 인증과 별도 Gateway 서비스 자격 증명을 사용합니다. 호스팅·GPU·모델·운영 비용은 미확정입니다. 이전 설계 문서의 상태보다 최신 통합 현황 문서를 우선합니다.
 
 ## 공유 범위
 

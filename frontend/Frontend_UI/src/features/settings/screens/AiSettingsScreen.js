@@ -2,7 +2,7 @@
 // AiSettingsScreen.js — AI 및 브리핑 설정
 // ============================================================
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
@@ -11,10 +11,11 @@ import { PLANS, WEEKDAY_NAMES, getSettings, updateSettings } from '../../../data
 import { TimePickerModal } from '../../../shared/components/DateTimePicker';
 import { PURPOSES, TIMEZONES, hasPurpose, timezoneLabel, togglePurpose } from '../../../data/setup/SetupStore';
 import { Row, SaveButton, SectionTitle, ToggleRow, same, useNotice } from '../../../shared/components/SettingsUi';
+import { grantConsent, revokeConsent } from '../../../lib/stella/account';
+import { runtime, maybeRuntime } from '../../../integration/runtime';
 
 const MODES = [
   { id: 'confirm', title: '확인 후 저장', sub: '생성된 결과물을 사용자가 직접 확인하고 승인한 뒤에만 저장합니다' },
-  { id: 'auto', title: '자동 저장', sub: '확인 과정 없이 모든 결과물을 시스템이 자동으로 저장합니다' },
 ];
 
 export default function AiSettingsScreen({ navigation }) {
@@ -24,12 +25,31 @@ export default function AiSettingsScreen({ navigation }) {
   const [setup, setSetup] = useState(() => ({ ...saved.setup })); // 첫 실행 때 고른 사용 목적·시간대
   const [tzOpen, setTzOpen] = useState(false);
   const notice = useNotice();
+  const consentBusy = useRef(false);
   const set = (patch) => setAi((p) => ({ ...p, ...patch }));
 
   return (
     <View style={styles.root}>
       <ScreenHeader title="AI 및 브리핑" onBack={navigation.goBack} />
       <ScrollView contentContainerStyle={styles.content}>
+        <SectionTitle>AI 처리와 전송 허용</SectionTitle>
+        <Row label="처리 서버" value={ai.route === 'self_hosted' ? '자체 모델 전용' : '외부 AI 전용'} onPress={() => { if (consentBusy.current) return; const next = { route: ai.route === 'self_hosted' ? 'external' : 'self_hosted', transmissionDisabled: true, allowedProviders: [], consent: {} }; updateSettings('ai', next); set(next); }} />
+        <ToggleRow label="선택한 서버로 자료 전송 허용" sub={ai.route === 'self_hosted' ? 'Supabase와 자체 모델 서버가 선택한 자료를 처리합니다. 외부 AI로 전환하지 않습니다.' : 'Supabase와 외부 AI 제공자가 선택한 자료를 처리합니다.'}
+          value={!ai.transmissionDisabled} onValueChange={async enabled => {
+            if (consentBusy.current) return;
+            consentBusy.current = true;
+            const own = runtime();
+            const selected = ai.route ?? 'external'; const type = selected === 'self_hosted' ? 'SERVER_AI' : 'EXTERNAL_AI';
+            const denied = { transmissionDisabled: true, allowedProviders: [], consent: {} };
+            updateSettings('ai', denied); set(denied);
+            try {
+              if (enabled) await grantConsent(type, { provider: selected }); else await revokeConsent(type);
+              if (maybeRuntime() !== own) return;
+              const next = { transmissionDisabled: !enabled, allowedProviders: enabled ? [selected] : [], consent: { [selected]: enabled } };
+              updateSettings('ai', { route: selected, ...next }); set(next);
+            } catch (error) { if (maybeRuntime() === own) notice.show(error.message); }
+            finally { consentBusy.current = false; }
+          }} />
         <ToggleRow label="AI 자동 분석" sub="입력한 내용을 AI가 자동으로 분석해요" value={ai.autoAnalyze} onValueChange={(v) => set({ autoAnalyze: v })} />
 
         <SectionTitle>AI 확인 방식</SectionTitle>
@@ -101,15 +121,13 @@ export default function AiSettingsScreen({ navigation }) {
           </View>
         )}
 
-        <SectionTitle>처리</SectionTitle>
-        <ToggleRow label="기기 내 AI 처리" sub="AI 처리의 일부를 이 기기에서 수행해요" value={ai.onDevice} onValueChange={(v) => set({ onDevice: v })} />
-
         <SectionTitle>이용량</SectionTitle>
         <Row label="이용량" value={PLANS[saved.plan].name} onPress={() => navigation.navigate(ROUTES.AiUsage)} />
 
         <SaveButton
           disabled={same(ai, saved.ai) && same(setup, saved.setup)}
           onPress={() => {
+            if (consentBusy.current) return;
             updateSettings('ai', ai);
             updateSettings('setup', setup);
             notice.show('저장했어요');

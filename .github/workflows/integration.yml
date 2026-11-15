@@ -1,0 +1,22 @@
+name: Integration contract checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  local-ai-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: tests/sync-verify/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: tests/sync-verify
+      - run: npm run test:local
+      - run: npm run test:ai
+      - run: npm run test:integration

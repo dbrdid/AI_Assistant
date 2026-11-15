@@ -13,7 +13,7 @@ export type Row<T extends keyof Tables> = Tables[T]['Row'];
 // ---------------------------------------------------------------------
 export type WorkspaceRole = 'OWNER' | 'EDITOR' | 'VIEWER';
 export type MemberStatus = 'ACTIVE' | 'LEFT' | 'REMOVED';
-export type ConsentType = 'TERMS' | 'PRIVACY' | 'EXTERNAL_AI' | 'PERSONAL_SYNC' | 'MARKETING';
+export type ConsentType = 'TERMS' | 'PRIVACY' | 'EXTERNAL_AI' | 'SERVER_AI' | 'PERSONAL_SYNC' | 'MARKETING';
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'CANCELED';
 export type EventStatus = TaskStatus;
 export type ProjectStatus = 'ACTIVE' | 'ARCHIVED';                     // 보관 상태
@@ -361,7 +361,7 @@ export interface AiResponse<D> {
   retried: boolean;           // 첫 시도가 실패해서 서버가 다시 호출했는지 (모델은 Terra 하나)
   draft: D;
   input_hash: string;
-  usage: { input_tokens: number; output_tokens: number };
+  usage: { input_tokens: number | null; output_tokens: number | null };
   remaining: number;          // 이번 달 남은 횟수
 }
 /** 사진 → 글자 초안 (/ocr) */

@@ -20,10 +20,12 @@ export default function WorkspaceCreateScreen({ navigation }) {
     if (getWorkspaces().some((w) => w.name === n)) return setError('같은 이름의 공간이 이미 있어요.');
     setError('');
     setBusy(true);
-    const id = createWorkspace({ name: n, desc });
-    await switchWorkspace(id);
-    setBusy(false);
-    navigation.goBack();
+    try {
+      const id = await createWorkspace({ name: n, desc });
+      await switchWorkspace(id);
+      navigation.goBack();
+    } catch (e) { setError(e.message); }
+    finally { setBusy(false); }
   };
 
   return (

@@ -22,6 +22,7 @@ import PhotoStrip from '../components/PhotoStrip';
 import MemoLinks from '../components/MemoLinks';
 import { ROUTES } from '../../../navigation/routes';
 import { analyzeText } from '../../../services/ai/AiAnalyze';
+import { runtime, maybeRuntime, registerSessionFlush } from '../../../integration/runtime';
 import SelectionOverlay from '../components/SelectionOverlay';
 import { recognizeStrokes } from '../../../services/ai/Handwriting';
 import { strokesInRect } from '../utils/InkUtils';
@@ -97,44 +98,54 @@ export default function MemoEditScreen({ navigation, route }) {
   latest.current = { title, body, strokes, projectId };
   const skipSave = useRef(false);                          // true 면 나갈 때 저장하지 않음 (삭제한 경우)
   const savedId = useRef(original ? original.id : null);   // 기존 메모의 번호 (새 메모면 null)
+  const flushRef = useRef(null);
 
   // 이 화면이 사라질 때(어떤 방법으로 나가든) 한 번 실행됨
   useEffect(
-    () => () => {
-      if (skipSave.current) return;
-      const t = latest.current.title.trim();
-      const b = latest.current.body.trim();
-      const s = latest.current.strokes;
-      const id = savedId.current;
-      const empty = !t && !b && s.length === 0; // 글자도 필기도 없음
+    () => {
+      const own = runtime(); const workspaceId = own.store.getCurrentWorkspace().id;
+      const flush = ({ analyze = true } = {}) => {
+        if (maybeRuntime() !== own || own.store.getCurrentWorkspace().id !== workspaceId) return;
+        if (skipSave.current) return;
+        const t = latest.current.title.trim();
+        const b = latest.current.body.trim();
+        const s = latest.current.strokes;
+        const id = savedId.current;
+        const empty = !t && !b && s.length === 0; // 글자도 필기도 없음
 
-      if (!id) {
-        // 새 메모: 내용이 있을 때만 추가
-        if (!empty) {
-          const m = addMemo({ title: t, body: b, strokes: s });
-          if (b) analyzeText({ sourceType: 'memo', sourceId: m.id, sourceTitle: t || b.slice(0, 20), text: b });
-          if (latest.current.projectId) setItemProject('memos', m.id, latest.current.projectId);
+        if (!id) {
+          // 새 메모: 내용이 있을 때만 추가
+          if (!empty) {
+            const m = addMemo({ title: t, body: b, strokes: s });
+            savedId.current = m.id;
+            if (b && analyze) analyzeText({ sourceType: 'memo', sourceId: m.id, sourceTitle: t || b.slice(0, 20), text: b });
+            if (latest.current.projectId) setItemProject('memos', m.id, latest.current.projectId);
+          }
+          return;
         }
-        return;
-      }
-      // 기존 메모
-      if (empty) {
-        deleteMemoForever(id); // 전부 지웠으면 빈 메모는 휴지통 없이 바로 삭제
-        return;
-      }
-      const current = getMemo(id);
-      const changed =
-        current &&
-        (current.title !== t ||
-          current.body !== b ||
-          JSON.stringify(current.strokes || []) !== JSON.stringify(s));
-      if (changed) {
-        updateMemo(id, { title: t, body: b, strokes: s }); // 바뀐 게 있을 때만 수정(수정일이 괜히 바뀌지 않게)
-        if (b && current.body !== b) analyzeText({ sourceType: 'memo', sourceId: id, sourceTitle: t || b.slice(0, 20), text: b });
-      }
-      // 프로젝트를 바꿨으면 연결도 바꿈
-      const nowProject = projectOf('memos', id)?.id ?? null;
-      if (nowProject !== latest.current.projectId) setItemProject('memos', id, latest.current.projectId);
+        // 기존 메모
+        if (empty) {
+          deleteMemoForever(id); // 전부 지웠으면 빈 메모는 휴지통 없이 바로 삭제
+          savedId.current = null;
+          return;
+        }
+        const current = getMemo(id);
+        const changed =
+          current &&
+          (current.title !== t ||
+            current.body !== b ||
+            JSON.stringify(current.strokes || []) !== JSON.stringify(s));
+        if (changed) {
+          updateMemo(id, { title: t, body: b, strokes: s }); // 바뀐 게 있을 때만 수정(수정일이 괜히 바뀌지 않게)
+          if (b && analyze && current.body !== b) analyzeText({ sourceType: 'memo', sourceId: id, sourceTitle: t || b.slice(0, 20), text: b });
+        }
+        // 프로젝트를 바꿨으면 연결도 바꿈
+        const nowProject = projectOf('memos', id)?.id ?? null;
+        if (nowProject !== latest.current.projectId) setItemProject('memos', id, latest.current.projectId);
+      };
+      flushRef.current = flush;
+      const unregister = registerSessionFlush(flush);
+      return () => { unregister(); flush(); flushRef.current = null; };
     },
     [],
   );
@@ -294,6 +305,8 @@ export default function MemoEditScreen({ navigation, route }) {
   // summary: null(창 닫힘) | { status: 'loading' | 'done' | 'error', text }
   const [summary, setSummary] = useState(null);
   const summaryReq = useRef(0); // 요청 번호: 닫았다가 다시 눌렀을 때 옛날 답이 끼어들지 않게
+  const summaryController = useRef(null);
+  useEffect(() => () => { summaryReq.current += 1; summaryController.current?.abort(); }, []);
   const requestSummary = async () => {
     const text = latest.current.body.trim();
     if (!text) {
@@ -308,10 +321,15 @@ export default function MemoEditScreen({ navigation, route }) {
     summaryReq.current += 1;
     const my = summaryReq.current;
     setSummary({ status: 'loading', text: '' });
+    summaryController.current?.abort();
+    const controller = new AbortController(); summaryController.current = controller;
     try {
-      const out = await summarizeText(text);
+      flushRef.current?.({ analyze: false });
+      const sourceTitle = latest.current.title;
+      const out = await summarizeText(text, { memoId: savedId.current, signal: controller.signal });
       addUsage('summary'); // 설정 > AI 이용량 집계
-      if (my === summaryReq.current) setSummary({ status: 'done', text: out });
+      if (latest.current.body.trim() !== text || latest.current.title !== sourceTitle) throw new Error('원본이 바뀌었습니다');
+      if (my === summaryReq.current) setSummary({ status: 'done', text: out.summary, sourceId: out.sourceId, sourceRevision: out.sourceRevision, originalText: text, originalTitle: sourceTitle });
     } catch (e) {
       if (my === summaryReq.current) {
         if (classifyError(e) === 'network') {
@@ -324,11 +342,16 @@ export default function MemoEditScreen({ navigation, route }) {
     }
   };
   const closeSummary = () => {
+    summaryController.current?.abort();
     summaryReq.current += 1;
     setSummary(null);
   };
   // 요약을 본문 끝에 추가 (되돌리기 한 단계)
   const addSummary = () => {
+    const source = getMemo(summary.sourceId);
+    if (!source || source.revision !== summary.sourceRevision || latest.current.body.trim() !== summary.originalText || latest.current.title !== summary.originalTitle) {
+      closeSummary(); showNotice('원본이 바뀌었습니다. 다시 요약해 주세요'); return;
+    }
     const cur = latest.current.body;
     const next = `${cur}${cur.endsWith('\n') ? '' : '\n'}\n[AI 요약]\n${summary.text}`;
     commitBoth(latest.current.strokes, next);

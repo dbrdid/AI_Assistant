@@ -60,7 +60,7 @@ export default function SettingsScreen({ navigation }) {
         onConfirm={async () => {
           setConfirmOut(false);
           const r = await signOut();
-          if (!r.ok) notice.show('로그인 기능이 연결되면 사용할 수 있어요');
+          if (!r.ok) notice.show(r.message || '로그아웃하지 못했습니다');
         }}
       />
     </View>

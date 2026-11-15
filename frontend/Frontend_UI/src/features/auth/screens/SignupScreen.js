@@ -39,6 +39,7 @@ export default function SignupScreen({ onBack, onVerify }) {
     }
     const sent = await sendCode(form.email);
     setBusy(false);
+    if (!sent.ok) { setDialog({ icon: '⚠', title: sent.error.title, message: sent.error.message }); return; }
     onVerify({ purpose: 'signup', email: form.email.trim(), payload: { ...form, optionalTerms: optTerms }, sent });
   };
 

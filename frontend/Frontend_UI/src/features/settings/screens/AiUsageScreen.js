@@ -12,12 +12,13 @@ import { PLANS, USAGE_LABELS, getUsage, limitOf, useSettings } from '../../../da
 
 function Bar({ label, used, limit }) {
   const ratio = limit > 0 ? Math.min(1, used / limit) : 0;
-  const full = used >= limit;
+  const known = Number.isFinite(limit) && limit > 0;
+  const full = known && used >= limit;
   return (
     <View style={styles.item} accessibilityLabel={`${label} ${used}회 사용, 한도 ${limit}회`}>
       <View style={styles.itemHead}>
         <Text style={styles.itemLabel}>{label}</Text>
-        <Text style={[styles.itemCount, full && { color: colors.coral }]}>{used}/{limit}</Text>
+        <Text style={[styles.itemCount, full && { color: colors.coral }]}>{known ? `${used}/${limit}` : '서버 한도 확인 필요'}</Text>
       </View>
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${ratio * 100}%` }, full && { backgroundColor: colors.coral }]} />

@@ -3,8 +3,9 @@ import { createHash, randomUUID } from 'node:crypto';
 import { ApiError } from './errors.js';
 import { requireActiveToken } from './config.js';
 import { requestSchemas, validateRequestContext, validateResult } from './contracts.js';
+import { registerInternal } from './internal.js';
 
-export function buildApp({ config, provider, now = Date.now }) {
+export function buildApp({ config, provider, now = Date.now, fetchImpl }) {
   const app = Fastify({
     logger: false,
     bodyLimit: 49152,
@@ -18,7 +19,7 @@ export function buildApp({ config, provider, now = Date.now }) {
   const tokenByHash = new Map(config.tokens.map(token => [token.sha256, token]));
   const windows = new Map();
   const activeUsers = new Set();
-  let activeCount = 0;
+  const capacity = { active: 0 };
 
   app.addHook('onRequest', async (_request, reply) => {
     reply.header('cache-control', 'no-store');
@@ -39,6 +40,7 @@ export function buildApp({ config, provider, now = Date.now }) {
     reply.code(404).send({ error: { code: 'NOT_FOUND' }, requestId: request.id });
   });
   app.get('/healthz', async () => ({ status: 'ok' }));
+  registerInternal(app, config, fetchImpl, capacity);
 
   async function authenticate(request) {
     const match = /^Bearer ([a-zA-Z0-9_-]{43})$/.exec(request.headers.authorization ?? '');
@@ -67,7 +69,7 @@ export function buildApp({ config, provider, now = Date.now }) {
     }, async (request, reply) => {
       const input = request.body;
       validateRequestContext(task, input);
-      if (activeCount >= config.maxConcurrent || activeUsers.has(request.aiUserId)) {
+      if (capacity.active >= config.maxConcurrent || activeUsers.has(request.aiUserId)) {
         throw new ApiError(429, 'SERVER_BUSY');
       }
       if (task === 'answer' && input.evidence.length === 0) {
@@ -77,7 +79,7 @@ export function buildApp({ config, provider, now = Date.now }) {
           result: { answer: '답변에 필요한 기록 근거가 없습니다.', insufficientEvidence: true, citations: [] },
         };
       }
-      activeCount++;
+      capacity.active++;
       activeUsers.add(request.aiUserId);
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(new ApiError(504, 'MODEL_TIMEOUT')), config.modelTimeoutMs);
@@ -98,7 +100,7 @@ export function buildApp({ config, provider, now = Date.now }) {
         clearTimeout(timeout);
         request.raw.off('aborted', disconnect);
         reply.raw.off('close', disconnect);
-        activeCount--;
+        capacity.active--;
         activeUsers.delete(request.aiUserId);
       }
     });
