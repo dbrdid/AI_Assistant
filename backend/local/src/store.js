@@ -25,6 +25,37 @@ export function defaultId() {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
+/** 동기화 엔진(local-sync)의 saveLocal이 받는 한 묶음: 1~100개, 같은 대상은 한 번만 */
+export const OUTBOX_BATCH = 100;
+
+/** 엔진이 보는 "같은 대상" (local-sync의 changeKey와 같은 기준: 기록은 id, 연결은 양쪽 id) */
+function targetOf(change) {
+  if (typeof change.id === 'string') return `${change.entity}|${change.id}`;
+  const data = change.data ?? {};
+  return `${change.entity}|${Object.keys(data).filter(k => k.endsWith('_id')).sort().map(k => data[k]).join(':')}`;
+}
+
+/**
+ * 한 번의 저장에서 나온 변경을 엔진이 받는 크기로 나눔 (순서 유지).
+ * 100개를 넘거나 같은 대상이 다시 나오면 다음 묶음으로 넘김: 휴지통 비우기처럼 한 번에 많이 바꿔도 동기화가 막히지 않음.
+ */
+export function splitChanges(changes, size = OUTBOX_BATCH) {
+  const out = [];
+  let batch = [], seen = new Set();
+  for (const change of changes) {
+    const target = targetOf(change);
+    if (batch.length >= size || seen.has(target)) {
+      out.push(batch);
+      batch = [];
+      seen = new Set();
+    }
+    batch.push(change);
+    seen.add(target);
+  }
+  if (batch.length) out.push(batch);
+  return out;
+}
+
 function deepFreeze(value) {
   if (value !== null && typeof value === 'object' && !Object.isFrozen(value)) {
     Object.freeze(value);
@@ -132,7 +163,8 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, timezo
         result = fn();
         if (queued) {
           const t = clock();
-          for (const changes of [queued.main, queued.later, ...queued.separate]) {
+          // 엔진이 받는 크기(OUTBOX_BATCH)로 나눠 적음. 즐겨찾기(separate)는 다른 길이라 그대로
+          for (const changes of [...splitChanges(queued.main), ...splitChanges(queued.later), ...queued.separate]) {
             if (changes.length) db.runSync('insert into outbox(workspace_id,changes,created_at) values(?,?,?)', [queued.ws, JSON.stringify(changes), t]);
           }
           touched.add('outbox');
@@ -230,10 +262,14 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, timezo
     subscribeWorkspaces: subscriber('workspaces'),
 
     // 서버 연결 (동기화 다리가 씀): 보낼 목록 꺼내기 → 넘긴 뒤 지우기 → 받은 기록 반영
-    /** 공유 공간에서 한 저장들, 오래된 것부터. serverId가 null이면 아직 서버에 없는 공간이라 기다려야 함 */
-    peekOutbox: (limit = 20) => db.getAllSync(
-      'select o.seq, o.workspace_id, w.server_id, o.changes from outbox o join workspaces w on w.id = o.workspace_id order by o.seq limit ?', [limit],
-    ).map(r => ({ seq: r.seq, workspaceId: r.workspace_id, serverId: r.server_id, changes: JSON.parse(r.changes) })),
+    /**
+     * 공유 공간에서 한 저장들, 오래된 것부터. serverId가 null이면 아직 서버에 없는 공간이라 기다려야 함.
+     * 옵션: workspaceId(기기 공간 id 하나만) · afterSeq(이 seq 다음부터, 여러 번 나눠 읽을 때)
+     */
+    peekOutbox: (limit = 20, { workspaceId = null, afterSeq = 0 } = {}) => db.getAllSync(
+      `select o.seq, o.workspace_id, w.server_id, o.changes, o.created_at from outbox o join workspaces w on w.id = o.workspace_id
+        where o.seq > ? and (? is null or o.workspace_id = ?) order by o.seq limit ?`, [afterSeq, workspaceId, workspaceId, limit],
+    ).map(r => ({ seq: r.seq, workspaceId: r.workspace_id, serverId: r.server_id, changes: JSON.parse(r.changes), createdAt: r.created_at })),
     ackOutbox: seq => write(() => {
       if (db.runSync('delete from outbox where seq=?', [seq]).changes) ctx.touch('outbox');
       return true;

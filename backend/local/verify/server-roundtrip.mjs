@@ -41,8 +41,11 @@ async function device(name, user, accountId) {
     set: (w, ids, on) => user.rpc('set_note_favorites', { p_workspace_id: w, p_note_ids: ids, p_favorite: on }),
     list: async w => (await user.select('note_favorites', 'workspace_id', w)).filter(r => r.account_id === accountId).map(r => r.note_id),
   };
-  const bridge = createBridge({ store, engine, db: dev.db, transport: user.transport(), accountId, favorites });
-  return { store, bridge, dev };
+  // 엔진이 서버와 주고받은 직후(다리가 화면용 표를 맞추기 전)에 화면에서 저장하는 상황을 넣을 수 있게 함
+  const hook = { during: null };
+  const hooked = { ...engine, syncNow: async (ctx, opts) => { const r = await engine.syncNow(ctx, opts); const fn = hook.during; hook.during = null; fn?.(); return r; } };
+  const bridge = createBridge({ store, engine: hooked, db: dev.db, transport: user.transport(), accountId, favorites });
+  return { store, bridge, dev, hook, favorites, user };
 }
 const a = await device('storeA', A, idA), b = await device('storeB', B, idB);
 const view = s => ({
@@ -148,7 +151,73 @@ try {
   const projectRow = (await B.select('projects', 'id', projectId))[0];
   check('프로젝트 화면 값이 서버에 받아들여지고 다시 같은 화면 값으로 돌아옴', flushOf(ra) === 'DONE' && !!projectRow
     && same(b.store.serverMap.projectFromServer({ ...projectRow, due_date: typeof projectRow.due_date === 'string' ? projectRow.due_date : new Date(projectRow.due_date.getTime() + 9 * 3600000).toISOString().slice(0, 10) }), { id: projectId, ...form }), JSON.stringify(projectRow));
+
+  // 8. 동기화 도중에 한 저장: 화면에서 사라지지 않고, 같은 syncAll 안에서 서버까지 올라감 (새 메모의 별표도)
+  let midNew, midEdit, midProposal;
+  a.hook.during = () => {
+    midNew = a.store.addMemo({ title: '동기화 중에 쓴 메모', body: '내일 3시 회의', favorite: true });
+    [midProposal] = a.store.addProposals([{ kind: 'event', title: '회의', date: '2026-11-27', start: '15:00', sourceType: 'memo', sourceId: midNew.id, sourceTitle: midNew.title, sourceRevision: midNew.revision }]);
+    midEdit = a.store.updateMemo(memo.id, { body: '동기화 중에 고친 본문' });
+  };
+  ra = await a.bridge.syncAll();
+  const midServer = (await A.select('notes', 'id', midNew.id))[0];
+  check('동기화 도중에 쓴 메모·수정·AI 제안이 화면에 그대로 있고 같은 호출에서 서버에 올라감', flushOf(ra) === 'DONE' && a.store.outboxCount() === 0
+    && a.store.getMemo(midNew.id)?.title === '동기화 중에 쓴 메모' && a.store.getMemo(memo.id).body === '동기화 중에 고친 본문' && a.store.getMemo(memo.id).revision === midEdit.revision
+    && a.store.getProposal(midProposal.id)?.status === 'pending' && midServer?.body === '내일 3시 회의'
+    && (await A.select('notes', 'id', memo.id))[0].body === '동기화 중에 고친 본문', JSON.stringify([ra, a.store.getMemo(midNew.id), midServer]));
+  check('새 메모에 바로 누른 별표가 첫 동기화에서 서버에 저장되고 화면에 켜져 있음', a.store.getMemo(midNew.id).favorite === true
+    && (await A.select('note_favorites', 'note_id', midNew.id)).length === 1, JSON.stringify(a.store.getMemo(midNew.id)));
+  await syncBoth();
+  check('B도 그 메모와 수정을 받음', b.store.getMemo(midNew.id)?.body === '내일 3시 회의' && b.store.getMemo(memo.id).body === '동기화 중에 고친 본문' && same(view(a.store), view(b.store)));
+
+  // 9. 한 번에 120개를 휴지통으로 → 영구 삭제 (엔진은 한 묶음 100개까지)
+  const bulk = Array.from({ length: 120 }, (_, i) => a.store.addMemo({ title: `정리할 메모 ${i}` }).id);
+  await syncBoth();
+  a.store.trashMemos(bulk);
+  const bulkRows = a.store.peekOutbox(10).map(r => r.changes.length);
+  [ra] = await syncBoth();
+  const trashedOnServer = (await A.select('notes', 'workspace_id', ws)).filter(n => bulk.includes(n.id) && n.deleted_at).length;
+  check('120개를 한 번에 휴지통으로: 100+20으로 나눠 보내고 서버·B 휴지통에 120개', same(bulkRows, [100, 20]) && flushOf(ra) === 'DONE' && trashedOnServer === 120
+    && b.store.getTrashedMemos().filter(m => bulk.includes(m.id)).length === 120, `${JSON.stringify(bulkRows)} ${flushOf(ra)} 서버 ${trashedOnServer}`);
+  a.store.deleteMemosForever(bulk);
+  [ra] = await syncBoth();
+  await syncBoth();
+  const leftOnServer = (await A.select('notes', 'workspace_id', ws)).filter(n => bulk.includes(n.id)).length;
+  check('120개 영구 삭제도 막히지 않고 서버·양쪽 기기에서 사라짐', flushOf(ra) === 'DONE' && leftOnServer === 0 && a.store.outboxCount() === 0
+    && b.store.getTrashedMemos().every(m => !bulk.includes(m.id)) && same(view(a.store), view(b.store)), `${flushOf(ra)} 서버에 남은 ${leftOnServer}`);
+
+  // 10. 넘긴 직후 앱이 꺼짐: 엔진에는 들어갔는데 보낼 목록에서 못 지움 → 다시 넘겨도 서버에는 한 번만 (충돌 없음)
+  const crashed = a.store.addMemo({ title: '넘긴 직후 꺼진 메모' });
+  let crashOnce = true;
+  const flaky = { ...a.store, ackOutbox: seq => { if (crashOnce) { crashOnce = false; throw new Error('앱이 꺼짐'); } return a.store.ackOutbox(seq); } };
+  const restarted = createBridge({ store: flaky, engine, db: a.dev.db, transport: A.transport(), accountId: idA, favorites: a.favorites });
+  const firstTry = Object.values(await restarted.syncAll())[0];
+  const secondTry = Object.values(await restarted.syncAll())[0];
+  const crashedRows = await A.select('notes', 'id', crashed.id);
+  check('넘긴 직후 꺼져 같은 저장을 다시 넘겨도 충돌 없이 한 번만 저장됨', firstTry.status === 'ERROR' && secondTry.status === 'OK' && secondTry.flush.status === 'DONE'
+    && a.store.outboxCount() === 0 && crashedRows.length === 1 && Number(crashedRows[0].revision) === 1
+    && (await engine.getSyncStatus(a.dev.db, ws)).pending === 0, JSON.stringify([firstTry, secondTry.flush, crashedRows.map(r => r.revision)]));
+  await syncBoth();
+
   check('마지막에 양쪽 보낼 목록이 비고 상태가 같음', a.store.outboxCount() === 0 && b.store.outboxCount() === 0 && same(view(a.store), view(b.store)));
+
+  // 11. 같은 기기에서 계정이 바뀜: A가 못 보낸 수정이 B 이름으로 올라가지 않음 (A의 기기 DB를 B가 이어서 씀)
+  await engine.saveLocal({ db: a.dev.db, transport: A.transport(), workspaceId: ws, myAccountId: idA }, [{ kind: 'update', entity: 'notes', id: memo.id, data: { body: 'A가 못 보낸 수정' } }]);
+  const pendingOfA = (await engine.getSyncStatus(a.dev.db, ws)).pending;
+  const nextStore = createLocalStore({ db: openDatabaseSync(':memory:'), newId: randomUUID });
+  nextStore.bindAccount(idB);
+  nextStore.upsertServerWorkspace({ id: ws, name: '저장소 왕복 검증', description: '새 기기 저장소', role: 'EDITOR', members: 2 });
+  nextStore.switchWorkspace(ws);
+  const nextBridge = createBridge({ store: nextStore, engine, db: a.dev.db, transport: B.transport(), accountId: idB, favorites: b.favorites });
+  const nextRun = Object.values(await nextBridge.syncAll())[0];
+  const afterSwitch = (await A.select('notes', 'id', memo.id))[0];
+  check('계정이 바뀌면 앞 계정이 못 보낸 수정을 버리고, 새 계정은 서버 값으로 다시 받음', pendingOfA === 1 && nextRun.status === 'OK' && nextRun.flush.sent === 0
+    && afterSwitch.body === '동기화 중에 고친 본문' && (await engine.getSyncAccount(a.dev.db)) === idB
+    && nextStore.getMemo(memo.id)?.body === '동기화 중에 고친 본문' && same(view(nextStore), view(b.store)), JSON.stringify([pendingOfA, nextRun.status, nextRun.flush, afterSwitch.body]));
+  const wrongStore = createLocalStore({ db: openDatabaseSync(':memory:'), newId: randomUUID });
+  wrongStore.bindAccount(idA);
+  const refused = await createBridge({ store: wrongStore, engine, db: a.dev.db, transport: B.transport(), accountId: idB }).syncAll().then(() => 'ran', e => e.code);
+  check('기기 저장소가 다른 계정 것이면 동기화하지 않음 (account_mismatch)', refused === 'account_mismatch' && (await engine.getSyncAccount(a.dev.db)) === idB, String(refused));
 } catch (error) {
   fail++;
   console.log(' FAIL  예외:', error?.stack ?? error);

@@ -26,7 +26,7 @@ test('개인 공간의 저장은 보낼 목록에 적지 않고, 공유 공간�
   t.store.switchWorkspace(team);
   const memo = t.store.addMemo({ title: '', body: '회의록', strokes: STROKES });
   const [row] = t.store.peekOutbox();
-  assert.deepEqual(row, { seq: row.seq, workspaceId: team, serverId: null, changes: [
+  assert.deepEqual(row, { seq: row.seq, workspaceId: team, serverId: null, createdAt: t.clock.t, changes: [
     { kind: 'create', entity: 'notes', id: memo.id, data: { title: null, body: '회의록', strokes: STROKES } },
   ] });
   // 실패한 저장은 보낼 목록에도 남지 않음

@@ -1,4 +1,4 @@
-export { createLocalStore, defaultId } from './store.js';
+export { createLocalStore, defaultId, OUTBOX_BATCH, splitChanges } from './store.js';
 export { createHooks } from './hooks.js';
 export { LocalError } from './errors.js';
 export { candidatesToProposals, pendingOf } from './proposals.js';

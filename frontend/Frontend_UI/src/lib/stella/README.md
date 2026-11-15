@@ -229,11 +229,12 @@ else showConflict(r.conflicts);   // REVISION_MISMATCH: 다른 사람이 먼저 
 
 ```ts
 import * as SQLite from 'expo-sqlite';
-import { expoSqliteDb, setupLocalSync, supabaseTransport, newId,
+import { expoSqliteDb, setupLocalSync, bindSyncAccount, supabaseTransport, newId,
          saveLocal, syncNow, listLocal, getSyncStatus, resolveConflict } from '@/lib/stella';
 
 const db = expoSqliteDb(await SQLite.openDatabaseAsync('stella.db'));
-await setupLocalSync(db);                                      // 앱 시작 때 한 번 (테이블 3개 생성)
+await setupLocalSync(db);                                      // 앱 시작 때 한 번 (테이블 5개 생성)
+await bindSyncAccount(db, userId);                             // 로그인 직후: 다른 계정이 쓰던 기기면 남은 기록·못 보낸 수정을 지움
 const ctx = { db, transport: supabaseTransport, workspaceId, myAccountId: userId, newId };
 
 // 저장: 기기에 먼저 → 화면에 바로 반영 (오프라인이어도 됨)
@@ -265,6 +266,9 @@ await resolveConflict(ctx, outboxSeq, 'use_server');  // 내 수정 버리기
 - 받기와 전체 재동기화는 **서버 사본만 바꿉니다.** 안 보낸 내 수정은 그 위에 다시 얹어 보여주므로, 재동기화를 해도 지워지지 않습니다.
 - 받은 데이터와 커서는 **같은 트랜잭션**에 저장합니다.
 - 복구(`restore`)는 지금 **메모만** 됩니다. 두 기기가 같은 메모를 동시에 복구하면 늦은 쪽은 충돌이 나고, 이미 복구됐으므로 `keep_mine` 대신 `use_server`를 쓰세요 (`CANNOT_KEEP`). 복구하면서 내용도 고치려면 `restore` 다음에 `update`를 따로 넣으세요.
+- **기기 DB는 한 계정 것입니다 (11/15).** `bindSyncAccount(db, accountId)`는 같은 계정이면 그대로 두고, 다른 계정이면 앞 계정의 공유 공간 기록·보낼 목록을 지운 뒤 `{ cleared, droppedOutbox }`를 돌려줍니다. 앞사람이 못 보낸 수정이 뒷사람 이름으로 올라가지 않게 하려는 것입니다. 로그아웃·탈퇴 때는 `clearLocalSync(db)`를 부르세요(먼저 `getSyncStatus`의 `pending`으로 못 보낸 수정이 있는지 알려 주세요). `backend/local`의 다리(`createBridge`)는 `accountId`를 넘기면 첫 동기화 전에 `bindSyncAccount`를 대신 부릅니다.
+- **넘겨받는 묶음은 한 번만 (11/15).** `saveLocal(ctx, changes, { handoffKey })`: 같은 `handoffKey`로 다시 부르면 아무것도 더하지 않고 처음의 operation_id를 돌려줍니다. `backend/local`의 보낼 목록을 넘긴 직후 앱이 꺼져 같은 줄을 다시 넘겨도 중복이 생기지 않습니다. 화면에서 직접 부를 때는 `handoffKey` 없이 쓰면 됩니다.
+- 한 묶음은 1~100개입니다. `backend/local`은 저장할 때 100개씩 나눠 적습니다.
 - 이 규칙들은 `stella-sync-verify` 검증(두 기기 흉내)으로 확인했습니다. 로컬 DB 50개(11/15, 복구·손글씨 포함), 실제 Supabase 45개 통과 (11/14).
 
 ### 프로젝트 팀원 · 초대 (`project-team.ts`, 11/15, 프론트 화면 기준)

@@ -3,11 +3,33 @@ import { isPlainObject, isUuid, uuid } from './validate.js';
 import { canonStrokes } from './server.js';
 
 /**
+ * 보낼 목록에 아직 남아 있는(동기화 엔진에 안 넘어간) 저장이 건드린 것.
+ *   ids: 기록 id (연결이면 양쪽 id) · favorites: 별표를 바꾼 메모 id
+ * 엔진은 이 저장들을 아직 모르므로, 엔진 값으로 이 기록을 덮거나 지우면 방금 한 저장이 화면에서 사라집니다.
+ */
+function pendingTargets(ctx, workspaceId) {
+  const ids = new Set(), favorites = new Set();
+  for (const row of ctx.db.getAllSync('select changes from outbox where workspace_id=?', [workspaceId])) {
+    for (const change of JSON.parse(row.changes)) {
+      const data = isPlainObject(change.data) ? change.data : {};
+      if (change.kind === 'favorite') {
+        for (const noteId of Array.isArray(data.note_ids) ? data.note_ids : []) favorites.add(noteId);
+        continue;
+      }
+      if (typeof change.id === 'string') ids.add(change.id);
+      for (const [key, value] of Object.entries(data)) if (key.endsWith('_id') && typeof value === 'string') ids.add(value);
+    }
+  }
+  return { ids, favorites };
+}
+
+/**
  * 서버에서 받은 공유 공간 기록을 기기 표에 반영합니다 (보낼 목록에는 적지 않음).
  *
  * 동기화 다리가 부르는 순서: ① peekOutbox로 꺼낸 변경을 local-sync의 saveLocal에 넘기고 ackOutbox
  * ② flush·pull ③ listLocal(안 보낸 내 수정이 얹힌 값)로 읽은 행을 applyServer에 넘김.
  * ①을 먼저 해야 안 보낸 내 수정이 서버 값으로 덮이지 않습니다.
+ * ②·③ 사이에 화면에서 한 저장(아직 보낼 목록에 있음)이 건드린 기록은 건너뜁니다: 다음 동기화에서 엔진을 거쳐 맞춰집니다.
  *
  * items: [{ entity: 'notes' | 'tasks' | 'events', data: 서버 행, purged?: true }
  *        | { entity: 'note_attachments', data: { note_id, asset_id, position }, removed?: true }]
@@ -24,11 +46,13 @@ export function applyServer(ctx, workspaceRef, items) {
   const sorted = [...items].sort((a, b) => order[a.entity] - order[b.entity]);
   const count = { notes: 0, tasks: 0, photos: 0 };
   const t = ctx.now();
+  const busy = pendingTargets(ctx, ws.id).ids;
 
   for (const item of sorted) {
     if (item.entity === 'notes') {
       const n = ctx.map.noteFromServer(item.data);
       uuid(n.id, 'id');
+      if (busy.has(n.id)) continue;
       const cur = ctx.db.getFirstSync('select workspace_id,title,body,strokes,revision,updated_at,deleted_at from memos where id=?', [n.id]);
       if (cur && cur.workspace_id !== ws.id) fail('invalid_input', 'id');
       if (item.purged) {
@@ -50,6 +74,7 @@ export function applyServer(ctx, workspaceRef, items) {
       ctx.touch('memos');
     } else if (item.entity === 'tasks' || item.entity === 'events') {
       const taskId = uuid(item.data.id, 'id');
+      if (busy.has(taskId)) continue;
       const cur = ctx.db.getFirstSync('select * from tasks where id=?', [taskId]);
       if (cur && cur.workspace_id !== ws.id) fail('invalid_input', 'id');
       const f = item.purged ? null : ctx.map.taskFromServer(item.entity, item.data);
@@ -94,6 +119,7 @@ export function applyServer(ctx, workspaceRef, items) {
     } else {
       const { note_id: noteId, asset_id: assetId } = item.data;
       if (!isUuid(noteId) || !isUuid(assetId)) fail('invalid_input', 'items');
+      if (busy.has(noteId)) continue;
       const memo = ctx.db.getFirstSync('select photos from memos where workspace_id=? and id=?', [ws.id, noteId]);
       if (!memo) continue;
       const photos = JSON.parse(memo.photos);
@@ -108,13 +134,15 @@ export function applyServer(ctx, workspaceRef, items) {
   return count;
 }
 
-/** 공유 공간의 내 즐겨찾기 전체를 서버 값(listNoteFavorites)으로 맞춤. 바뀐 개수 */
+/** 공유 공간의 내 즐겨찾기 전체를 서버 값(listNoteFavorites)으로 맞춤. 바뀐 개수. 아직 안 보낸 별표 변경이 있는 메모는 그대로 둠 */
 export function applyFavorites(ctx, workspaceRef, noteIds) {
   const ws = ctx.db.getFirstSync('select id from workspaces where (server_id=? or id=?) and personal=0', [workspaceRef, workspaceRef]) ?? fail('not_found');
   if (!Array.isArray(noteIds) && !(noteIds instanceof Set)) fail('invalid_input', 'noteIds');
   const wanted = new Set(noteIds);
+  const waiting = pendingTargets(ctx, ws.id).favorites;
   let changed = 0;
   for (const m of ctx.db.getAllSync('select id,favorite from memos where workspace_id=?', [ws.id])) {
+    if (waiting.has(m.id)) continue;
     const value = wanted.has(m.id) ? 1 : 0;
     if (m.favorite !== value) {
       ctx.db.runSync('update memos set favorite=? where id=?', [value, m.id]);

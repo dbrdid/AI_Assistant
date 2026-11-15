@@ -12,6 +12,9 @@ exports.listLocal = listLocal;
 exports.getLocal = getLocal;
 exports.getSyncStatus = getSyncStatus;
 exports.listOutbox = listOutbox;
+exports.getSyncAccount = getSyncAccount;
+exports.bindSyncAccount = bindSyncAccount;
+exports.clearLocalSync = clearLocalSync;
 // =====================================================================
 // 기기 SQLite 동기화 (공유 공간) — 보낼 목록 · 받은 변경 반영 · 전체 재동기화
 //   React Native 의존 없음. 기기 DB(SqlDb)와 서버 호출(SyncTransport)을 넘겨받아 동작합니다.
@@ -28,6 +31,8 @@ exports.listOutbox = listOutbox;
 //      → 전체 재동기화를 해도 안 보낸 수정은 지워지지 않음
 //   5) revision은 커지는 쪽만 반영 (늦게 도착한 옛 값으로 덮지 않음)
 //   6) 받은 데이터와 커서는 같은 트랜잭션에 저장 (중간에 앱이 꺼져도 어긋나지 않음)
+//   7) 기기 저장소(backend/local)가 넘기는 묶음은 handoffKey로 한 번만 받음 (넘긴 직후 앱이 꺼져 다시 넘겨도 중복 없음)
+//   8) 기기 DB는 한 계정 것. 계정이 바뀌면 bindSyncAccount가 남은 기록·보낼 목록을 지움 (앞사람 수정이 뒷사람 이름으로 안 올라감)
 // =====================================================================
 const errors_1 = require("./errors");
 // ---------------------------------------------------------------------
@@ -67,6 +72,15 @@ async function setupLocalSync(db) {
       created_at   text not null
     );
     create index if not exists stella_outbox_ws on stella_outbox (workspace_id, seq);
+    create table if not exists stella_handoffs (
+      key          text primary key,                -- 기기 저장소가 넘긴 묶음의 표시 (saveLocal의 handoffKey)
+      operation_id text not null,
+      created_at   text not null
+    );
+    create table if not exists stella_sync_meta (
+      key   text primary key,                       -- 'account' = 이 기기 DB를 쓰는 계정
+      value text not null
+    );
   `);
 }
 const LINK_FIELDS = {
@@ -213,7 +227,14 @@ function asSyncError(e) {
 // 1. 기기에 저장 (보낼 목록에 넣기)
 // ---------------------------------------------------------------------
 /** 사용자의 수정 묶음을 기기에 저장하고 보낼 목록에 넣음. 반환 = operation_id */
-async function saveLocal(ctx, changes) {
+/** 넘겨받은 묶음 표시는 이만큼 지나면 지움 (다시 넘어올 수 있는 건 넘긴 직후 앱이 꺼졌을 때뿐) */
+const HANDOFF_KEEP_MS = 30 * 24 * 60 * 60 * 1000;
+/**
+ * 저장 1번 = 보낼 묶음 1개. 돌려주는 값은 operation_id.
+ * handoffKey: 다른 저장소(backend/local의 보낼 목록)에서 넘겨받는 묶음의 고유 표시.
+ *   같은 표시로 다시 부르면 아무것도 더하지 않고 처음의 operation_id를 돌려줌 → "넘김 → 앱 꺼짐 → 다시 넘김"에도 한 번만 저장
+ */
+async function saveLocal(ctx, changes, opts = {}) {
     if (changes.length === 0 || changes.length > 100) {
         throw new errors_1.SyncError('INVALID_REQUEST', '한 번에 1~100개까지 저장할 수 있습니다');
     }
@@ -224,10 +245,27 @@ async function saveLocal(ctx, changes) {
             throw new errors_1.SyncError('INVALID_REQUEST', `같은 대상을 한 묶음에 두 번 넣을 수 없습니다 (${t})`);
         seen.add(t);
     }
-    const operationId = newIdOf(ctx);
+    const key = opts.handoffKey;
+    if (key !== undefined && (typeof key !== 'string' || !key || key.length > 200)) {
+        throw new errors_1.SyncError('INVALID_REQUEST', 'handoffKey는 1~200자 문자열');
+    }
+    let operationId = newIdOf(ctx);
     const ws = ctx.workspaceId;
     await tx(ctx.db, async () => {
-        await ctx.db.run('insert into stella_outbox (workspace_id, operation_id, intent, created_at) values (?, ?, ?, ?)', [ws, operationId, JSON.stringify(changes), nowOf(ctx)]);
+        const at = nowOf(ctx);
+        if (key !== undefined) {
+            const done = await ctx.db.get('select operation_id from stella_handoffs where key = ?', [key]);
+            if (done) {
+                operationId = done.operation_id;
+                return;
+            } // 이미 받은 묶음
+            await ctx.db.run('insert into stella_handoffs (key, operation_id, created_at) values (?, ?, ?)', [key, operationId, at]);
+            const t = Date.parse(at);
+            if (Number.isFinite(t)) {
+                await ctx.db.run('delete from stella_handoffs where created_at < ?', [new Date(t - HANDOFF_KEEP_MS).toISOString()]);
+            }
+        }
+        await ctx.db.run('insert into stella_outbox (workspace_id, operation_id, intent, created_at) values (?, ?, ?, ?)', [ws, operationId, JSON.stringify(changes), at]);
         await rebuildAll(ctx.db, ws, changes.map((c) => ({ entity: c.entity, key: changeKey(c) })));
     });
     return operationId;
@@ -595,4 +633,45 @@ async function listOutbox(db, workspaceId) {
         conflicts: r.conflicts ? JSON.parse(r.conflicts) : [],
         createdAt: r.created_at,
     }));
+}
+// ---------------------------------------------------------------------
+// 5. 계정 (기기 DB는 한 계정 것)
+// ---------------------------------------------------------------------
+const SYNC_TABLES = ['stella_outbox', 'stella_records', 'stella_sync_state', 'stella_handoffs'];
+async function wipe(db) {
+    const n = await db.get('select count(*) as n from stella_outbox');
+    for (const t of SYNC_TABLES)
+        await db.run(`delete from ${t}`);
+    return Number(n?.n ?? 0);
+}
+/** 이 기기 DB에 묶인 계정 (없으면 null) */
+async function getSyncAccount(db) {
+    const r = await db.get(`select value from stella_sync_meta where key = 'account'`);
+    return r?.value ?? null;
+}
+/**
+ * 로그인 직후(첫 동기화 전에) 부르세요. 이 기기 DB를 쓰는 계정을 적어 둡니다.
+ *   같은 계정 → 그대로. 다른 계정 → 앞 계정의 공유 공간 기록·보낼 목록을 모두 지우고 새 계정으로.
+ *   droppedOutbox = 지워진 안 보낸 묶음 수 (앞 계정이 못 보낸 수정. 다른 계정 이름으로 올리지 않으려고 버림)
+ * 동기화가 도는 중에는 부르지 마세요 (backend/local의 다리는 첫 동기화 전에 한 번 부릅니다).
+ */
+async function bindSyncAccount(db, accountId) {
+    if (typeof accountId !== 'string' || !accountId)
+        throw new errors_1.SyncError('INVALID_REQUEST', 'accountId가 필요합니다');
+    return tx(db, async () => {
+        const bound = await getSyncAccount(db);
+        if (bound === accountId)
+            return { cleared: false, droppedOutbox: 0 };
+        const droppedOutbox = bound === null ? 0 : await wipe(db);
+        await db.run(`insert into stella_sync_meta (key, value) values ('account', ?) on conflict (key) do update set value = excluded.value`, [accountId]);
+        return { cleared: bound !== null, droppedOutbox };
+    });
+}
+/** 로그아웃·탈퇴: 기기에 남은 공유 공간 기록·보낼 목록·계정 표시를 모두 지움. 안 보낸 묶음 수를 돌려줌 (먼저 getSyncStatus로 알려 주세요) */
+async function clearLocalSync(db) {
+    return tx(db, async () => {
+        const droppedOutbox = await wipe(db);
+        await db.run(`delete from stella_sync_meta where key = 'account'`);
+        return { droppedOutbox };
+    });
 }
