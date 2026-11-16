@@ -14,6 +14,7 @@
 
 ## 문서
 
+- [데스크톱 모델 서버 테스트·시연 준비](docs/DESKTOP-MODEL-DEMO.md)
 - [통합 설계 검증 계획 v2와 Gate](docs/validation/PLAN-v2.md)
 - [수용 시험 기록표 V01~V34](docs/validation/cases-v2.csv)
 - [개발 시험 실행 증거와 미검증 범위](docs/validation/EXECUTION-2026-11-16.md)
