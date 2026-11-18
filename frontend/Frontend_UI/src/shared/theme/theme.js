@@ -15,6 +15,9 @@ export const colors = {
   cream: '#FFFDF8',     // 화면 배경색 (따뜻한 흰색)
   line: '#D2E2DC',      // 얇은 구분선 색
   coral: '#F47D7F',     // 포인트 색 (일요일 글자 등)
+  coralSoft: '#FDECEC', // 아주 연한 코랄 (회원탈퇴 아이콘 배경 등)
+  card: '#FFFFFF',      // 카드 배경 (Figma 시안: 흰 카드 + 얇은 테두리)
+  kakao: '#FEE500',     // 카카오 로그인 버튼 노랑
   white: '#FFFFFF',     // 흰색
   black: '#000000'      // 검정색
 };
@@ -23,10 +26,16 @@ export const colors = {
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 
 // 모서리 둥글기. 클수록 더 동그랗습니다.
-export const radius = { sm: 8, md: 14, lg: 20 };
+export const radius = { sm: 8, md: 14, lg: 20, card: 18, pill: 999 };
 
 // 글자 크기
-export const font = { caption: 12, body: 14, bodyLg: 16, title: 20, headline: 26 };
+export const font = { caption: 12, body: 14, bodyLg: 16, header: 17, title: 20, headline: 26 };
+
+// 카드 그림자 (Figma 시안의 아주 옅은 그림자). 웹/iOS 는 shadow*, 안드로이드는 elevation
+export const shadow = {
+  card: { shadowColor: '#263935', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  float: { shadowColor: '#2A6858', shadowOpacity: 0.28, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
+};
 
 // 부모 전체를 덮는 위치/크기. (StyleSheet.absoluteFill 대신 직접 정의: 최신 React Native 에서 값이 없어지는 경우를 막음)
 export const FILL = { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 };

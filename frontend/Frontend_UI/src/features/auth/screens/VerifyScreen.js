@@ -36,9 +36,11 @@ export default function VerifyScreen({ email, initial, onVerified, onBack, onExp
 
   const submit = async () => {
     if (busy) return;
-    const r = verifyCode(email, code);
+    setBusy(true);
+    const r = await verifyCode(email, code);
     if (!r.ok) {
       setDialog({ icon: '⚠', title: r.error.title, message: r.error.message, expired: r.error.type === 'expired' });
+      setBusy(false);
       return;
     }
     setBusy(true);
@@ -48,6 +50,7 @@ export default function VerifyScreen({ email, initial, onVerified, onBack, onExp
 
   const resend = async () => {
     const r = await sendCode(email);
+    if (!r.ok) { setDialog({ icon: '⚠', title: r.error.title, message: r.error.message }); return; }
     setExpiresAt(r.expiresAt);
     setDevCode(r.devCode);
     setCode('');

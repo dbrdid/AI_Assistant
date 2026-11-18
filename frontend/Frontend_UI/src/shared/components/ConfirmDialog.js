@@ -34,12 +34,13 @@ export default function ConfirmDialog({ visible, title, sub, confirmText = '확�
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  dialog: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.sm },
-  title: { fontSize: font.title, fontWeight: '800', color: colors.ink },
+  // 시안: 흰 카드 + 얇은 테두리, 알약 모양 버튼
+  dialog: { width: '100%', maxWidth: 340, backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, padding: spacing.xl, gap: spacing.sm },
+  title: { fontSize: font.header, fontWeight: '800', color: colors.ink },
   sub: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
   buttons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
-  btn: { flex: 1, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  btn: { flex: 1, minHeight: 46, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   cancel: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
   cancelText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
-  confirmText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.white },
+  confirmText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
 });

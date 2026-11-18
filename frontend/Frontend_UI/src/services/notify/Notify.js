@@ -8,6 +8,7 @@
 
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import { notificationTarget } from '../../lib/stella/push';
 
 const CHANNEL = 'planner';
 const MAX_SCHEDULED = 60; // iOS 는 한 번에 64개까지만 예약할 수 있어서 여유를 둠
@@ -84,12 +85,22 @@ export async function scheduleAll(list) {
 // 폰 알림을 눌렀을 때: handler({ route, params }) 를 불러 줌. (앱이 꺼져 있다가 알림으로 켜진 경우도 처리)
 // 돌려주는 함수를 부르면 감시를 끝냄.
 // ------------------------------------------------------------
+// 서버 푸시 data → 앱 화면. 화면들이 쓰는 이름(taskId, projectId)으로 바꿈 (없는 항목이면 AppNavigator 가 목록으로 보냄)
+function serverTarget(data) {
+  const t = notificationTarget(data);
+  if (t.route === 'TaskEdit') return { route: t.route, params: { taskId: t.params?.id } };
+  if (t.route === 'ProjectDetail') return { route: t.route, params: { projectId: t.params?.id } };
+  if (t.route === 'Workspace' || t.route === 'Briefing') return { route: t.route };
+  return { route: 'Notices' };
+}
+
 export function onNotificationTap(handler) {
   let off = () => {};
   try {
     const handle = (resp) => {
       const d = resp && resp.notification && resp.notification.request && resp.notification.request.content && resp.notification.request.content.data;
       if (d && d.route) handler({ route: d.route, params: d.params });
+      else if (d && d.type) handler(serverTarget(d)); // 서버 푸시 (lib/stella/push.ts 형식)
     };
     const sub = Notifications.addNotificationResponseReceivedListener(handle);
     off = () => sub.remove();

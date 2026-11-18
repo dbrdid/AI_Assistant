@@ -1,12 +1,17 @@
 // ============================================================
 // MonthCalendar.js — "한 달 달력" 화면
 // ============================================================
-
+// Figma 시안: 왼쪽 큰 '2026년 11월' · 오른쪽 ‹ › 동그란 버튼 · 요일 줄 · 날짜 칸(선택 = 진녹색 동그라미)
+// 아래(children)에는 선택한 날의 일정 목록(흰 시트)이 붙습니다.
 
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import { CircleButton } from '../../../shared/components/Ui';
+import Icon from '../../../shared/components/Icon';
 import { WEEKDAYS, isSameDay, monthMatrix, toKey } from '../utils/DateUtils';
+
+const OUTSIDE = '#B9C5C1'; // 이번 달이 아닌 날짜 (아주 흐린 글자)
 
 export default function MonthCalendar({
   year,
@@ -16,12 +21,9 @@ export default function MonthCalendar({
   marks = {},
   holidays = {},
   highlight,
-  searching,
   onSelect,
   onPrev,
   onNext,
-  onToday,
-  onSearch,
   onPickMonth,
   children,
 }) {
@@ -33,23 +35,9 @@ export default function MonthCalendar({
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      {/* ---------- 1) 맨 위: 🔍 · ‹ 2026년 10월 › · [오늘] ---------- */}
-      <View style={styles.head}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="일정 검색"
-          accessibilityState={{ selected: !!searching }}
-          onPress={onSearch}
-          hitSlop={8}
-          style={[styles.searchBtn, searching && styles.searchBtnOn]}
-        >
-          <Text style={styles.searchIcon}>🔍</Text>
-        </Pressable>
-
-        <View style={styles.monthNav}>
-          <Pressable accessibilityRole="button" accessibilityLabel="이전 달" onPress={onPrev} hitSlop={10} style={styles.navBtn}>
-            <Text style={styles.navText}>‹</Text>
-          </Pressable>
+      <View style={styles.grid}>
+        {/* ---------- 1) 맨 위: 2026년 11월 ·  ‹ › ---------- */}
+        <View style={styles.head}>
           {/* 달 이름을 누르면 연·월을 골라서 이동. month 는 0~11 이라서 +1 */}
           <Pressable
             accessibilityRole="button"
@@ -58,95 +46,93 @@ export default function MonthCalendar({
               setPickYear(year);
               setPicking(true);
             }}
+            hitSlop={6}
+            style={styles.monthBtnRow}
           >
-            <Text style={styles.month} accessibilityRole="header">{year}년 {month + 1}월 ▾</Text>
+            <Text style={styles.month} accessibilityRole="header">{year}년 {month + 1}월</Text>
+            <Icon name="chevronDown" size={16} color={colors.muted} />
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="다음 달" onPress={onNext} hitSlop={10} style={styles.navBtn}>
-            <Text style={styles.navText}>›</Text>
-          </Pressable>
+          <View style={styles.monthNav}>
+            <CircleButton icon="chevronLeft" label="이전 달" onPress={onPrev} size={34} iconSize={18} />
+            <CircleButton icon="chevronRight" label="다음 달" onPress={onNext} size={34} iconSize={18} />
+          </View>
         </View>
 
-        <Pressable accessibilityRole="button" accessibilityLabel="오늘로 이동" onPress={onToday} style={styles.todayBtn}>
-          <Text style={styles.todayText}>오늘</Text>
-        </Pressable>
-      </View>
+        {/* ---------- 2) 요일 줄 (일요일만 코랄) ---------- */}
+        <View style={styles.weekRow}>
+          {WEEKDAYS.map((w, i) => (
+            <Text key={w} style={[styles.weekday, i === 0 && { color: colors.coral }]}>
+              {w}
+            </Text>
+          ))}
+        </View>
 
-      {/* ---------- 2) 요일 줄 ---------- */}
-      <View style={styles.weekRow}>
-        {WEEKDAYS.map((w, i) => (
-          <Text
-            key={w}
-            style={[styles.weekday, i === 0 && { color: colors.coral }, i === 6 && { color: colors.mintDark }]}
-          >
-            {w}
-          </Text>
+        {/* ---------- 3) 날짜 칸들: 주(줄) 단위로 반복 ---------- */}
+        {weeks.map((week, wi) => (
+          <View key={wi} style={styles.weekRow}>
+            {week.map((d, di) => {
+              // 그 달이 아닌 칸: 앞/뒤 달의 날짜를 흐리게만 표시 (누를 수 없음)
+              if (!d) {
+                const outside = new Date(year, month, 1 + wi * 7 + di - new Date(year, month, 1).getDay());
+                return (
+                  <View key={di} style={styles.cell} importantForAccessibility="no" accessibilityElementsHidden>
+                    <View style={styles.dayCircle}>
+                      <Text style={[styles.dayText, styles.outsideText]}>{outside.getDate()}</Text>
+                    </View>
+                    <View style={styles.dots} />
+                  </View>
+                );
+              }
+
+              const key = toKey(d);
+              const isSelected = isSameDay(d, selected); // 선택된 날인가?
+              const isToday = isSameDay(d, today);       // 오늘인가?
+              const holiday = holidays[key];             // 공휴일 이름 (없으면 undefined)
+              const mark = marks[key];                   // 일정 정보 (없으면 undefined)
+              const isHit = highlight && highlight.has(key);
+
+              return (
+                <Pressable
+                  key={di}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={`${month + 1}월 ${d.getDate()}일${isToday ? ', 오늘' : ''}${holiday ? `, ${holiday}` : ''}${mark ? `, 일정 ${mark.n}개` : ''}`}
+                  onPress={() => onSelect(d)}
+                  style={styles.cell}
+                >
+                  {/* 동그라미: 선택됐으면 진녹색으로 채움, 오늘이면 테두리, 검색에 걸렸으면 연한 민트 */}
+                  <View
+                    style={[
+                      styles.dayCircle,
+                      isHit && styles.hitCircle,
+                      isToday && styles.todayRing,
+                      isSelected && styles.selectedCircle,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayText,
+                        (di === 0 || holiday) && { color: colors.coral }, // 일요일·공휴일은 코랄
+                        isToday && !isSelected && { color: colors.mintDark },
+                        isSelected && { color: colors.white }, // 선택되면 흰 글씨
+                      ]}
+                    >
+                      {d.getDate()}
+                    </Text>
+                  </View>
+                  {/* 일정 점: 최대 3개. 일정 = 민트, 할 일 = 진녹색, 기한 초과 = 코랄, 완료 = 회색 */}
+                  <View style={styles.dots}>
+                    {mark &&
+                      (mark.dots || []).map((c, i) => <View key={i} style={[styles.dot, { backgroundColor: c }]} />)}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
         ))}
       </View>
 
-      {/* ---------- 3) 날짜 칸들: 주(줄) 단위로 반복 ---------- */}
-      {weeks.map((week, wi) => (
-        <View key={wi} style={styles.weekRow}>
-          {week.map((d, di) => {
-            // 빈 칸(그 달이 아닌 칸)은 아무것도 안 그리고 자리만 차지
-            if (!d) return <View key={di} style={styles.cell} />;
-
-            const key = toKey(d);
-            const isSelected = isSameDay(d, selected); // 선택된 날인가?
-            const isToday = isSameDay(d, today);       // 오늘인가?
-            const holiday = holidays[key];             // 공휴일 이름 (없으면 undefined)
-            const mark = marks[key];                   // 일정 정보 (없으면 undefined)
-            const isHit = highlight && highlight.has(key);
-
-            return (
-              <Pressable
-                key={di}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-                accessibilityLabel={`${month + 1}월 ${d.getDate()}일${isToday ? ', 오늘' : ''}${holiday ? `, ${holiday}` : ''}${mark ? `, 일정 ${mark.n}개` : ''}`}
-                onPress={() => onSelect(d)}
-                style={styles.cell}
-              >
-                {/* 동그라미: 오늘이면 테두리, 선택됐으면 진녹색으로 채움, 검색에 걸렸으면 연한 민트 */}
-                <View
-                  style={[
-                    styles.dayCircle,
-                    isHit && styles.hitCircle,
-                    isToday && styles.todayRing,
-                    isSelected && styles.selectedCircle,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.dayText,
-                      (di === 0 || holiday) && { color: colors.coral }, // 일요일·공휴일은 코랄(빨강 계열)
-                      di === 6 && !holiday && { color: colors.mintDark },
-                      isSelected && { color: colors.white, fontWeight: '800' }, // 선택되면 흰 글씨
-                    ]}
-                  >
-                    {d.getDate()}
-                  </Text>
-                </View>
-                {/* 일정 점: 최대 3개. 기한 초과가 있으면 코랄, 전부 완료면 회색, 아니면 민트 */}
-                <View style={styles.dots}>
-                  {mark &&
-                    Array.from({ length: Math.min(mark.n, 3) }).map((_, i) => (
-                      <View
-                        key={i}
-                        style={[
-                          styles.dot,
-                          { backgroundColor: mark.overdue ? colors.coral : mark.allDone ? colors.line : colors.mint },
-                        ]}
-                      />
-                    ))}
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-      ))}
-
       {/* ---------- 4) 아래: 선택한 날의 일정 목록 등 ---------- */}
-      <View style={styles.divider} />
       {children}
 
       {/* ---------- 연·월 고르기 창 ---------- */}
@@ -154,13 +140,9 @@ export default function MonthCalendar({
         <View style={styles.backdrop}>
           <View style={styles.dialog} accessibilityViewIsModal>
             <View style={styles.yearRow}>
-              <Pressable accessibilityRole="button" accessibilityLabel="이전 해" onPress={() => setPickYear((y) => Math.max(1900, y - 1))} hitSlop={10}>
-                <Text style={styles.navText}>‹</Text>
-              </Pressable>
+              <CircleButton icon="chevronLeft" label="이전 해" onPress={() => setPickYear((y) => Math.max(1900, y - 1))} size={36} iconSize={18} />
               <Text style={styles.pickYear}>{pickYear}년</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="다음 해" onPress={() => setPickYear((y) => Math.min(2100, y + 1))} hitSlop={10}>
-                <Text style={styles.navText}>›</Text>
-              </Pressable>
+              <CircleButton icon="chevronRight" label="다음 해" onPress={() => setPickYear((y) => Math.min(2100, y + 1))} size={36} iconSize={18} />
             </View>
             <View style={styles.monthGrid}>
               {Array.from({ length: 12 }).map((_, m) => {
@@ -193,49 +175,27 @@ export default function MonthCalendar({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
-  // 맨 위 줄: 가운데 월 이동 + 왼쪽 검색 + 오른쪽 오늘 (양끝은 absolute 로 띄워서 월 표시 위치에 영향 없음)
-  head: { height: 40, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
+  // flexGrow: 1 → 아래 일정 시트가 화면 맨 아래까지 늘어날 수 있게
+  content: { flexGrow: 1 },
+  grid: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
+  // 맨 위 줄: 왼쪽 달 이름, 오른쪽 ‹ › 버튼
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 40, marginBottom: spacing.md, paddingLeft: spacing.xs },
+  monthBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  month: { fontSize: 23, fontWeight: '800', color: colors.ink },
   monthNav: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  navBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  navText: { fontSize: 28, color: colors.ink },
-  month: { fontSize: font.title, fontWeight: '800', color: colors.ink },
-  searchBtn: {
-    position: 'absolute',
-    left: 0,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchBtnOn: { backgroundColor: colors.mintSoft },
-  searchIcon: { fontSize: 18 },
-  todayBtn: {
-    position: 'absolute',
-    right: 0,
-    paddingHorizontal: spacing.md,
-    minHeight: 36,
-    justifyContent: 'center',
-    borderRadius: 999, // 아주 큰 값 = 알약 모양
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.white,
-  },
-  todayText: { fontSize: font.body, fontWeight: '700', color: colors.mintDark },
   // 한 주(7칸)를 가로로 나란히
   weekRow: { flexDirection: 'row' },
   // flex: 1 → 7칸이 폭을 똑같이 나눠 가짐
-  weekday: { flex: 1, textAlign: 'center', fontSize: font.caption, fontWeight: '700', color: colors.muted, paddingVertical: spacing.sm },
+  weekday: { flex: 1, textAlign: 'center', fontSize: 13, fontWeight: '700', color: colors.muted, paddingVertical: spacing.xs },
   cell: { flex: 1, height: 52, alignItems: 'center', justifyContent: 'center' },
-  dayCircle: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  dayCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   hitCircle: { backgroundColor: colors.mintSoft },
-  todayRing: { borderWidth: 1.5, borderColor: colors.mint },
+  todayRing: { borderWidth: 1.5, borderColor: colors.mintDark },
   selectedCircle: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
-  dayText: { fontSize: font.body, color: colors.ink },
-  dots: { flexDirection: 'row', gap: 3, height: 6, marginTop: 2, alignItems: 'center' },
-  dot: { width: 5, height: 5, borderRadius: 3 },
-  divider: { height: 1, backgroundColor: colors.line, marginVertical: spacing.lg },
+  dayText: { fontSize: 15, fontWeight: '700', color: colors.ink },
+  outsideText: { color: OUTSIDE, fontWeight: '600' },
+  dots: { flexDirection: 'row', gap: 3, height: 5, marginTop: 3, alignItems: 'center' },
+  dot: { width: 4, height: 4, borderRadius: 2 },
 
   // 연·월 고르기 창
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
@@ -256,6 +216,6 @@ const styles = StyleSheet.create({
   },
   monthBtnOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
   monthBtnText: { fontSize: font.bodyLg, color: colors.ink, fontWeight: '600' },
-  closeBtn: { minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { minHeight: 44, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   closeText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
 });

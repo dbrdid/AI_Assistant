@@ -4,6 +4,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -22,24 +23,28 @@ import PhotoStrip from '../components/PhotoStrip';
 import MemoLinks from '../components/MemoLinks';
 import { ROUTES } from '../../../navigation/routes';
 import { analyzeText } from '../../../services/ai/AiAnalyze';
+import { runtime, maybeRuntime, registerSessionFlush } from '../../../integration/runtime';
 import SelectionOverlay from '../components/SelectionOverlay';
 import { recognizeStrokes } from '../../../services/ai/Handwriting';
 import { strokesInRect } from '../utils/InkUtils';
-import useSwipeToOpenMenu from '../../../navigation/useSwipeToOpenMenu';
-import { STORAGE_INFO, addMemo, deleteMemoForever, getMemo, trashMemo, updateMemo } from '../../../data/memos/MemoStore';
+import { addMemo, deleteMemoForever, getMemo, trashMemo, updateMemo } from '../../../data/memos/MemoStore';
 import { projectOf, setItemProject, useProjects } from '../../../data/projects/ProjectStore';
 import { summarizeText } from '../../../services/ai/AiSummary';
 import { addUsage } from '../../../data/settings/SettingsStore';
 import { ErrorModal } from '../../error/components/ErrorViews';
 import { classifyError, isOfflineMode } from '../../../services/device/Network';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import Icon from '../../../shared/components/Icon';
+import { CircleButton, PillButton } from '../../../shared/components/Ui';
+import { dateLabel } from '../components/MemoCard';
 
 // 펜 색 / 굵기 선택지
 const PEN_COLORS = [colors.ink, colors.coral, colors.mintDark, '#4A6FA5'];
 const PEN_WIDTHS = [2, 4, 8];
 
-// 도구 줄의 버튼 하나 (아이콘 + 작은 글자)
+// 도구 줄의 버튼 하나 (아이콘 위 + 작은 글자 아래). 켜진 도구는 연한 민트 바탕 + 굵게
 function ToolBtn({ icon, label, active, disabled, onPress }) {
+  const tint = active ? colors.mintDark : colors.ink;
   return (
     <Pressable
       accessibilityRole="button"
@@ -47,16 +52,22 @@ function ToolBtn({ icon, label, active, disabled, onPress }) {
       accessibilityState={{ selected: !!active, disabled: !!disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={[styles.tool, active && styles.toolOn, disabled && { opacity: 0.35 }]}
+      style={({ pressed }) => [styles.tool, active && styles.toolOn, pressed && !active && { backgroundColor: colors.cream }, disabled && { opacity: 0.3 }]}
     >
-      <Text style={[styles.toolIcon, active && styles.toolIconOn]}>{icon}</Text>
-      <Text style={[styles.toolLabel, active && styles.toolIconOn]} numberOfLines={1}>{label}</Text>
+      <Icon name={icon} size={22} color={tint} strokeWidth={active ? 2.1 : 1.8} />
+      <Text style={[styles.toolLabel, active && styles.toolLabelOn]} numberOfLines={1}>{label}</Text>
     </Pressable>
   );
 }
 
+// AI 요약 글을 줄 단위로 나눔 (앞의 -, •, · , * 기호는 떼고 '·' 로 통일)
+const summaryLines = (text) =>
+  String(text || '')
+    .split('\n')
+    .map((ln) => ln.trim().replace(/^[-•·*]\s*/, ''))
+    .filter(Boolean);
+
 export default function MemoEditScreen({ navigation, route }) {
-  const menuSwipe = useSwipeToOpenMenu();
   const insets = useSafeAreaInsets();
 
   const memoId = route.params?.memoId;
@@ -97,44 +108,54 @@ export default function MemoEditScreen({ navigation, route }) {
   latest.current = { title, body, strokes, projectId };
   const skipSave = useRef(false);                          // true 면 나갈 때 저장하지 않음 (삭제한 경우)
   const savedId = useRef(original ? original.id : null);   // 기존 메모의 번호 (새 메모면 null)
+  const flushRef = useRef(null);
 
   // 이 화면이 사라질 때(어떤 방법으로 나가든) 한 번 실행됨
   useEffect(
-    () => () => {
-      if (skipSave.current) return;
-      const t = latest.current.title.trim();
-      const b = latest.current.body.trim();
-      const s = latest.current.strokes;
-      const id = savedId.current;
-      const empty = !t && !b && s.length === 0; // 글자도 필기도 없음
+    () => {
+      const own = runtime(); const workspaceId = own.store.getCurrentWorkspace().id;
+      const flush = ({ analyze = true } = {}) => {
+        if (maybeRuntime() !== own || own.store.getCurrentWorkspace().id !== workspaceId) return;
+        if (skipSave.current) return;
+        const t = latest.current.title.trim();
+        const b = latest.current.body.trim();
+        const s = latest.current.strokes;
+        const id = savedId.current;
+        const empty = !t && !b && s.length === 0; // 글자도 필기도 없음
 
-      if (!id) {
-        // 새 메모: 내용이 있을 때만 추가
-        if (!empty) {
-          const m = addMemo({ title: t, body: b, strokes: s });
-          if (b) analyzeText({ sourceType: 'memo', sourceId: m.id, sourceTitle: t || b.slice(0, 20), text: b });
-          if (latest.current.projectId) setItemProject('memos', m.id, latest.current.projectId);
+        if (!id) {
+          // 새 메모: 내용이 있을 때만 추가
+          if (!empty) {
+            const m = addMemo({ title: t, body: b, strokes: s });
+            savedId.current = m.id;
+            if (b && analyze) analyzeText({ sourceType: 'memo', sourceId: m.id, sourceTitle: t || b.slice(0, 20), text: b });
+            if (latest.current.projectId) setItemProject('memos', m.id, latest.current.projectId);
+          }
+          return;
         }
-        return;
-      }
-      // 기존 메모
-      if (empty) {
-        deleteMemoForever(id); // 전부 지웠으면 빈 메모는 휴지통 없이 바로 삭제
-        return;
-      }
-      const current = getMemo(id);
-      const changed =
-        current &&
-        (current.title !== t ||
-          current.body !== b ||
-          JSON.stringify(current.strokes || []) !== JSON.stringify(s));
-      if (changed) {
-        updateMemo(id, { title: t, body: b, strokes: s }); // 바뀐 게 있을 때만 수정(수정일이 괜히 바뀌지 않게)
-        if (b && current.body !== b) analyzeText({ sourceType: 'memo', sourceId: id, sourceTitle: t || b.slice(0, 20), text: b });
-      }
-      // 프로젝트를 바꿨으면 연결도 바꿈
-      const nowProject = projectOf('memos', id)?.id ?? null;
-      if (nowProject !== latest.current.projectId) setItemProject('memos', id, latest.current.projectId);
+        // 기존 메모
+        if (empty) {
+          deleteMemoForever(id); // 전부 지웠으면 빈 메모는 휴지통 없이 바로 삭제
+          savedId.current = null;
+          return;
+        }
+        const current = getMemo(id);
+        const changed =
+          current &&
+          (current.title !== t ||
+            current.body !== b ||
+            JSON.stringify(current.strokes || []) !== JSON.stringify(s));
+        if (changed) {
+          updateMemo(id, { title: t, body: b, strokes: s }); // 바뀐 게 있을 때만 수정(수정일이 괜히 바뀌지 않게)
+          if (b && analyze && current.body !== b) analyzeText({ sourceType: 'memo', sourceId: id, sourceTitle: t || b.slice(0, 20), text: b });
+        }
+        // 프로젝트를 바꿨으면 연결도 바꿈
+        const nowProject = projectOf('memos', id)?.id ?? null;
+        if (nowProject !== latest.current.projectId) setItemProject('memos', id, latest.current.projectId);
+      };
+      flushRef.current = flush;
+      const unregister = registerSessionFlush(flush);
+      return () => { unregister(); flush(); flushRef.current = null; };
     },
     [],
   );
@@ -290,11 +311,16 @@ export default function MemoEditScreen({ navigation, route }) {
   // 페이지 높이: 화면의 2배를 기본으로, 글자/필기가 아래로 가면 그보다 240px 더 여유를 둠
   const pageH = Math.max(viewH * 2, textH + 240, strokeBottom + 240);
 
-  // ---------- AI 요약 (임시. 실제 요약은 AiSummary.js 가 담당) ----------
+  // ---------- AI 요약 (실제 요청은 AiSummary.js 가 담당) ----------
   // summary: null(창 닫힘) | { status: 'loading' | 'done' | 'error', text }
   const [summary, setSummary] = useState(null);
   const summaryReq = useRef(0); // 요청 번호: 닫았다가 다시 눌렀을 때 옛날 답이 끼어들지 않게
+  const summaryController = useRef(null);
+  const summaryLoading = useRef(false); // 요약 중인지 (서버 답이 10초 넘게 걸림)
+  useEffect(() => () => { summaryReq.current += 1; summaryController.current?.abort(); }, []);
   const requestSummary = async () => {
+    // 요약 중에 [요약]을 또 누르면 진행 중인 요청이 취소되고 처음부터 다시 기다리게 되므로 무시
+    if (summaryLoading.current) { showNotice('요약하는 중이에요. 잠시만 기다려 주세요'); return; }
     const text = latest.current.body.trim();
     if (!text) {
       showNotice(latest.current.strokes.length > 0 ? '손글씨는 [변환]으로 글자로 바꾼 뒤 요약할 수 있어요' : '요약할 내용이 없어요');
@@ -307,11 +333,17 @@ export default function MemoEditScreen({ navigation, route }) {
     Keyboard.dismiss();
     summaryReq.current += 1;
     const my = summaryReq.current;
+    summaryLoading.current = true;
     setSummary({ status: 'loading', text: '' });
+    summaryController.current?.abort();
+    const controller = new AbortController(); summaryController.current = controller;
     try {
-      const out = await summarizeText(text);
+      flushRef.current?.({ analyze: false });
+      const sourceTitle = latest.current.title;
+      const out = await summarizeText(text, { memoId: savedId.current, signal: controller.signal });
       addUsage('summary'); // 설정 > AI 이용량 집계
-      if (my === summaryReq.current) setSummary({ status: 'done', text: out });
+      if (latest.current.body.trim() !== text || latest.current.title !== sourceTitle) throw new Error('원본이 바뀌었습니다');
+      if (my === summaryReq.current) setSummary({ status: 'done', text: out.summary, sourceId: out.sourceId, sourceRevision: out.sourceRevision, originalText: text, originalTitle: sourceTitle });
     } catch (e) {
       if (my === summaryReq.current) {
         if (classifyError(e) === 'network') {
@@ -321,14 +353,22 @@ export default function MemoEditScreen({ navigation, route }) {
           setSummary({ status: 'error', text: '' });
         }
       }
+    } finally {
+      if (my === summaryReq.current) summaryLoading.current = false;
     }
   };
   const closeSummary = () => {
+    summaryLoading.current = false; // 닫으면 요청을 취소하므로 다시 요약할 수 있음
+    summaryController.current?.abort();
     summaryReq.current += 1;
     setSummary(null);
   };
   // 요약을 본문 끝에 추가 (되돌리기 한 단계)
   const addSummary = () => {
+    const source = getMemo(summary.sourceId);
+    if (!source || source.revision !== summary.sourceRevision || latest.current.body.trim() !== summary.originalText || latest.current.title !== summary.originalTitle) {
+      closeSummary(); showNotice('원본이 바뀌었습니다. 다시 요약해 주세요'); return;
+    }
     const cur = latest.current.body;
     const next = `${cur}${cur.endsWith('\n') ? '' : '\n'}\n[AI 요약]\n${summary.text}`;
     commitBoth(latest.current.strokes, next);
@@ -368,14 +408,16 @@ export default function MemoEditScreen({ navigation, route }) {
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       {/* 헤더 (여기에 밀기 제스처 연결. 입력창/필기 영역은 겹쳐서 제외) */}
-      <View {...menuSwipe}>
+      <View>
+        {/* 시안: 가운데 제목 없이 왼쪽 ‹ · 오른쪽 휴지통 + 완료 */}
         <ScreenHeader
-          title={original ? '메모 편집' : '새 메모'}
+          title=""
           onBack={navigation.goBack}
           right={
-            <Pressable accessibilityRole="button" accessibilityLabel="완료" onPress={navigation.goBack} hitSlop={10}>
-              <Text style={styles.done}>완료</Text>
-            </Pressable>
+            <>
+              {original && <CircleButton icon="trash" label="메모 삭제" onPress={() => setConfirmDelete(true)} />}
+              <PillButton label="완료" onPress={navigation.goBack} />
+            </>
           }
         />
       </View>
@@ -392,6 +434,22 @@ export default function MemoEditScreen({ navigation, route }) {
           maxLength={80}
           accessibilityLabel="메모 제목"
         />
+
+        {/* 프로젝트(폴더) 고르기 + 마지막 수정 시각 */}
+        <View style={styles.metaRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`프로젝트 선택, 현재 ${projectName || '없음'}`}
+            onPress={() => setPickingProject(true)}
+            hitSlop={8}
+            style={({ pressed }) => [styles.projPill, pressed && { opacity: 0.75 }]}
+          >
+            <Icon name="folder" size={14} color={colors.mintDark} strokeWidth={2} />
+            <Text style={styles.projPillText} numberOfLines={1}>{projectName || '프로젝트 선택'}</Text>
+            <Icon name="chevronDown" size={14} color={colors.mintDark} strokeWidth={2} />
+          </Pressable>
+          {original && <Text style={styles.edited} numberOfLines={1}>{dateLabel(original.updatedAt, new Date(), true)} 수정</Text>}
+        </View>
 
         {original && <MemoLinks memoId={original.id} navigation={navigation} />}
         {original && <PhotoStrip memoId={original.id} />}
@@ -430,6 +488,38 @@ export default function MemoEditScreen({ navigation, route }) {
         </ScrollView>
       </View>
 
+      {/* ---------- AI 요약 카드 (스토리보드 64장: 요약을 보여주고 확인 후 메모에 추가) ---------- */}
+      {summary !== null && (
+        <View style={styles.summaryCard} accessibilityLiveRegion="polite">
+          <View style={styles.summaryHead}>
+            <Icon name="sparkles" size={16} color={colors.mintDark} strokeWidth={2} />
+            <Text style={styles.summaryTitle} accessibilityRole="header">AI 요약</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={summary.status === 'done' ? '요약 취소' : '요약 닫기'} onPress={closeSummary} hitSlop={10}>
+              <Icon name="x" size={18} color={colors.muted} />
+            </Pressable>
+          </View>
+          {summary.status === 'loading' && (
+            <View style={styles.summaryLoading}>
+              <ActivityIndicator size="small" color={colors.mintDark} />
+              <Text style={styles.summarySub}>메모를 요약하는 중… 10~20초쯤 걸려요</Text>
+            </View>
+          )}
+          {summary.status === 'error' && <Text style={styles.summarySub}>요약에 실패했어요. 잠시 뒤 다시 시도해 주세요.</Text>}
+          {summary.status === 'done' && (
+            <>
+              <ScrollView style={styles.summaryScroll} nestedScrollEnabled>
+                {summaryLines(summary.text).map((ln, i) => (
+                  <Text key={i} style={styles.summaryText} selectable>{`· ${ln}`}</Text>
+                ))}
+              </ScrollView>
+              <Pressable accessibilityRole="button" onPress={addSummary} style={({ pressed }) => [styles.summaryAdd, pressed && { opacity: 0.8 }]}>
+                <Text style={styles.summaryAddText}>메모에 추가</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+      )}
+
       {/* ---------- 펜 옵션 (펜 모드일 때만): 색 + 굵기 ---------- */}
       {mode === 'pen' && (
         <View style={styles.penOptions}>
@@ -442,8 +532,10 @@ export default function MemoEditScreen({ navigation, route }) {
                 accessibilityState={{ selected: penColor === c }}
                 onPress={() => setPenColor(c)}
                 hitSlop={6}
-                style={[styles.colorDot, { backgroundColor: c }, penColor === c && styles.colorDotOn]}
-              />
+                style={[styles.colorRing, penColor === c && { borderColor: c }]}
+              >
+                <View style={[styles.colorDot, { backgroundColor: c }]} />
+              </Pressable>
             ))}
           </View>
           <View style={styles.optGroup}>
@@ -457,7 +549,7 @@ export default function MemoEditScreen({ navigation, route }) {
                 hitSlop={6}
                 style={[styles.widthBox, penWidth === w && styles.widthBoxOn]}
               >
-                <View style={{ width: 22, height: w, borderRadius: w / 2, backgroundColor: colors.ink }} />
+                <View style={{ width: 22, height: w, borderRadius: w / 2, backgroundColor: penWidth === w ? colors.mintDark : colors.ink }} />
               </Pressable>
             ))}
           </View>
@@ -479,56 +571,29 @@ export default function MemoEditScreen({ navigation, route }) {
             <Text style={styles.convertAllText}>전체 변환</Text>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="변환 닫기" onPress={() => chooseMode('keyboard')} hitSlop={10}>
-            <Text style={styles.convertClose}>✕</Text>
+            <Icon name="x" size={18} color={colors.mintDark} />
           </Pressable>
         </View>
       )}
 
       {/* ---------- 도구 줄: 입력 방식 | 이전·다음 | 요약·변환 ---------- */}
-      <View style={[styles.tools, mode !== 'keyboard' && { paddingBottom: keyboardUp ? 0 : insets.bottom }]}>
+      <View style={[styles.tools, { paddingBottom: keyboardUp ? spacing.xs : insets.bottom + spacing.xs }]}>
         {!!notice && <Text style={styles.notice}>{notice}</Text>}
         <View style={styles.toolRow}>
-          <ToolBtn icon="⌨" label="키보드" active={mode === 'keyboard'} onPress={() => chooseMode('keyboard')} />
-          <ToolBtn icon="✎" label="펜" active={mode === 'pen'} onPress={() => chooseMode('pen')} />
-          <ToolBtn icon="⌫" label="지우개" active={mode === 'eraser'} onPress={() => chooseMode('eraser')} />
-          <ToolBtn icon="✋" label="이동" active={mode === 'move'} onPress={() => chooseMode('move')} />
-          <View style={styles.sep} />
-          <ToolBtn icon="↶" label="이전" disabled={!canUndo} onPress={undo} />
-          <ToolBtn icon="↷" label="다음" disabled={!canRedo} onPress={redo} />
-          <View style={styles.sep} />
-          <ToolBtn icon="✦" label="요약" onPress={requestSummary} />
-          <ToolBtn icon="Aa" label="변환" active={mode === 'convert'} onPress={() => {
+          <ToolBtn icon="keyboard" label="키보드" active={mode === 'keyboard'} onPress={() => chooseMode('keyboard')} />
+          <ToolBtn icon="pencil" label="펜" active={mode === 'pen'} onPress={() => chooseMode('pen')} />
+          <ToolBtn icon="eraser" label="지우개" active={mode === 'eraser'} onPress={() => chooseMode('eraser')} />
+          <ToolBtn icon="hand" label="이동" active={mode === 'move'} onPress={() => chooseMode('move')} />
+          <ToolBtn icon="undo" label="이전" disabled={!canUndo} onPress={undo} />
+          <ToolBtn icon="redo" label="다음" disabled={!canRedo} onPress={redo} />
+          <ToolBtn icon="sparkles" label="요약" active={summary !== null} onPress={requestSummary} />
+          <ToolBtn icon="type" label="변환" active={mode === 'convert'} onPress={() => {
             if (mode === 'convert') chooseMode('keyboard');
             else if (strokes.length === 0) showNotice('변환할 손글씨가 없어요. 펜으로 먼저 써 보세요');
             else chooseMode('convert');
           }} />
         </View>
       </View>
-
-      {/* ---------- 아래 정보 줄: 저장 위치 + (기존 메모면) 삭제 버튼 ---------- */}
-      {mode === 'keyboard' && (
-      <View style={[styles.toolbar, { paddingBottom: keyboardUp ? spacing.sm : insets.bottom + spacing.sm }]}>
-        <View style={styles.toolInfo}>
-          <Text style={styles.toolText}>
-            {STORAGE_INFO.local.icon} {STORAGE_INFO.local.label} · {STORAGE_INFO.local.desc}
-          </Text>
-          {original && <Text style={styles.toolSub}>마지막 수정 {original.date}</Text>}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`프로젝트 선택, 현재 ${projectName || '없음'}`}
-            onPress={() => setPickingProject(true)}
-            hitSlop={8}
-          >
-            <Text style={styles.toolProject}>{projectName || '프로젝트 선택'} ▾</Text>
-          </Pressable>
-        </View>
-        {original && (
-          <Pressable accessibilityRole="button" accessibilityLabel="메모 삭제" onPress={() => setConfirmDelete(true)} hitSlop={8}>
-            <Text style={styles.delete}>🗑 삭제</Text>
-          </Pressable>
-        )}
-      </View>
-      )}
 
       {/* ---------- 프로젝트 고르기 창 ---------- */}
       <Modal transparent visible={pickingProject} animationType="fade" onRequestClose={() => setPickingProject(false)}>
@@ -560,35 +625,6 @@ export default function MemoEditScreen({ navigation, route }) {
             <Pressable accessibilityRole="button" onPress={() => setPickingProject(false)} style={styles.projClose}>
               <Text style={styles.projCloseText}>닫기</Text>
             </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ---------- AI 요약 창 (스토리보드 64장: 요약을 보여주고 확인 후 메모에 추가) ---------- */}
-      <Modal transparent visible={summary !== null} animationType="fade" onRequestClose={closeSummary}>
-        <View style={styles.backdrop}>
-          <View style={styles.dialog} accessibilityViewIsModal>
-            <Text style={styles.dialogTitle}>✦ AI 요약</Text>
-            {summary?.status === 'loading' && <Text style={styles.dialogSub}>메모를 요약하는 중…</Text>}
-            {summary?.status === 'error' && (
-              <Text style={styles.dialogSub}>요약에 실패했어요. 잠시 뒤 다시 시도해 주세요.</Text>
-            )}
-            {summary?.status === 'done' && (
-              <>
-                <Text style={styles.summaryText} selectable>{summary.text}</Text>
-                <Text style={styles.dialogSub}>※ 임시 요약이에요 (서버 연결 전)</Text>
-              </>
-            )}
-            <View style={styles.dialogButtons}>
-              <Pressable accessibilityRole="button" onPress={closeSummary} style={[styles.dialogBtn, styles.cancelBtn]}>
-                <Text style={styles.cancelText}>{summary?.status === 'done' ? '취소' : '닫기'}</Text>
-              </Pressable>
-              {summary?.status === 'done' && (
-                <Pressable accessibilityRole="button" onPress={addSummary} style={[styles.dialogBtn, styles.addBtn]}>
-                  <Text style={styles.deleteText}>메모에 추가</Text>
-                </Pressable>
-              )}
-            </View>
           </View>
         </View>
       </Modal>
@@ -625,41 +661,53 @@ export default function MemoEditScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
-  done: { fontSize: font.bodyLg, fontWeight: '700', color: colors.mintDark, textAlign: 'right' },
 
   editor: { flex: 1, paddingHorizontal: spacing.lg },
   titleInput: {
     fontSize: 22,
-    fontWeight: '700',
+    fontWeight: '800',
     color: colors.ink,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
   },
+  // 제목 아래: 프로젝트 알약 + 수정 시각
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingBottom: spacing.sm },
+  projPill: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 220, minHeight: 28, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.mintSoft },
+  projPillText: { flexShrink: 1, fontSize: font.caption, fontWeight: '800', color: colors.mintDark },
+  edited: { flexShrink: 1, fontSize: font.caption, color: colors.muted },
   // 글자 입력창 + 필기 캔버스가 겹치는 스크롤 영역
   scroll: { flex: 1 },
   bodyInput: {
     flex: 1, // 페이지(부모 View) 전체를 차지
     fontSize: font.bodyLg,
-    lineHeight: 24,
+    lineHeight: 26,
     color: colors.ink,
-    paddingTop: spacing.md,
+    paddingTop: spacing.sm,
   },
 
-  // 펜 옵션 줄
+  // AI 요약 카드 (연한 민트 바탕)
+  summaryCard: { marginHorizontal: spacing.lg, marginBottom: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.mintSoft, gap: spacing.sm },
+  summaryHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  summaryTitle: { flex: 1, fontSize: font.body + 1, fontWeight: '800', color: colors.mintDark },
+  summaryScroll: { maxHeight: 160 },
+  summaryText: { fontSize: font.body, color: colors.ink, lineHeight: 22 },
+  summarySub: { fontSize: font.body, color: colors.muted },
+  summaryLoading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  summaryAdd: { alignSelf: 'flex-start', minHeight: 34, paddingHorizontal: spacing.lg, borderRadius: radius.pill, backgroundColor: colors.mintDark, justifyContent: 'center', marginTop: 2 },
+  summaryAddText: { fontSize: font.caption + 1, fontWeight: '800', color: colors.white },
+
+  // 펜 옵션 줄: 색 동그라미(선택된 색은 바깥 고리) + 굵기
   penOptions: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
     backgroundColor: colors.cream,
   },
-  optGroup: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  colorDot: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: 'transparent' },
-  colorDotOn: { borderColor: colors.mint, transform: [{ scale: 1.15 }] },
+  optGroup: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  colorRing: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
+  colorDot: { width: 24, height: 24, borderRadius: 12 },
   widthBox: { width: 40, height: 30, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   widthBoxOn: { backgroundColor: colors.mintSoft },
 
@@ -675,45 +723,29 @@ const styles = StyleSheet.create({
     backgroundColor: colors.mintSoft,
   },
   convertHint: { flex: 1, fontSize: font.caption, color: colors.mintDark, fontWeight: '700' },
-  convertAll: { paddingHorizontal: spacing.md, minHeight: 34, borderRadius: 999, backgroundColor: colors.mintDark, justifyContent: 'center' },
+  convertAll: { paddingHorizontal: spacing.md, minHeight: 34, borderRadius: radius.pill, backgroundColor: colors.mintDark, justifyContent: 'center' },
   convertAllText: { fontSize: font.body, fontWeight: '700', color: colors.white },
-  convertClose: { fontSize: 18, color: colors.muted },
 
-  // 도구 줄
-  tools: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.cream },
+  // 도구 줄 (흰 바탕 + 위쪽 얇은 선)
+  tools: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.white },
   notice: { textAlign: 'center', fontSize: font.caption, color: colors.mintDark, fontWeight: '700', paddingTop: spacing.sm },
-  toolRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
-  tool: { flex: 1, minHeight: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 1 },
+  toolRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.xs, paddingTop: spacing.sm, gap: 2 },
+  tool: { flex: 1, minHeight: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 3 },
   toolOn: { backgroundColor: colors.mintSoft },
-  toolIcon: { fontSize: 20, color: colors.ink },
-  toolIconOn: { color: colors.mintDark, fontWeight: '800' },
-  toolLabel: { fontSize: 10, color: colors.muted },
-  sep: { width: 1, height: 28, backgroundColor: colors.line, marginHorizontal: 2 },
+  toolLabel: { fontSize: 11, color: colors.muted, fontWeight: '600' },
+  toolLabelOn: { color: colors.mintDark, fontWeight: '800' },
 
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-    backgroundColor: colors.cream,
-  },
-  toolInfo: { gap: 2, flexShrink: 1 },
-  toolText: { fontSize: font.caption, color: colors.muted },
-  toolProject: { fontSize: font.body, fontWeight: '700', color: colors.mintDark },
+  // 프로젝트 고르기 창
   projOpt: { minHeight: 44, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, paddingHorizontal: spacing.lg, justifyContent: 'center' },
   projOptOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
   projOptText: { fontSize: font.bodyLg, color: colors.ink },
   projClose: { minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm },
   projCloseText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   toolSub: { fontSize: font.caption, color: colors.muted },
-  delete: { fontSize: font.body, color: colors.coral, fontWeight: '700' },
 
   // 삭제 확인 창
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  dialog: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.sm },
+  dialog: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.sm },
   dialogTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
   dialogSub: { fontSize: font.body, color: colors.muted },
   dialogButtons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
@@ -721,7 +753,5 @@ const styles = StyleSheet.create({
   cancelBtn: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
   cancelText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   deleteBtn: { backgroundColor: colors.coral },
-  addBtn: { backgroundColor: colors.mintDark },
-  summaryText: { fontSize: font.bodyLg, color: colors.ink, lineHeight: 24, marginVertical: spacing.sm },
   deleteText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.white },
 });

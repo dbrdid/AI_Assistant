@@ -7,8 +7,12 @@ import { groupIntoLines, strokeBounds } from '../../features/memo/utils/InkUtils
 
 const ENDPOINT = 'https://inputtools.google.com/request?ime=handwriting&app=mobilesearch&cs=1&oe=UTF-8';
 const TIMEOUT_MS = 8000;
+// Direct third-party stroke upload bypasses the Gateway consent contract.
+// Keep it disabled until an approved Gateway capability is connected.
+const HANDWRITING_ENABLED = false;
 
 export async function recognizeHandwriting(strokes, width, height, language = 'ko') {
+  if (!HANDWRITING_ENABLED) throw new Error('손글씨 변환은 서버 전송 정책 연결 후 사용할 수 있습니다');
   // 획마다 [x 목록, y 목록, 시간 목록] 형태로 바꿈 (시간은 점 순서대로 12ms 간격이라고 가정)
   const ink = strokes.map((s) => {
     const xs = [];

@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
-import { changePassword, getSettings, updateSettings } from '../../../data/settings/SettingsStore';
+import { changePassword, getSettings, saveProfile } from '../../../data/settings/SettingsStore';
 import { Row, SaveButton, SectionTitle, same, useNotice } from '../../../shared/components/SettingsUi';
 
 export default function AccountScreen({ navigation }) {
@@ -14,13 +14,18 @@ export default function AccountScreen({ navigation }) {
   const [name, setName] = useState(saved.profile.name);
   const [aff, setAff] = useState(saved.profile.affiliation);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   const notice = useNotice();
   const dirty = !same({ name: name.trim(), affiliation: aff.trim() }, { name: saved.profile.name, affiliation: saved.profile.affiliation });
 
-  const save = () => {
+  const save = async () => {
+    if (busy) return;
     if (!name.trim()) return setError('이름을 입력해 주세요.');
     setError('');
-    updateSettings('profile', { name: name.trim(), affiliation: aff.trim() });
+    setBusy(true);
+    try { await saveProfile({ name: name.trim(), affiliation: aff.trim() }); }
+    catch (e) { setError(e.message); return; }
+    finally { setBusy(false); }
     notice.show('저장했어요');
     setTimeout(() => navigation.goBack(), 600);
   };
@@ -46,6 +51,7 @@ export default function AccountScreen({ navigation }) {
         {!!error && <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text>}
 
         <Row
+          icon="lock"
           label="비밀번호 변경"
           onPress={async () => {
             const r = await changePassword();
@@ -53,11 +59,7 @@ export default function AccountScreen({ navigation }) {
           }}
         />
 
-        <SectionTitle>연동된 계정</SectionTitle>
-        <Row label="네이버" value={saved.linked.naver ? '연동됨' : '연동 안 됨'} />
-        <Row label="카카오" value={saved.linked.kakao ? '연동됨' : '연동 안 됨'} />
-
-        <SaveButton onPress={save} disabled={!dirty} />
+        <SaveButton onPress={save} disabled={!dirty || busy} />
       </ScrollView>
       {notice.view}
     </KeyboardAvoidingView>
@@ -71,7 +73,7 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 30, fontWeight: '800', color: colors.white },
   email: { textAlign: 'center', fontSize: font.body, color: colors.muted, marginBottom: spacing.sm },
   field: { gap: spacing.xs },
-  label: { fontSize: font.body, fontWeight: '700', color: colors.ink },
-  input: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
+  label: { fontSize: font.body, fontWeight: '700', color: colors.ink, marginLeft: spacing.xs },
+  input: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
 });

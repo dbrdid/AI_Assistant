@@ -7,6 +7,8 @@ import React, { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
+import Icon from '../../../shared/components/Icon';
+import { CircleButton, DashedButton, Tag } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { memoTitle, trashMemos, useMemos } from '../../../data/memos/MemoStore';
@@ -84,17 +86,22 @@ export default function ProjectDetailScreen({ navigation, route }) {
       <ScreenHeader
         title={project.title}
         onBack={navigation.goBack}
-        right={
-          <Pressable accessibilityRole="button" accessibilityLabel="팀원 초대" onPress={() => navigation.navigate(ROUTES.ProjectInvite, { projectId })} hitSlop={10}>
-            <Text style={styles.headIcon}>👥＋</Text>
-          </Pressable>
-        }
+        right={<CircleButton icon="userPlus" label="팀원 초대" onPress={() => navigation.navigate(ROUTES.ProjectInvite, { projectId })} />}
       />
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.info}>
-          <Text style={styles.infoLine}>
-            {project.status}{project.due ? ` · 마감 ${project.due}` : ''}{project.assignee ? ` · 담당 ${project.assignee}` : ''}{project.place ? ` · ${project.place}` : ''}
-          </Text>
+        {/* 프로젝트 정보: 상태 꼬리표 + 마감 · 담당 · 장소 (있는 값만) */}
+        <View style={[styles.section, styles.info]}>
+          <View style={styles.infoRow}>
+            <Tag label={project.status} tone={project.status === '진행 중' ? 'mint' : project.status === '완료' ? 'muted' : 'outline'} />
+            {!!project.due && (
+              <View style={styles.metaItem}>
+                <Icon name="calendar" size={15} color={colors.muted} />
+                <Text style={styles.infoLine}>마감 {project.due}</Text>
+              </View>
+            )}
+            {!!project.assignee && <Text style={styles.infoLine}>담당 {project.assignee}</Text>}
+            {!!project.place && <Text style={styles.infoLine}>{project.place}</Text>}
+          </View>
           {!!project.desc && <Text style={styles.desc}>{project.desc}</Text>}
         </View>
 
@@ -106,7 +113,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
             <View key={s.key} style={styles.section}>
               <Pressable accessibilityRole="button" accessibilityState={{ expanded: isOpen }} onPress={() => setOpen((o) => ({ ...o, [s.key]: !o[s.key] }))} style={styles.sectionHead}>
                 <Text style={styles.sectionTitle}>{s.label} {s.items.length}{s.unit}</Text>
-                <Text style={styles.chev}>{isOpen ? '▴' : '▾'}</Text>
+                <Icon name="chevronDown" size={18} color={colors.muted} style={isOpen ? styles.flip : undefined} />
               </Pressable>
               {isOpen && (
                 <View style={{ gap: spacing.sm }}>
@@ -129,7 +136,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
                         delayLongPress={350}
                         style={[styles.item, on && styles.itemOn]}
                       >
-                        {editing && <Text style={[styles.check, on && { color: colors.mintDark }]}>{on ? '☑' : '☐'}</Text>}
+                        {editing && <Icon name={on ? 'checkSquare' : 'square'} size={22} color={on ? colors.mintDark : colors.muted} />}
                         <View style={{ flex: 1, gap: 2 }}>
                           <Text style={styles.itemTitle} numberOfLines={1}>{x.title}</Text>
                           <Text style={styles.itemSub} numberOfLines={1}>{x.sub}</Text>
@@ -138,9 +145,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
                     );
                   })}
                   {!editing && (
-                    <Pressable accessibilityRole="button" onPress={() => { setAdding(s.key); setAddPicked([]); }} style={styles.linkBtn}>
-                      <Text style={styles.linkText}>＋ {s.label} 연결</Text>
-                    </Pressable>
+                    <DashedButton label={`${s.label} 연결`} onPress={() => { setAdding(s.key); setAddPicked([]); }} style={styles.linkBtn} />
                   )}
                 </View>
               )}
@@ -150,8 +155,11 @@ export default function ProjectDetailScreen({ navigation, route }) {
 
         {/* 팀원: 누르면 팀원 관리 화면 */}
         <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.ProjectTeam, { projectId })} style={[styles.section, styles.sectionHead]}>
-          <Text style={styles.sectionTitle}>팀원 {project.members.length}명</Text>
-          <Text style={styles.chev}>›</Text>
+          <View style={styles.metaItem}>
+            <Icon name="users" size={18} color={colors.mintDark} />
+            <Text style={styles.sectionTitle}>팀원 {project.members.length}명</Text>
+          </View>
+          <Icon name="chevronRight" size={18} color={colors.muted} />
         </Pressable>
 
         {!editing && (
@@ -206,7 +214,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
                 const owner = projects.find((p) => p.id !== project.id && p.links[s.kind].includes(x.id));
                 return (
                   <Pressable key={x.id} accessibilityRole="checkbox" accessibilityState={{ checked: on }} onPress={() => setAddPicked((a) => (a.includes(x.id) ? a.filter((i) => i !== x.id) : [...a, x.id]))} style={[styles.item, on && styles.itemOn]}>
-                    <Text style={[styles.check, on && { color: colors.mintDark }]}>{on ? '☑' : '☐'}</Text>
+                    <Icon name={on ? 'checkSquare' : 'square'} size={22} color={on ? colors.mintDark : colors.muted} />
                     <View style={{ flex: 1, gap: 2 }}>
                       <Text style={styles.itemTitle} numberOfLines={1}>{x.title}</Text>
                       <Text style={styles.itemSub} numberOfLines={1}>{x.sub}{owner ? ` · 「${owner.title}」에서 이동` : ''}</Text>
@@ -298,26 +306,25 @@ export default function ProjectDetailScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   gone: { padding: spacing.xl, fontSize: font.bodyLg, color: colors.muted, textAlign: 'center' },
-  headIcon: { fontSize: 15, color: colors.mintDark, fontWeight: '800', textAlign: 'right' },
-  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 140 },
-  info: { gap: 4 },
-  infoLine: { fontSize: font.body, color: colors.muted },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, gap: spacing.md, paddingBottom: 140 },
+  info: { gap: spacing.sm },
+  infoRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.md },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  infoLine: { fontSize: 13, color: colors.muted },
   desc: { fontSize: font.body, color: colors.ink, lineHeight: 20 },
   heading: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink, marginTop: spacing.sm },
-  section: { backgroundColor: colors.white, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.lg, gap: spacing.sm },
+  section: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, padding: spacing.lg, gap: spacing.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 32 },
   sectionTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
-  chev: { fontSize: 18, color: colors.muted },
+  flip: { transform: [{ rotate: '180deg' }] },
   none: { fontSize: font.body, color: colors.muted },
   item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.cream, borderWidth: 1, borderColor: colors.line, minHeight: 48 },
   itemOn: { borderColor: colors.mint, backgroundColor: colors.mintSoft },
-  check: { fontSize: 22, color: colors.muted },
-  itemTitle: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  itemTitle: { fontSize: font.body, fontWeight: '800', color: colors.ink },
   itemSub: { fontSize: font.caption, color: colors.muted },
-  linkBtn: { minHeight: 40, borderRadius: radius.md, borderWidth: 1, borderColor: colors.mint, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.mintSoft },
-  linkText: { fontSize: font.body, fontWeight: '800', color: colors.mintDark },
+  linkBtn: { minHeight: 42, borderRadius: radius.md },
   bottomRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  bigBtn: { minHeight: 50, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
+  bigBtn: { minHeight: 50, borderRadius: radius.card, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
   primary: { flex: 1, backgroundColor: colors.mintDark },
   primaryText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
   ghost: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
@@ -330,7 +337,7 @@ const styles = StyleSheet.create({
   barDanger: { backgroundColor: colors.coral, borderColor: colors.coral, flex: 1.4 },
   barText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md },
+  dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.lg, gap: spacing.md },
   dialogTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
   dialogRow: { flexDirection: 'row', gap: spacing.sm },
 });

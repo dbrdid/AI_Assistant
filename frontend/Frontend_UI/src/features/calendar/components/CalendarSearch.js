@@ -5,6 +5,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import Icon from '../../../shared/components/Icon';
 import { shortDate, tagText } from '../../../data/tasks/TaskStore';
 import { toKey } from '../utils/DateUtils';
 
@@ -15,7 +16,7 @@ export default function CalendarSearch({ query, onChange, matches, onPick, onClo
   return (
     <View style={styles.root}>
       <View style={styles.bar}>
-        <Text style={styles.icon}>🔍</Text>
+        <Icon name="search" size={18} color={colors.muted} />
         <TextInput
           style={styles.input}
           value={query}
@@ -27,7 +28,7 @@ export default function CalendarSearch({ query, onChange, matches, onPick, onClo
           accessibilityLabel="일정 검색어 입력"
         />
         <Pressable accessibilityRole="button" accessibilityLabel="검색 닫기" onPress={onClose} hitSlop={10}>
-          <Text style={styles.close}>✕</Text>
+          <Icon name="x" size={18} color={colors.muted} />
         </Pressable>
       </View>
 
@@ -68,29 +69,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    minHeight: 46,
-    borderRadius: 23,
+    minHeight: 48,
+    borderRadius: radius.pill,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.line,
   },
-  icon: { fontSize: 16 },
   input: { flex: 1, fontSize: font.bodyLg, color: colors.ink, paddingVertical: 8 },
-  close: { fontSize: 16, color: colors.muted },
   hint: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
-  count: { fontSize: font.caption, color: colors.muted },
+  count: { fontSize: font.caption, fontWeight: '700', color: colors.muted },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.card,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.line,
   },
   date: { fontSize: font.body, fontWeight: '800', color: colors.mintDark, minWidth: 44 },
   body: { flex: 1, gap: 2 },
-  title: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
-  meta: { fontSize: font.caption, color: colors.muted },
+  title: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  meta: { fontSize: 13, color: colors.muted },
 });

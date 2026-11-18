@@ -420,7 +420,8 @@ export function createBridge({
    * 앱이 앞으로 올 때와 실시간 신호가 올 때는 syncAll()을 직접 부르세요. 돌려주는 함수를 부르면 멈춤.
    *   debounceMs: 저장 뒤 기다리는 시간 · retryMs: 다시 시도 간격들 · onResult(결과) · onError(오류) · timers: { set, clear } (테스트용)
    */
-  function start({ debounceMs = 400, retryMs = RETRY_MS, onResult, onError, timers = { set: setTimeout, clear: clearTimeout } } = {}) {
+  function start({ debounceMs = 400, retryMs = RETRY_MS, onResult, onError, timers = { set: (fn, ms) => setTimeout(fn, ms), clear: id => clearTimeout(id) } } = {}) {
+    // Wrapped: browsers throw "Illegal invocation" when setTimeout is called as timers.set(...).
     if (stop) return stop;
     let timer = null, failures = 0, stopped = false;
     const schedule = ms => {

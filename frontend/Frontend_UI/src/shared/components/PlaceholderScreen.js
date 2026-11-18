@@ -1,28 +1,21 @@
-
-
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from './ScreenHeader';
-import useSwipeToOpenMenu from '../../navigation/useSwipeToOpenMenu';
 import { colors, font } from '../theme/theme';
-import { MENU_ITEMS, QUICK_ACTIONS } from '../../navigation/routes';
+import { IconTile } from './Ui';
+import { ROUTE_LABELS } from '../../navigation/routes';
 
 export default function PlaceholderScreen({ navigation, route }) {
-  // "오른쪽으로 밀면 메뉴" 제스처
-  const menuSwipe = useSwipeToOpenMenu();
-
-  // 화면 이름(route.name)으로 "메뉴 항목 + 빠른 실행 항목" 목록에서 같은 항목을 찾아 한글 제목을 얻습니다.
-  const item = [...MENU_ITEMS, ...QUICK_ACTIONS].find((m) => m.route === route.name);
-  const title = item ? item.label : route.name; // 못 찾으면 영문 이름 그대로
+  // 화면 이름(route.name)으로 탭·더보기 목록에서 한글 제목을 얻습니다. 못 찾으면 영문 이름 그대로
+  const title = ROUTE_LABELS[route.name] || route.name;
 
   return (
-    // 화면 전체를 감싸는 View 에 밀기 제스처를 연결 ({...menuSwipe})
-    <View style={styles.root} {...menuSwipe}>
-      {/* onBack 을 넘겼으므로 왼쪽에 ‹ 가 나오고, 누르면 이전 화면으로 돌아감 */}
+    <View style={styles.root}>
       <ScreenHeader title={title} onBack={navigation.goBack} />
       <View style={styles.body}>
+        <IconTile icon="clock" size={56} iconSize={28} />
         <Text style={styles.text}>{title}</Text>
-        <Text style={styles.sub}>준비 중인 화면입니다 · 오른쪽으로 밀면 메뉴</Text>
+        <Text style={styles.sub}>준비 중인 화면입니다</Text>
       </View>
     </View>
   );

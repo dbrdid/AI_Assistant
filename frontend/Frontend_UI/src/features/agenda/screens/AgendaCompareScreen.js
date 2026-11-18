@@ -5,6 +5,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
+import Icon from '../../../shared/components/Icon';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { toKey } from '../../calendar/utils/DateUtils';
 import { TYPE_INFO, openParams, useMemos } from '../../../data/memos/MemoStore';
@@ -64,19 +65,27 @@ export default function AgendaCompareScreen({ navigation, route }) {
   );
   const { changes, basis, prevDay } = result;
 
-  // AI 판단 (지금은 비어 있음 → 표시 없음)
+  // AI 판단: 그날 이 프로젝트의 회의 메모를 근거로 항목마다 논의됨/미논의 (같은 내용은 캐시라 다시 열어도 횟수를 안 씀)
+  const [judgeNote, setJudgeNote] = useState('');
+  const [judging, setJudging] = useState(false);
+  // 내용이 바뀌었을 때만 다시 판단 (memos 배열은 자주 새로 만들어지므로 바뀐 항목·회의 메모의 내용으로 비교)
+  const judgeInput = changes.map((c) => `${c.key}:${c.status}:${c.title}:${(c.bodyAfter ?? '').length}`).join('|')
+    + '#' + memos.filter((m) => /회의|^녹음\s/.test(m.title ?? '')).map((m) => `${m.id}:${m.updatedAt}`).join('|');
   useEffect(() => {
     let alive = true;
     setJudged({});
-    if (changes.length) {
-      judgeDiscussion(changes)
-        .then((r) => alive && setJudged(r || {}))
-        .catch(() => {});
-    }
+    setJudgeNote('');
+    if (!changes.length || !project) return undefined;
+    setJudging(true);
+    judgeDiscussion({ project, day, changes, memos })
+      .then((r) => { if (alive) { setJudged(r.judged || {}); setJudgeNote(r.note || ''); } })
+      .catch(() => {})
+      .finally(() => alive && setJudging(false));
     return () => {
       alive = false;
     };
-  }, [project?.id, day, changes.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id, day, judgeInput]);
 
   const count = { added: 0, changed: 0, removed: 0 };
   changes.forEach((c) => (count[c.status] += 1));
@@ -121,20 +130,21 @@ export default function AgendaCompareScreen({ navigation, route }) {
 
             <View style={styles.dayRow}>
               <Pressable accessibilityRole="button" accessibilityLabel="이전 기록 날짜" disabled={idx <= 0} onPress={() => move(-1)} style={[styles.arrow, idx <= 0 && { opacity: 0.3 }]}>
-                <Text style={styles.arrowText}>‹</Text>
+                <Icon name="chevronLeft" size={20} />
               </Pressable>
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text style={styles.dayText}>{longDateKey(day)}{day === today ? ' (오늘)' : ''}</Text>
                 <Text style={styles.daySub}>{prevDay ? `${shortDateKey(prevDay)} 기록과 비교` : basis === 'timestamp' ? '이전 기록 없음 · 작성/수정 시각 기준' : ' '}</Text>
               </View>
               <Pressable accessibilityRole="button" accessibilityLabel="다음 기록 날짜" disabled={idx >= days.length - 1} onPress={() => move(1)} style={[styles.arrow, idx >= days.length - 1 && { opacity: 0.3 }]}>
-                <Text style={styles.arrowText}>›</Text>
+                <Icon name="chevronRight" size={20} />
               </Pressable>
             </View>
 
             <View style={styles.summary} accessibilityLabel={`추가 ${count.added}, 내용 바뀜 ${count.changed}, 삭제 ${count.removed}`}>
               <Text style={styles.summaryText}>추가 {count.added} · 내용 바뀜 {count.changed} · 삭제 {count.removed}</Text>
-              {judgedVals.length > 0 && <Text style={styles.summarySub}>논의됨 {nDiscussed} · 미논의 {nOpen}</Text>}
+              {judging ? <Text style={styles.summarySub}>회의 메모와 비교하는 중…</Text>
+                : judgedVals.length > 0 && <Text style={styles.summarySub}>논의됨 {nDiscussed} · 미논의 {nOpen}</Text>}
             </View>
 
             {changes.length === 0 && (
@@ -196,8 +206,9 @@ export default function AgendaCompareScreen({ navigation, route }) {
                 </View>
               );
             })}
+            {!!judgeNote && <Text style={styles.hint}>{judgeNote}</Text>}
             <Text style={styles.foot}>
-              논의됨 / 미논의 표시는 AI 가 연결되면 자동으로 나타나요. 미논의 안건은 알림 기능에서 확인 · 보류로 다룰 수 있게 할 예정이에요.
+              논의됨 / 미논의는 그날 이 프로젝트에 연결된 회의 메모(제목에 '회의'가 들어가거나 녹음으로 만든 메모)를 AI 가 읽고 판단해요. 확실하지 않으면 미논의로 표시돼요.
             </Text>
           </>
         )}
@@ -225,7 +236,6 @@ const styles = StyleSheet.create({
   chipText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   dayRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   arrow: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  arrowText: { fontSize: 24, color: colors.ink, marginTop: -2 },
   dayText: { fontSize: font.title, fontWeight: '800', color: colors.ink },
   daySub: { fontSize: font.caption, color: colors.muted },
   summary: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.mintSoft, alignItems: 'center', gap: 4 },

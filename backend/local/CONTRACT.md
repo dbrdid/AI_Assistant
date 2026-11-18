@@ -85,6 +85,16 @@
 
 워크스페이스 객체: `{id, name, desc, personal, createdAt, serverId, roleCode, role, members}`. `role`은 화면 글자(`관리자`·`멤버`·`보기 전용`), `roleCode`는 서버 값(`OWNER`·`EDITOR`·`VIEWER`)입니다. 처음 열면 `개인 공간`이 만들어지고 선택됩니다.
 
+## 모든 공간 합쳐 보기
+
+| 함수 | 결과 |
+| --- | --- |
+| `getAllTasks()` | 모든 공간의 일정·할 일(휴지통 제외). 항목마다 `workspaceId`. 공간 순서(개인 먼저) → 공간 안에서는 `getTasks()` 순서 |
+| `getAllMemos()` | 모든 공간의 메모(휴지통 제외). 항목마다 `workspaceId` |
+| `inWorkspace(id, 동작, ...인자)` | 지정한 공간에서 한 번 씀. 동작: `toggleDone` · `updateTask` · `deleteTask` · `addTask` · `addMemo` · `trashMemos` · `restoreMemos` · `setFavorites` (인자는 같은 이름 함수와 같음). 현재 공간은 바뀌지 않고, 보낼 목록은 그 공간 것으로 적힘. 없는 공간·다른 공간의 항목은 `not_found`, 보기 전용 공간은 `read_only`, 모르는 동작은 `invalid_input`(`name`) |
+
+두 목록은 바뀔 때까지 같은 배열이고, 어느 공간에서든 메모·일정·공간이 바뀌면 새로 만듭니다. 편집 화면처럼 그 공간의 프로젝트 등 다른 기록이 함께 필요하면 `switchWorkspace`로 그 공간으로 바꾼 뒤 엽니다.
+
 ## 오류
 
 거절은 `LocalError`이고 `error.code`로 구분합니다. 입력 오류는 `error.field`에 필드 이름이 들어갑니다.

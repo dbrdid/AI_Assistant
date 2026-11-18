@@ -8,15 +8,22 @@ import Svg, { Path } from 'react-native-svg';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { memoTitle } from '../../../data/memos/MemoStore';
 import { pointsToPath } from '../utils/InkUtils';
+import Icon from '../../../shared/components/Icon';
+import { IconTile, Tag } from '../../../shared/components/Ui';
+import SpaceTag from '../../../shared/components/SpaceTag';
+
+// 별 모양 (Icon.js 의 star 와 같은 24x24 경로)
+const STAR_D = 'M11.53 2.3a.53.53 0 0 1 .94 0l2.31 4.68a2.12 2.12 0 0 0 1.6 1.16l5.16.76a.53.53 0 0 1 .3.9l-3.74 3.64a2.12 2.12 0 0 0-.61 1.88l.88 5.14a.53.53 0 0 1-.77.56l-4.62-2.43a2.12 2.12 0 0 0-1.97 0L6.4 21.01a.53.53 0 0 1-.77-.56l.88-5.14a2.12 2.12 0 0 0-.61-1.88L2.16 9.8a.53.53 0 0 1 .29-.9l5.17-.76a2.12 2.12 0 0 0 1.6-1.16z';
 
 // "오늘 14:05" / "어제" / "11월 5일" (다른 해는 "2025.11.05")
-export function dateLabel(ms, now = new Date()) {
+// yesterdayTime 이 true 면 어제도 시간까지: "어제 10:12" (메모 카드용)
+export function dateLabel(ms, now = new Date(), yesterdayTime = false) {
   const d = new Date(ms);
   const p2 = (n) => String(n).padStart(2, '0');
   const dayStart = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const diff = Math.round((dayStart(now) - dayStart(d)) / 86400000);
   if (diff === 0) return `오늘 ${p2(d.getHours())}:${p2(d.getMinutes())}`;
-  if (diff === 1) return '어제';
+  if (diff === 1) return yesterdayTime ? `어제 ${p2(d.getHours())}:${p2(d.getMinutes())}` : '어제';
   if (d.getFullYear() !== now.getFullYear()) return `${d.getFullYear()}.${p2(d.getMonth() + 1)}.${p2(d.getDate())}`;
   return `${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
@@ -51,12 +58,53 @@ function Thumb({ memo, photoUri, style }) {
   return null;
 }
 
-export default function MemoCard({ memo, mode, selecting, selected, highlighted, projectTitle, photoUri, onPress, onLongPress, onLayout }) {
-  const hasThumb = !!photoUri || (memo.strokes && memo.strokes.length > 0);
+// 채운 별 (즐겨찾기 표시). Icon 의 star 는 선만 있어서 여기서 채워 그림
+export function FilledStar({ size = 16, color = colors.coral }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d={STAR_D} fill={color} stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+// 선택 모드 체크 상자
+function Check({ on, style }) {
+  return (
+    <View style={style} pointerEvents="none">
+      <Icon name={on ? 'checkSquare' : 'square'} size={24} color={on ? colors.mintDark : colors.muted} strokeWidth={on ? 2.2 : 1.8} />
+    </View>
+  );
+}
+
+export default function MemoCard({ memo, mode, selecting, selected, highlighted, projectTitle, space, photoUri, onPress, onLongPress, onLayout }) {
+  const hasInk = !!(memo.strokes && memo.strokes.length > 0);
+  const hasThumb = !!photoUri || hasInk;
   const body = (memo.body || '').trim();
   const photoCount = (memo.photos || []).length;
-  const extra = [photoCount > 0 ? `📷 ${photoCount}` : '', memo.strokes && memo.strokes.length > 0 ? '✎' : ''].filter(Boolean).join('  ');
   const base = [styles.card, mode === 'grid' ? styles.gridCard : styles.listCard, highlighted && styles.focus, selected && styles.on];
+
+  // 제목 줄: (즐겨찾기면 코랄 별) + 굵은 제목
+  const titleRow = (lines) => (
+    <View style={styles.titleRow}>
+      {memo.favorite && <FilledStar size={16} />}
+      <Text style={styles.title} numberOfLines={lines}>{memoTitle(memo)}</Text>
+    </View>
+  );
+  // 정보 줄: 시간 · 사진 수 · 손글씨(격자 보기) · 프로젝트 꼬리표
+  const meta = (showInk) => (
+    <View style={styles.metaRow}>
+      <Text style={styles.date} numberOfLines={1}>{dateLabel(memo.updatedAt, new Date(), true)}</Text>
+      {photoCount > 0 && (
+        <View style={styles.count} accessibilityLabel={`사진 ${photoCount}장`}>
+          <Icon name="image" size={13} color={colors.muted} />
+          <Text style={styles.date}>{photoCount}</Text>
+        </View>
+      )}
+      {showInk && hasInk && <Icon name="pencil" size={13} color={colors.muted} />}
+      {!!projectTitle && <Tag label={projectTitle} style={styles.tag} />}
+      {space && <SpaceTag space={space} />}
+    </View>
+  );
 
   return (
     <Pressable
@@ -73,29 +121,22 @@ export default function MemoCard({ memo, mode, selecting, selected, highlighted,
         <>
           {hasThumb && <Thumb memo={memo} photoUri={photoUri} style={styles.gridThumb} />}
           <View style={styles.gridText}>
-            <Text style={styles.title} numberOfLines={hasThumb ? 1 : 2}>{memo.favorite ? '★ ' : ''}{memoTitle(memo)}</Text>
+            {titleRow(hasThumb ? 1 : 2)}
             {body.length > 0 && <Text style={styles.body} numberOfLines={hasThumb ? 2 : 5}>{body}</Text>}
           </View>
-          <View style={styles.foot}>
-            <Text style={styles.date} numberOfLines={1}>{dateLabel(memo.updatedAt)}</Text>
-            {!!extra && <Text style={styles.extra}>{extra}</Text>}
-          </View>
-          {!!projectTitle && <Text style={styles.proj} numberOfLines={1}>{projectTitle}</Text>}
-          {selecting && <Text style={[styles.check, selected && { color: colors.mintDark }]}>{selected ? '☑' : '☐'}</Text>}
+          <View style={styles.foot}>{meta(true)}</View>
+          {selecting && <Check on={selected} style={styles.check} />}
         </>
       ) : (
         <>
-          {selecting && <Text style={[styles.checkRow, selected && { color: colors.mintDark }]}>{selected ? '☑' : '☐'}</Text>}
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text style={styles.title} numberOfLines={1}>{memo.favorite ? '★ ' : ''}{memoTitle(memo)}</Text>
-            {body.length > 0 && <Text style={styles.body} numberOfLines={2}>{body}</Text>}
-            <View style={styles.metaRow}>
-              <Text style={styles.date}>{dateLabel(memo.updatedAt)}</Text>
-              {!!extra && <Text style={styles.extra}>{extra}</Text>}
-              {!!projectTitle && <Text style={styles.proj} numberOfLines={1}>{projectTitle}</Text>}
-            </View>
+          {selecting && <Check on={selected} />}
+          <View style={styles.listText}>
+            {titleRow(1)}
+            {body.length > 0 && <Text style={styles.body} numberOfLines={1}>{body}</Text>}
+            {meta(false)}
           </View>
-          {hasThumb && <Thumb memo={memo} photoUri={photoUri} style={styles.listThumb} />}
+          {/* 오른쪽 타일: 사진이 있으면 사진 아이콘, 손글씨만 있으면 연필 아이콘 */}
+          {hasThumb && <IconTile icon={photoCount > 0 || photoUri ? 'image' : 'pencil'} size={68} iconSize={26} style={styles.listTile} />}
         </>
       )}
     </Pressable>
@@ -103,23 +144,24 @@ export default function MemoCard({ memo, mode, selecting, selected, highlighted,
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: colors.white, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
-  listCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg },
+  card: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
+  listCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, minHeight: 100 },
   gridCard: { width: '48.5%', minHeight: 150 },
   focus: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
   on: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
-  thumbBase: { backgroundColor: colors.line },
+  thumbBase: { backgroundColor: colors.mintSoft },
   inkBox: { backgroundColor: '#FBFAF4', padding: 4 },
   gridThumb: { width: '100%', height: 104 },
-  listThumb: { width: 68, height: 68, borderRadius: radius.sm },
+  listTile: { borderRadius: radius.md },
+  listText: { flex: 1, gap: 6 },
   gridText: { padding: spacing.md, gap: 4, flexGrow: 1 },
-  title: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
-  body: { fontSize: font.body, color: colors.ink, lineHeight: 20, opacity: 0.85 },
-  foot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  title: { flexShrink: 1, fontSize: font.header, fontWeight: '800', color: colors.ink },
+  body: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
+  foot: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+  count: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   date: { fontSize: font.caption, color: colors.muted },
-  extra: { fontSize: font.caption, color: colors.mintDark, fontWeight: '700' },
-  proj: { fontSize: font.caption, fontWeight: '700', color: colors.mintDark, paddingHorizontal: spacing.md, paddingBottom: 2 },
-  check: { position: 'absolute', top: 6, right: 8, fontSize: 24, color: colors.muted, textShadowColor: '#fff', textShadowRadius: 4 },
-  checkRow: { fontSize: 22, color: colors.muted },
+  tag: { maxWidth: 160 },
+  check: { position: 'absolute', top: 8, right: 8, backgroundColor: colors.white, borderRadius: 6 },
 });

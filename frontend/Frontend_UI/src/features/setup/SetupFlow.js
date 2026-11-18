@@ -9,6 +9,8 @@ import { useInsets as useSafeAreaInsets } from '../../shared/hooks/useInsets';
 import { colors, font, radius, spacing } from '../../shared/theme/theme';
 import { toKey } from '../calendar/utils/DateUtils';
 import { AuthButton } from '../auth/components/AuthUi';
+import Icon from '../../shared/components/Icon';
+import { CircleButton } from '../../shared/components/Ui';
 import { getTasks, tagText } from '../../data/tasks/TaskStore';
 import { getMemos } from '../../data/memos/MemoStore';
 import { updateSettings } from '../../data/settings/SettingsStore';
@@ -75,7 +77,7 @@ export default function SetupFlow({ user, onDone }) {
     <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
       <View style={styles.hSide}>
         {canBack && (
-          <Pressable accessibilityRole="button" accessibilityLabel="이전 단계" onPress={back} hitSlop={12}><Text style={styles.back}>‹</Text></Pressable>
+          <CircleButton icon="chevronLeft" label="이전 단계" onPress={back} />
         )}
       </View>
       <Text style={styles.hTitle}>{title}</Text>
@@ -139,7 +141,7 @@ export default function SetupFlow({ user, onDone }) {
                   <Text style={styles.cardTitle}>{p.label}</Text>
                   <Text style={styles.cardSub}>{p.sub}</Text>
                 </View>
-                <Text style={[styles.radio, on && { color: colors.mintDark }]}>{on ? '☑' : '☐'}</Text>
+                <Icon name={on ? 'checkSquare' : 'square'} size={22} color={on ? colors.mintDark : colors.muted} />
               </Pressable>
             );
           })}
@@ -149,7 +151,7 @@ export default function SetupFlow({ user, onDone }) {
               <Text style={styles.cardTitle}>{timezoneLabel(tz)}</Text>
               <Text style={styles.cardSub}>{tz === deviceTimezone() ? '기기 시간대' : '직접 선택한 시간대'} · 일정과 브리핑에 적용돼요</Text>
             </View>
-            <Text style={styles.chev}>›</Text>
+            <Icon name="chevronRight" size={18} color={colors.muted} />
           </Pressable>
         </ScrollView>
         {footer('다음', saveBasic)}

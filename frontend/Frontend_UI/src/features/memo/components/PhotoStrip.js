@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import Icon from '../../../shared/components/Icon';
 import { detachPhoto, useMemos } from '../../../data/memos/MemoStore';
 import { useFiles } from '../../../data/files/FileStore';
 
@@ -21,7 +22,11 @@ export default function PhotoStrip({ memoId }) {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {photos.map((f) => (
           <Pressable key={f.id} accessibilityRole="imagebutton" accessibilityLabel={`사진 ${f.name} 크게 보기`} onPress={() => setBig(f)}>
-            <Image source={{ uri: f.uri }} style={styles.thumb} />
+            {/* 연한 민트 타일 위에 사진 (사진을 못 불러오면 사진 아이콘이 보임) */}
+            <View style={styles.thumb}>
+              <Icon name="image" size={24} color={colors.mintDark} />
+              <Image source={{ uri: f.uri }} style={styles.thumbImg} />
+            </View>
           </Pressable>
         ))}
       </ScrollView>
@@ -45,12 +50,13 @@ export default function PhotoStrip({ memoId }) {
 
 const styles = StyleSheet.create({
   wrap: { paddingVertical: spacing.sm },
-  row: { gap: spacing.sm, paddingHorizontal: spacing.lg },
-  thumb: { width: 72, height: 72, borderRadius: radius.sm, backgroundColor: colors.line },
+  row: { gap: spacing.sm },
+  thumb: { width: 68, height: 68, borderRadius: radius.md, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  thumbImg: { position: 'absolute', left: 0, top: 0, width: 68, height: 68 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', alignItems: 'center', justifyContent: 'center', padding: spacing.lg, gap: spacing.lg },
   big: { width: '100%', height: '75%' },
   btns: { flexDirection: 'row', gap: spacing.sm, width: '100%', maxWidth: 360 },
-  btn: { flex: 1, minHeight: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  btn: { flex: 1, minHeight: 48, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   ghost: { backgroundColor: colors.white },
   ghostText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.coral },
   main: { backgroundColor: colors.mintDark },

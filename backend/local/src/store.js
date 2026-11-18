@@ -127,17 +127,47 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, timezo
   };
   current = workspaces.loadCurrent(ctx);
 
-  const cache = { memos: null, trashed: null, tasks: null, trashedTasks: null, proposals: null, workspaces: null };
-  const reuse = { memos: new Map(), trashed: new Map() };
+  const cache = { memos: null, trashed: null, tasks: null, trashedTasks: null, proposals: null, workspaces: null, allMemos: null, allTasks: null };
+  const reuse = { memos: new Map(), trashed: new Map(), allMemos: new Map() };
   const listeners = new Map(AREAS.map(area => [area, new Set()]));
   const anyListeners = new Set();
 
   function invalidate(areas) {
-    if (areas.has('memos')) { cache.memos = null; cache.trashed = null; }
-    if (areas.has('tasks')) { cache.tasks = null; cache.trashedTasks = null; }
+    if (areas.has('memos')) { cache.memos = null; cache.trashed = null; cache.allMemos = null; }
+    if (areas.has('tasks')) { cache.tasks = null; cache.trashedTasks = null; cache.allTasks = null; }
     if (areas.has('proposals')) cache.proposals = null;
-    if (areas.has('workspaces')) cache.workspaces = null;
+    if (areas.has('workspaces')) { cache.workspaces = null; cache.allMemos = null; cache.allTasks = null; }
   }
+
+  /**
+   * 모든 워크스페이스(개인 + 공유)의 목록을 하나로: 각 항목에 workspaceId를 붙임. 읽는 동안만 현재 공간을 바꿨다가 되돌림.
+   * 화면의 "합쳐 보기"(오늘·캘린더·할 일·메모)용. 쓰기는 inWorkspace로.
+   */
+  function acrossWorkspaces(list) {
+    const before = current;
+    const out = [];
+    try {
+      for (const ws of workspaces.listWorkspaces(ctx)) {
+        current = ws.id;
+        for (const item of list(ws.id)) out.push(Object.freeze({ ...item, workspaceId: ws.id }));
+      }
+    } finally {
+      current = before;
+    }
+    return Object.freeze(out);
+  }
+
+  // 다른 공간의 항목에 바로 할 수 있는 쓰기 (목록에서 완료 체크·미루기·휴지통 등). 그 공간의 규칙(보기 전용·동기화)을 그대로 따름
+  const CROSS = {
+    addMemo: input => memos.addMemo(ctx, input),
+    trashMemos: ids => memos.trashMemos(ctx, ids),
+    restoreMemos: ids => memos.restoreMemos(ctx, ids),
+    setFavorites: (ids, favorite) => memos.setFavorites(ctx, ids, favorite),
+    addTask: input => tasks.addTask(ctx, input),
+    updateTask: (taskId, patch) => tasks.updateTask(ctx, taskId, patch),
+    deleteTask: taskId => tasks.deleteTask(ctx, taskId),
+    toggleDone: taskId => tasks.toggleDone(ctx, taskId),
+  };
 
   function notify(areas) {
     const called = new Set();
@@ -197,6 +227,20 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, timezo
     return fn();
   });
 
+  /** edit와 같지만 지정한 워크스페이스에서 실행 (현재 공간은 바뀌지 않음). 서버로 보낼 변경도 그 공간의 것으로 적힘 */
+  const editIn = (workspaceId, fn) => write(() => {
+    if (typeof workspaceId !== 'string' || !workspaces.workspaceRow(ctx, workspaceId)) fail('not_found');
+    const before = current;
+    current = workspaceId;
+    try {
+      const row = currentRow();
+      if (row.personal === 0 && row.role === 'VIEWER') fail('read_only');
+      return fn();
+    } finally {
+      current = before;
+    }
+  });
+
   function subscriber(area) {
     return fn => {
       if (typeof fn !== 'function') throw new TypeError('listener must be a function');
@@ -245,6 +289,18 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, timezo
     setProposalStatus: (proposalId, status) => edit(() => proposals.setProposalStatus(ctx, proposalId, status)),
     findDuplicate: fields => proposals.findDuplicate(ctx, fields),
     subscribeProposals: subscriber('proposals'),
+
+    // 모든 공간 합쳐 보기 (항목마다 workspaceId) · 다른 공간 항목 고치기
+    getAllMemos: () => (cache.allMemos ??= acrossWorkspaces(wsId => {
+      if (!reuse.allMemos.has(wsId)) reuse.allMemos.set(wsId, new Map());
+      return memos.listMemos(ctx, false, reuse.allMemos.get(wsId));
+    })),
+    getAllTasks: () => (cache.allTasks ??= acrossWorkspaces(() => tasks.listTasks(ctx, false))),
+    /** inWorkspace(공간 id, 'toggleDone' | 'updateTask' | 'deleteTask' | 'addTask' | 'addMemo' | 'trashMemos' | 'restoreMemos' | 'setFavorites', ...인자) */
+    inWorkspace: (workspaceId, name, ...args) => {
+      const op = Object.hasOwn(CROSS, name) ? CROSS[name] : fail('invalid_input', 'name');
+      return editIn(workspaceId, () => op(...args));
+    },
 
     // 워크스페이스: 개인 공간(이 기기만) + 공유 공간(서버)
     getWorkspaces: () => store.getWorkspaceState().list,

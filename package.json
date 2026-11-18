@@ -1,0 +1,11 @@
+{
+  "name": "ai-assistant-integration",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:integration": "node --test tests/integration/*.test.mjs",
+    "test:local": "npm --prefix backend/local test",
+    "test:cloud": "npm --prefix backend/cloud test",
+    "test:ai": "npm --prefix ai test"
+  }
+}

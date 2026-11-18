@@ -3,33 +3,45 @@
 // ============================================================
 
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { joinWorkspace, switchWorkspace } from '../../../data/workspaces/WorkspaceStore';
+import { previewInvite } from '../../../lib/stella/workspaces';
 
 export default function WorkspaceInviteScreen({ navigation, route }) {
   const p = route?.params || {};
-  const expired = p.status === 'expired';
   const [busy, setBusy] = useState(false);
+  const [code, setCode] = useState(p.code ?? '');
+  const [error, setError] = useState('');
+  const [preview, setPreview] = useState(null);
+  const expired = preview && (preview.blocked || Date.parse(preview.expires_at) <= Date.now());
 
   const accept = async () => {
     if (busy || expired) return;
     setBusy(true);
-    const id = joinWorkspace({ name: p.name || '워크스페이스', role: p.role || '멤버', members: p.members || 2 });
-    await switchWorkspace(id);
-    setBusy(false);
-    navigation.goBack();
+    try {
+      if (!code.trim()) throw new Error('실제 초대 코드 또는 링크를 입력해 주세요');
+      if (!preview || preview.code !== code.trim()) {
+        const verified = await previewInvite(code.trim());
+        setPreview({ ...verified, code: code.trim() }); return;
+      }
+      const id = await joinWorkspace(code.trim());
+      await switchWorkspace(id); navigation.goBack();
+    } catch (e) { setError(e.message); }
+    finally { setBusy(false); }
   };
 
   return (
     <View style={styles.root}>
       <ScreenHeader title="워크스페이스 초대" onBack={navigation.goBack} />
       <ScrollView contentContainerStyle={styles.content}>
+        <TextInput style={styles.input} placeholderTextColor={colors.muted} accessibilityLabel="초대 코드 또는 링크" value={code} onChangeText={value => { setCode(value); setPreview(null); setError(''); }} placeholder="실제 초대 코드 또는 링크" autoCapitalize="none" editable={!busy} />
+        {!!error && <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text>}
         <View style={styles.card}>
-          <Text style={styles.name}>{p.name || '워크스페이스'}</Text>
-          <Text style={styles.sub}>관리자 {p.inviter || '관리자'} 님이 초대했어요</Text>
-          <Text style={styles.meta}>{p.role || '멤버'} · 멤버 {p.members || 2}명</Text>
+          <Text style={styles.name}>{preview?.workspace_name ?? '초대 코드를 확인해 주세요'}</Text>
+          {preview && <Text style={styles.sub}>{preview.invited_by_name ?? '관리자'} 님의 초대</Text>}
+          {preview && <Text style={styles.meta}>{preview.role} · 멤버 {preview.member_count}명</Text>}
         </View>
 
         <View style={styles.info}>
@@ -56,7 +68,7 @@ export default function WorkspaceInviteScreen({ navigation, route }) {
             onPress={accept}
             style={[styles.btn, styles.primary, (expired || busy) && { opacity: 0.4 }]}
           >
-            <Text style={styles.primaryText}>{busy ? '참여하는 중…' : '수락'}</Text>
+            <Text style={styles.primaryText}>{busy ? '처리 중…' : preview ? '수락' : '코드 확인'}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -67,13 +79,15 @@ export default function WorkspaceInviteScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
-  card: { padding: spacing.xl, borderRadius: radius.lg, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, gap: spacing.sm },
+  input: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
+  error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
+  card: { padding: spacing.xl, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, gap: spacing.sm },
   name: { fontSize: font.title, fontWeight: '800', color: colors.ink },
   sub: { fontSize: font.bodyLg, color: colors.ink },
   meta: { fontSize: font.body, color: colors.mintDark, fontWeight: '700' },
-  info: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.mintSoft },
+  info: { padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.mintSoft },
   infoText: { fontSize: font.body, color: colors.ink, lineHeight: 20 },
-  expired: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.coral, gap: 4 },
+  expired: { padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.coral, gap: 4 },
   expiredTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.coral },
   expiredSub: { fontSize: font.body, color: colors.ink },
   row: { flexDirection: 'row', gap: spacing.md },

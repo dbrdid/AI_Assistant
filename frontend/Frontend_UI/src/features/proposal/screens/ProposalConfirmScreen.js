@@ -13,7 +13,7 @@ import { getSettings } from '../../../data/settings/SettingsStore';
 import { fromKey } from '../../calendar/utils/DateUtils';
 import { DatePickerModal, TimePickerModal } from '../../../shared/components/DateTimePicker';
 import { useNotice } from '../../../shared/components/SettingsUi';
-import { KIND_LABEL } from './ProposalListScreen';
+import { KIND_LABEL } from '../components/ProposalCard';
 
 const dateLabel = (k) => { if (!k) return '날짜 선택'; const d = fromKey(k); return `${d.getMonth() + 1}월 ${d.getDate()}일`; };
 
@@ -40,8 +40,12 @@ export default function ProposalConfirmScreen({ navigation, route }) {
   const finish = (msg) => { done.current = true; notice.show(msg); setTimeout(navigation.goBack, 600); };
   const doSave = () => {
     if (done.current) return;
-    const saved = approveProposal(id, f);
-    finish(saved && saved.kind === 'memo' ? '메모로 저장했어요' : '저장했어요');
+    try {
+      const saved = approveProposal(id, f);
+      finish(saved && saved.kind === 'memo' ? '메모로 저장했어요' : '저장했어요');
+    } catch (error) {
+      notice.show(error.code === 'source_changed' ? '원본 메모가 바뀌었어요. 다시 분석해 주세요.' : error.message);
+    }
   };
   const save = () => {
     if (done.current) return;

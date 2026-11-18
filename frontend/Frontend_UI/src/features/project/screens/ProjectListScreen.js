@@ -7,14 +7,17 @@ import React, { useState } from 'react';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
-import useSwipeToOpenMenu from '../../../navigation/useSwipeToOpenMenu';
+import Icon from '../../../shared/components/Icon';
+import { CircleButton, DashedButton, StatBox, Tag } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { deleteProject, useProjects } from '../../../data/projects/ProjectStore';
 
+// 상태 → 꼬리표 모양 (진행 중: 민트, 완료: 흐림, 그 외: 테두리)
+const toneOf = (status) => (status === '진행 중' ? 'mint' : status === '완료' ? 'muted' : 'outline');
+
 export default function ProjectsScreen({ navigation }) {
-  const menuSwipe = useSwipeToOpenMenu();
   const insets = useSafeAreaInsets();
   const projects = useProjects();
   const [selecting, setSelecting] = useState(false);
@@ -31,15 +34,16 @@ export default function ProjectsScreen({ navigation }) {
   const doing = projects.length - done;
 
   return (
-    <View style={styles.root} {...menuSwipe}>
+    <View style={styles.root}>
       <ScreenHeader
         title={selecting ? `${ids.length}개 선택` : '프로젝트'}
-        onBack={selecting ? exitSelect : undefined}
+        onBack={selecting ? exitSelect : navigation.goBack}
+        right={!selecting && <CircleButton icon="plus" label="프로젝트 생성" onPress={() => navigation.navigate(ROUTES.ProjectEdit)} />}
       />
       <ScrollView contentContainerStyle={[styles.list, selecting && { paddingBottom: 110 }]}>
         <View style={styles.summary}>
-          <Text style={styles.sumText}>진행 중 : {doing}개</Text>
-          <Text style={styles.sumText}>완료 : {done}개</Text>
+          <StatBox icon="clock" label="진행 중" value={doing} style={styles.stat} />
+          <StatBox icon="checkCircle" label="완료" value={done} style={styles.stat} />
         </View>
         {!selecting && projects.length > 0 && <Text style={styles.hint}>꾹 누르면 여러 개를 선택해 삭제할 수 있어요</Text>}
 
@@ -67,25 +71,33 @@ export default function ProjectsScreen({ navigation }) {
                 }
               }}
               delayLongPress={350}
-              style={({ pressed }) => [styles.card, on && styles.cardOn, pressed && { backgroundColor: colors.mintSoft }]}
+              style={({ pressed }) => [styles.card, on && styles.cardOn, pressed && !on && { backgroundColor: '#F7FBF9' }]}
             >
-              {selecting && <Text style={[styles.check, on && { color: colors.mintDark }]}>{on ? '☑' : '☐'}</Text>}
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={[styles.title, isDone && styles.titleDone]} numberOfLines={1}>{p.title}</Text>
-                <Text style={styles.meta} numberOfLines={1}>
-                  {p.status}{p.due ? ` · 마감 ${p.due.slice(5).replace('-', '/')}` : ''}
-                </Text>
+              {selecting && <Icon name={on ? 'checkSquare' : 'square'} size={22} color={on ? colors.mintDark : colors.muted} />}
+              <View style={{ flex: 1, gap: spacing.sm }}>
+                <View style={styles.titleRow}>
+                  <Text style={[styles.title, isDone && styles.titleDone]} numberOfLines={1}>{p.title}</Text>
+                  <Tag label={p.status} tone={toneOf(p.status)} style={styles.tag} />
+                </View>
+                {/* 마감일 · 인원 (있는 값만) */}
+                <View style={styles.metaRow}>
+                  {!!p.due && (
+                    <View style={styles.metaItem}>
+                      <Icon name="calendar" size={15} color={colors.muted} />
+                      <Text style={styles.meta}>마감 {p.due.slice(5).replace('-', '/')}</Text>
+                    </View>
+                  )}
+                  <View style={styles.metaItem}>
+                    <Icon name="users" size={15} color={colors.muted} />
+                    <Text style={styles.meta}>{p.members.length}명</Text>
+                  </View>
+                </View>
               </View>
-              <Text style={styles.people}>👥 {p.members.length}명</Text>
             </Pressable>
           );
         })}
 
-        {!selecting && (
-          <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.ProjectEdit)} style={styles.add}>
-            <Text style={styles.addText}>＋ 프로젝트 생성</Text>
-          </Pressable>
-        )}
+        {!selecting && <DashedButton label="프로젝트 생성" onPress={() => navigation.navigate(ROUTES.ProjectEdit)} style={{ marginTop: 2 }} />}
       </ScrollView>
 
       {/* 선택 모드 아래 줄: 취소 · 전체/해제 · 삭제 */}
@@ -122,23 +134,23 @@ export default function ProjectsScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
-  list: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
-  summary: { flexDirection: 'row', gap: spacing.lg },
-  sumText: { fontSize: font.body, fontWeight: '700', color: colors.muted },
+  list: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, gap: spacing.md, paddingBottom: spacing.xxl },
+  summary: { flexDirection: 'row', gap: spacing.sm },
+  stat: { backgroundColor: colors.white },
   empty: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: spacing.xl, gap: spacing.sm },
   emptyTitle: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   emptySub: { fontSize: font.body, color: colors.muted, textAlign: 'center', lineHeight: 20 },
   hint: { fontSize: font.caption, color: colors.muted },
-  cardOn: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
-  check: { fontSize: 24, color: colors.muted },
+  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  cardOn: { borderColor: colors.mint, backgroundColor: colors.mintSoft },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  title: { flex: 1, fontSize: font.header, fontWeight: '800', color: colors.ink },
+  titleDone: { color: colors.muted },
+  tag: { alignSelf: 'center' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  meta: { fontSize: 13, color: colors.muted },
   bar: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, backgroundColor: colors.cream, borderTopWidth: 1, borderTopColor: colors.line },
   barBtn: { flex: 1, minHeight: 46, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   barText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
-  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, minHeight: 64 },
-  title: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
-  titleDone: { color: colors.muted, textDecorationLine: 'line-through' },
-  meta: { fontSize: font.caption, color: colors.muted },
-  people: { fontSize: font.body, color: colors.mintDark, fontWeight: '700' },
-  add: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm },
-  addText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
 });

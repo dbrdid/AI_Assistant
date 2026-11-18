@@ -7,6 +7,7 @@ import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { PASSWORD_RULE_MESSAGE, checkPasswordRule, createLoginGuard, loginLockedError, normEmail } from './login-rules';
 
@@ -24,8 +25,18 @@ export const redirectTo = makeRedirectUri({ path: 'auth/callback' });
 
 export type OAuthProvider = 'google' | 'kakao';
 
-/** Google·Kakao 로그인. 사용자가 취소하면 null */
+/**
+ * Google·Kakao 로그인. 사용자가 취소하면 null
+ *   웹: 팝업 대신 지금 창을 로그인 페이지로 보냈다가 돌아옴 (null을 돌려주고 페이지가 이동함).
+ *       Kakao·Google 로그인 페이지가 팝업과 앱 창의 연결(window.opener)을 끊어서, 팝업 방식은 결과가 앱으로 돌아오지 않음.
+ *       돌아온 뒤에는 completeWebSignIn()이 주소의 code로 로그인을 마무리함 (AuthStore가 시작할 때 부름)
+ */
 export async function signInWithProvider(provider: OAuthProvider): Promise<Session | null> {
+  if (Platform.OS === 'web') {
+    const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
+    if (error) throw error;
+    return null;
+  }
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: { redirectTo, skipBrowserRedirect: true },
@@ -186,6 +197,22 @@ export async function updatePassword(newPassword: string): Promise<void> {
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
+}
+
+/**
+ * (웹) Google·Kakao 로그인에서 돌아온 주소면 로그인을 마무리하고 주소에서 code를 지움. 아니면 null.
+ * 앱이 시작할 때 한 번 부름. 성공하면 onAuthStateChange(SIGNED_IN)로 앱이 열림
+ */
+export async function completeWebSignIn(): Promise<Session | null> {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
+  const url = window.location.href;
+  const parsed = new URL(url);
+  const hash = parsed.hash.replace(/^#/, '');
+  const hasResult = ['code', 'error_description'].some((k) => parsed.searchParams.has(k)) || /(^|&)(access_token|error_description)=/.test(hash);
+  if (!hasResult) return null;
+  // 새로 고침해도 같은 code를 다시 쓰지 않게 먼저 주소를 정리 (code는 한 번만 쓸 수 있음)
+  window.history.replaceState(null, '', '/');
+  return completeSignInFromUrl(url);
 }
 
 /**

@@ -16,7 +16,6 @@
 import React, { useMemo, useState } from 'react';
 import { FlatList, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
-import useSwipeToOpenMenu from '../../../navigation/useSwipeToOpenMenu';
 import {
   TYPE_INFO,
   addRecentSearch,
@@ -28,6 +27,7 @@ import {
   searchTerms,
 } from '../../../data/memos/MemoStore';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import Icon from '../../../shared/components/Icon';
 import { useTasks } from '../../../data/tasks/TaskStore';
 import { useProjects } from '../../../data/projects/ProjectStore';
 
@@ -59,7 +59,6 @@ function HighlightText({ text, terms, style, numberOfLines }) {
 }
 
 export default function SearchScreen({ navigation }) {
-  const menuSwipe = useSwipeToOpenMenu(); // "오른쪽으로 밀면 메뉴" 제스처
 
   // ---------- 상태 ----------
   const [query, setQuery] = useState('');                    // 입력창에 적힌 검색어
@@ -105,13 +104,13 @@ export default function SearchScreen({ navigation }) {
   return (
     <View style={styles.root}>
       {/* 헤더 (여기에 밀기 제스처 연결) */}
-      <View {...menuSwipe}>
+      <View>
         <ScreenHeader title="검색" onBack={navigation.goBack} />
       </View>
 
       {/* ---------- 검색창 ---------- */}
       <View style={styles.searchBar}>
-        <Text style={styles.searchIcon}>🔍</Text>
+        <Icon name="search" size={20} color={colors.muted} />
         <TextInput
           accessibilityLabel="검색어 입력"
           style={styles.input}
@@ -130,7 +129,7 @@ export default function SearchScreen({ navigation }) {
         {/* 지우기(✕): 글자가 있을 때만 */}
         {hasQuery && (
           <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setQuery('')} hitSlop={10}>
-            <Text style={styles.clear}>✕</Text>
+            <Icon name="x" size={18} color={colors.muted} />
           </Pressable>
         )}
       </View>
@@ -158,7 +157,7 @@ export default function SearchScreen({ navigation }) {
       )}
 
       {/* ---------- 본문: 상태에 따라 3가지 중 하나 ---------- */}
-      <View style={styles.flex} {...menuSwipe}>
+      <View style={styles.flex}>
         {!hasQuery ? (
           // (1) 검색어 없음 → 최근 검색어 + 추천 키워드
           <View style={styles.idle}>
@@ -179,8 +178,9 @@ export default function SearchScreen({ navigation }) {
                 </View>
                 <View style={styles.tags}>
                   {recent.map((r) => (
-                    <Pressable key={r} accessibilityRole="button" onPress={() => setQuery(r)} style={styles.tag}>
-                      <Text style={styles.tagText}>🕘 {r}</Text>
+                    <Pressable key={r} accessibilityRole="button" onPress={() => setQuery(r)} style={[styles.tag, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+                      <Icon name="history" size={14} color={colors.muted} />
+                      <Text style={styles.tagText}>{r}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -227,7 +227,10 @@ export default function SearchScreen({ navigation }) {
                 </View>
                 <HighlightText text={item.title} terms={terms} style={styles.cardTitle} numberOfLines={1} />
                 <HighlightText text={item.snippet} terms={terms} style={styles.cardSnippet} numberOfLines={2} />
-                <Text style={styles.cardGo}>{item.type === 'task' ? '일정 열기 ›' : `${TYPE_INFO[item.type].label} 화면에서 보기 ›`}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                  <Text style={styles.cardGo}>{item.type === 'task' ? '일정 열기' : `${TYPE_INFO[item.type].label} 화면에서 보기`}</Text>
+                  <Icon name="chevronRight" size={14} color={colors.mintDark} />
+                </View>
               </Pressable>
             )}
           />
@@ -255,9 +258,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
-  searchIcon: { fontSize: 16 },
   input: { flex: 1, fontSize: font.bodyLg, color: colors.ink, paddingVertical: 10 },
-  clear: { fontSize: 16, color: colors.muted },
 
   // 종류 칩
   filters: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.md },

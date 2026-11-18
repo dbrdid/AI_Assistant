@@ -27,7 +27,8 @@
 //   - 결과는 "초안"일 뿐. 저장은 사용자가 승인한 뒤 앱이 sync_push로
 //   - 원문 안의 지시문은 따르지 않고 정리 대상 텍스트로만 취급 (프롬프트 인젝션 방어)
 //
-// 환경변수 (OPENAI_API_KEY만 필수)
+// 경로 확장: x-ai-route=self_hosted는 별도 SERVER_AI 동의와 자체 모델만 사용.
+// 외부 경로에는 OPENAI_API_KEY, 자체 경로에는 SELF_HOSTED_URL/SECRET/MODEL이 필요.
 //   OPENAI_API_KEY        supabase secrets set OPENAI_API_KEY=sk-...
 //   OPENAI_MODEL          기본 gpt-6.1-terra
 //   AI_ORGANIZE_EFFORT    기본 low   (none|low|medium|high|xhigh|max)
@@ -41,6 +42,7 @@
 // =====================================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { callSelfHosted, readUsage, selectRoute, type AIRoute } from './providers.ts';
 import { createTranscribeHandlers } from "./transcribe.ts";
 import {
   AGENDA_INSTRUCTIONS, AGENDA_LIMITS, AGENDA_SCHEMA, agendaInputText, ANSWER_INSTRUCTIONS, ANSWER_SCHEMA, answerInputText,
@@ -142,7 +144,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-ai-route",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -173,7 +175,7 @@ async function finishRequest(params: Record<string, unknown>): Promise<boolean> 
   for (let attempt = 1; attempt <= 3; attempt++) {
     const { error } = await admin.rpc("ai_finish_request", params);
     if (!error) return true;
-    console.error(`ai_finish_request failed (attempt ${attempt})`, error.message);
+    console.error(`ai_finish_request failed (attempt ${attempt})`);
     if (attempt < 3) await new Promise((r) => setTimeout(r, 200 * attempt));
   }
   return false;
@@ -184,7 +186,7 @@ async function finishRequest(params: Record<string, unknown>): Promise<boolean> 
 // ---------------------------------------------------------------------
 type Usage = { input: number; cached: number; output: number };
 type CallResult =
-  | { kind: "ok"; json: unknown; responseId: string; usage: Usage }
+  | { kind: "ok"; json: unknown; responseId: string; usage?: Usage }
   | { kind: "error"; status: number; code: string; responseId?: string; usage?: Usage }
   | { kind: "timeout" };
 
@@ -226,15 +228,11 @@ async function callOpenAI(
       : res.status === 401 || res.status === 403 ? "PROVIDER_AUTH_FAILED"
       : res.status === 400 || res.status === 404 ? "PROVIDER_BAD_REQUEST"   // 모델 이름 오류·접근 권한 없음 포함
       : "PROVIDER_ERROR";
-    console.error("openai error", model, res.status, data?.error?.code, data?.error?.message);
+    console.error("provider request failed", model, res.status);
     return { kind: "error", status: res.status === 429 ? 503 : 502, code };
   }
 
-  const usage: Usage = {
-    input: data.usage?.input_tokens ?? 0,
-    cached: data.usage?.input_tokens_details?.cached_tokens ?? 0,
-    output: data.usage?.output_tokens ?? 0,
-  };
+  const usage = readUsage(data.usage);
   const responseId: string = data.id ?? "";
   if (data.status !== "completed") {
     // incomplete(max_output_tokens 도달 등) → 재시도 대상
@@ -270,36 +268,43 @@ type RunResult<T> = {
   model: string;            // 마지막으로 시도한 모델 (성공이면 결과를 만든 모델)
   attempts: number;
   responseId: string | null;
-  inputTokens: number;
-  outputTokens: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
   costMicros: number | null;  // 타임아웃 난 시도는 토큰을 몰라 비용에 빠짐
 };
 
 async function runRoute<T>(
   route: Route, instructions: string, input: string | unknown[], schemaName: string, schema: unknown,
   validate: (raw: unknown) => T | null,
+  provider: AIRoute = 'external',
 ): Promise<RunResult<T>> {
   const r: RunResult<T> = {
     ok: false, status: 502, lastTimedOut: false, model: route.attempts[0].model ?? MODEL, attempts: 0,
     responseId: null, inputTokens: 0, outputTokens: 0, costMicros: 0,
   };
   const addUsage = (model: string, u?: Usage) => {
-    if (!u) return;
-    r.inputTokens += u.input;
-    r.outputTokens += u.output;
+    if (!u) { r.inputTokens = null; r.outputTokens = null; r.costMicros = null; return; }
+    if (r.inputTokens !== null) r.inputTokens += u.input;
+    if (r.outputTokens !== null) r.outputTokens += u.output;
     const c = costMicros(model, u.input, u.cached, u.output);
     r.costMicros = c === null || r.costMicros === null ? null : r.costMicros + c;
   };
 
-  for (let i = 0; i < route.attempts.length; i++) {
+  const attempts = provider === 'self_hosted' ? route.attempts.slice(0, 1) : route.attempts;
+  for (let i = 0; i < attempts.length; i++) {
     const a = route.attempts[i];
-    const model = a.model ?? MODEL;
+    const model = provider === 'self_hosted' ? env('SELF_HOSTED_MODEL') : a.model ?? MODEL;
     r.model = model;
     r.attempts = i + 1;
-    const res = await callOpenAI(model, a, instructions, input, schemaName, schema);
+    const res = provider === 'self_hosted'
+      ? await callSelfHosted({ origin: env('SELF_HOSTED_URL'), secret: env('SELF_HOSTED_SECRET'),
+        instructions, input, schema, maxOutputTokens: a.maxOutputTokens, timeoutMs: Math.min(a.timeoutMs, 110000) })
+      : await callOpenAI(model, a, instructions, input, schemaName, schema);
+    if (provider === 'self_hosted') r.costMicros = null; // Infrastructure cost is not a known zero API bill.
 
     let code: string;
     if (res.kind === "timeout") {
+      addUsage(model);
       r.lastTimedOut = true;
       r.status = 504;
       code = "PROVIDER_TIMEOUT";
@@ -311,6 +316,7 @@ async function runRoute<T>(
         const value = validate(res.json);
         if (value) {
           r.ok = true;
+          if ('model' in res) r.model = res.model;
           r.value = value;
           r.code = undefined;
           return r;
@@ -323,8 +329,9 @@ async function runRoute<T>(
       }
     }
     r.code = code;
+    if (code === 'PROVIDER_UNREACHABLE' || code === 'PROVIDER_BAD_RESPONSE') r.lastTimedOut = true;
     console.warn(`attempt ${i + 1} ${model} failed: ${code}`);
-    if (!RETRY_ON.has(code)) break;
+    if (!RETRY_ON.has(code) || r.lastTimedOut) break; // An unknown paid attempt is not automatically repeated.
   }
   return r;
 }
@@ -334,8 +341,24 @@ async function execute<T>(opts: {
   userId: string; route: Route; clientRequestId: string; workspaceId: string | null; inputHash: string;
   instructions: string; input: string | unknown[]; schemaName: string; schema: unknown; validate: (raw: unknown) => T | null;
   extra?: Record<string, unknown>;
+  routePolicy?: string | null;
 }): Promise<Response> {
   const { route } = opts;
+  let selected: AIRoute;
+  try { selected = selectRoute(opts.routePolicy ?? null); }
+  catch { return fail(400, 'INVALID_AI_ROUTE', '지원하지 않는 AI 처리 방식입니다'); }
+  if (selected === 'self_hosted') {
+    if (typeof opts.input !== 'string' || route.endpoint === 'ocr') return fail(422, 'UNSUPPORTED_CAPABILITY', '자체 모델은 텍스트 처리만 지원합니다');
+    if (!env('SELF_HOSTED_URL') || env('SELF_HOSTED_SECRET').length < 32 || !env('SELF_HOSTED_MODEL')) return fail(503, 'SELF_HOSTED_NOT_CONFIGURED', '자체 모델 서버가 준비되지 않았습니다');
+    // An explicit, separately worded consent is required even before older DB migrations are upgraded.
+    const { data: consent, error } = await admin.from('consents').select('id').eq('account_id', opts.userId)
+      .eq('consent_type', 'SERVER_AI').is('revoked_at', null).limit(1);
+    if (error) return fail(500, 'INTERNAL', '동의를 확인하지 못했습니다');
+    if (!consent?.length) return fail(403, 'CONSENT_REQUIRED', 'Supabase와 자체 모델 서버로의 전송 동의가 필요합니다');
+  } else if (!OPENAI_API_KEY) return fail(503, 'NOT_CONFIGURED', '외부 AI가 설정되지 않았습니다');
+  const selectedProvider = selected === 'self_hosted' ? 'self_hosted' : PROVIDER;
+  const selectedModel = selected === 'self_hosted' ? env('SELF_HOSTED_MODEL') : route.attempts[0].model ?? MODEL;
+  const inputHash = selected === 'self_hosted' ? await sha256Hex(`${selected}\n${opts.inputHash}`) : opts.inputHash;
 
   // 1) 권한·동의·멱등성·한도 예약
   const { data: begin, error: beginErr } = await admin.rpc("ai_begin_request", {
@@ -343,12 +366,12 @@ async function execute<T>(opts: {
     p_client_request_id: opts.clientRequestId,
     p_endpoint: route.endpoint,
     p_workspace_id: opts.workspaceId,
-    p_input_hash: opts.inputHash,
-    p_provider: PROVIDER,
-    p_model: route.attempts[0].model ?? MODEL,
+    p_input_hash: inputHash,
+    p_provider: selectedProvider,
+    p_model: selectedModel,
   });
   if (beginErr) {
-    console.error("ai_begin_request failed", beginErr.message);
+    console.error("ai_begin_request failed");
     return fail(500, "INTERNAL", "요청을 시작하지 못했습니다");
   }
   if (!begin?.ok) {
@@ -367,7 +390,7 @@ async function execute<T>(opts: {
   const requestId: string = begin.request_id;
 
   // 2) 모델 호출 (일시·형식 오류면 재시도)
-  const run = await runRoute(route, opts.instructions, opts.input, opts.schemaName, opts.schema, opts.validate);
+  const run = await runRoute(route, opts.instructions, opts.input, opts.schemaName, opts.schema, opts.validate, selected);
 
   // 3) 정산: 성공 SUCCEEDED / 마지막 시도가 타임아웃 UNKNOWN(횟수 포함) / 그 외 FAILED(횟수 제외)
   //    성공 정산이 끝내 실패해도 결과는 돌려줌: 원장은 RESERVED로 남았다가 정리 작업이 UNKNOWN(횟수 포함)으로 정산
@@ -400,7 +423,8 @@ async function execute<T>(opts: {
     model: run.model,                 // 실제로 결과를 만든 모델
     retried: run.attempts > 1,        // 첫 시도가 실패해서 다시 호출했는지
     draft: run.value,                 // 초안: 사용자가 승인하기 전에는 어디에도 저장되지 않음
-    input_hash: opts.inputHash,       // 앱이 승인 시 "이 원문으로 만든 초안"인지 대조할 때 사용
+    input_hash: inputHash,
+    provider: selectedProvider,
     usage: { input_tokens: run.inputTokens, output_tokens: run.outputTokens },
     remaining: begin.remaining,       // ai_begin_request가 이번 요청까지 반영해 계산한 값
     ...opts.extra,
@@ -481,6 +505,7 @@ async function handleOrganize(req: Request, userId: string): Promise<Response> {
   const c = await parseCommon(req, ROUTES.organize.maxInputChars);
   if (c instanceof Response) return c;
   return execute({
+    routePolicy: req.headers.get("x-ai-route"),
     userId, route: ROUTES.organize, clientRequestId: c.clientRequestId, workspaceId: c.workspaceId,
     inputHash: await sha256Hex(c.text),
     instructions: ORGANIZE_INSTRUCTIONS, input: `<memo>\n${c.text}\n</memo>`,
@@ -741,6 +766,7 @@ async function handleAnalyze(req: Request, userId: string): Promise<Response> {
   const context = `<context>\n오늘: ${now.date} (${now.weekday}) ${now.time}\n시간대: ${tz}\n종류: ${kind === "MEETING" ? "회의록" : kind === "LECTURE" ? "강의" : "메모"}\n</context>`;
 
   return execute({
+    routePolicy: req.headers.get("x-ai-route"),
     userId, route: ROUTES.analyze, clientRequestId: c.clientRequestId, workspaceId: c.workspaceId,
     // 오늘 날짜는 해시에 넣지 않음: 같은 요청을 다음 날 재시도해도 REQUEST_ID_REUSED가 나지 않도록
     inputHash: await sha256Hex(`analyze\n${tz}\n${kind}\n${c.text}`),
@@ -896,6 +922,7 @@ async function handleOcr(req: Request, userId: string): Promise<Response> {
   }];
 
   return execute({
+    routePolicy: req.headers.get("x-ai-route"),
     userId, route: ROUTES.ocr, clientRequestId, workspaceId: workspaceId as string | null,
     inputHash: await sha256Hex(["ocr", ...images.map((i) => i.hash), hint.trim()].join("\n")),
     instructions: OCR_INSTRUCTIONS, input,
@@ -927,7 +954,7 @@ async function forbiddenWorkspaces(userId: string, ids: (string | null)[]): Prom
     .eq("account_id", userId).eq("status", "ACTIVE").in("workspace_id", want);
   const { data: ws, error: e2 } = await admin.from("workspaces").select("id").in("id", want).is("deleted_at", null);
   if (e1 || e2) {
-    console.error("workspace check failed", e1?.message ?? e2?.message);
+    console.error("workspace check failed");
     return fail(500, "INTERNAL", "권한을 확인하지 못했습니다");
   }
   const ok = new Set((mem ?? []).map((m: { workspace_id: string }) => m.workspace_id));
@@ -952,6 +979,7 @@ async function handleQueryPlan(req: Request, userId: string): Promise<Response> 
   let p;
   try { p = parsePlanInput(b); } catch (e) { return inputFail(e); }
   return execute({
+    routePolicy: req.headers.get("x-ai-route"),
     userId, route: ROUTES.query_plan, clientRequestId: p.clientRequestId, workspaceId: null,
     inputHash: await sha256Hex(JSON.stringify(["query_plan", p.today, p.timezone, p.history, p.question])),
     instructions: PLAN_INSTRUCTIONS, input: planInputText(p),
@@ -969,6 +997,7 @@ async function handleQueryAnswer(req: Request, userId: string): Promise<Response
   if (denied) return denied;
   const ws = [...new Set(a.sources.map((s) => s.workspaceId).filter(Boolean))];
   return execute({
+    routePolicy: req.headers.get("x-ai-route"),
     userId, route: ROUTES.query, clientRequestId: a.clientRequestId, workspaceId: ws.length === 1 ? ws[0] : null,
     inputHash: await sha256Hex(JSON.stringify(["query", a.today, a.timezone, a.history, a.question,
       a.sources.map((s) => [s.id, s.type, s.title, s.date, s.text])])),
@@ -987,6 +1016,7 @@ async function handleAgendaJudge(req: Request, userId: string): Promise<Response
   if (denied) return denied;
   const ws = [...new Set([...g.items, ...g.discussions].map((x) => x.workspaceId).filter(Boolean))];
   return execute({
+    routePolicy: req.headers.get("x-ai-route"),
     userId, route: ROUTES.agenda, clientRequestId: g.clientRequestId, workspaceId: ws.length === 1 ? ws[0] : null,
     inputHash: await sha256Hex(JSON.stringify(["agenda", g.projectTitle, g.date,
       g.items.map((i) => [i.key, i.kind, i.status, i.title, i.before, i.after]), g.discussions.map((d) => [d.id, d.kind, d.title, d.text])])),
@@ -1040,7 +1070,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return fail(405, "METHOD_NOT_ALLOWED", "POST만 지원합니다");
 
-  if (!OPENAI_API_KEY) return fail(503, "NOT_CONFIGURED", "서버에 OPENAI_API_KEY가 설정되지 않았습니다");
+  let requestedRoute: AIRoute;
+  try { requestedRoute = selectRoute(req.headers.get('x-ai-route')); }
+  catch { return fail(400, 'INVALID_AI_ROUTE', '지원하지 않는 AI 처리 방식입니다'); }
+  if (requestedRoute === 'self_hosted' && /\/(transcribe|ocr)(\/|$)/.test(new URL(req.url).pathname)) return fail(422, 'UNSUPPORTED_CAPABILITY', '자체 모델은 텍스트 처리만 지원합니다');
+  if (requestedRoute === 'external' && !OPENAI_API_KEY) return fail(503, 'NOT_CONFIGURED', '외부 AI가 설정되지 않았습니다');
 
   // 로그인 사용자 확인 (anon/publishable 키만으로는 통과 못 함)
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");

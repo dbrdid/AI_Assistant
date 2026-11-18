@@ -6,6 +6,8 @@ import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
+import Icon from '../../../shared/components/Icon';
+import { Chip, CircleButton, Tag } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { getProject, moveMembers, removeMembers, updateMember, useProjects } from '../../../data/projects/ProjectStore';
@@ -59,11 +61,7 @@ export default function TeamScreen({ navigation, route }) {
       <ScreenHeader
         title="팀원 관리"
         onBack={navigation.goBack}
-        right={
-          <Pressable accessibilityRole="button" accessibilityLabel="팀원 초대" onPress={() => navigation.navigate(ROUTES.ProjectInvite, { projectId })} hitSlop={10}>
-            <Text style={styles.headIcon}>👥＋</Text>
-          </Pressable>
-        }
+        right={<CircleButton icon="userPlus" label="팀원 초대" onPress={() => navigation.navigate(ROUTES.ProjectInvite, { projectId })} />}
       />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.topRow}>
@@ -90,9 +88,9 @@ export default function TeamScreen({ navigation, route }) {
               delayLongPress={350}
               style={[styles.row, on && styles.rowOn]}
             >
-              {selecting && <Text style={[styles.check, on && { color: colors.mintDark }]}>{on ? '☑' : '☐'}</Text>}
+              {selecting && <Icon name={on ? 'checkSquare' : 'square'} size={22} color={on ? colors.mintDark : colors.muted} />}
               <Text style={styles.name} numberOfLines={1}>{m.name}</Text>
-              <Text style={[styles.role, m.role === '팀장' && styles.roleLead]}>{m.role}</Text>
+              <Tag label={m.role} tone={m.role === '팀장' ? 'mint' : 'outline'} style={styles.roleTag} />
             </Pressable>
           );
         })}
@@ -102,6 +100,7 @@ export default function TeamScreen({ navigation, route }) {
             <Text style={styles.sub}>초대 대기 {project.invites.length}</Text>
             {project.invites.map((i) => (
               <View key={i.id} style={styles.invite}>
+                <Icon name={i.email ? 'mail' : 'globe'} size={16} color={colors.muted} />
                 <Text style={styles.inviteText} numberOfLines={1}>{i.email || '링크 초대'}</Text>
                 <Text style={styles.inviteMeta}>{i.method}</Text>
               </View>
@@ -152,9 +151,7 @@ export default function TeamScreen({ navigation, route }) {
             <Text style={styles.label}>역할</Text>
             <View style={styles.chipRow}>
               {['팀장', '팀원'].map((r) => (
-                <Pressable key={r} accessibilityRole="button" accessibilityState={{ selected: role === r }} onPress={() => setRole(r)} style={[styles.chip, role === r && styles.chipOn]}>
-                  <Text style={[styles.chipText, role === r && { color: colors.white, fontWeight: '800' }]}>{r}</Text>
-                </Pressable>
+                <Chip key={r} label={r} active={role === r} onPress={() => setRole(r)} />
               ))}
             </View>
             <TextInput style={styles.input} value={role} onChangeText={setRole} placeholder="직접 입력 (예: 디자이너)" placeholderTextColor={colors.muted} accessibilityLabel="역할 직접 입력" maxLength={12} />
@@ -212,22 +209,19 @@ export default function TeamScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   gone: { padding: spacing.xl, fontSize: font.bodyLg, color: colors.muted, textAlign: 'center' },
-  headIcon: { fontSize: 15, color: colors.mintDark, fontWeight: '800', textAlign: 'right' },
-  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 140 },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, gap: spacing.md, paddingBottom: 140 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   count: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
   selectText: { fontSize: font.body, fontWeight: '700', color: colors.mintDark },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, minHeight: 56 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, minHeight: 56 },
   rowOn: { borderColor: colors.mint, backgroundColor: colors.mintSoft },
-  check: { fontSize: 22, color: colors.muted },
-  name: { flex: 1, fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
-  role: { fontSize: font.body, color: colors.muted, fontWeight: '600' },
-  roleLead: { color: colors.mintDark, fontWeight: '800' },
+  name: { flex: 1, fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  roleTag: { alignSelf: 'center' },
   sub: { fontSize: font.body, fontWeight: '700', color: colors.muted },
-  invite: { flexDirection: 'row', justifyContent: 'space-between', padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, borderStyle: 'dashed' },
+  invite: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, borderStyle: 'dashed', backgroundColor: colors.white },
   inviteText: { flex: 1, fontSize: font.body, color: colors.ink },
   inviteMeta: { fontSize: font.caption, color: colors.muted },
-  ok: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
+  ok: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
   okText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
   bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: colors.line, padding: spacing.md, gap: spacing.sm },
   barCount: { fontSize: font.body, fontWeight: '700', color: colors.ink, textAlign: 'center' },
@@ -237,14 +231,11 @@ const styles = StyleSheet.create({
   barText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   off: { opacity: 0.4 },
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md },
+  dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.lg, gap: spacing.md },
   dialogTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
   label: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   input: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
   chipRow: { flexDirection: 'row', gap: spacing.sm },
-  chip: { minHeight: 38, paddingHorizontal: spacing.lg, borderRadius: 19, justifyContent: 'center', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
-  chipOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
-  chipText: { fontSize: font.body, fontWeight: '600', color: colors.ink },
   dialogRow: { flexDirection: 'row', gap: spacing.sm },
   dBtn: { flex: 1, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   ghost: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },

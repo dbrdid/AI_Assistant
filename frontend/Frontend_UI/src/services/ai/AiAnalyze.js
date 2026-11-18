@@ -1,31 +1,12 @@
-// ============================================================
-// AiAnalyze.js — 메모/녹음 글에서 AI 제안을 만들어 "검증 필요" 목록에 넣기
-// ============================================================
-
-import { extractFromText } from './AiExtract';
-import { addProposals, approveProposal } from '../../data/proposals/ProposalStore';
-import { addNotice } from '../../data/notices/NoticeStore';
+import { runtime, maybeRuntime } from '../../integration/runtime';
 import { getSettings } from '../../data/settings/SettingsStore';
-import { ROUTES } from '../../navigation/routes';
-
-export async function analyzeText({ sourceType, sourceId, sourceTitle = '', text }) {
-  const ai = getSettings().ai || {};
-  if (ai.autoAnalyze === false) return { added: 0, saved: 0 };
-  const found = extractFromText(text);
-  if (!found.length) return { added: 0, saved: 0 };
-  const added = addProposals(found.map((x) => ({ ...x, sourceType, sourceId, sourceTitle })));
-  if (!added.length) return { added: 0, saved: 0 };
-  if (ai.confirmMode === 'auto') {
-    added.forEach((p) => approveProposal(p.id, {}));
-    return { added: 0, saved: added.length };
-  }
-  addNotice({
-    key: `ai:${added[0].id}`,
-    kind: 'ai',
-    title: `AI 제안 ${added.length}건을 확인해 주세요`,
-    body: added.map((p) => p.title).slice(0, 2).join(', '),
-    at: Date.now(),
-    route: ROUTES.Proposals,
-  });
-  return { added: added.length, saved: 0 };
+import { addNotice } from '../../data/notices/NoticeStore';
+// explicit: the user pressed a button for this analysis (e.g. 녹음 [텍스트로 정리하기]), so it runs even when
+// "AI 자동 분석" is off. That setting only covers analysis that starts on its own after saving.
+export async function analyzeText({ sourceType, sourceId, explicit = false }) {
+  const own = runtime();
+  if (!explicit && !getSettings().ai.autoAnalyze) return { added: 0, saved: 0, skipped: true };
+  if (sourceType !== 'memo') return { added: 0, saved: 0, error: '확인한 메모로 저장한 후 분석해 주세요' };
+  try { return await own.ai.analyzeMemo(sourceId); }
+  catch (error) { if (maybeRuntime() === own) addNotice({ kind: 'ai', title: 'AI 분석을 완료하지 못했습니다', body: error.message, at: Date.now() }); return { added: 0, saved: 0, error: error.message }; }
 }

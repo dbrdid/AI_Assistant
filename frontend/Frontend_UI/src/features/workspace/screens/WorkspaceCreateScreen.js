@@ -20,10 +20,12 @@ export default function WorkspaceCreateScreen({ navigation }) {
     if (getWorkspaces().some((w) => w.name === n)) return setError('같은 이름의 공간이 이미 있어요.');
     setError('');
     setBusy(true);
-    const id = createWorkspace({ name: n, desc });
-    await switchWorkspace(id);
-    setBusy(false);
-    navigation.goBack();
+    try {
+      const id = await createWorkspace({ name: n, desc });
+      await switchWorkspace(id);
+      navigation.goBack();
+    } catch (e) { setError(e.message); }
+    finally { setBusy(false); }
   };
 
   return (
@@ -52,8 +54,8 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
   field: { gap: spacing.sm },
-  label: { fontSize: font.body, fontWeight: '700', color: colors.ink },
-  input: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
+  label: { fontSize: font.body, fontWeight: '700', color: colors.ink, marginLeft: spacing.xs },
+  input: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
   note: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
   save: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },

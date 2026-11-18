@@ -12,10 +12,13 @@ import ResetScreen from './screens/ResetScreen';
 import SignupScreen from './screens/SignupScreen';
 import VerifyScreen from './screens/VerifyScreen';
 import { AuthDialog } from './components/AuthUi';
+import { useAuth } from '../../data/auth/AuthStore';
 
 export default function AuthFlow() {
   const [view, setView] = useState({ name: 'login', prefill: '', notice: '' });
   const [errDialog, setErrDialog] = useState(null);
+  // 로그인 마무리 실패(소셜 로그인에서 돌아온 뒤 등)나 기기 저장소를 못 연 이유를 로그인 화면에 보여 줌
+  const { error: authError } = useAuth();
 
   const toLogin = (prefill = '', notice = '') => setView({ name: 'login', prefill, notice, k: Date.now() });
 
@@ -35,7 +38,7 @@ export default function AuthFlow() {
       <LoginScreen
         key={view.k || 'login'}
         prefillEmail={view.prefill}
-        notice={view.notice}
+        notice={view.notice || authError || ''}
         onSignup={() => setView({ name: 'signup' })}
         onForgot={() => setView({ name: 'reset' })}
       />

@@ -6,6 +6,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
+import { PillButton } from '../../../shared/components/Ui';
+import Icon from '../../../shared/components/Icon';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { shortDateKey } from '../../agenda/utils/AgendaUtils';
 import { toKey } from '../../calendar/utils/DateUtils';
@@ -26,11 +28,11 @@ const FILTERS = [
   { id: 'project', label: '프로젝트' },
 ];
 
-export default function QuickInputScreen({ navigation }) {
+export default function QuickInputScreen({ navigation, route }) {
   const tasks = useTasks();
   const projects = useProjects();
   const notice = useNotice();
-  const [tab, setTab] = useState('memo');
+  const [tab, setTab] = useState(route?.params?.tab === 'file' ? 'file' : 'memo');
   const [body, setBody] = useState('');
   const [taskIds, setTaskIds] = useState([]);
   const [projectId, setProjectId] = useState(null);
@@ -108,8 +110,8 @@ export default function QuickInputScreen({ navigation }) {
         ...cur,
         ...assets.map((a) => {
           keySeq.current += 1;
-          const reason = checkAsset(a);
-          return { key: `s${keySeq.current}`, asset: a, status: reason ? 'failed' : 'ready', reason, canRetry: false };
+          const check = checkAsset(a); // { ok, reason }
+          return { key: `s${keySeq.current}`, asset: a, status: check.ok ? 'ready' : 'failed', reason: check.reason ?? '', canRetry: false };
         }),
       ]);
     } catch (e) {
@@ -154,9 +156,7 @@ export default function QuickInputScreen({ navigation }) {
         title="빠른 입력"
         onBack={navigation.goBack}
         right={
-          <Pressable accessibilityRole="button" accessibilityLabel="저장" onPress={onSave} hitSlop={10}>
-            <Text style={styles.saveText}>저장</Text>
-          </Pressable>
+          <PillButton label="저장" onPress={onSave} />
         }
       />
       <View style={styles.tabs}>
@@ -190,7 +190,10 @@ export default function QuickInputScreen({ navigation }) {
           ) : (
             <>
               <Pressable accessibilityRole="button" onPress={pick} style={styles.pick}>
-                <Text style={styles.pickText}>＋ 사진 · 파일 선택</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Icon name="plus" size={18} color={colors.mintDark} />
+                  <Text style={styles.pickText}>사진 · 파일 선택</Text>
+                </View>
                 <Text style={styles.pickSub}>여러 개를 한 번에 고를 수 있어요 (PDF · PPT · 문서 · 이미지, 20MB 이하)</Text>
               </Pressable>
               {staged.map((s) => (
@@ -206,7 +209,7 @@ export default function QuickInputScreen({ navigation }) {
                   )}
                   {(s.status === 'ready' || s.status === 'failed') && (
                     <Pressable accessibilityRole="button" accessibilityLabel={`${s.asset.name} 목록에서 빼기`} onPress={() => setStaged((c) => c.filter((x) => x.key !== s.key))} hitSlop={8}>
-                      <Text style={styles.remove}>✕</Text>
+                      <Icon name="x" size={18} color={colors.muted} />
                     </Pressable>
                   )}
                 </View>
@@ -228,7 +231,7 @@ export default function QuickInputScreen({ navigation }) {
             const on = checked(r);
             return (
               <Pressable key={`${r.kind}${r.id}`} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={`${r.title}, ${r.sub}`} onPress={() => toggle(r)} style={[styles.row, on && styles.rowOn]}>
-                <Text style={[styles.box, on && { color: colors.mintDark }]}>{on ? '☑' : '☐'}</Text>
+                <Icon name={on ? 'checkSquare' : 'square'} size={22} color={on ? colors.mintDark : colors.muted} />
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={styles.rowTitle} numberOfLines={1}>{r.title}</Text>
                   <Text style={styles.rowSub}>{r.kind === 'project' ? '프로젝트 · ' : ''}{r.sub}</Text>
@@ -246,7 +249,6 @@ export default function QuickInputScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
-  saveText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.mintDark },
   tabs: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   tab: { flex: 1, minHeight: 44, borderRadius: 22, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   tabOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
@@ -254,7 +256,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   memo: { minHeight: 180, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, fontSize: font.bodyLg, color: colors.ink, lineHeight: 24 },
   counter: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
-  pick: { padding: spacing.xl, borderRadius: radius.md, borderWidth: 2, borderStyle: 'dashed', borderColor: colors.mint, backgroundColor: colors.mintSoft, alignItems: 'center', gap: 4 },
+  pick: { padding: spacing.xl, borderRadius: radius.card, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.mint, backgroundColor: colors.mintSoft, alignItems: 'center', gap: 4 },
   pickText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.mintDark },
   pickSub: { fontSize: font.caption, color: colors.muted, textAlign: 'center' },
   file: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },

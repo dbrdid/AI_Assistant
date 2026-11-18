@@ -27,6 +27,9 @@ export const ROUTES = {
   Notices: 'Notices',     // 알림 (홈의 🔔)
   Proposals: 'Proposals',             // AI 제안 확인 목록 (검증 필요)
   ProposalConfirm: 'ProposalConfirm', // AI 제안 하나 확인
+  More: 'More',           // '나' (홈 왼쪽 위 프로필): AI · 도구 · 설정 모음
+  Spaces: 'Spaces',       // 하단 탭 '공간': 공간(팀) 목록
+  SpaceHome: 'SpaceHome', // 공간 하나의 홈 (멤버 · 초대 · 프로젝트 · 일정 · 메모)
   Settings: 'Settings',   // 설정
   Account: 'Account',                 // 설정 > 계정(프로필 수정)
   Security: 'Security',               // 설정 > 보안 및 권한
@@ -45,31 +48,43 @@ export const ROUTES = {
   QuickInput: 'QuickInput',       // 빠른 입력
 };
 
-// 사이드 메뉴에 보여줄 항목들.
-// - route : 눌렀을 때 이동할 화면 이름
-// - label : 메뉴에 실제로 보이는 글자
-// 배열 순서가 곧 메뉴에 보이는 순서입니다. 항목을 추가/삭제/순서 변경하려면 여기만 고치세요.
-export const MENU_ITEMS = [
-  { route: ROUTES.Home, label: '홈' },
-  { route: ROUTES.Search, label: '검색' },
-  { route: ROUTES.Calendar, label: '캘린더' },
-  { route: ROUTES.Ai, label: 'AI 채팅' },
-  { route: ROUTES.Projects, label: '프로젝트' },
-  { route: ROUTES.Memos, label: '메모' },
-  { route: ROUTES.Tasks, label: '할 일 목록' },
-  { route: ROUTES.Favorites, label: '즐겨찾기' },
-  { route: ROUTES.Workspace, label: '워크스페이스 전환' },
-  { route: ROUTES.Files, label: '파일 보관함' },
-  { route: ROUTES.Backup, label: '백업 · 복원' },
-  { route: ROUTES.Trash, label: '휴지통' },
-  { route: ROUTES.Settings, label: '설정' },
+// 하단 탭. 배열 순서 = 화면 왼쪽부터. icon 은 shared/components/Icon.js 이름
+//   오늘·캘린더·할 일·메모 = 모든 공간을 합친 "나" 보기 · 공간 = 공간(팀)별 홈
+export const TABS = [
+  { route: ROUTES.Home, label: '오늘', icon: 'home' },
+  { route: ROUTES.Calendar, label: '캘린더', icon: 'calendar' },
+  { route: ROUTES.Tasks, label: '할 일', icon: 'checkSquare' },
+  { route: ROUTES.Memos, label: '메모', icon: 'file' },
+  { route: ROUTES.Spaces, label: '공간', icon: 'users' },
 ];
 
-// 홈의 구슬을 "길게 눌러서 밀었을 때" 나타나는 3개 항목.
-// 배열 순서 = 화면에서 "왼쪽 → 위쪽 → 오른쪽" 순서입니다. (왼쪽부터 안건 비교, 카메라, 빠른 입력)
-//   icon : 항목 위에 보이는 작은 그림 글자
-export const QUICK_ACTIONS = [
-  { route: ROUTES.AgendaCompare, label: '안건 비교', icon: '⇄' },
-  { route: ROUTES.Camera, label: '카메라', icon: '📷' },
-  { route: ROUTES.QuickInput, label: '빠른 입력', icon: '✏️' },
+// '나' 화면(홈 왼쪽 위 프로필)의 목록. 묶음(section)마다 한 카드로 보입니다
+export const MORE_SECTIONS = [
+  {
+    title: 'AI',
+    items: [
+      { route: ROUTES.Proposals, label: 'AI 제안 확인', icon: 'sparkles' },
+      { route: ROUTES.Ai, label: 'AI 채팅', icon: 'message' },
+    ],
+  },
+  {
+    title: '도구',
+    items: [
+      { route: ROUTES.Search, label: '검색', icon: 'search' },
+      { route: ROUTES.AgendaCompare, label: '안건 비교', icon: 'compare' },
+      { route: ROUTES.QuickInput, label: '사진 · 문서 올리기', icon: 'arrowUp', params: { tab: 'file' } },
+      { route: ROUTES.Favorites, label: '즐겨찾기', icon: 'star' },
+      { route: ROUTES.Files, label: '파일 보관함', icon: 'paperclip' },
+      { route: ROUTES.Trash, label: '휴지통', icon: 'trash' },
+    ],
+  },
+  {
+    title: '계정',
+    items: [
+      { route: ROUTES.Backup, label: '백업 · 복원', icon: 'cloud' },
+      { route: ROUTES.Settings, label: '설정', icon: 'settings' },
+    ],
+  },
 ];
+
+export const ROUTE_LABELS = { ...Object.fromEntries([...TABS, ...MORE_SECTIONS.flatMap((s) => s.items)].map((i) => [i.route, i.label])), [ROUTES.More]: '나' };

@@ -7,15 +7,17 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import Icon from '../../../shared/components/Icon';
+import { Chip, IconTile } from '../../../shared/components/Ui';
 import { dateLabel } from '../../memo/components/MemoCard';
 import { clearNotices, markAllRead, markRead, removeNotice, useNotices } from '../../../data/notices/NoticeStore';
 
 const KIND = {
-  schedule: { label: '일정', icon: '🗓️' },
-  due: { label: '마감', icon: '⏰' },
-  brief: { label: '브리핑', icon: '📋' },
-  ai: { label: 'AI 확인', icon: '✦' },
-  project: { label: '프로젝트', icon: '📁' },
+  schedule: { label: '일정', icon: 'calendar' },
+  due: { label: '마감', icon: 'clock' },
+  brief: { label: '브리핑', icon: 'file' },
+  ai: { label: 'AI 확인', icon: 'sparkles' },
+  project: { label: '프로젝트', icon: 'folder' },
 };
 const FILTERS = [{ id: 'all', label: '전체' }, ...Object.keys(KIND).map((k) => ({ id: k, label: KIND[k].label }))];
 
@@ -32,9 +34,7 @@ export default function NoticeScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.content}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
           {FILTERS.map((f) => (
-            <Pressable key={f.id} accessibilityRole="button" accessibilityState={{ selected: filter === f.id }} onPress={() => setFilter(f.id)} style={[styles.chip, filter === f.id && styles.chipOn]}>
-              <Text style={[styles.chipText, filter === f.id && { color: colors.white }]}>{f.label}</Text>
-            </Pressable>
+            <Chip key={f.id} label={f.label} active={filter === f.id} onPress={() => setFilter(f.id)} />
           ))}
         </ScrollView>
         {all.length > 0 && (
@@ -71,7 +71,7 @@ export default function NoticeScreen({ navigation }) {
                 }}
                 style={({ pressed }) => [styles.card, !n.read && styles.cardNew, pressed && { opacity: 0.75 }]}
               >
-                <Text style={styles.icon}>{k.icon}</Text>
+                <IconTile icon={k.icon} size={40} bg={n.read ? colors.mintSoft : colors.white} />
                 <View style={{ flex: 1, gap: 2 }}>
                   <View style={styles.titleRow}>
                     {!n.read && <View style={styles.dot} />}
@@ -81,7 +81,7 @@ export default function NoticeScreen({ navigation }) {
                   <Text style={styles.time}>{k.label} · {dateLabel(n.at)}</Text>
                 </View>
                 <Pressable accessibilityRole="button" accessibilityLabel="이 알림 지우기" onPress={() => removeNotice(n.id)} hitSlop={10}>
-                  <Text style={styles.x}>✕</Text>
+                  <Icon name="x" size={18} color={colors.muted} />
                 </Pressable>
               </Pressable>
             );
@@ -111,20 +111,15 @@ const styles = StyleSheet.create({
   allRead: { fontSize: font.body, color: colors.muted },
   clear: { fontSize: font.body, fontWeight: '700', color: colors.coral },
   chips: { gap: spacing.sm, paddingVertical: spacing.xs },
-  chip: { minHeight: 36, paddingHorizontal: spacing.lg, borderRadius: 18, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  chipOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
-  chipText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   readAllText: { fontSize: font.body, fontWeight: '700', color: colors.mintDark },
   empty: { alignItems: 'center', paddingTop: 80, gap: spacing.sm },
   emptyTitle: { fontSize: font.title, fontWeight: '700', color: colors.ink },
   emptySub: { fontSize: font.body, color: colors.muted, textAlign: 'center', lineHeight: 21 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   cardNew: { borderColor: colors.mint, backgroundColor: colors.mintSoft },
-  icon: { fontSize: 24 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.mintDark },
   title: { flex: 1, fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
   body: { fontSize: font.body, color: colors.ink, lineHeight: 20 },
   time: { fontSize: font.caption, color: colors.muted },
-  x: { fontSize: 16, color: colors.muted, paddingHorizontal: 4 },
 });

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { MenuProvider } from './src/navigation/MenuContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import ErrorBoundary from './src/features/error/components/ErrorBoundary';
 import AuthFlow from './src/features/auth/AuthFlow';
@@ -49,13 +48,11 @@ function Root() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <MenuProvider>
-        {/* 상태바(시계/배터리) 글자색을 어둡게 */}
-        <StatusBar style="dark" />
-        <ErrorBoundary>
-          <Root />
-        </ErrorBoundary>
-      </MenuProvider>
+      {/* 상태바(시계/배터리) 글자색을 어둡게 */}
+      <StatusBar style="dark" />
+      <ErrorBoundary>
+        <Root />
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }
