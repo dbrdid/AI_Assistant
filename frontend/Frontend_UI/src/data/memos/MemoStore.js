@@ -39,5 +39,5 @@ export const openParams = (type, id) => type === 'file' ? { focusId: id } : type
 export const getRecentSearches = () => readPreference('recent-searches', []);
 export const clearRecentSearches = () => writePreference('recent-searches', []);
 export const addRecentSearch = q => writePreference('recent-searches', [q, ...getRecentSearches().filter(x => x !== q)].slice(0, 15));
-// Asynchronous cloud QA is connected by AiChatScreen; local search never pretends to be generated AI.
+// 비동기 클라우드 질의응답은 AiChatScreen에서 연결하며, 로컬 검색 결과를 AI가 생성한 것처럼 취급하지 않습니다.
 export const answerFromApp = query => ({ text: '검색한 기록을 확인해 주세요.', sources: searchApp(query) });

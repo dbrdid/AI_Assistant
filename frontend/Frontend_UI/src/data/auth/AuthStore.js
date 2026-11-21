@@ -23,7 +23,7 @@ async function apply(user) {
 }
 const enqueue = user => (queue = queue.catch(() => undefined).then(() => apply(user)));
 supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'PASSWORD_RECOVERY') return; // Finish the reset UI before entering the application.
+  if (event === 'PASSWORD_RECOVERY') return; // 앱에 들어가기 전에 비밀번호 재설정 UI를 완료합니다.
   setTimeout(() => { void enqueue(session?.user ?? null); }, 0);
 });
 // 웹에서 Google·Kakao 로그인 페이지를 거쳐 돌아왔다면 먼저 로그인을 마무리 (실패하면 로그인 화면에 이유를 보여 줌)
@@ -48,7 +48,7 @@ export async function signOut() {
   catch (error) { publish(maybeRuntime() ? before : { status: 'out', user: null, error: error.message }); return { ok: false, message: error.message }; }
 }
 export const loadWithdrawPreview = () => getWithdrawPreview(supabase);
-// Runs inside the auth queue so the SIGNED_OUT event from withdrawAccount waits until the device data is erased.
+// 인증 큐 안에서 실행되므로 withdrawAccount의 SIGNED_OUT 이벤트는 기기 데이터가 삭제될 때까지 기다립니다.
 export function deleteAccount() {
   const job = queue.catch(() => undefined).then(async () => {
     try {

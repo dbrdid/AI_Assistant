@@ -807,11 +807,11 @@ const styles = StyleSheet.create({
   // ----- 대화가 없을 때 -----
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl, gap: spacing.sm },
   emptyIconWrap: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
-  emptyTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
+  emptyTitle: { fontSize: font.title, fontWeight: '700', color: colors.ink },
   emptySub: { fontSize: font.body, color: colors.muted, textAlign: 'center', lineHeight: 20 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.lg },
-  chip: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm + 2, borderRadius: radius.pill, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
-  chipText: { fontSize: font.body, fontWeight: '600', color: colors.ink },
+  chip: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm + 2, borderRadius: radius.lg + 8, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  chipText: { fontSize: font.body, color: colors.ink },
 
   // ----- 대화 목록 -----
   list: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.lg, gap: spacing.lg },
@@ -819,7 +819,7 @@ const styles = StyleSheet.create({
   userRow: { alignItems: 'flex-end', gap: 6 },
   // 내 말풍선: 진한 민트 · 오른쪽 아래 모서리만 덜 둥글게
   userBubble: { maxWidth: '80%', backgroundColor: colors.mintDark, paddingHorizontal: spacing.lg, paddingVertical: 11, borderRadius: radius.card, borderBottomRightRadius: 6 },
-  userText: { fontSize: 15, color: colors.white, lineHeight: 22 },
+  userText: { fontSize: font.bodyLg, color: colors.white, lineHeight: 22 },
   sentFiles: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6, maxWidth: '80%' },
   sentFile: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, maxWidth: '100%' },
   sentFileText: { flexShrink: 1, fontSize: font.caption, fontWeight: '700', color: colors.ink },
@@ -827,7 +827,7 @@ const styles = StyleSheet.create({
   avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center' },
   // AI 말풍선: 흰 바탕 + 얇은 테두리
   aiBubble: { maxWidth: '80%', backgroundColor: colors.white, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line },
-  aiText: { fontSize: 15, color: colors.ink, lineHeight: 22 },
+  aiText: { fontSize: font.bodyLg, color: colors.ink, lineHeight: 22 },
   errorBubble: { borderColor: colors.coral, backgroundColor: colors.coralSoft },
   errorText: { color: colors.ink, fontSize: font.body },
   aiCol: { flex: 1, maxWidth: '88%', gap: spacing.sm },
@@ -838,7 +838,7 @@ const styles = StyleSheet.create({
   // 출처 칩: 흰 바탕 + 테두리, 아이콘 + 굵은 제목
   sourceChip: { flexDirection: 'row', alignItems: 'center', gap: 5, maxWidth: '100%', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
   sourceText: { flexShrink: 1, fontSize: font.caption + 1, fontWeight: '800', color: colors.ink },
-  dotsBubble: { flexDirection: 'row', gap: 5, alignItems: 'center', paddingVertical: 14 },
+  dotsBubble: { flexDirection: 'row', gap: 5, alignItems: 'center', paddingVertical: spacing.lg },
   dot: { width: 7, height: 7, borderRadius: 4 },
 
   // ----- 보내기 전 첨부 -----
@@ -855,7 +855,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, minHeight: 46, maxHeight: 120, paddingHorizontal: 18, paddingTop: 12, paddingBottom: 12, fontSize: 15, color: colors.ink, backgroundColor: colors.white, borderRadius: 23, borderWidth: 1, borderColor: colors.line },
   sendBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 1 },
   sendOn: { backgroundColor: colors.mintDark },
-  sendOff: { backgroundColor: colors.mintDark, opacity: 0.35 },
+  sendOff: { backgroundColor: colors.line },
 
   // ----- 창 -----
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },

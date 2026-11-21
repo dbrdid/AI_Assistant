@@ -2,7 +2,6 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from './ScreenHeader';
 import { colors, font } from '../theme/theme';
-import { IconTile } from './Ui';
 import { ROUTE_LABELS } from '../../navigation/routes';
 
 export default function PlaceholderScreen({ navigation, route }) {
@@ -13,7 +12,6 @@ export default function PlaceholderScreen({ navigation, route }) {
     <View style={styles.root}>
       <ScreenHeader title={title} onBack={navigation.goBack} />
       <View style={styles.body}>
-        <IconTile icon="clock" size={56} iconSize={28} />
         <Text style={styles.text}>{title}</Text>
         <Text style={styles.sub}>준비 중인 화면입니다</Text>
       </View>

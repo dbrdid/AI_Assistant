@@ -28,14 +28,6 @@ function ListIcon({ size = 20, color = colors.ink }) {
   );
 }
 
-// ⋮ 메뉴 항목 (스토리보드: 모든 메모 · 휴지통 · 프로젝트 + 즐겨찾기)
-const MENU = [
-  { route: ROUTES.Memos, label: '모든 메모' },
-  { route: ROUTES.Favorites, label: '즐겨찾기' },
-  { route: ROUTES.Trash, label: '휴지통' },
-  { route: ROUTES.Projects, label: '프로젝트' },
-];
-
 const VIEW_KEY = 'myapp.memoview.v1';
 const FAV_SECTION = '즐겨찾기'; // 즐겨찾기 구역 이름 (앞에 별 아이콘을 붙여 보여줌)
 const SORTS = [
@@ -129,7 +121,6 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false }
   });
   const searching = !!q || filter !== 'all';
 
-  const [menuOpen, setMenuOpen] = useState(false);   // ⋮ 메뉴가 열려 있나
   const projects = useProjects();
   const [pickingProject, setPickingProject] = useState(false); // 선택한 메모의 프로젝트 고르기 창
   const [selecting, setSelecting] = useState(false); // 선택 모드인가
@@ -226,7 +217,6 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false }
   };
 
   const title = favoritesOnly ? '즐겨찾기' : '모든 메모';
-  const currentRoute = favoritesOnly ? ROUTES.Favorites : ROUTES.Memos;
   const none = ids.length === 0;
 
   return (
@@ -251,13 +241,12 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false }
               >
                 {view === 'grid' ? <ListIcon size={20} /> : null}
               </CircleButton>
-              <CircleButton icon="more" label="메모 메뉴 열기" onPress={() => setMenuOpen(true)} />
             </>
           )
         }
       />
 
-      <ScrollView ref={scrollRef} contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}>
+      <ScrollView ref={scrollRef} contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 80 }]}>
         {/* 검색창: 이 화면의 메모만 바로 걸러 줘요 (앱 전체 검색은 오른쪽 링크) */}
         {!selecting && (
           <View style={styles.searchBar}>
@@ -482,30 +471,6 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false }
         </View>
       </Modal>
 
-      {/* ⋮ 메뉴: 오른쪽 위에 뜨는 작은 패널 */}
-      <Modal transparent visible={menuOpen} animationType="fade" onRequestClose={() => setMenuOpen(false)}>
-        <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)} accessibilityLabel="메뉴 닫기">
-          <View style={[styles.menu, { top: insets.top + 56 }]}>
-            {MENU.map((it) => {
-              const active = it.route === currentRoute;
-              return (
-                <Pressable
-                  key={it.route}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  onPress={() => {
-                    setMenuOpen(false);
-                    if (!active) navigation.navigate(it.route);
-                  }}
-                  style={({ pressed }) => [styles.menuItem, (active || pressed) && { backgroundColor: colors.mintSoft }]}
-                >
-                  <Text style={[styles.menuText, active && { color: colors.mintDark, fontWeight: '800' }]}>{it.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </Pressable>
-      </Modal>
     </View>
   );
 }
@@ -516,9 +481,9 @@ const styles = StyleSheet.create({
   countRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   count: { flexShrink: 1, fontSize: font.caption, color: colors.muted },
   // 검색창 (시안: 흰 바탕 + 얇은 테두리, 모서리 14)
-  searchBar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md + 2, minHeight: 48, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  searchBar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, minHeight: 46, borderRadius: 23, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
   searchInput: { flex: 1, fontSize: font.bodyLg, color: colors.ink, paddingVertical: 8 },
-  chips: { gap: spacing.sm, paddingVertical: 2 },
+  chips: { gap: spacing.sm, paddingVertical: spacing.xs },
   spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white },
   spaceChipOn: { borderColor: colors.mintDark, borderWidth: 2, backgroundColor: colors.mintSoft },
   spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '800', color: colors.ink },
@@ -527,7 +492,7 @@ const styles = StyleSheet.create({
   sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   toolText: { fontSize: font.caption + 1, color: colors.ink, fontWeight: '800' },
   sectionRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.xs },
-  sectionTitle: { fontSize: font.caption, fontWeight: '700', color: colors.muted },
+  sectionTitle: { fontSize: font.caption, fontWeight: '800', color: colors.muted },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'space-between' },
   listCol: { gap: spacing.md },
   emptyBtn: { marginTop: spacing.md, minHeight: 44, paddingHorizontal: spacing.xl, borderRadius: radius.md, borderWidth: 1, borderColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
@@ -563,7 +528,7 @@ const styles = StyleSheet.create({
   snack: {
     position: 'absolute',
     left: spacing.lg,
-    right: spacing.lg + 56 + spacing.md,
+    right: spacing.xl + 56 + spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -578,7 +543,7 @@ const styles = StyleSheet.create({
   // 새 메모 버튼 (동그란 +, 진한 녹색 + 떠 있는 그림자)
   fab: {
     position: 'absolute',
-    right: spacing.lg,
+    right: spacing.xl,
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -600,7 +565,7 @@ const styles = StyleSheet.create({
   },
   proj: { fontSize: font.caption, fontWeight: '700', color: colors.mintDark },
   dialogBackdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  dialogBox: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.md },
+  dialogBox: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.md },
   dialogTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
   projOpt: { minHeight: 44, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, paddingHorizontal: spacing.lg, justifyContent: 'center' },
   projOptText: { fontSize: font.bodyLg, color: colors.ink },
@@ -610,23 +575,4 @@ const styles = StyleSheet.create({
   barInner: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   off: { opacity: 0.35 },
 
-  // ⋮ 메뉴
-  menuBackdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.2)' },
-  menu: {
-    position: 'absolute',
-    right: spacing.lg,
-    minWidth: 170,
-    backgroundColor: colors.white,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingVertical: spacing.xs,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-  menuItem: { minHeight: 46, justifyContent: 'center', paddingHorizontal: spacing.lg },
-  menuText: { fontSize: font.bodyLg, color: colors.ink, fontWeight: '600' },
 });

@@ -1,8 +1,8 @@
 import { runtime, maybeRuntime } from '../../integration/runtime';
 import { getSettings } from '../../data/settings/SettingsStore';
 import { addNotice } from '../../data/notices/NoticeStore';
-// explicit: the user pressed a button for this analysis (e.g. 녹음 [텍스트로 정리하기]), so it runs even when
-// "AI 자동 분석" is off. That setting only covers analysis that starts on its own after saving.
+// explicit: 사용자가 이 분석을 위해 버튼을 눌렀음을 나타냅니다(예: 녹음 [텍스트로 정리하기]).
+// 따라서 "AI 자동 분석"이 꺼져 있어도 실행됩니다. 해당 설정은 저장 후 자동으로 시작되는 분석에만 적용됩니다.
 export async function analyzeText({ sourceType, sourceId, explicit = false }) {
   const own = runtime();
   if (!explicit && !getSettings().ai.autoAnalyze) return { added: 0, saved: 0, skipped: true };

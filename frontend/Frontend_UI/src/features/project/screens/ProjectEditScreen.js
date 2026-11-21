@@ -6,8 +6,6 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
-import Icon from '../../../shared/components/Icon';
-import { Chip } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { fromKey } from '../../calendar/utils/DateUtils';
@@ -21,7 +19,9 @@ function Chips({ label, options, value, onChange }) {
       <Text style={styles.label}>{label}</Text>
       <View style={styles.chipRow}>
         {options.map((o) => (
-          <Chip key={o} label={o} active={value === o} onPress={() => onChange(o)} />
+          <Pressable key={o} accessibilityRole="button" accessibilityState={{ selected: value === o }} onPress={() => onChange(o)} style={[styles.chip, value === o && styles.chipOn]}>
+            <Text style={[styles.chipText, value === o && styles.chipTextOn]}>{o}</Text>
+          </Pressable>
         ))}
       </View>
     </View>
@@ -44,16 +44,27 @@ export default function ProjectEditScreen({ navigation, route }) {
   const [pickDate, setPickDate] = useState(false);
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const save = () => {
+  const save = async () => {
+    if (saving) return;
     if (!f.title.trim()) return setError('제목을 입력해 주세요.');
     const fields = { ...f, title: f.title.trim() };
     if (existing) {
       if (!updateProject(existing.id, fields)) return;
       navigation.goBack();
     } else {
-      const p = addProject(fields);
-      if (!p) return; // 저장 실패는 저장소가 안내
+      setSaving(true);
+      let p;
+      try {
+        p = await addProject(fields);
+      } catch (e) {
+        setError(e.message || '프로젝트를 저장하지 못했어요.');
+        setSaving(false);
+        return;
+      }
+      setSaving(false);
+      if (!p) return;
       // 만든 프로젝트의 상세 화면으로 (뒤로가기 하면 목록)
       navigation.goBack();
       setTimeout(() => navigation.navigate(ROUTES.ProjectDetail, { projectId: p.id }), 0);
@@ -80,7 +91,6 @@ export default function ProjectEditScreen({ navigation, route }) {
           <Text style={styles.label}>마감일</Text>
           <View style={styles.row}>
             <Pressable accessibilityRole="button" onPress={() => setPickDate(true)} style={[styles.input, styles.pick]}>
-              <Icon name="calendar" size={18} color={f.due ? colors.mintDark : colors.muted} />
               <Text style={[styles.pickText, !f.due && { color: colors.muted }]}>
                 {f.due ? `${fromKey(f.due).getFullYear()}년 ${fromKey(f.due).getMonth() + 1}월 ${fromKey(f.due).getDate()}일` : '마감일 선택 (선택)'}
               </Text>
@@ -104,8 +114,8 @@ export default function ProjectEditScreen({ navigation, route }) {
 
         {!!error && <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text>}
 
-        <Pressable accessibilityRole="button" onPress={save} style={styles.save}>
-          <Text style={styles.saveText}>저장하기</Text>
+        <Pressable accessibilityRole="button" disabled={saving} onPress={save} style={[styles.save, saving && { opacity: 0.6 }]}>
+          <Text style={styles.saveText}>{saving ? '저장 중...' : '저장하기'}</Text>
         </Pressable>
         {existing && (
           <Pressable accessibilityRole="button" onPress={() => setConfirmDelete(true)} style={styles.del}>
@@ -139,12 +149,16 @@ const styles = StyleSheet.create({
   field: { gap: spacing.sm },
   label: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   input: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
-  pick: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  pick: { flex: 1, justifyContent: 'center' },
   pickText: { fontSize: font.bodyLg, color: colors.ink },
   row: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
   clear: { minHeight: 46, paddingHorizontal: spacing.md, justifyContent: 'center' },
   clearText: { fontSize: font.body, color: colors.coral, fontWeight: '700' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  chip: { minHeight: 38, paddingHorizontal: spacing.lg, borderRadius: 19, justifyContent: 'center', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  chipOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
+  chipText: { fontSize: font.body, fontWeight: '600', color: colors.ink },
+  chipTextOn: { color: colors.white, fontWeight: '800' },
   note: { fontSize: font.caption, color: colors.muted, marginTop: -spacing.sm },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
   save: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },

@@ -1,5 +1,5 @@
 // =====================================================================
-// AI Gateway (Supabase Edge Function)
+// AI 게이트웨이(Supabase Edge Function)
 //   POST /functions/v1/ai-gateway/organize   메모 정리 초안         → Terra (일시·형식 오류면 1회 재시도)
 //   POST /functions/v1/ai-gateway/analyze    요약·할 일·일정 추출 초안 (회의·강의·메모)   → Terra
 //   POST /functions/v1/ai-gateway/ocr        사진(최대 5장) → 글자 초안 → Terra (이미지 입력, 사진은 저장 안 함)
@@ -300,7 +300,7 @@ async function runRoute<T>(
       ? await callSelfHosted({ origin: env('SELF_HOSTED_URL'), secret: env('SELF_HOSTED_SECRET'),
         instructions, input, schema, maxOutputTokens: a.maxOutputTokens, timeoutMs: Math.min(a.timeoutMs, 110000) })
       : await callOpenAI(model, a, instructions, input, schemaName, schema);
-    if (provider === 'self_hosted') r.costMicros = null; // Infrastructure cost is not a known zero API bill.
+    if (provider === 'self_hosted') r.costMicros = null; // 인프라 비용을 알 수 없으므로 API 비용을 0으로 간주하지 않습니다.
 
     let code: string;
     if (res.kind === "timeout") {
@@ -331,7 +331,7 @@ async function runRoute<T>(
     r.code = code;
     if (code === 'PROVIDER_UNREACHABLE' || code === 'PROVIDER_BAD_RESPONSE') r.lastTimedOut = true;
     console.warn(`attempt ${i + 1} ${model} failed: ${code}`);
-    if (!RETRY_ON.has(code) || r.lastTimedOut) break; // An unknown paid attempt is not automatically repeated.
+    if (!RETRY_ON.has(code) || r.lastTimedOut) break; // 비용이 발생했는지 알 수 없는 시도는 자동으로 반복하지 않습니다.
   }
   return r;
 }
@@ -350,7 +350,7 @@ async function execute<T>(opts: {
   if (selected === 'self_hosted') {
     if (typeof opts.input !== 'string' || route.endpoint === 'ocr') return fail(422, 'UNSUPPORTED_CAPABILITY', '자체 모델은 텍스트 처리만 지원합니다');
     if (!env('SELF_HOSTED_URL') || env('SELF_HOSTED_SECRET').length < 32 || !env('SELF_HOSTED_MODEL')) return fail(503, 'SELF_HOSTED_NOT_CONFIGURED', '자체 모델 서버가 준비되지 않았습니다');
-    // An explicit, separately worded consent is required even before older DB migrations are upgraded.
+    // 이전 DB 마이그레이션을 적용하기 전에도 별도로 명시한 동의가 필요합니다.
     const { data: consent, error } = await admin.from('consents').select('id').eq('account_id', opts.userId)
       .eq('consent_type', 'SERVER_AI').is('revoked_at', null).limit(1);
     if (error) return fail(500, 'INTERNAL', '동의를 확인하지 못했습니다');

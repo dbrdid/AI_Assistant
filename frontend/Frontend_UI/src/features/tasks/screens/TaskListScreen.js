@@ -1,5 +1,5 @@
 // ============================================================
-// TaskListScreen.js — 할 일 목록 (하단 탭 '할 일')
+// TaskListScreen.js — 할 일 목록
 // ============================================================
 // 진행 중인 항목을 날짜별로 묶어 보여 줍니다: 기한 지남 · 오늘 · 내일 · 이번 주 · 나중에
 // 왼쪽으로 밀면 내일(또는 하루 뒤)로 미루고, 완료·미루기는 '되돌리기'로 취소할 수 있어요.
@@ -195,10 +195,10 @@ const styles = StyleSheet.create({
   spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white },
   spaceChipOn: { borderColor: colors.mintDark, borderWidth: 2, backgroundColor: colors.mintSoft },
   spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '800', color: colors.ink },
-  list: { paddingHorizontal: spacing.lg, paddingBottom: 96, gap: spacing.lg },
+  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   group: { gap: spacing.sm },
   groupTitle: { fontSize: font.body, fontWeight: '800', color: colors.muted, marginLeft: 4 },
-  item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: 10, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
   body: { flex: 1, minHeight: 40, justifyContent: 'center', gap: 4 },
   title: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   titleDone: { color: colors.muted, textDecorationLine: 'line-through' },

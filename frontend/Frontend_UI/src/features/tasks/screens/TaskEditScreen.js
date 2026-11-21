@@ -2,7 +2,7 @@
 // TaskEditScreen.js — 일정/할 일 추가 · 편집
 // ============================================================
 // 맨 위에서 [일정 | 할 일]을 고르고, 자주 쓰는 칸만 먼저 보여 줍니다.
-//   일정  : 날짜 · 여러 날 · 종일 · 시간 · 알림 · 장소
+//   일정  : 날짜 · 끝나는 날짜(선택) · 종일 · 시간 · 알림 · 장소
 //   할 일 : 기한 · 시간(선택) · 알림
 // 중요도 · 상태 · 담당자 · 프로젝트 · 설명(할 일은 장소도)은 '더보기' 안에 접혀 있습니다.
 
@@ -108,7 +108,6 @@ export default function TaskEditScreen({ navigation, route }) {
   const set = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
   // 종일: 시간 없는 일정. 새 일정은 시간 있는 쪽으로 시작
   const [allDay, setAllDay] = useState(() => !!existing && existing.kind === 'event' && !existing.start);
-  const [multiDay, setMultiDay] = useState(() => !!existing?.endDate);
   // 프로젝트: 이 항목이 들어갈 프로젝트 (한 프로젝트에만 속함). 없으면 null
   const projects = useProjects();
   const [projectId, setProjectId] = useState(() => (existing ? projectOf('tasks', existing.id)?.id ?? null : null));
@@ -123,13 +122,13 @@ export default function TaskEditScreen({ navigation, route }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pending, setPending] = useState(null); // 겹침 확인 뒤 저장할 값
 
-  // 화면 상태(종일·여러 날)를 반영한 저장 값
+  // 화면 상태(종일·끝나는 날짜)를 반영한 저장 값
   const draft = () => ({
     ...f,
     title: f.title.trim(),
     start: isEvent && allDay ? '' : f.start,
     end: isEvent && allDay ? '' : f.end,
-    endDate: isEvent && multiDay ? f.endDate : '',
+    endDate: isEvent ? f.endDate : '',
   });
 
   const persist = (fields) => {
@@ -152,7 +151,7 @@ export default function TaskEditScreen({ navigation, route }) {
   const save = () => {
     const v = draft();
     if (!v.title) return setError('제목을 입력해 주세요.');
-    if (isEvent && multiDay && (!v.endDate || v.endDate <= v.date)) return setError('끝 날짜는 시작 날짜보다 뒤여야 해요.');
+    if (isEvent && v.endDate && v.endDate <= v.date) return setError('끝나는 날짜는 시작 날짜보다 뒤여야 해요.');
     if (v.end && !v.start) return setError('끝나는 시간만 있을 수 없어요. 시작 시간을 먼저 정해 주세요.');
     if (v.start && v.end && v.end <= v.start && !v.endDate) return setError('끝나는 시간은 시작 시간보다 뒤여야 해요.');
     setError('');
@@ -248,16 +247,8 @@ export default function TaskEditScreen({ navigation, route }) {
 
         {/* ---------- 날짜 · 시간 ---------- */}
         <View style={styles.group}>
-          <Line icon="calendar" label={isEvent ? (multiDay ? '시작' : '날짜') : '기한'} value={dateLabel(f.date)} onPress={() => setPicker('date')} />
-          {isEvent && (
-            <Line
-              icon="calendar"
-              muted={!multiDay}
-              label="여러 날"
-              right={<Toggle label="여러 날 일정" value={multiDay} onValueChange={(on) => { setMultiDay(on); if (on && (!f.endDate || f.endDate <= f.date)) set('endDate')(shiftKey(f.date, 1)); }} />}
-            />
-          )}
-          {isEvent && multiDay && <Line icon="calendar" label="끝" value={f.endDate ? dateLabel(f.endDate) : '날짜 선택'} onPress={() => setPicker('endDate')} />}
+          <Line icon="calendar" label={isEvent ? (f.endDate ? '시작 날짜' : '날짜') : '기한'} value={dateLabel(f.date)} onPress={() => setPicker('date')} />
+          {isEvent && <Line icon="calendar" muted={!f.endDate} label="끝나는 날짜" value={f.endDate ? dateLabel(f.endDate) : '선택 안 함'} onPress={() => setPicker('endDate')} />}
           {isEvent && <Line icon="clock" muted={!allDay} label="종일" right={<Toggle label="종일 일정" value={allDay} onValueChange={setAllDay} />} />}
           {!(isEvent && allDay) && (
             <View style={styles.lineBlock}>
@@ -328,6 +319,8 @@ export default function TaskEditScreen({ navigation, route }) {
           set('endDate')(k);
           setPicker(null);
         }}
+        onClear={f.endDate ? () => { set('endDate')(''); setPicker(null); } : undefined}
+        clearLabel="끝나는 날짜 지우기"
         onClose={() => setPicker(null)}
       />
       <TimePickerModal
@@ -421,8 +414,8 @@ const styles = StyleSheet.create({
   moreText: { flex: 1, fontSize: font.body, fontWeight: '800', color: colors.mintDark },
   flip: { transform: [{ rotate: '180deg' }] },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
-  save: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  save: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
   saveText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
-  del: { minHeight: 48, borderRadius: radius.card, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.coral, alignItems: 'center', justifyContent: 'center' },
+  del: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.coral, alignItems: 'center', justifyContent: 'center' },
   delText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.coral },
 });

@@ -19,7 +19,7 @@ function Shell({ visible, onClose, children }) {
   );
 }
 
-export function DatePickerModal({ visible, value, onPick, onClose }) {
+export function DatePickerModal({ visible, value, onPick, onClose, onClear, clearLabel }) {
   const base = value ? fromKey(value) : new Date();
   const [cur, setCur] = useState({ y: base.getFullYear(), m: base.getMonth() });
   const weeks = monthMatrix(cur.y, cur.m);
@@ -61,6 +61,11 @@ export function DatePickerModal({ visible, value, onPick, onClose }) {
           )}
         </View>
       ))}
+      {onClear && (
+        <Pressable accessibilityRole="button" accessibilityLabel={clearLabel} onPress={onClear} style={styles.closeBtn}>
+          <Text style={styles.closeText}>{clearLabel}</Text>
+        </Pressable>
+      )}
       <Pressable accessibilityRole="button" onPress={onClose} style={styles.closeBtn}><Text style={styles.closeText}>닫기</Text></Pressable>
     </Shell>
   );

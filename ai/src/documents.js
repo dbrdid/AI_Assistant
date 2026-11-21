@@ -39,14 +39,14 @@ function validateSummary(result, source) {
   return result;
 }
 
-// The injected provider is responsible for respecting cancellation.
+// 주입된 공급자는 취소 요청을 준수해야 합니다.
 export async function summarizeDocument(input, { provider, signal, timeoutMs = 30000 } = {}) {
   validateInput(input);
   if (!provider || typeof provider.generate !== 'function' ||
       !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 120000) {
     fail('INVALID_CONFIGURATION');
   }
-  // Snapshot inputs before async work so caller edits cannot change validation context.
+  // 비동기 작업 전에 입력을 복사해 호출자의 수정이 유효성 검사 기준을 바꾸지 않도록 합니다.
   const { documentId, revision, text } = input;
   const deadline = AbortSignal.timeout(timeoutMs);
   const combined = signal ? AbortSignal.any([signal, deadline]) : deadline;

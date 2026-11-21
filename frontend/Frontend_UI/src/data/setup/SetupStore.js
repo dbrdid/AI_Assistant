@@ -7,4 +7,4 @@ export const hasPurpose = (value, id) => String(value ?? '').split(',').includes
 export const togglePurpose = (value, id) => hasPurpose(value, id) ? String(value).split(',').filter(x => x !== id).join(',') : [value,id].filter(Boolean).join(',');
 export const isSetupDone = async () => readPreference('setup-done', false);
 export const markSetupDone = async () => writePreference('setup-done', true);
-export const createStarterMemos = () => []; // No fabricated user records on onboarding.
+export const createStarterMemos = () => []; // 온보딩 중에 사용자 기록을 임의로 만들지 않습니다.

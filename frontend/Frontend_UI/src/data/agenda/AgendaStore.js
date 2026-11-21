@@ -1,7 +1,7 @@
-// Agenda compare: what changed in a project's linked memos, tasks and files from one day to the next.
-//   Each time the screen opens, today's state of every project is recorded (per workspace, on this device, 30 days).
-//   A day is compared with the most recent earlier record. With no earlier record, items created or edited that
-//   day are listed by their timestamps.
+// 일정 비교: 프로젝트에 연결된 메모, 할 일, 파일이 하루 사이에 어떻게 바뀌었는지 확인합니다.
+// 화면을 열 때마다 각 프로젝트의 현재 상태를 기록합니다(작업 공간별, 이 기기에서 30일간 보관).
+// 해당 날짜를 그보다 앞선 가장 최근 기록과 비교합니다. 이전 기록이 없으면 그날 생성되거나 수정된 항목을
+// 타임스탬프 기준으로 표시합니다.
 import { list, maybeRuntime, readPreference, runtimeSubscribe, scoped, writePreference } from '../hooks';
 import { getProjects } from '../projects/ProjectStore';
 import { memoTitle } from '../memos/MemoStore';
@@ -10,7 +10,7 @@ import { toKey } from '../../features/calendar/utils/DateUtils';
 export const subscribeAgenda = runtimeSubscribe;
 const KEEP_DAYS = 30;
 const EMPTY = Object.freeze({});
-// readPreference caches the first fallback it is given for a key, so never trust the shape of a missing value.
+// readPreference는 키마다 처음 전달된 대체값을 캐시하므로, 값이 없을 때 대체값의 형태가 유효하다고 가정하지 않습니다.
 const readSnaps = () => readPreference(scoped('agenda-snapshots'), EMPTY) ?? EMPTY;
 const dayOf = ms => (ms ? toKey(new Date(ms)) : '');
 

@@ -26,10 +26,10 @@ export const colors = {
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 
 // 모서리 둥글기. 클수록 더 동그랗습니다.
-export const radius = { sm: 8, md: 14, lg: 20, card: 18, pill: 999 };
+export const radius = { sm: 8, md: 14, lg: 20, card: 20, pill: 999 };
 
 // 글자 크기
-export const font = { caption: 12, body: 14, bodyLg: 16, header: 17, title: 20, headline: 26 };
+export const font = { caption: 12, body: 14, bodyLg: 16, header: 20, title: 20, headline: 26 };
 
 // 카드 그림자 (Figma 시안의 아주 옅은 그림자). 웹/iOS 는 shadow*, 안드로이드는 elevation
 export const shadow = {

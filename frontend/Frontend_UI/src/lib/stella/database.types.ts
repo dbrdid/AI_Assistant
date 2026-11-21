@@ -8,8 +8,8 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  // createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY) 대신
+  // 올바른 옵션으로 createClient를 자동 인스턴스화할 수 있습니다.
   __InternalSupabase: {
     PostgrestVersion: "14.18"
   }

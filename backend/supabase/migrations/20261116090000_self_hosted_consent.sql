@@ -1,5 +1,5 @@
--- Existing URLs and quota RPC signatures stay unchanged. A self-hosted cloud
--- route requires its own consent; EXTERNAL_AI continues to mean third-party AI.
+-- 기존 URL과 할당량 RPC 시그니처는 유지합니다. 자체 호스팅 클라우드 경로는 별도 동의가 필요하며,
+-- EXTERNAL_AI는 계속 제3자 AI를 의미합니다.
 alter table public.consents drop constraint consents_consent_type_check;
 alter table public.consents add constraint consents_consent_type_check
   check (consent_type in ('TERMS','PRIVACY','EXTERNAL_AI','SERVER_AI','PERSONAL_SYNC','MARKETING'));

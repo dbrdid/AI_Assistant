@@ -48,7 +48,7 @@ export type AppRoleName = '관리자' | '멤버';
 /** 화면 이름 → 서버 역할 */
 export const APP_ROLE: Record<AppRoleName, Exclude<WorkspaceRole, 'VIEWER'>> = { 관리자: 'OWNER', 멤버: 'EDITOR' };
 export const roleLabel = (role: WorkspaceRole) => ROLE_LABEL[role];
-/** 관리자면 공간 '삭제', 멤버면 '나가기' 메뉴 (WorkspaceScreen과 같은 기준) */
+/** 관리자면 공간 '삭제', 멤버면 '나가기' 메뉴 (공간 홈과 같은 기준) */
 export const isAdmin = (role: WorkspaceRole) => role === 'OWNER';
 
 /** "11월 17일 오후 3:00" (한국 시간 기준, Intl 없이 계산) */

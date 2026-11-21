@@ -20,7 +20,7 @@ test('opening migrates once, turns foreign keys on and refuses a database from a
 test('createLocalStore needs an expo-sqlite style database and sane clock and id functions', () => {
   assert.throws(() => createLocalStore({}), /openDatabaseSync/);
   assert.throws(() => createLocalStore({ db: { execSync() {} } }), /openDatabaseSync/);
-  // A new database creates the personal workspace right away, so bad functions fail at open.
+  // 새 DB를 열 때 개인 작업 공간을 바로 생성하므로 잘못된 함수는 여는 시점에 실패합니다.
   assert.throws(() => createLocalStore({ db: openDatabaseSync(), now: () => 1.5 }), /integer milliseconds/);
   assert.throws(() => createLocalStore({ db: openDatabaseSync(), newId: () => 7 }), /UUID/);
   let late = 0;

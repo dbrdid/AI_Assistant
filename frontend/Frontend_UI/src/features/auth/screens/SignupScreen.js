@@ -57,7 +57,7 @@ export default function SignupScreen({ onBack, onVerify }) {
 
   return (
     <AuthFrame title="계정 만들기" onBack={onBack}>
-      <AuthField label="이메일" icon="mail" value={form.email} onChangeText={set('email')} keyboardType="email-address" placeholder="example@email.com" />
+      <AuthField label="이메일" value={form.email} onChangeText={set('email')} keyboardType="email-address" placeholder="example@email.com" />
       <AuthField label="이름" value={form.name} onChangeText={set('name')} autoCapitalize="words" placeholder="홍길동" />
       <AuthField label="비밀번호" value={form.password} onChangeText={set('password')} secure hint="영문 + 숫자 + 특수문자를 포함해 8자 이상" />
       <AuthField label="비밀번호 확인" value={form.confirm} onChangeText={set('confirm')} secure hint="영문 + 숫자 + 특수문자" />

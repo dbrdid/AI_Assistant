@@ -12,7 +12,7 @@ import { isUuid } from './validate.js';
 const AREAS = ['memos', 'tasks', 'proposals', 'workspaces', 'outbox'];
 const DB_METHODS = ['execSync', 'runSync', 'getFirstSync', 'getAllSync', 'withTransactionSync'];
 
-/** A random RFC 4122 version 4 id. Pass expo-crypto's randomUUID as newId on devices without crypto.randomUUID. */
+/** 임의의 RFC 4122 버전 4 ID입니다. crypto.randomUUID가 없는 기기에서는 expo-crypto의 randomUUID를 newId로 전달합니다. */
 export function defaultId() {
   const c = globalThis.crypto;
   if (c && typeof c.randomUUID === 'function') return c.randomUUID();
@@ -93,7 +93,7 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, timezo
   };
   const reportListenerError = onListenerError ?? (error => { queueMicrotask(() => { throw error; }); });
 
-  // Foreign keys are off per connection by default and cannot be switched inside a transaction.
+  // 외래 키는 기본적으로 연결별로 비활성화되어 있으며 트랜잭션 중에는 설정을 바꿀 수 없습니다.
   db.execSync('pragma foreign_keys = on');
   db.execSync('pragma journal_mode = wal');
   migrate(db, { now: clock, newId: nextId });
@@ -251,7 +251,7 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, timezo
   }
 
   const store = {
-    // memos
+    // 메모
     getMemos: () => (cache.memos ??= Object.freeze(memos.listMemos(ctx, false, reuse.memos))),
     getTrashedMemos: () => (cache.trashed ??= Object.freeze(memos.listMemos(ctx, true, reuse.trashed))),
     getMemo: memoId => memos.getMemo(ctx, memoId),
@@ -281,7 +281,7 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, timezo
     findOverlap: (fields, excludeId) => tasks.findOverlap(ctx, fields, excludeId),
     subscribeTasks: subscriber('tasks'),
 
-    // AI proposals
+    // AI 제안
     getProposals: () => (cache.proposals ??= Object.freeze(proposals.listProposals(ctx))),
     getProposal: proposalId => proposals.getProposal(ctx, proposalId),
     addProposals: items => edit(() => proposals.addProposals(ctx, items)),
@@ -348,7 +348,7 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, timezo
     getAccount: () => backup.getAccount(ctx),
     bindAccount: accountId => write(() => backup.bindAccount(ctx, accountId)),
 
-    /** Called with the changed areas after every committed change. */
+    /** 변경 사항이 커밋될 때마다 바뀐 영역을 전달해 호출합니다. */
     subscribe: subscriber(null),
   };
   return Object.freeze(store);

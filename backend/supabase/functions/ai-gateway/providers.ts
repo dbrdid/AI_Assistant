@@ -14,7 +14,7 @@ export function selectRoute(value: string | null): AIRoute {
   throw new Error('INVALID_AI_ROUTE');
 }
 
-/** Internal endpoint comes from deployment settings, never from the request. */
+/** 내부 엔드포인트는 요청이 아니라 배포 설정에서 가져옵니다. */
 export async function callSelfHosted(p: {
   origin: string; secret: string; instructions: string; input: string | unknown[];
   schema: unknown; maxOutputTokens: number; timeoutMs: number; fetchImpl?: typeof fetch;
@@ -24,7 +24,7 @@ export async function callSelfHosted(p: {
   try {
     url = new URL(p.origin);
     if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname !== '/') throw new Error();
-    // Plain HTTP is only for a local development host, not a remote deployment.
+    // 일반 HTTP는 원격 배포가 아닌 로컬 개발 호스트에서만 허용합니다.
     if (url.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) throw new Error();
   } catch { return { kind: 'error' as const, status: 503, code: 'SELF_HOSTED_NOT_CONFIGURED' }; }
   const controller = new AbortController();

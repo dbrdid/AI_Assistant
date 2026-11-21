@@ -9,8 +9,8 @@ export function buildApp({ config, provider, now = Date.now, fetchImpl }) {
   const app = Fastify({
     logger: false,
     bodyLimit: 49152,
-    // requestTimeout bounds receiving the request (slow-client guard). The socket idle timeout
-    // must outlast the model wait, or a slow/cold model load drops the connection with no response.
+    // requestTimeout은 요청 수신 시간을 제한합니다(느린 클라이언트 보호). 소켓 유휴 시간은
+    // 모델 응답을 기다리는 시간보다 길어야 합니다. 그렇지 않으면 모델 로드가 느리거나 오래 걸릴 때 응답 없이 연결이 끊깁니다.
     requestTimeout: 10000,
     connectionTimeout: (config.modelTimeoutMs ?? 30000) + 5000,
     keepAliveTimeout: 5000,
@@ -35,7 +35,7 @@ export function buildApp({ config, provider, now = Date.now, fetchImpl }) {
       status === 400 ? 'INVALID_REQUEST' : status === 413 ? 'PAYLOAD_TOO_LARGE' :
       status === 415 ? 'UNSUPPORTED_MEDIA_TYPE' : 'INTERNAL_ERROR';
     if (status === 429) reply.header('retry-after', code === 'RATE_LIMITED' ? '60' : '1');
-    // Never serialize error.message, validation details, headers or model/user text.
+    // error.message, 유효성 검사 세부 정보, 헤더, 모델/사용자 텍스트는 직렬화하지 않습니다.
     reply.code(status).send({ error: { code }, requestId: request.id });
   });
   app.setNotFoundHandler((request, reply) => {

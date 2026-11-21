@@ -1,4 +1,4 @@
--- Additive UI storage fields; existing status/lifecycle and permission model remain compatible.
+-- UI 저장 필드를 추가하며 기존 상태/수명 주기 및 권한 모델과의 호환성을 유지합니다.
 alter table public.workspaces add column description text
   constraint workspaces_description_length check (char_length(description) <= 120);
 alter table public.projects

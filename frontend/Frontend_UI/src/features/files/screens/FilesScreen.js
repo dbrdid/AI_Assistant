@@ -45,7 +45,9 @@ export default function FilesScreen({ navigation, route }) {
     try {
       if (tab === 'cloud') {
         const r = await pickAndUploadCloudFiles();
-        if (r.failed.length) alertUser('일부 파일을 올리지 못했어요', r.failed.map((f) => `${f.name}: ${f.message}`).join('\n'));
+        if (r.failed.length) {
+          alertUser(r.added ? '일부 파일을 올리지 못했어요' : '파일을 올리지 못했어요', r.failed.map((f) => `${f.name}: ${f.message}`).join('\n'));
+        }
       } else {
         await pickAndAddFiles();
       }
@@ -187,8 +189,8 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     gap: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: radius.card,
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.line,
     padding: spacing.lg,

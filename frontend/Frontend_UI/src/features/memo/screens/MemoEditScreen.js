@@ -35,7 +35,7 @@ import { ErrorModal } from '../../error/components/ErrorViews';
 import { classifyError, isOfflineMode } from '../../../services/device/Network';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import Icon from '../../../shared/components/Icon';
-import { CircleButton, PillButton } from '../../../shared/components/Ui';
+import { CircleButton } from '../../../shared/components/Ui';
 import { dateLabel } from '../components/MemoCard';
 
 // 펜 색 / 굵기 선택지
@@ -404,21 +404,20 @@ export default function MemoEditScreen({ navigation, route }) {
     setConfirmDelete(false);
     navigation.goBack();
   };
+  const onBack = () => {
+    flushRef.current?.();
+    navigation.goBack();
+  };
 
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       {/* 헤더 (여기에 밀기 제스처 연결. 입력창/필기 영역은 겹쳐서 제외) */}
       <View>
-        {/* 시안: 가운데 제목 없이 왼쪽 ‹ · 오른쪽 휴지통 + 완료 */}
+        {/* 제목 없이 왼쪽 ‹ · 오른쪽 휴지통 */}
         <ScreenHeader
           title=""
-          onBack={navigation.goBack}
-          right={
-            <>
-              {original && <CircleButton icon="trash" label="메모 삭제" onPress={() => setConfirmDelete(true)} />}
-              <PillButton label="완료" onPress={navigation.goBack} />
-            </>
-          }
+          onBack={onBack}
+          right={original && <CircleButton icon="trash" label="메모 삭제" onPress={() => setConfirmDelete(true)} />}
         />
       </View>
 
@@ -665,10 +664,11 @@ const styles = StyleSheet.create({
   editor: { flex: 1, paddingHorizontal: spacing.lg },
   titleInput: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '700',
     color: colors.ink,
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.sm,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
   },
   // 제목 아래: 프로젝트 알약 + 수정 시각
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingBottom: spacing.sm },
@@ -680,9 +680,9 @@ const styles = StyleSheet.create({
   bodyInput: {
     flex: 1, // 페이지(부모 View) 전체를 차지
     fontSize: font.bodyLg,
-    lineHeight: 26,
+    lineHeight: 24,
     color: colors.ink,
-    paddingTop: spacing.sm,
+    paddingTop: spacing.md,
   },
 
   // AI 요약 카드 (연한 민트 바탕)
@@ -745,7 +745,7 @@ const styles = StyleSheet.create({
 
   // 삭제 확인 창
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  dialog: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.sm },
+  dialog: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.sm },
   dialogTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
   dialogSub: { fontSize: font.body, color: colors.muted },
   dialogButtons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },

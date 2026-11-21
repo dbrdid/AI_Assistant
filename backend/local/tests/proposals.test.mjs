@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { setup, rejects, rejectsUnchanged, dump } from './helpers.mjs';
 import { candidatesToProposals, pendingOf } from '../src/index.js';
 
-// The shape AiExtract.extractFromText returns today, plus the source fields AiAnalyze adds.
+// 현재 AiExtract.extractFromText가 반환하는 형태에 AiAnalyze가 추가하는 출처 필드를 더한 값입니다.
 function found(memo, overrides = {}) {
   return { kind: 'event', title: '팀 회의', date: '2026-11-17', start: '10:00', end: '', place: '3층', assignee: '', evidence: '내일 10시 3층에서 팀 회의',
     sourceType: 'memo', sourceId: memo.id, sourceTitle: memo.title, ...overrides };

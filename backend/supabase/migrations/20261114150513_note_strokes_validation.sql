@@ -1,4 +1,4 @@
--- Match InkCanvas's stored stroke format so a malformed shared note cannot break rendering.
+-- InkCanvas의 획 저장 형식에 맞춰 잘못된 공유 메모가 렌더링을 중단시키지 않도록 합니다.
 create or replace function private.valid_note_strokes(p_strokes jsonb)
 returns boolean language plpgsql immutable strict set search_path = '' as $$
 declare s jsonb; point jsonb;

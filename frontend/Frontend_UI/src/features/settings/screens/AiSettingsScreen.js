@@ -13,7 +13,7 @@ export default function AiSettingsScreen({ navigation }) {
   return (
     <View style={styles.root}>
       <ScreenHeader title="AI 및 브리핑" onBack={navigation.goBack} />
-      <AiSettingsForm onOpenUsage={() => navigation.navigate(ROUTES.AiUsage)} />
+      <AiSettingsForm screenLayout onOpenUsage={() => navigation.navigate(ROUTES.AiUsage)} />
     </View>
   );
 }

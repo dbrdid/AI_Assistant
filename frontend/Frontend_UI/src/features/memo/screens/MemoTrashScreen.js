@@ -11,8 +11,6 @@ import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { deleteMemosForever, formatMD, memoTitle, restoreMemos, useTrashedMemos } from '../../../data/memos/MemoStore';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { projectOf } from '../../../data/projects/ProjectStore';
-import Icon from '../../../shared/components/Icon';
-import { CircleButton, Tag } from '../../../shared/components/Ui';
 
 export default function TrashScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -68,12 +66,14 @@ export default function TrashScreen({ navigation }) {
         onBack={navigation.goBack}
         right={
           !selecting && memos.length > 0 ? (
-            <CircleButton icon="checkSquare" label="메모 선택" onPress={() => setSelecting(true)} />
+            <Pressable accessibilityRole="button" accessibilityLabel="메모 선택" onPress={() => setSelecting(true)} hitSlop={10}>
+              <Text style={styles.headerBtn}>선택</Text>
+            </Pressable>
           ) : null
         }
       />
 
-      <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}>
+      <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + (selecting ? 64 : spacing.xl) }]}>
         <Text style={styles.count}>
           메모 {memos.length}개{selecting ? ` · ${ids.length}개 선택` : ' · 복구하거나 완전히 삭제할 수 있어요'}
         </Text>
@@ -101,18 +101,13 @@ export default function TrashScreen({ navigation }) {
                 }}
                 style={[styles.card, on && styles.cardOn]}
               >
-                {selecting && <Icon name={on ? 'checkSquare' : 'square'} size={24} color={on ? colors.mintDark : colors.muted} strokeWidth={on ? 2.2 : 1.8} />}
+                {selecting && <Text style={[styles.check, on && styles.checkOn]}>{on ? '☑' : '☐'}</Text>}
                 <View style={styles.info}>
                   <Text style={styles.title} numberOfLines={1}>{memoTitle(m)}</Text>
                   <Text style={styles.date}>삭제 {formatMD(m.deletedAt)} · 수정 {formatMD(m.updatedAt)}</Text>
-                  {projectOf('memos', m.id) && <Tag label={projectOf('memos', m.id).title} style={styles.tag} />}
+                  {projectOf('memos', m.id) && <Text style={styles.proj}>{projectOf('memos', m.id).title}</Text>}
                   {m.body.trim().length > 0 && <Text style={styles.body} numberOfLines={2}>{m.body}</Text>}
-                  {m.strokes && m.strokes.length > 0 && (
-                    <View style={styles.inkRow}>
-                      <Icon name="pencil" size={13} color={colors.mintDark} />
-                      <Text style={styles.ink}>손글씨 포함</Text>
-                    </View>
-                  )}
+                  {m.strokes && m.strokes.length > 0 && <Text style={styles.ink}>✎ 손글씨 포함</Text>}
                 </View>
               </Pressable>
             );
@@ -175,8 +170,9 @@ export default function TrashScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
-  list: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, gap: spacing.md },
-  count: { fontSize: font.caption, color: colors.muted },
+  headerBtn: { fontSize: font.bodyLg, fontWeight: '700', color: colors.mintDark, textAlign: 'right' },
+  list: { padding: spacing.lg, gap: spacing.md },
+  count: { fontSize: font.body, color: colors.muted },
 
   empty: { alignItems: 'center', paddingTop: 80, gap: spacing.sm },
   emptyTitle: { fontSize: font.title, fontWeight: '700', color: colors.ink },
@@ -186,19 +182,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: radius.card,
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.line,
     padding: spacing.lg,
   },
   cardOn: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
-  info: { flex: 1, gap: 6 },
-  title: { fontSize: font.header, fontWeight: '800', color: colors.ink },
+  check: { fontSize: 22, color: colors.muted },
+  checkOn: { color: colors.mintDark },
+  info: { flex: 1, gap: 4 },
+  title: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   date: { fontSize: font.caption, color: colors.muted },
   body: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
-  tag: { maxWidth: 200 },
-  inkRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  proj: { fontSize: font.caption, fontWeight: '700', color: colors.mintDark },
   ink: { fontSize: font.caption, color: colors.mintDark, fontWeight: '700' },
 
   notice: { position: 'absolute', left: spacing.lg, right: spacing.lg, alignItems: 'center' },

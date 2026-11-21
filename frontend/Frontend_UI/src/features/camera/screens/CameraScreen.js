@@ -6,7 +6,6 @@ import React, { useRef, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
-import { IconTile } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { addMemo, attachPhoto } from '../../../data/memos/MemoStore';
@@ -71,7 +70,7 @@ export default function CameraScreen({ navigation }) {
       <View style={styles.root}>
         <ScreenHeader title="카메라" onBack={navigation.goBack} />
         <View style={styles.center}>
-          <IconTile icon="camera" size={72} iconSize={34} />
+          <Text style={styles.big}>📷</Text>
           <Text style={styles.title}>카메라 권한이 필요해요</Text>
           <Text style={styles.sub}>사진을 찍어 메모나 프로젝트에 바로 넣을 수 있어요.</Text>
           {perm.canAskAgain ? (

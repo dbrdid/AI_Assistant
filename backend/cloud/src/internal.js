@@ -15,7 +15,7 @@ export function registerInternal(app, config, fetchImpl = fetch, capacity = { ac
       || !b.schema || typeof b.schema !== 'object' || Array.isArray(b.schema)
       || !Number.isSafeInteger(b.maxOutputTokens) || b.maxOutputTokens < 1 || b.maxOutputTokens > 16384
       || !Number.isSafeInteger(b.timeoutMs) || b.timeoutMs < 1 || b.timeoutMs > 120000) throw new ApiError(400, 'INVALID_REQUEST');
-    // The host refuses oversized work rather than silently truncating it. Token fit remains a model acceptance gate.
+    // 호스트는 지나치게 큰 입력을 조용히 자르는 대신 거부합니다. 토큰 제한 충족 여부는 계속 모델 승인 기준으로 사용합니다.
     if (capacity.active >= config.maxConcurrent) throw new ApiError(429, 'SERVER_BUSY');
     capacity.active++;
     const controller = new AbortController();

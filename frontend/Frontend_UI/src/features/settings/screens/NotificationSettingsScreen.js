@@ -100,5 +100,5 @@ export default function NotificationSettingsScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
-  note: { fontSize: font.caption, color: colors.muted, lineHeight: 18, marginHorizontal: spacing.xs },
+  note: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
 });

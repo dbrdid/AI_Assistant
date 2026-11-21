@@ -1,5 +1,5 @@
 // ============================================================
-// WorkspacePicker.js — 홈에서 바로 여는 "워크스페이스" 창
+// WorkspacePicker.js — 홈에서 바로 여는 워크스페이스 선택 창
 // ============================================================
 
 import React, { useState } from 'react';
@@ -32,10 +32,10 @@ export default function WorkspacePicker({ visible, onClose, navigation, onSwitch
   return (
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.root}>
-        <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="공간 선택 닫기" />
+        <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="워크스페이스 선택 닫기" />
         <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]} accessibilityViewIsModal>
           <View style={styles.grip} />
-          <Text style={styles.title}>공간 선택</Text>
+          <Text style={styles.title}>워크스페이스 선택</Text>
           <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ gap: spacing.sm }}>
             {list.map((w) => {
               const on = w.id === current.id;
@@ -67,8 +67,8 @@ export default function WorkspacePicker({ visible, onClose, navigation, onSwitch
               <Icon name="plus" size={18} color={colors.mintDark} />
               <Text style={styles.linkText}>새 워크스페이스</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => go(ROUTES.Workspace)} style={styles.link}>
-              <Text style={styles.linkText}>공간 관리</Text>
+            <Pressable accessibilityRole="button" onPress={() => go(ROUTES.Spaces)} style={styles.link}>
+              <Text style={styles.linkText}>워크스페이스 전환</Text>
             </Pressable>
           </View>
         </View>

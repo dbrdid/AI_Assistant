@@ -18,14 +18,14 @@ import { CircleButton } from '../../../shared/components/Ui';
 import MonthCalendar from './MonthCalendar';
 import DayAgenda from './DayAgenda';
 import CalendarSearch from './CalendarSearch';
-import { WEEKDAYS, formatLunar, isSameDay, toKey, fromKey } from '../utils/DateUtils';
+import { formatLunar, toKey, fromKey } from '../utils/DateUtils';
 import { getHolidays } from '../utils/Holidays';
 import { classify, searchTasks, shiftKey, useAllTasks } from '../../../data/tasks/TaskStore';
 import { useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import { SpaceDot } from '../../../shared/components/SpaceTag';
 
-// 닫혀 있을 때 화면 맨 아래에 보이는 높이 (손잡이 + '이번 주' 띠). HomeScreen 이 이 값을 가져다 구슬 위치를 맞춤
-export const GRAB_HEIGHT = 118;
+// 닫혀 있을 때 화면 맨 아래에 보이는 손잡이 높이. HomeScreen 이 구슬 위치 계산에도 사용합니다.
+export const GRAB_HEIGHT = 45;
 const HOME_BAR = 16;     // 홈 시트 맨 위 손잡이 막대 영역 높이
 const HALF_VISIBLE = 560; // "중간" 단계에서 화면에 보이는 시트 높이 (달력 한 달이 들어갈 정도)
 const FLING_MS = 150;    // 손을 뗄 때의 속도로 "150ms 뒤 위치"를 미리 계산 → 휙 던지면 더 멀리 가게 함
@@ -136,7 +136,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
       onPanResponderRelease: (_, g) => {
         dragging.current = false;
         const L = latest.current;
-        // 하단 탭의 캘린더(닫을 곳 없음): 끌어도 항상 끝까지 올라온 상태로 돌아감
+        // 닫을 수 없는 전체 화면 캘린더는 끌어도 항상 끝까지 올라온 상태로 돌아감
         if (L.startFull && !L.onClose) {
           L.snapTo('full');
           return;
@@ -164,9 +164,9 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
   }, [y]);
 
   // ---------- 4) 안드로이드 뒤로가기 버튼 ----------
-  // 시트가 열려 있을 때만: 뒤로가기를 누르면 시트를 닫음 (캘린더 화면 모드에서는 닫으면서 이전 화면으로 이동)
+  // 홈 시트는 단계만 닫고, 전체 화면 캘린더는 네비게이터가 뒤로가기를 처리합니다.
   useEffect(() => {
-    if (level === 'closed' || (startFull && !onClose)) return undefined; // 탭 캘린더: 뒤로가기는 내비게이터가 처리
+    if (level === 'closed' || (startFull && !onClose)) return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       snapTo('closed');
       return true; // true = "내가 처리했으니 기본 동작은 하지 마"
@@ -217,15 +217,6 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
     return m;
   }, [tasks, todayKey]);
 
-  // 홈에서 닫혀 있을 때 보이는 '이번 주' (오늘이 들어 있는 일~토)
-  const week = useMemo(() => {
-    const s = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay());
-    return Array.from({ length: 7 }, (_, i) => new Date(s.getFullYear(), s.getMonth(), s.getDate() + i));
-  }, [todayKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  const weekHolidays = useMemo(
-    () => ({ ...getHolidays(week[0].getFullYear()), ...getHolidays(week[6].getFullYear()) }),
-    [week],
-  );
   const matches = useMemo(() => (searching ? searchTasks(tasks, query) : []), [searching, tasks, query]);
   const highlight = useMemo(() => new Set(matches.map((t) => t.date)), [matches]);
   const closeSearch = () => {
@@ -241,27 +232,19 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
     extrapolate: 'clamp', // 범위 밖 값은 끝값으로 고정
   });
 
-  // '이번 주' 띠: 닫힘 위치 근처에서만 보이고, 위로 끌어올리면 서서히 사라짐 (홈 전용)
-  const peekOpacity = y.interpolate({
-    inputRange: [closedY - 90, closedY],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-  const showPeek = !startFull && level === 'closed';
-
   // 단계별 손잡이 안내 (화면 읽기 도우미용)
   const hint =
     level === 'closed'
-      ? '위로 밀어 캘린더 보기'
+      ? '↑ 위로 밀어 캘린더 보기'
       : level === 'half'
-        ? '끝까지 밀면 전체 화면, 아래로 밀어서 닫기'
-        : '아래로 밀어 닫기';
+        ? '↑ 끝까지 밀면 전체 화면 · ↓ 밀어서 닫기'
+        : '캘린더 · 아래로 밀어 닫기';
   const toggle = () => (level === 'closed' ? snapTo(startFull ? 'full' : 'half') : snapTo('closed'));
 
   // 제목 줄 위치: 캘린더 화면은 상단 안전영역 아래, 홈 시트는 손잡이 막대 아래
   const headTop = startFull ? insets.top + spacing.sm : HOME_BAR;
-  // '이번 주' 띠가 덮고 있을 때는 그 아래 제목 줄을 화면 읽기에서 숨김
-  const hideHead = showPeek ? { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' } : {};
+  const showHeader = startFull || level !== 'closed';
+  const collapsedHome = !startFull && level === 'closed';
 
   return (
     <>
@@ -283,48 +266,51 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
         {/* 손잡이 겸 제목 줄: 여기에 손가락 제스처(pan.panHandlers)를 연결 */}
         <View
           {...pan.panHandlers}
-          {...hideHead}
           accessible
           accessibilityRole="button"
           accessibilityLabel={level === 'closed' ? '캘린더 열기' : '캘린더 닫기'}
           accessibilityHint={hint}
           accessibilityActions={[{ name: 'activate' }]}
           onAccessibilityAction={toggle}
-          style={[styles.grab, { paddingTop: startFull ? headTop : 0 }]}
+          style={[styles.grab, collapsedHome && styles.grabHome, { paddingTop: startFull ? headTop : 0 }]}
         >
           {!startFull && (
             <View style={styles.barWrap}>
               <View style={styles.bar} />
             </View>
           )}
-          <View style={styles.headerRow}>
-            <Text style={styles.headerTitle}>캘린더</Text>
-          </View>
+          {showHeader ? (
+            <View style={styles.headerRow}>
+              <Text style={styles.headerTitle}>캘린더</Text>
+            </View>
+          ) : <Text style={styles.grabText}>{hint}</Text>}
         </View>
         {/* 제목 줄 왼쪽 버튼 (캘린더 화면의 ☰ 또는 ‹). 손잡이 위에 겹쳐 그려서 눌림을 먼저 받음 */}
-        {lead ? (
-          <View {...hideHead} style={[styles.side, styles.sideLeft, { top: headTop }]}>
+        {showHeader && lead ? (
+          <View style={[styles.side, styles.sideLeft, { top: headTop }]}>
             {lead}
           </View>
         ) : null}
         {/* 제목 줄 오른쪽: '오늘' 알약 + 검색 */}
-        <View {...hideHead} style={[styles.side, styles.sideRight, { top: headTop }]}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="오늘로 이동"
-            onPress={goToday}
-            hitSlop={6}
-            style={({ pressed }) => [styles.todayBtn, pressed && { backgroundColor: colors.mintSoft }]}
-          >
-            <Text style={styles.todayText}>오늘</Text>
-          </Pressable>
-          <CircleButton
-            icon={searching ? 'x' : 'search'}
-            label={searching ? '검색 닫기' : '일정 검색'}
-            onPress={() => (searching ? closeSearch() : setSearching(true))}
-            style={searching ? styles.searchOn : null}
-          />
-        </View>
+        {showHeader && (
+          <View style={[styles.side, styles.sideRight, { top: headTop }]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="오늘로 이동"
+              onPress={goToday}
+              hitSlop={6}
+              style={({ pressed }) => [styles.todayBtn, pressed && { backgroundColor: colors.mintSoft }]}
+            >
+              <Text style={styles.todayText}>오늘</Text>
+            </Pressable>
+            <CircleButton
+              icon={searching ? 'x' : 'search'}
+              label={searching ? '검색 닫기' : '일정 검색'}
+              onPress={() => (searching ? closeSearch() : setSearching(true))}
+              style={searching ? styles.searchOn : null}
+            />
+          </View>
+        )}
 
         {/* 달력 본문 */}
         <View style={{ flex: 1 }}>
@@ -387,57 +373,6 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
             </View>
           </MonthCalendar>
         </View>
-
-        {/* (c) 홈에서 닫혀 있을 때 보이는 '이번 주' 띠. 같은 제스처로 끌어올리거나, 누르면 열림 */}
-        {!startFull && (
-          <Animated.View
-            {...pan.panHandlers}
-            pointerEvents={showPeek ? 'auto' : 'none'}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel="이번 주 캘린더 열기"
-            accessibilityHint={hint}
-            accessibilityElementsHidden={!showPeek}
-            importantForAccessibility={showPeek ? 'yes' : 'no-hide-descendants'}
-            accessibilityActions={[{ name: 'activate' }]}
-            onAccessibilityAction={toggle}
-            // 아래 안전영역(홈 인디케이터)까지 흰 띠로 덮어야 밑의 달력이 비쳐 보이지 않음
-            style={[styles.peek, { height: GRAB_HEIGHT + insets.bottom, paddingBottom: insets.bottom, opacity: peekOpacity }]}
-          >
-            <View style={styles.barWrap}>
-              <View style={styles.bar} />
-            </View>
-            <View style={styles.peekHead}>
-              <Text style={styles.peekTitle}>이번 주</Text>
-              <Text style={styles.peekLink}>캘린더 열기</Text>
-            </View>
-            <View style={styles.peekRow}>
-              {WEEKDAYS.map((w, i) => (
-                <Text key={w} style={[styles.peekWeekday, i === 0 && { color: colors.coral }]}>
-                  {w}
-                </Text>
-              ))}
-            </View>
-            <View style={styles.peekRow}>
-              {week.map((d, i) => {
-                const k = toKey(d);
-                const isToday = isSameDay(d, today);
-                const red = i === 0 || !!weekHolidays[k]; // 일요일·공휴일은 코랄
-                return (
-                  <View key={k} style={styles.peekCell}>
-                    <View style={[styles.peekCircle, isToday && styles.peekToday]}>
-                      <Text style={[styles.peekDay, red && { color: colors.coral }, isToday && { color: colors.white }]}>
-                        {d.getDate()}
-                      </Text>
-                    </View>
-                    {/* 그날 일정이 있으면 작은 민트 점 */}
-                    <View style={[styles.peekDot, marks[k] && { backgroundColor: colors.mint }]} />
-                  </View>
-                );
-              })}
-            </View>
-          </Animated.View>
-        )}
       </Animated.View>
     </>
   );
@@ -463,11 +398,13 @@ const styles = StyleSheet.create({
   // 캘린더 화면: 화면 전체를 덮으므로 모서리를 둥글게 하지 않음
   sheetFull: { borderTopLeftRadius: 0, borderTopRightRadius: 0 },
   grab: { paddingBottom: spacing.md },
+  grabHome: { height: GRAB_HEIGHT, alignItems: 'center', justifyContent: 'center', gap: 6, paddingBottom: 0 },
   barWrap: { height: HOME_BAR, alignItems: 'center', justifyContent: 'center' },
   bar: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.line },
   // 제목 줄: 가운데 '캘린더', 양옆 버튼은 absolute 로 겹쳐 그림
   headerRow: { height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: font.header, fontWeight: '800', color: colors.ink },
+  grabText: { fontSize: font.caption, color: colors.muted, fontWeight: '600' },
   side: { position: 'absolute', height: 40, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   sideLeft: { left: spacing.lg },
   sideRight: { right: spacing.lg },
@@ -506,26 +443,4 @@ const styles = StyleSheet.create({
   spaceChipOff: { backgroundColor: colors.cream },
   spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '800', color: colors.ink },
 
-  // 홈의 '이번 주' 띠 (흰 바탕, 시트와 같은 둥근 위쪽)
-  peek: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: GRAB_HEIGHT,
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: spacing.lg,
-  },
-  peekHead: { height: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.sm },
-  peekTitle: { fontSize: 15, fontWeight: '800', color: colors.ink },
-  peekLink: { fontSize: 13, fontWeight: '800', color: colors.mintDark },
-  peekRow: { flexDirection: 'row' },
-  peekWeekday: { flex: 1, textAlign: 'center', fontSize: font.caption, fontWeight: '700', color: colors.muted, paddingVertical: 4 },
-  peekCell: { flex: 1, alignItems: 'center' },
-  peekCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  peekToday: { backgroundColor: colors.mintDark },
-  peekDay: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
-  peekDot: { width: 4, height: 4, borderRadius: 2, marginTop: 4, backgroundColor: 'transparent' },
 });

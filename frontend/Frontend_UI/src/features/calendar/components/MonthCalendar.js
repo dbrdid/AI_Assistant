@@ -1,7 +1,7 @@
 // ============================================================
 // MonthCalendar.js — "한 달 달력" 화면
 // ============================================================
-// Figma 시안: 왼쪽 큰 '2026년 11월' · 오른쪽 ‹ › 동그란 버튼 · 요일 줄 · 날짜 칸(선택 = 진녹색 동그라미)
+// Figma 시안: 가운데 큰 '2026년 11월' · 오른쪽 ‹ › 동그란 버튼 · 요일 줄 · 날짜 칸(선택 = 진녹색 동그라미)
 // 아래(children)에는 선택한 날의 일정 목록(흰 시트)이 붙습니다.
 
 import React, { useState } from 'react';
@@ -36,8 +36,9 @@ export default function MonthCalendar({
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.grid}>
-        {/* ---------- 1) 맨 위: 2026년 11월 ·  ‹ › ---------- */}
+        {/* ---------- 1) 맨 위: 가운데 연·월 · 오른쪽 ‹ › ---------- */}
         <View style={styles.head}>
+          <View style={styles.monthSideSpacer} />
           {/* 달 이름을 누르면 연·월을 골라서 이동. month 는 0~11 이라서 +1 */}
           <Pressable
             accessibilityRole="button"
@@ -49,7 +50,7 @@ export default function MonthCalendar({
             hitSlop={6}
             style={styles.monthBtnRow}
           >
-            <Text style={styles.month} accessibilityRole="header">{year}년 {month + 1}월</Text>
+            <Text style={styles.month} accessibilityRole="header" numberOfLines={1}>{year}년 {month + 1}월</Text>
             <Icon name="chevronDown" size={16} color={colors.muted} />
           </Pressable>
           <View style={styles.monthNav}>
@@ -178,11 +179,12 @@ const styles = StyleSheet.create({
   // flexGrow: 1 → 아래 일정 시트가 화면 맨 아래까지 늘어날 수 있게
   content: { flexGrow: 1 },
   grid: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
-  // 맨 위 줄: 왼쪽 달 이름, 오른쪽 ‹ › 버튼
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 40, marginBottom: spacing.md, paddingLeft: spacing.xs },
-  monthBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  // 양쪽 폭을 맞춰 달 이름이 화면 가운데에 오도록 함
+  head: { flexDirection: 'row', alignItems: 'center', minHeight: 40, marginBottom: spacing.md },
+  monthSideSpacer: { width: 80 },
+  monthBtnRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
   month: { fontSize: 23, fontWeight: '800', color: colors.ink },
-  monthNav: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  monthNav: { width: 80, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: spacing.sm },
   // 한 주(7칸)를 가로로 나란히
   weekRow: { flexDirection: 'row' },
   // flex: 1 → 7칸이 폭을 똑같이 나눠 가짐

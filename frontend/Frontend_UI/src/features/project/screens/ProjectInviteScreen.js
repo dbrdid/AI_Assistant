@@ -6,8 +6,6 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
-import Icon from '../../../shared/components/Icon';
-import { Chip } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { addInvite, getProject, isEmail, useInviteQuota, useProjects } from '../../../data/projects/ProjectStore';
 import { useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
@@ -64,17 +62,16 @@ export default function InviteScreen({ navigation, route }) {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.field}>
           <Text style={styles.label}>초대할 프로젝트</Text>
-          <View style={styles.box}>
-            <Icon name="folder" size={18} color={colors.mintDark} />
-            <Text style={styles.boxText} numberOfLines={1}>{project ? project.title : '프로젝트를 찾을 수 없어요'}</Text>
-          </View>
+          <View style={styles.box}><Text style={styles.boxText}>{project ? project.title : '프로젝트를 찾을 수 없어요'}</Text></View>
         </View>
 
         <View style={styles.field}>
           <Text style={styles.label}>초대 방법</Text>
           <View style={styles.chipRow}>
             {METHODS.map((m) => (
-              <Chip key={m} label={m} active={method === m} onPress={() => setMethod(m)} style={styles.chip} />
+              <Pressable key={m} accessibilityRole="button" accessibilityState={{ selected: method === m }} onPress={() => setMethod(m)} style={[styles.chip, method === m && styles.chipOn]}>
+                <Text style={[styles.chipText, method === m && { color: colors.white, fontWeight: '800' }]}>{m}</Text>
+              </Pressable>
             ))}
           </View>
         </View>
@@ -119,18 +116,20 @@ export default function InviteScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, gap: spacing.lg, paddingBottom: spacing.xxl },
+  content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl },
   field: { gap: spacing.sm },
   label: { fontSize: font.body, fontWeight: '700', color: colors.ink },
-  box: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radius.md, backgroundColor: colors.mintSoft, borderWidth: 1, borderColor: colors.mint, paddingHorizontal: spacing.lg },
-  boxText: { flex: 1, fontSize: font.bodyLg, fontWeight: '800', color: colors.mintDark },
+  box: { minHeight: 46, borderRadius: radius.md, backgroundColor: colors.mintSoft, borderWidth: 1, borderColor: colors.mint, paddingHorizontal: spacing.lg, justifyContent: 'center' },
+  boxText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.mintDark },
   chipRow: { flexDirection: 'row', gap: spacing.sm },
-  chip: { paddingHorizontal: spacing.xl },
+  chip: { minHeight: 40, paddingHorizontal: spacing.xl, borderRadius: 20, justifyContent: 'center', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  chipOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
+  chipText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   input: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
-  warn: { gap: spacing.sm, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  warn: { gap: spacing.sm, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
   warnText: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
   left: { fontSize: font.body, fontWeight: '800', color: colors.ink },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
-  send: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  send: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
   sendText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
 });

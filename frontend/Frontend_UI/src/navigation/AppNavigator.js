@@ -3,8 +3,7 @@
 // ============================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, StyleSheet, View } from 'react-native';
-import TabBar from './TabBar';
+import { BackHandler, PanResponder, StyleSheet, View } from 'react-native';
 import HomeScreen from '../features/home/screens/HomeScreen';
 import MoreScreen from '../features/more/screens/MoreScreen';
 import SpacesScreen from '../features/spaces/screens/SpacesScreen';
@@ -26,7 +25,6 @@ import ProjectDetailScreen from '../features/project/screens/ProjectDetailScreen
 import ProjectEditScreen from '../features/project/screens/ProjectEditScreen';
 import TeamScreen from '../features/project/screens/TeamScreen';
 import InviteScreen from '../features/project/screens/ProjectInviteScreen';
-import WorkspaceScreen from '../features/workspace/screens/WorkspaceScreen';
 import BackupScreen from '../features/backup/screens/BackupScreen';
 import AgendaCompareScreen from '../features/agenda/screens/AgendaCompareScreen';
 import CameraScreen from '../features/camera/screens/CameraScreen';
@@ -49,8 +47,8 @@ import WithdrawScreen from '../features/settings/screens/WithdrawScreen';
 import WorkspaceCreateScreen from '../features/workspace/screens/WorkspaceCreateScreen';
 import WorkspaceInviteScreen from '../features/workspace/screens/WorkspaceInviteScreen';
 import { colors, FILL } from '../shared/theme/theme';
-import { ROUTES } from './routes';
-import { ScreenEntryProvider } from './ScreenEntry';
+import { MENU_SECTIONS, ROUTES } from './routes';
+import SideMenu from './SideMenu';
 
 // ------------------------------------------------------------
 // 진짜로 만들어진 화면 목록: { 화면 이름: 화면 컴포넌트 }
@@ -63,7 +61,7 @@ const FavoritesScreen = (props) => <MemosScreen {...props} favoritesOnly />;
 
 const REAL_SCREENS = {
   [ROUTES.More]: MoreScreen,                               // '나' (홈 왼쪽 위 프로필)
-  [ROUTES.Spaces]: SpacesScreen,                           // 하단 탭 '공간'
+  [ROUTES.Spaces]: SpacesScreen,                           // 공간 목록
   [ROUTES.SpaceHome]: SpaceHomeScreen,                     // 공간 하나의 홈
   [ROUTES.QuickInput]: QuickInputScreen,                   // 더보기 > 사진 · 문서 올리기
   [ROUTES.NetworkError]: NetworkErrorScreen,               // 오류 안내 화면들
@@ -83,7 +81,6 @@ const REAL_SCREENS = {
   [ROUTES.Subscription]: SubscriptionScreen,               // 설정 > 구독 관리
   [ROUTES.Withdraw]: WithdrawScreen,                       // 설정 > 회원탈퇴
   [ROUTES.Backup]: BackupScreen,                   // 사이드 메뉴 "백업 · 복원"
-  [ROUTES.Workspace]: WorkspaceScreen,             // 사이드 메뉴 "워크스페이스 전환"
   [ROUTES.WorkspaceCreate]: WorkspaceCreateScreen, // 새 워크스페이스 만들기
   [ROUTES.WorkspaceInvite]: WorkspaceInviteScreen, // 초대 수락 / 만료
   [ROUTES.Calendar]: CalendarScreen, // 사이드 메뉴 "캘린더" + 홈 시트를 끝까지 올렸을 때
@@ -93,7 +90,7 @@ const REAL_SCREENS = {
   [ROUTES.MemoEdit]: MemoEditScreen, // 메모 작성/편집 (메모 화면의 ＋ 버튼, 메모 카드)
   [ROUTES.Files]: FilesScreen,       // 사이드 메뉴 "파일 보관함" + 검색/AI 결과에서 이동
   [ROUTES.Trash]: TrashScreen,       // 사이드 메뉴 "휴지통" + 메모 화면의 ⋮ 메뉴
-  [ROUTES.Favorites]: FavoritesScreen, // 사이드 메뉴 "즐겨찾기" + 메모 화면의 ⋮ 메뉴
+  [ROUTES.Favorites]: FavoritesScreen, // 즐겨찾기 메모 목록
   [ROUTES.Tasks]: TasksScreen,         // 사이드 메뉴 "할 일 목록"
   [ROUTES.TaskEdit]: TaskEditScreen,   // 일정/할 일 추가·편집
   [ROUTES.Briefing]: BriefingScreen,   // 오늘의 브리핑
@@ -107,6 +104,7 @@ const REAL_SCREENS = {
 export default function AppNavigator() {
   // history: 방문 기록. 맨 끝 요소가 "지금 보고 있는 화면". 처음엔 홈 하나.
   const [history, setHistory] = useState([{ name: ROUTES.Home, key: 0 }]);
+  const [menuVisible, setMenuVisible] = useState(false);
   const keyRef = useRef(0); // 화면마다 붙일 번호표
   const current = history[history.length - 1];
   const currentRoute = current.name;
@@ -164,22 +162,23 @@ export default function AppNavigator() {
     });
   }, []);
 
-  // 하단 탭 누름: 기록을 [홈, 그 탭] 으로 바꿈. 탭끼리는 쌓이지 않고, 탭에서 뒤로 가면 홈(오늘)으로 감.
-  // 이미 그 탭의 첫 화면이면 그대로 둠 (key 가 같아 다시 만들어지지 않음)
-  const selectTab = useCallback((route) => {
-    if (route === ROUTES.Home) return navigate(route);
-    setHistory((prev) => {
-      const top = prev[prev.length - 1];
-      if (prev.length === 2 && top.name === route && top.tab) return prev;
-      keyRef.current += 1;
-      return [{ name: ROUTES.Home, key: 0 }, { name: route, key: keyRef.current, tab: true }];
-    });
-  }, [navigate]);
-
   // 뒤로가기: 기록이 2개 이상일 때만 맨 끝을 제거
   const goBack = useCallback(() => {
     setHistory((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
   }, []);
+  const openMenu = useCallback(() => setMenuVisible(true), []);
+  const closeMenu = useCallback(() => setMenuVisible(false), []);
+  const swipeHandlers = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          gesture.dx > 12 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+        onPanResponderRelease: (_, gesture) => {
+          if (gesture.dx > 50 || gesture.vx > 0.5) openMenu();
+        },
+      }).panHandlers,
+    [openMenu],
+  );
 
   // 안드로이드 하드웨어 뒤로가기 버튼: 홈이 아니면 앱을 끄지 않고 이전 화면으로
   useEffect(() => {
@@ -211,23 +210,18 @@ export default function AppNavigator() {
   );
 
   // 각 화면에 넘겨줄 navigation 도구 (값이 바뀔 때만 새로 만듦)
-  const navigation = useMemo(() => ({ navigate, goBack }), [navigate, goBack]);
+  const navigation = useMemo(() => ({ navigate, goBack, openMenu }), [navigate, goBack, openMenu]);
   const onHome = currentRoute === ROUTES.Home;
-  // 탭 첫 화면(홈 포함)에서만 하단 탭을 보여 줌. 그 안에서 들어간 화면(편집 등)은 탭 없이 ‹ 로 돌아옴
-  const tabRoot = onHome || !!current.tab;
-  const entry = useMemo(() => ({ tabRoot, goBack }), [tabRoot, goBack]);
   // 지금 화면에 맞는 컴포넌트 선택: 등록된 진짜 화면이 있으면 그것, 없으면 임시 화면
   const Screen = REAL_SCREENS[currentRoute] || PlaceholderScreen;
 
   return (
-    <View style={styles.root}>
+    <View style={styles.root} {...swipeHandlers}>
       <View style={styles.stage}>
         {/* 홈 화면: 다른 화면으로 가도 "지우지 않고 숨기기만" 합니다(display: 'none').
             그래서 돌아왔을 때 쓰던 입력·스크롤 위치가 그대로 남아 있습니다. */}
         <View style={[styles.fill, !onHome && styles.hidden]}>
-          <ScreenEntryProvider value={HOME_ENTRY}>
-            <HomeScreen navigation={navigation} />
-          </ScreenEntryProvider>
+          <HomeScreen navigation={navigation} calendar={calendar} />
         </View>
 
         {/* 홈이 아닐 때만, 현재 화면을 홈 위에 보여줌.
@@ -235,24 +229,25 @@ export default function AppNavigator() {
             key 가 바뀌면(= 새로 이동하면) 화면이 새로 만들어집니다. */}
         {!onHome && (
           <View style={styles.fill}>
-            <ScreenEntryProvider value={entry}>
-              <Screen
-                key={current.key}
-                navigation={navigation}
-                calendar={calendar}
-                route={{ name: current.name, params: current.params }}
-              />
-            </ScreenEntryProvider>
+            <Screen
+              key={current.key}
+              navigation={navigation}
+              calendar={calendar}
+              route={{ name: current.name, params: current.params }}
+            />
           </View>
         )}
       </View>
-
-      {tabRoot && <TabBar current={currentRoute} onSelect={selectTab} />}
+      <SideMenu
+        visible={menuVisible}
+        onClose={closeMenu}
+        onNavigate={navigate}
+        currentRoute={currentRoute}
+        sections={MENU_SECTIONS}
+      />
     </View>
   );
 }
-
-const HOME_ENTRY = { tabRoot: true, goBack: null };
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },

@@ -18,7 +18,6 @@ export const ROUTES = {
   TaskEdit: 'TaskEdit',   // 일정/할 일 추가·편집 (캘린더·할 일 목록에서 이동)
   Briefing: 'Briefing',   // 오늘의 브리핑 (홈의 일정 개수 줄에서 이동)
   Favorites: 'Favorites', // 즐겨찾기
-  Workspace: 'Workspace', // 워크스페이스 전환
   WorkspaceCreate: 'WorkspaceCreate', // 새 워크스페이스 만들기
   WorkspaceInvite: 'WorkspaceInvite', // 워크스페이스 초대 수락/만료
   Files: 'Files',         // 파일 보관함
@@ -27,8 +26,8 @@ export const ROUTES = {
   Notices: 'Notices',     // 알림 (홈의 🔔)
   Proposals: 'Proposals',             // AI 제안 확인 목록 (검증 필요)
   ProposalConfirm: 'ProposalConfirm', // AI 제안 하나 확인
-  More: 'More',           // '나' (홈 왼쪽 위 프로필): AI · 도구 · 설정 모음
-  Spaces: 'Spaces',       // 하단 탭 '공간': 공간(팀) 목록
+  More: 'More',           // 홈 메뉴: 주요 화면 · AI · 도구 · 설정
+  Spaces: 'Spaces',       // 공간(팀) 목록
   SpaceHome: 'SpaceHome', // 공간 하나의 홈 (멤버 · 초대 · 프로젝트 · 일정 · 메모)
   Settings: 'Settings',   // 설정
   Account: 'Account',                 // 설정 > 계정(프로필 수정)
@@ -48,18 +47,66 @@ export const ROUTES = {
   QuickInput: 'QuickInput',       // 빠른 입력
 };
 
-// 하단 탭. 배열 순서 = 화면 왼쪽부터. icon 은 shared/components/Icon.js 이름
-//   오늘·캘린더·할 일·메모 = 모든 공간을 합친 "나" 보기 · 공간 = 공간(팀)별 홈
-export const TABS = [
-  { route: ROUTES.Home, label: '오늘', icon: 'home' },
-  { route: ROUTES.Calendar, label: '캘린더', icon: 'calendar' },
-  { route: ROUTES.Tasks, label: '할 일', icon: 'checkSquare' },
-  { route: ROUTES.Memos, label: '메모', icon: 'file' },
-  { route: ROUTES.Spaces, label: '공간', icon: 'users' },
+export const QUICK_ACTIONS = [
+  { route: ROUTES.AgendaCompare, label: '안건 비교', icon: '⇄' },
+  { route: ROUTES.Camera, label: '카메라', icon: '📷' },
+  { route: ROUTES.QuickInput, label: '빠른 입력', icon: '✏️' },
 ];
 
-// '나' 화면(홈 왼쪽 위 프로필)의 목록. 묶음(section)마다 한 카드로 보입니다
+export const MENU_SECTIONS = [
+  {
+    title: '바로가기',
+    items: [
+      { route: ROUTES.Home, label: '홈' },
+      { route: ROUTES.Calendar, label: '캘린더' },
+      { route: ROUTES.Tasks, label: '할 일 목록' },
+      { route: ROUTES.Memos, label: '메모' },
+      { route: ROUTES.Projects, label: '프로젝트' },
+    ],
+  },
+  {
+    title: 'AI',
+    items: [
+      { route: ROUTES.Ai, label: 'AI 채팅' },
+    ],
+  },
+  {
+    title: '도구',
+    items: [
+      { route: ROUTES.Search, label: '검색' },
+      { route: ROUTES.Favorites, label: '즐겨찾기' },
+      { route: ROUTES.Files, label: '파일 보관함' },
+      { route: ROUTES.Trash, label: '휴지통' },
+    ],
+  },
+  {
+    title: '공간',
+    items: [
+      { route: ROUTES.Spaces, label: '워크스페이스 전환' },
+    ],
+  },
+  {
+    title: '계정',
+    items: [
+      { route: ROUTES.More, label: '더보기' },
+      { route: ROUTES.Backup, label: '백업 · 복원' },
+      { route: ROUTES.Settings, label: '설정' },
+    ],
+  },
+];
+
+// 홈 메뉴('나') 화면의 항목. 묶음(section)마다 한 카드로 보입니다
 export const MORE_SECTIONS = [
+  {
+    title: '바로가기',
+    items: [
+      { route: ROUTES.Home, label: '오늘', icon: 'home' },
+      { route: ROUTES.Calendar, label: '캘린더', icon: 'calendar' },
+      { route: ROUTES.Tasks, label: '할 일', icon: 'checkSquare' },
+      { route: ROUTES.Memos, label: '메모', icon: 'file' },
+      { route: ROUTES.Spaces, label: '워크스페이스 전환', icon: 'users' },
+    ],
+  },
   {
     title: 'AI',
     items: [
@@ -87,4 +134,4 @@ export const MORE_SECTIONS = [
   },
 ];
 
-export const ROUTE_LABELS = { ...Object.fromEntries([...TABS, ...MORE_SECTIONS.flatMap((s) => s.items)].map((i) => [i.route, i.label])), [ROUTES.More]: '나' };
+export const ROUTE_LABELS = { ...Object.fromEntries(MORE_SECTIONS.flatMap((s) => s.items).map((i) => [i.route, i.label])), [ROUTES.More]: '나' };

@@ -14,7 +14,7 @@ import { startNotifier, stopNotifier } from './src/services/notify/NotifyEngine'
 // 로그인 상태에 따라 화면 고르기: 확인 중(로딩) / 로그인 전(로그인·가입) / 로그인 후(앱 본 화면)
 function Root() {
   const { status, user } = useAuth();
-  const [setup, setSetup] = useState('checking'); // 'checking' | 'needed' | 'done'  (로그인한 계정이 최초 설정을 마쳤는지)
+  const [setup, setSetup] = useState('checking'); // 상태: 확인 중 | 설정 필요 | 완료 (로그인한 계정의 최초 설정 완료 여부)
   const email = user ? user.email : '';
   useEffect(() => {
     let alive = true;
@@ -48,7 +48,7 @@ function Root() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      {/* 상태바(시계/배터리) 글자색을 어둡게 */}
+      {/* 상태 표시줄(시계/배터리) 글자색을 어둡게 */}
       <StatusBar style="dark" />
       <ErrorBoundary>
         <Root />

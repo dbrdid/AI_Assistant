@@ -155,7 +155,7 @@ useEffect(() => { const c = parseInviteCode(url); if (url?.includes('invite') &&
 const members = await listMembers(workspaceId, { activeOnly: true });   // 멤버 화면·담당자 선택
 await changeMemberRole(workspaceId, accountId, APP_ROLE['관리자']);     // 관리자만 (canManage(myRole)). 앱은 관리자↔멤버만
 await removeMember(workspaceId, accountId);
-// 공간 메뉴: isAdmin(myRole)이면 [삭제] deleteWorkspace, 아니면 [나가기] leaveWorkspace (WorkspaceScreen과 같은 기준)
+// 공간 메뉴: isAdmin(myRole)이면 [삭제] deleteWorkspace, 아니면 [나가기] leaveWorkspace (공간 홈과 같은 기준)
 await leaveWorkspace(workspaceId);   // 마지막 관리자면 LAST_OWNER → 다른 멤버를 관리자로 바꾸거나 deleteWorkspace
 // 관리자 넘기기: changeMemberRole(ws, 상대, 'OWNER') → leaveWorkspace(ws) 또는 changeMemberRole(ws, 나, 'EDITOR')
 ```
@@ -324,7 +324,7 @@ if (r.status === 'CONFLICT' && r.conflicts.some(isLeaderConflict)) {
 
 ### 프로젝트에 파일 직접 연결 (`project-team.ts`, 11/15, #29)
 
-메모를 거치지 않고 공유 공간 첨부를 프로젝트에 바로 연결해요 (ProjectDetailScreen `linkItems`의 파일 자리). 멤버 누구나 할 수 있어요.
+메모를 거치지 않고 공유 공간 첨부를 프로젝트에 바로 연결해요. 프로젝트 화면에서 기기 파일이나 보관함 파일을 공유 프로젝트에 추가하면 먼저 클라우드 첨부로 올린 뒤 `project_files`에 연결해 팀원에게도 보여요. 클라우드 파일은 프로젝트의 다운로드 아이콘으로 기기에 따로 저장할 수 있어요.
 
 ```ts
 import { uploadAttachment, projectFileChanges, projectFilesOf, projectOfFile } from '@/lib/stella';

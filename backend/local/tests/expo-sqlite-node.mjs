@@ -1,7 +1,7 @@
-// Test double for the expo-sqlite synchronous API (openDatabaseSync) over Node's built-in node:sqlite.
-// It implements only the methods the store uses, with the same names and result shapes, and is stricter than
-// expo-sqlite where the two could differ: parameters must be an array of string, finite number, null or Uint8Array
-// (no booleans or undefined), and a transaction cannot be nested. Tests only; the app passes the real expo-sqlite db.
+// Node 내장 node:sqlite로 expo-sqlite 동기 API(openDatabaseSync)를 대체하는 테스트 객체입니다.
+// 스토어가 사용하는 메서드만 같은 이름과 결과 형태로 구현하며, 차이가 날 수 있는 부분에서는 expo-sqlite보다 엄격합니다.
+// 매개변수는 문자열, 유한한 숫자, null 또는 Uint8Array로 이루어진 배열이어야 하며
+// (불리언과 undefined는 허용하지 않음), 트랜잭션을 중첩할 수 없습니다. 테스트 전용이며 앱은 실제 expo-sqlite DB를 사용합니다.
 import { DatabaseSync } from 'node:sqlite';
 
 function bind(params) {
@@ -15,7 +15,7 @@ function bind(params) {
 }
 
 export function openDatabaseSync(path = ':memory:', { onStatement } = {}) {
-  // node:sqlite turns foreign keys on by default; SQLite (and so expo-sqlite) leaves them off until the app asks.
+  // node:sqlite는 외래 키를 기본으로 활성화하지만 SQLite(따라서 expo-sqlite)는 앱에서 요청할 때까지 비활성화합니다.
   const db = new DatabaseSync(path, { enableForeignKeyConstraints: false });
   let inTransaction = false;
   const seen = sql => { if (onStatement) onStatement(sql); };

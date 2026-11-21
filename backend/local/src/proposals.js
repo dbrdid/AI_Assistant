@@ -5,7 +5,7 @@ import { addTask, findSameTask, getTask } from './tasks.js';
 
 const KINDS = ['event', 'task', 'memo'];
 const ITEM_FIELDS = ['kind', 'title', 'date', 'endDate', 'start', 'end', 'place', 'assignee', 'priority', 'body', 'evidence', 'sourceType', 'sourceId', 'sourceTitle', 'sourceRevision'];
-/** What the confirm screen may change before approving. Other keys in the edits (the screen spreads the whole proposal) are ignored. */
+/** 확인 화면에서 승인 전에 바꿀 수 있는 항목입니다. edits의 다른 키(화면은 제안 전체를 펼쳐 전달함)는 무시합니다. */
 const EDITABLE = ['kind', 'title', 'date', 'endDate', 'start', 'end', 'place', 'assignee', 'priority', 'body'];
 const COLUMNS = 'id,kind,title,date,end_date,start_time,end_time,place,assignee,priority,body,evidence,source_type,source_id,source_title,source_revision,status,result_kind,result_id,created_at,updated_at';
 const OPEN = "status in ('pending','hold')";
@@ -58,13 +58,13 @@ function checkItem(item) {
   return v;
 }
 
-/** Open proposals (waiting or on hold) of the current workspace, newest first. */
+/** 현재 작업 공간에서 대기 중이거나 보류 중인 제안을 최신순으로 가져옵니다. */
 export function listProposals(ctx) {
   return ctx.db.getAllSync(`select ${COLUMNS} from proposals where workspace_id=? and ${OPEN} order by created_at desc, id`, [ctx.ws()])
     .map(r => ctx.freeze(toProposal(r)));
 }
 
-/** An open proposal, or null once it was approved, rejected or replaced (the confirm screen shows "already handled"). */
+/** 처리 중인 제안을 반환합니다. 승인·거부·대체된 경우에는 null을 반환합니다(확인 화면에 "이미 처리됨"으로 표시). */
 export function getProposal(ctx, proposalId) {
   if (typeof proposalId !== 'string') return null;
   const r = ctx.db.getFirstSync(`select ${COLUMNS} from proposals where workspace_id=? and id=? and ${OPEN}`, [ctx.ws(), proposalId]);
@@ -72,11 +72,11 @@ export function getProposal(ctx, proposalId) {
 }
 
 /**
- * Stores AI suggestions as proposals waiting for the user. For a memo source the memo's revision is recorded:
- * pass sourceRevision = the revision the analysis read (memo.revision when the text was sent). Items whose memo is
- * gone, or has moved past that revision, are dropped as late results. Items equal to an open proposal of the same
- * source are skipped, and open proposals from an older revision of the same memo are replaced (superseded).
- * Returns the proposals added.
+ * AI 제안을 사용자가 확인할 수 있도록 대기 상태로 저장합니다. 메모에서 제안한 경우 메모의 리비전을 기록합니다.
+ * 분석에서 읽은 리비전(텍스트를 전송한 시점의 memo.revision)을 sourceRevision으로 전달합니다. 메모가 삭제되었거나
+ * 리비전이 달라진 항목은 늦게 도착한 결과로 보고 제외합니다. 같은 출처의 처리 중인 제안과 같은 항목은 건너뛰고,
+ * 같은 메모의 이전 리비전에서 생성된 처리 중 제안은 대체됨(superseded)으로 바꿉니다.
+ * 추가된 제안을 반환합니다.
  */
 export function addProposals(ctx, items) {
   if (!Array.isArray(items) || items.length > 100) fail('invalid_input', 'items');
@@ -119,10 +119,10 @@ function resultOf(ctx, row) {
 }
 
 /**
- * Saves a proposal as a task (kind event or task) or a memo (kind memo), after the user's edits, in one transaction
- * with the proposal's status. A proposal from a memo is refused with source_changed when the memo was edited or
- * deleted after the analysis. Approving again returns the item saved the first time instead of a second copy.
- * Returns the saved item with kind 'task' or 'memo'.
+ * 사용자가 수정한 제안을 일정 또는 할 일(kind event 또는 task), 메모(kind memo)로 저장하고 제안 상태도 한 트랜잭션에서
+ * 갱신합니다. 분석 후 메모가 수정되거나 삭제되었다면 메모에서 나온 제안은 source_changed 오류로 거부합니다.
+ * 다시 승인하면 중복 항목을 만들지 않고 처음 저장한 항목을 반환합니다.
+ * kind가 'task' 또는 'memo'인 저장 항목을 반환합니다.
  */
 export function approveProposal(ctx, proposalId, edits = {}) {
   id(proposalId);
@@ -159,7 +159,7 @@ export function approveProposal(ctx, proposalId, edits = {}) {
   return ctx.freeze({ ...saved, kind: resultKind, ...(resultKind === 'task' ? { taskKind: saved.kind } : {}) });
 }
 
-/** Moves an open proposal to 'pending', 'hold' or 'rejected'. */
+/** 처리 중인 제안의 상태를 'pending', 'hold' 또는 'rejected'로 바꿉니다. */
 export function setProposalStatus(ctx, proposalId, status) {
   id(proposalId);
   if (!['pending', 'hold', 'rejected'].includes(status)) fail('invalid_input', 'status');
@@ -172,21 +172,21 @@ export function setProposalStatus(ctx, proposalId, status) {
   return true;
 }
 
-/** The task a proposal would duplicate (same date and title), or null. Memo proposals have no duplicates. */
+/** 제안을 저장할 때 날짜와 제목이 같은 기존 할 일을 반환합니다. 중복이 없거나 메모 제안이면 null을 반환합니다. */
 export function findDuplicate(ctx, fields) {
   if (!isPlainObject(fields)) fail('invalid_input', 'fields');
   if (fields.kind === 'memo' || !fields.date || typeof fields.title !== 'string') return null;
   return findSameTask(ctx, dateKey(fields.date), fields.title);
 }
 
-/** Open proposals only (waiting or on hold); a helper for lists the screens already hold. */
+/** 대기 중이거나 보류 중인 제안만 필터링합니다. 화면에서 이미 보유한 목록에 사용합니다. */
 export function pendingOf(list) {
   return (Array.isArray(list) ? list : []).filter(p => p && (p.status === 'pending' || p.status === 'hold'));
 }
 
 /**
- * (팀 서버용) Turns the candidates of backend/cloud's POST /v1/ai/organize ({kind, title, dueDate, sourceQuote}, docs/SERVER.md)
- * into items for addProposals. `source` is { sourceType, sourceId, sourceTitle, sourceRevision }.
+ * (팀 서버용) backend/cloud의 POST /v1/ai/organize에서 받은 후보({kind, title, dueDate, sourceQuote}, docs/SERVER.md)를
+ * addProposals에 전달할 항목으로 변환합니다. `source`는 { sourceType, sourceId, sourceTitle, sourceRevision }입니다.
  */
 export function candidatesToProposals(candidates, source = {}) {
   if (!Array.isArray(candidates)) fail('invalid_input', 'candidates');

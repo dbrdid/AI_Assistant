@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   memo: { minHeight: 180, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, fontSize: font.bodyLg, color: colors.ink, lineHeight: 24 },
   counter: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
-  pick: { padding: spacing.xl, borderRadius: radius.card, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.mint, backgroundColor: colors.mintSoft, alignItems: 'center', gap: 4 },
+  pick: { padding: spacing.xl, borderRadius: radius.md, borderWidth: 2, borderStyle: 'dashed', borderColor: colors.mint, backgroundColor: colors.mintSoft, alignItems: 'center', gap: 4 },
   pickText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.mintDark },
   pickSub: { fontSize: font.caption, color: colors.muted, textAlign: 'center' },
   file: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },

@@ -5,7 +5,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
-import Icon from '../../../shared/components/Icon';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { toKey } from '../../calendar/utils/DateUtils';
 import { TYPE_INFO, openParams, useMemos } from '../../../data/memos/MemoStore';
@@ -130,14 +129,14 @@ export default function AgendaCompareScreen({ navigation, route }) {
 
             <View style={styles.dayRow}>
               <Pressable accessibilityRole="button" accessibilityLabel="이전 기록 날짜" disabled={idx <= 0} onPress={() => move(-1)} style={[styles.arrow, idx <= 0 && { opacity: 0.3 }]}>
-                <Icon name="chevronLeft" size={20} />
+                <Text style={styles.arrowText}>‹</Text>
               </Pressable>
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text style={styles.dayText}>{longDateKey(day)}{day === today ? ' (오늘)' : ''}</Text>
                 <Text style={styles.daySub}>{prevDay ? `${shortDateKey(prevDay)} 기록과 비교` : basis === 'timestamp' ? '이전 기록 없음 · 작성/수정 시각 기준' : ' '}</Text>
               </View>
               <Pressable accessibilityRole="button" accessibilityLabel="다음 기록 날짜" disabled={idx >= days.length - 1} onPress={() => move(1)} style={[styles.arrow, idx >= days.length - 1 && { opacity: 0.3 }]}>
-                <Icon name="chevronRight" size={20} />
+                <Text style={styles.arrowText}>›</Text>
               </Pressable>
             </View>
 
@@ -236,6 +235,7 @@ const styles = StyleSheet.create({
   chipText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   dayRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   arrow: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  arrowText: { fontSize: 24, color: colors.ink, marginTop: -2 },
   dayText: { fontSize: font.title, fontWeight: '800', color: colors.ink },
   daySub: { fontSize: font.caption, color: colors.muted },
   summary: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.mintSoft, alignItems: 'center', gap: 4 },

@@ -5,7 +5,6 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
-import Icon from '../../../shared/components/Icon';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { pendingOf, useProposals } from '../../../data/proposals/ProposalStore';
@@ -17,7 +16,7 @@ function Section({ title, count, open, onToggle, children }) {
     <View style={styles.section}>
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={onToggle} style={styles.sectionHead}>
         <Text style={styles.sectionTitle}>{title} {count}</Text>
-        <Icon name="chevronDown" size={18} color={colors.muted} style={open ? styles.flip : undefined} />
+        <Text style={styles.chev}>{open ? '▴' : '▾'}</Text>
       </Pressable>
       {open && <View style={{ gap: spacing.sm }}>{children}</View>}
     </View>
@@ -62,21 +61,12 @@ export default function BriefingScreen({ navigation }) {
         ) : (
           <>
             <View style={styles.section}>
-              <View style={styles.headLeft}>
-                <Icon name="calendar" size={18} color={colors.mintDark} />
-                <Text style={styles.sectionTitle}>오늘 일정 {today.length}</Text>
-              </View>
+              <Text style={styles.sectionTitle}>오늘 일정 {today.length}</Text>
               {today.length === 0 ? <Text style={styles.rowMeta}>오늘 일정이 없어요</Text> : today.map(row)}
             </View>
             {proposals.length > 0 && (
               <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.Proposals)} style={styles.section}>
-                <View style={styles.sectionHead}>
-                  <View style={styles.headLeft}>
-                    <Icon name="sparkles" size={18} color={colors.mintDark} />
-                    <Text style={styles.sectionTitle}>검증 필요 {proposals.length}</Text>
-                  </View>
-                  <Icon name="chevronRight" size={18} color={colors.muted} />
-                </View>
+                <Text style={styles.sectionTitle}>검증 필요 {proposals.length}  ›</Text>
                 <Text style={styles.rowMeta}>AI가 찾은 일정·할 일을 확인해 주세요</Text>
               </Pressable>
             )}
@@ -95,17 +85,16 @@ export default function BriefingScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
-  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
+  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
   date: { fontSize: font.body, color: colors.muted },
   empty: { fontSize: font.bodyLg, color: colors.muted, textAlign: 'center', paddingVertical: spacing.xxl },
-  section: { gap: spacing.sm, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  headLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 28 },
+  section: { gap: spacing.sm },
+  sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 36 },
   sectionTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
-  flip: { transform: [{ rotate: '180deg' }] },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.cream, borderWidth: 1, borderColor: colors.line },
+  chev: { fontSize: 16, color: colors.muted },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
   rowTime: { minWidth: 48, fontSize: font.body, fontWeight: '800', color: colors.mintDark },
-  rowTitle: { fontSize: font.body, fontWeight: '800', color: colors.ink },
+  rowTitle: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   rowMeta: { fontSize: font.caption, color: colors.muted },
   done: { color: colors.muted, textDecorationLine: 'line-through' },
 });

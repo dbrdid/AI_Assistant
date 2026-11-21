@@ -9,7 +9,7 @@ try {
   await app.listen({ host: config.host, port: config.port });
   console.info('AI API listening; request logging disabled.');
 } catch {
-  // Configuration and upstream errors may contain credentials. Do not print them.
+  // 설정 및 상위 서비스 오류에 인증 정보가 포함될 수 있으므로 출력하지 않습니다.
   console.error('AI API startup failed. Check configuration and port availability.');
   process.exitCode = 1;
 }

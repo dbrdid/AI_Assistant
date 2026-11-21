@@ -1,9 +1,9 @@
-// Projects, team members and project invites.
-//   Shared workspace: the server is the source of truth. Edits go to the sync engine (local-sync saveLocal) and are
-//   pushed with the bridge, exactly like memos and tasks. Reads come from the engine's records (pending edits included).
-//   Personal workspace: never synced (same rule as memos and tasks), so projects stay on this device only.
-//   Task links use the task's own projectId (synced with the task). Memo links use the server's note_projects in a
-//   shared workspace. File links stay on this device: files in the vault are device files, not uploaded attachments.
+// 프로젝트, 팀 구성원, 프로젝트 초대를 관리합니다.
+//   공유 작업 공간에서는 서버가 기준 데이터입니다. 변경 사항은 동기화 엔진(local-sync의 saveLocal)에 전달한 뒤
+//   메모 및 할 일과 동일하게 브리지를 통해 전송합니다. 읽기는 엔진 레코드(전송 대기 중인 변경 포함)를 사용합니다.
+//   개인 작업 공간은 메모 및 할 일과 마찬가지로 동기화하지 않으므로 프로젝트는 이 기기에만 저장됩니다.
+//   할 일 링크는 할 일 자체의 projectId(할 일과 함께 동기화)를 사용합니다. 공유 작업 공간의 메모 링크는 서버의
+//   note_projects를 사용합니다. 기기 파일은 로컬에 두고, 공유 프로젝트 첨부 파일은 project_files를 통해 구성원 모두와 동기화합니다.
 import { randomUUID } from 'expo-crypto';
 import {
   list, saveList, scoped, useValue, runtime, maybeRuntime, runtimeSubscribe, readPreference, writePreference, emitRuntime, syncContext,
@@ -12,7 +12,7 @@ import * as engine from '../../lib/stella/local-sync';
 import { supabase } from '../../lib/stella/supabase';
 import {
   LEADER_ROLE, canManageProject, createProjectInvite, getProjectInviteQuota, isLeaderConflict, newProjectChanges,
-  pendingInvites, projectInviteShareText, teamChanges, teamErrorMessage, wouldRemoveAllLeaders,
+  pendingInvites, projectFileChanges, projectFilesOf, projectOfFile, projectInviteShareText, teamChanges, teamErrorMessage, wouldRemoveAllLeaders,
 } from '../../lib/stella/project-team';
 import { inviteMailErrorMessage, sendInviteMail } from '../../lib/stella/invite-mail';
 import { alertUser } from '../alert';
@@ -22,14 +22,14 @@ export const isEmail = value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 const EMPTY = Object.freeze([]);
 const EMPTY_LINKS = Object.freeze({ memos: Object.freeze({}), files: Object.freeze({}) });
-const EMPTY_SHARED = Object.freeze({ projects: EMPTY, members: EMPTY, invites: EMPTY, noteLinks: EMPTY, mark: '' });
+const EMPTY_SHARED = Object.freeze({ projects: EMPTY, members: EMPTY, invites: EMPTY, noteLinks: EMPTY, projectFiles: EMPTY, mark: '' });
 const FIELDS = ['title', 'due', 'priority', 'status', 'alarm', 'assignee', 'place', 'desc'];
 const KIND = { memo: 'memos', memos: 'memos', task: 'tasks', tasks: 'tasks', file: 'files', files: 'files' };
 const kindOf = kind => KIND[kind] ?? (() => { throw new Error(`알 수 없는 항목 종류: ${kind}`); })();
 const pickFields = fields => Object.fromEntries(FIELDS.filter(k => k in (fields ?? {})).map(k => [k, fields[k] ?? '']));
 
 // ---------------------------------------------------------------------
-// Shared workspace cache (engine records → synchronous reads for the screens)
+// 공유 작업 공간 캐시(엔진 레코드를 화면에서 동기식으로 읽을 수 있게 함)
 // ---------------------------------------------------------------------
 let shared = new Map();
 let sharedSession = null;
@@ -45,7 +45,7 @@ function sharedEntry(rt, serverId) {
 
 async function readShared(rt, serverId) {
   const out = {};
-  for (const [key, entity] of [['projects', 'projects'], ['members', 'project_members'], ['invites', 'project_invites'], ['noteLinks', 'note_projects']]) {
+  for (const [key, entity] of [['projects', 'projects'], ['members', 'project_members'], ['invites', 'project_invites'], ['noteLinks', 'note_projects'], ['projectFiles', 'project_files']]) {
     out[key] = (await engine.listLocal(rt.syncDb, serverId, entity)).map(r => r.data);
   }
   return out;
@@ -54,14 +54,18 @@ async function readShared(rt, serverId) {
 function refreshShared(serverId) {
   if (inflight.has(serverId)) { again.add(serverId); return inflight.get(serverId); }
   const run = (async () => {
-    const rt = maybeRuntime();
-    if (!rt) return;
-    const next = await readShared(rt, serverId);
-    if (maybeRuntime() !== rt || sharedSession !== rt.session.id) return;
-    const mark = JSON.stringify(next);
-    if (shared.get(serverId)?.mark === mark) return;
-    shared.set(serverId, Object.freeze({ ...next, mark }));
-    emitRuntime();
+    do {
+      again.delete(serverId);
+      const rt = maybeRuntime();
+      if (!rt) return;
+      const next = await readShared(rt, serverId);
+      if (maybeRuntime() !== rt || sharedSession !== rt.session.id) return;
+      const mark = JSON.stringify(next);
+      if (shared.get(serverId)?.mark !== mark) {
+        shared.set(serverId, Object.freeze({ ...next, mark }));
+        emitRuntime();
+      }
+    } while (again.has(serverId));
   })().catch(error => console.warn('[projects] 동기화 기록을 읽지 못했습니다', error)).finally(() => {
     inflight.delete(serverId);
     if (again.delete(serverId)) void refreshShared(serverId);
@@ -70,7 +74,7 @@ function refreshShared(serverId) {
   return run;
 }
 
-// Re-read after any runtime change (bridge results arrive this way). Coalesced so typing does not hammer the DB.
+// 런타임 변경(브리지 결과 포함) 후 다시 읽습니다. 입력 중 DB를 과도하게 조회하지 않도록 요청을 합칩니다.
 let refreshTimer = null;
 runtimeSubscribe(() => {
   if (refreshTimer) return;
@@ -83,9 +87,9 @@ runtimeSubscribe(() => {
 });
 
 // ---------------------------------------------------------------------
-// Reads
+// 읽기
 // ---------------------------------------------------------------------
-// readPreference caches the first fallback it is given for a key, so never trust the shape of a missing value.
+// readPreference는 키마다 처음 전달된 대체값을 캐시하므로, 값이 없을 때 대체값의 형태가 유효하다고 가정하지 않습니다.
 const readLinks = () => readPreference(scoped('project-links'), EMPTY_LINKS) ?? EMPTY_LINKS;
 const writeLinks = links => writePreference(scoped('project-links'), links);
 const keysFor = (map, projectId) => Object.keys(map).filter(id => map[id] === projectId);
@@ -122,7 +126,10 @@ function buildShared(rt, entry, tasks, links) {
       links: {
         memos: entry.noteLinks.filter(l => l.project_id === row.id).map(l => l.note_id),
         tasks: byTask[row.id] ?? EMPTY,
-        files: keysFor(links.files, row.id),
+        files: [...new Set([
+          ...projectFilesOf(entry.projectFiles.map(data => ({ data })), row.id).map(file => file.asset_id),
+          ...keysFor(links.files, row.id),
+        ])],
       },
     }));
 }
@@ -147,18 +154,18 @@ export const getProject = id => getProjects().find(p => p.id === id) ?? null;
 export const projectOf = (kind, id) => getProjects().find(p => p.links[kindOf(kind)].includes(id)) ?? null;
 
 // ---------------------------------------------------------------------
-// Write helpers
+// 쓰기 도우미
 // ---------------------------------------------------------------------
 const messageOf = error => {
   const team = teamErrorMessage(error);
   return team.startsWith('요청을 처리하지 못했어요') ? String(error?.message ?? error) : team;
 };
-// Screens call these synchronously. Report failures instead of throwing into a press handler.
+// 화면에서는 동기식으로 호출합니다. 누르기 이벤트 핸들러에 예외를 던지는 대신 실패를 반환합니다.
 function safely(fn, fallback = null) {
   try { return fn(); } catch (error) { alertUser('저장하지 못했어요', messageOf(error)); return fallback; }
 }
-function background(promise) {
-  promise.catch(error => alertUser('서버에 저장하지 못했어요', messageOf(error)));
+function background(promise, onError = error => alertUser('서버에 저장하지 못했어요', messageOf(error))) {
+  promise.catch(onError);
 }
 function current() {
   const rt = runtime();
@@ -178,12 +185,14 @@ const myName = () => {
   return (s.profile?.name || '나').slice(0, 20);
 };
 
-// Hand changes to the sync engine, then push. `before` first hands pending memo/task saves over so links never
-// reach the server before the record they point at.
-async function pushShared(rt, ws, changes, { before = false } = {}) {
+// 변경 사항을 동기화 엔진에 전달한 뒤 서버로 보냅니다. `before`는 먼저 전송 대기 중인 메모/할 일 저장을 넘겨
+// 링크가 대상 레코드보다 먼저 서버에 도착하지 않도록 합니다.
+async function pushShared(rt, ws, changes, { before = false, localSaved = false } = {}) {
   if (!changes.length) return;
   if (before) await rt.bridge.syncWorkspace(ws.id);
-  for (let i = 0; i < changes.length; i += 100) await engine.saveLocal(syncContext(ws.serverId), changes.slice(i, i + 100));
+  if (!localSaved) {
+    for (let i = 0; i < changes.length; i += 100) await engine.saveLocal(syncContext(ws.serverId), changes.slice(i, i + 100));
+  }
   await refreshShared(ws.serverId);
   const result = await rt.bridge.syncWorkspace(ws.id);
   await refreshShared(ws.serverId);
@@ -196,9 +205,9 @@ async function pushShared(rt, ws, changes, { before = false } = {}) {
 }
 
 // ---------------------------------------------------------------------
-// Projects
+// 프로젝트
 // ---------------------------------------------------------------------
-export const addProject = fields => safely(() => {
+export async function addProject(fields) {
   const { rt, ws } = current();
   const id = randomUUID();
   const me = { accountId: rt.session.id, name: myName(), memberId: randomUUID() };
@@ -211,9 +220,16 @@ export const addProject = fields => safely(() => {
   }
   guardShared(ws);
   const data = rt.store.serverMap.projectData(values);
-  background(pushShared(rt, ws, newProjectChanges(id, data, me)));
+  const changes = newProjectChanges(id, data, me);
+  sharedEntry(rt, ws.serverId);
+  await engine.saveLocal(syncContext(ws.serverId), changes);
+  await refreshShared(ws.serverId);
+  background(
+    pushShared(rt, ws, changes, { localSaved: true }),
+    error => alertUser('프로젝트는 기기에 저장됐어요', `서버 동기화에 실패했습니다. 연결이 복구되면 다시 시도해 주세요.\n${messageOf(error)}`),
+  );
   return { id, ...values };
-});
+}
 
 export const updateProject = (id, fields) => safely(() => {
   const { rt, ws } = current();
@@ -246,7 +262,7 @@ export const deleteProject = id => safely(() => {
 }, false);
 
 // ---------------------------------------------------------------------
-// Links (one project per item, like the screens show)
+// 링크(화면 표시와 같이 항목 하나당 프로젝트 하나)
 // ---------------------------------------------------------------------
 function setLinks(projectId, kind, ids) {
   const { rt, ws } = current();
@@ -280,8 +296,27 @@ export const linkItems = (projectId, kind, ids) => safely(() => setLinks(project
 export const unlinkItems = (kind, ids) => safely(() => setLinks(null, kind, ids), false);
 export const setItemProject = (kind, id, projectId) => safely(() => setLinks(projectId || null, kind, [id]), false);
 
+export async function linkProjectFiles(projectId, assetIds) {
+  const { rt, ws } = current();
+  if (ws.personal) throw new Error('공유 프로젝트에서만 클라우드 파일을 연결할 수 있어요');
+  guardShared(ws);
+  const rows = await engine.listLocal(rt.syncDb, ws.serverId, 'project_files');
+  const changes = [...new Set(assetIds)].flatMap(id => projectFileChanges.move(id, projectOfFile(rows, id), projectId));
+  await pushShared(rt, ws, changes, { before: true });
+}
+
+export async function unlinkProjectFiles(projectId, assetIds) {
+  const { rt, ws } = current();
+  if (ws.personal) throw new Error('공유 프로젝트에서만 클라우드 파일 연결을 해제할 수 있어요');
+  guardShared(ws);
+  const rows = await engine.listLocal(rt.syncDb, ws.serverId, 'project_files');
+  const linked = new Set(projectFilesOf(rows, projectId).map(file => file.asset_id));
+  const changes = [...new Set(assetIds)].filter(id => linked.has(id)).flatMap(id => projectFileChanges.unlink(projectId, id));
+  await pushShared(rt, ws, changes, { before: true });
+}
+
 // ---------------------------------------------------------------------
-// Team members
+// 팀 구성원
 // ---------------------------------------------------------------------
 function editPersonalMembers(edit) {
   saveList('projects', edit(list('projects')));
@@ -290,7 +325,7 @@ function editPersonalMembers(edit) {
 
 export const updateMember = (projectId, memberId, fields) => safely(() => {
   const { rt, ws } = current();
-  const changes = teamChanges.edit(memberId, { name: fields.name, role: fields.role }); // validates both spaces
+  const changes = teamChanges.edit(memberId, { name: fields.name, role: fields.role }); // 두 공간의 유효성을 검사합니다.
   if (ws.personal) {
     const data = changes[0].data;
     return editPersonalMembers(rows => rows.map(p => (p.id !== projectId ? p
@@ -329,7 +364,7 @@ export const removeMembers = (projectId, ids) => safely(() => {
 }, false);
 
 // ---------------------------------------------------------------------
-// Invites (server only: a personal project has no server record to invite into)
+// 초대(서버에서만 처리: 개인 프로젝트에는 초대 대상이 될 서버 레코드가 없음)
 // ---------------------------------------------------------------------
 let quota = null;
 let quotaLoading = false;
@@ -345,14 +380,14 @@ function loadQuota() {
 export function invitesLeft() { if (!quota) loadQuota(); return quota?.remaining ?? 0; }
 export function monthlyInvites() { if (!quota) loadQuota(); return quota?.limit ?? 0; }
 export const inviteQuotaLoaded = () => quota !== null;
-// Re-renders when the server quota arrives: { limit, used, remaining } or null while loading
+// 서버의 할당량 정보가 도착하면 다시 렌더링합니다: { limit, used, remaining }, 로딩 중에는 null
 export const useInviteQuota = () => useValue(() => { if (!quota) loadQuota(); return quota; });
 
 export async function addInvite(projectId, { email, method }) {
   const { rt, ws } = current();
   if (ws.personal) throw new Error('개인 공간의 프로젝트는 이 기기에만 있어서 초대할 수 없어요. 공유 공간에서 프로젝트를 만들어 주세요');
   guardManage(rt, ws, projectId);
-  // The invite RPC needs the project on the server: push pending saves first.
+  // 초대 RPC를 호출하려면 프로젝트가 서버에 있어야 하므로 대기 중인 저장부터 전송합니다.
   await rt.bridge.syncWorkspace(ws.id);
   const record = await engine.getLocal(rt.syncDb, ws.serverId, 'projects', projectId);
   if (!record || record.pending) throw new Error('프로젝트가 아직 서버에 저장되지 않았어요. 인터넷 연결을 확인한 뒤 다시 시도해 주세요');
@@ -366,7 +401,7 @@ export async function addInvite(projectId, { email, method }) {
     try { await sendInviteMail(supabase, { code: invite.code }); mailed = true; }
     catch (error) { mailError = inviteMailErrorMessage(error); }
   }
-  await rt.bridge.syncWorkspace(ws.id);   // pull the new pending invite row
+  await rt.bridge.syncWorkspace(ws.id);     // 새로 생성된 대기 중 초대 행을 가져옵니다.
   await refreshShared(ws.serverId);
   emitRuntime();
   const projectName = getProject(projectId)?.title ?? '';

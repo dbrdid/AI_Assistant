@@ -24,13 +24,13 @@ const sessionFlushers = new Set();
 export function registerSessionFlush(flush) { sessionFlushers.add(flush); return () => sessionFlushers.delete(flush); }
 export const runtimeSubscribe = fn => { listeners.add(fn); return () => listeners.delete(fn); };
 const emit = () => { for (const fn of listeners) fn(); };
-// Adapters whose data lives outside the local store (server sync records, server RPC caches) call this after they change.
+// 로컬 스토어 외부에 데이터(서버 동기화 레코드, 서버 RPC 캐시)를 보관하는 어댑터는 변경 후 이 함수를 호출합니다.
 export const emitRuntime = emit;
-// Sync-engine context for one shared workspace (projects, team, invites are written to the engine directly).
+// 공유 작업 공간 하나를 위한 동기화 엔진 컨텍스트입니다(프로젝트, 팀, 초대는 엔진에 직접 기록).
 export function syncContext(serverId) {
   const own = runtime();
   if (!serverId) throw new Error('서버에 연결된 공유 공간이 아닙니다');
-  return { db: own.syncDb, transport: supabaseTransport, workspaceId: serverId, myAccountId: own.session.id };
+  return { db: own.syncDb, transport: supabaseTransport, workspaceId: serverId, myAccountId: own.session.id, newId: randomUUID };
 }
 export function runtime() { if (!current) throw new Error('로그인과 기기 저장소 초기화가 필요합니다'); return current; }
 export const maybeRuntime = () => current;
@@ -58,9 +58,9 @@ export function writePreference(key, value) {
 export async function gateway(path, body, { route = 'external', signal } = {}) {
   const { data } = await supabase.auth.getSession();
   if (!data.session) throw new Error('로그인이 필요합니다');
-  // functions-js 2.57 has no AbortSignal option; use the same HTTP contract with an abortable transport.
-  // No header means 'external' on the gateway. Send it only for self_hosted: a gateway whose CORS list lacks
-  // x-ai-route (deployed v14) fails the browser preflight, which surfaces as "Failed to fetch" on web.
+  // functions-js 2.57에는 AbortSignal 옵션이 없으므로 취소 가능한 전송 방식으로 동일한 HTTP 규약을 사용합니다.
+  // 헤더가 없으면 게이트웨이는 'external'로 처리합니다. self_hosted일 때만 헤더를 보냅니다. CORS 허용 목록에
+  // x-ai-route가 없는 게이트웨이(배포된 v14)는 브라우저 사전 요청에 실패해 웹에서 "Failed to fetch"가 표시됩니다.
   const headers = { 'content-type': 'application/json', apikey: SUPABASE_KEY, authorization: `Bearer ${data.session.access_token}` };
   if (route !== 'external') headers['x-ai-route'] = route;
   let response;
@@ -70,8 +70,8 @@ export async function gateway(path, body, { route = 'external', signal } = {}) {
     });
   } catch (error) {
     if (signal?.aborted) throw error;
-    // Offline, or the edge worker was recycled mid-request (its 503 has no CORS headers, so the browser only says
-    // "Failed to fetch"). Not retried here: the gateway may already have counted the request.
+    // 오프라인이거나 요청 도중 엣지 워커가 재시작된 경우입니다(503 응답에 CORS 헤더가 없어 브라우저에는
+    // "Failed to fetch"만 표시됩니다). 게이트웨이에서 이미 요청을 집계했을 수 있으므로 여기서는 재시도하지 않습니다.
     throw Object.assign(new Error('AI 서버와 연결이 끊겼어요. 잠시 후 다시 보내 주세요'), { code: 'NETWORK', cause: error });
   }
   const payload = await response.json().catch(() => null);
@@ -79,10 +79,10 @@ export async function gateway(path, body, { route = 'external', signal } = {}) {
   return payload;
 }
 
-// Web only: expo-sqlite's sync calls busy-wait with a short timeout, but the worker's first call
-// loads WebAssembly and creates the OPFS file pool, which takes longer. If that first call is sync it
-// throws "Sync operation timeout" while the worker finishes anyway, leaving later calls out of step.
-// Start the worker with an async call first so every sync call afterwards finds it ready.
+// 웹 전용: expo-sqlite의 동기 호출은 짧은 시간 동안 바쁜 대기를 하지만, 워커의 첫 호출은 WebAssembly를 불러오고
+// OPFS 파일 풀을 만들어야 하므로 더 오래 걸립니다. 첫 호출이 동기식이면 워커는 계속 실행되더라도
+// "Sync operation timeout"이 발생해 이후 호출과 상태가 어긋날 수 있습니다.
+// 먼저 비동기 호출로 워커를 시작해 이후 동기 호출 시 준비된 상태가 되도록 합니다.
 let webWarmup = null;
 function warmUpWebSQLite() {
   if (Platform.OS !== 'web') return null;
@@ -174,8 +174,8 @@ async function openSessionOnce(user) {
     rememberWebAccount(user.id, true);
     return opened;
   } catch (error) {
-    // A failed start must release both handles; otherwise the next attempt (e.g. the queued
-    // onAuthStateChange) cannot reopen the same account files (web OPFS handles are exclusive).
+    // 시작에 실패하면 두 핸들을 모두 해제해야 합니다. 그렇지 않으면 다음 시도(예: 대기 중인
+    // onAuthStateChange)가 동일한 계정 파일을 다시 열 수 없습니다(웹 OPFS 핸들은 단독으로 사용됨).
     if (current?.db === db) current = null;
     try { db.closeSync(); } catch { /* already closed */ }
     try { syncNative?.closeSync(); } catch { /* already closed */ }
@@ -190,7 +190,7 @@ async function initSession(user, db, syncNative) {
   const session = { id: user.id, generation: ++generation };
   const syncDb = expoSqliteDb(syncNative);
   await engine.setupLocalSync(syncDb);
-  // Both files are account-scoped. Never reuse or wipe another account's pending DB on sign-in.
+  // 두 파일 모두 계정별로 관리합니다. 로그인할 때 다른 계정의 대기 중인 DB를 재사용하거나 삭제하지 않습니다.
   await engine.bindSyncAccount(syncDb, user.id);
   const bridge = createBridge({ store, engine, db: syncDb, transport: supabaseTransport, accountId: user.id,
     favorites: { set: (ws, ids, on) => setNoteFavorites(supabase, ws, ids, on), list: ws => listNoteFavorites(supabase, ws) },
@@ -209,7 +209,7 @@ async function initSession(user, db, syncNative) {
   return current;
 }
 
-// Chat attachment photo → text (cloud OCR). Same consent gate as chat; local AI has no image model here.
+// 채팅 첨부 사진을 텍스트로 변환합니다(클라우드 OCR). 채팅과 동일한 동의 절차를 거치며 로컬 AI는 이미지 모델을 사용하지 않습니다.
 export async function ocrForChat(base64, signal) {
   const own = runtime();
   const policy = aiPolicy();
@@ -221,20 +221,20 @@ export async function ocrForChat(base64, signal) {
   return r.draft;
 }
 
-// Recording → text (gateway /transcribe, cloud AI only). Same consent gate as chat.
-//   job: { uri, seconds, uploadId, requestId, uploaded } — kept by the caller so a retry follows lib/stella
-//   retryPlan: same request, new request on the same upload, or upload again (see newTranscribeJob/nextTranscribeJob).
-//   The server deletes the uploaded audio after a successful transcription (kept 3 days after a failure).
+// 녹음을 텍스트로 변환합니다(게이트웨이 /transcribe, 클라우드 AI 전용). 채팅과 동일한 동의 절차를 거칩니다.
+//   job: { uri, seconds, uploadId, requestId, uploaded } — 호출자가 보관해 재시도 시 lib/stella의 절차를 따릅니다.
+//   retryPlan: 같은 요청, 같은 업로드로 새 요청, 또는 다시 업로드(newTranscribeJob/nextTranscribeJob 참고).
+//   변환에 성공하면 서버가 업로드된 오디오를 삭제합니다(실패한 경우 3일간 보관).
 export const newTranscribeJob = (uri, seconds) => ({ uri, seconds, uploadId: randomUUID(), requestId: randomUUID(), uploaded: false });
 export function nextTranscribeJob(job, code) {
   const plan = retryPlan(code);
   if (plan === 'new_request_same_upload') return { ...job, requestId: randomUUID() };
   if (plan === 'reupload') return { ...job, uploadId: randomUUID(), requestId: randomUUID(), uploaded: false };
-  return job; // same_request, or stop (the screen shows the message and the user may try again later)
+  return job; // same_request이거나 중단합니다(화면에 메시지를 표시하며 사용자는 나중에 다시 시도할 수 있음).
 }
 async function readAudio(uri) {
   if (Platform.OS === 'web') {
-    // expo-audio on web records to a blob: URL (usually audio/webm). Storage rejects mime parameters such as ;codecs=opus
+    // 웹의 expo-audio는 blob: URL(대개 audio/webm)에 녹음합니다. 저장소는 ;codecs=opus 같은 MIME 매개변수를 거부합니다.
     const blob = await (await fetch(uri)).blob();
     const type = (blob.type || 'audio/webm').split(';')[0].trim();
     return { bytes: blob, mimeType: type, fileName: `recording.${type.split('/')[1] || 'webm'}` };
@@ -243,7 +243,7 @@ async function readAudio(uri) {
   const mime = { m4a: 'audio/mp4', mp4: 'audio/mp4', aac: 'audio/mp4', caf: 'audio/x-caf', wav: 'audio/wav', mp3: 'audio/mpeg', webm: 'audio/webm', ogg: 'audio/ogg' }[ext] ?? 'audio/mp4';
   return { bytes: await new File(uri).bytes(), mimeType: mime, fileName: `recording.${ext}` };
 }
-/** Returns { text, remainingMinutes, job } on success; throws { code, message, job } (job = what to retry with). */
+/** 성공하면 { text, remainingMinutes, job }을 반환하고, 실패하면 재시도에 사용할 job과 함께 { code, message, job }을 던집니다. */
 export async function transcribeForDevice(job) {
   const own = runtime();
   const policy = aiPolicy();
@@ -267,8 +267,8 @@ export async function transcribeForDevice(job) {
   }
 }
 
-// Agenda compare: was each changed item talked about in that day's meeting notes? (gateway /agenda/judge,
-// cloud AI only, same consent gate as chat). Same input is answered from lib/stella's in-memory cache.
+// 일정 비교: 변경된 항목을 해당 날짜의 회의 메모에서 논의했는지 확인합니다(게이트웨이 /agenda/judge,
+// 클라우드 AI 전용이며 채팅과 동일한 동의 절차를 거침). 같은 입력은 lib/stella의 메모리 캐시에서 결과를 가져옵니다.
 export async function judgeAgendaForDevice({ changes, discussions, projectTitle, date }) {
   const own = runtime();
   const policy = aiPolicy();
@@ -284,8 +284,8 @@ export async function judgeAgendaForDevice({ changes, discussions, projectTitle,
 }
 export { agendaJudgeErrorMessage };
 
-// Chat title from the conversation (gateway "organize" makes a ≤40-char title). Same consent gate as chat;
-// counts toward the monthly organize limit. Only the question and answer text are sent, not the sources.
+// 대화 내용을 바탕으로 채팅 제목을 만듭니다(게이트웨이 "organize"가 40자 이하로 생성). 채팅과 동일한 동의 절차를 거치며,
+// 월간 organize 한도에 포함됩니다. 출처는 전송하지 않고 질문과 답변 텍스트만 전송합니다.
 export async function titleForChat(question, answer, signal) {
   const own = runtime();
   const policy = aiPolicy();
@@ -296,7 +296,7 @@ export async function titleForChat(question, answer, signal) {
   return String(r.draft?.title ?? '').trim();
 }
 
-// Attachments (already turned into text on this device) go first; device records found by the planner follow.
+// 이 기기에서 이미 텍스트로 변환한 첨부 파일을 먼저 넣고, 플래너가 찾은 기기 기록을 뒤에 넣습니다.
 function mergeSources(attached, ranked, keywords) {
   const out = [];
   let total = 0;
@@ -332,7 +332,7 @@ export async function askFromDevice(question, signal, { history = [], attachment
     }
   };
   const client = { functions: { invoke: async (name, options) => {
-    // Recheck before each hop: the query planner may finish after consent or a source changes.
+    // 질의 플래너가 동의 상태나 출처가 바뀐 뒤 완료될 수 있으므로 각 단계 전에 다시 확인합니다.
     checkSnapshot();
     return { data: await gateway(name.replace(/^ai-gateway\//, ''), options.body, { route: policy.route, signal }), error: null };
   } } };
@@ -342,7 +342,7 @@ export async function askFromDevice(question, signal, { history = [], attachment
   if (!attached.length) {
     answer = await askAssistant(client, { question, history: turns, newId: randomUUID, timezone: policy.timezone, findRecords: async () => records });
   } else {
-    // The user handed over material: answer from it even when the planner sees no record search in the question.
+    // 사용자가 자료를 제공했으므로 질문에서 기록 검색이 필요하지 않다고 판단되더라도 해당 자료를 바탕으로 답변합니다.
     const plan = await planQuery(client, { clientRequestId: randomUUID(), question, history: turns, timezone: policy.timezone });
     const ranked = plan.intent === 'search' ? rankRecords(records, plan, { today: todayIn(policy.timezone) }) : [];
     const sources = mergeSources(attached, ranked, plan.keywords ?? []);
@@ -355,7 +355,7 @@ export async function askFromDevice(question, signal, { history = [], attachment
   if (own.store.getCurrentWorkspace().id !== ws) throw new Error('작업 공간이 바뀌었습니다');
   const attachedIds = new Set(attached.map(a => a.id));
   for (const ref of answer.sources) {
-    if (attachedIds.has(ref.id)) continue; // attachments are not device records
+    if (attachedIds.has(ref.id)) continue; // 첨부 파일은 기기 기록이 아닙니다.
     const before = records.find(r => r.id === ref.id); const after = before?.type === 'memo' ? own.store.getMemo(ref.id) : own.store.getTask(ref.id);
     if (!after || after.revision !== before.revision || aiPolicy(after).excluded) throw new Error('답변에 사용한 원본이 바뀌었습니다. 다시 질문해 주세요');
   }
@@ -363,7 +363,7 @@ export async function askFromDevice(question, signal, { history = [], attachment
   return { ...answer, sources: answer.sources.map(s => ({ ...s, route: attachedIds.has(s.id) ? null : s.type === 'memo' ? 'MemoEdit' : 'TaskEdit' })) };
 }
 
-// After account withdrawal: erase this account's device data (personal records live only here), then close.
+// 계정 탈퇴 후 이 계정의 기기 데이터를 삭제합니다(개인 기록은 이곳에만 저장됨). 이후 연결을 닫습니다.
 export async function wipeSessionData() {
   const own = current;
   if (!own) return;
@@ -382,7 +382,7 @@ export async function wipeSessionData() {
 export async function closeSession(requireSynced = true) {
   const own = current;
   if (!own) return;
-  // Persist mounted editor drafts while their original account DB is still open.
+  // 원래 계정의 DB가 열려 있는 동안 마운트된 편집기 초안을 저장합니다.
   for (const flush of sessionFlushers) flush({ analyze: false });
   if (requireSynced) {
     const status = await own.bridge.status();
@@ -390,7 +390,7 @@ export async function closeSession(requireSynced = true) {
   }
   own.session.generation = ++generation;
   own.ai.cancel(); own.stop?.();
-  // Drain bridge serialization before closing either database. Late results cannot target a new session.
+  // DB를 닫기 전에 브리지의 직렬화 작업을 마칩니다. 늦게 도착한 결과가 새 세션에 적용되지 않도록 합니다.
   await own.bridge.refresh('__none__');
   if (current === own) current = null;
   preferenceCache.clear();

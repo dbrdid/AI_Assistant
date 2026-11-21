@@ -27,7 +27,6 @@ import {
   searchTerms,
 } from '../../../data/memos/MemoStore';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
-import Icon from '../../../shared/components/Icon';
 import { useTasks } from '../../../data/tasks/TaskStore';
 import { useProjects } from '../../../data/projects/ProjectStore';
 
@@ -110,7 +109,7 @@ export default function SearchScreen({ navigation }) {
 
       {/* ---------- 검색창 ---------- */}
       <View style={styles.searchBar}>
-        <Icon name="search" size={20} color={colors.muted} />
+        <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
           accessibilityLabel="검색어 입력"
           style={styles.input}
@@ -129,7 +128,7 @@ export default function SearchScreen({ navigation }) {
         {/* 지우기(✕): 글자가 있을 때만 */}
         {hasQuery && (
           <Pressable accessibilityRole="button" accessibilityLabel="검색어 지우기" onPress={() => setQuery('')} hitSlop={10}>
-            <Icon name="x" size={18} color={colors.muted} />
+            <Text style={styles.clear}>✕</Text>
           </Pressable>
         )}
       </View>
@@ -178,9 +177,8 @@ export default function SearchScreen({ navigation }) {
                 </View>
                 <View style={styles.tags}>
                   {recent.map((r) => (
-                    <Pressable key={r} accessibilityRole="button" onPress={() => setQuery(r)} style={[styles.tag, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
-                      <Icon name="history" size={14} color={colors.muted} />
-                      <Text style={styles.tagText}>{r}</Text>
+                    <Pressable key={r} accessibilityRole="button" onPress={() => setQuery(r)} style={styles.tag}>
+                      <Text style={styles.tagText}>🕘 {r}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -228,8 +226,7 @@ export default function SearchScreen({ navigation }) {
                 <HighlightText text={item.title} terms={terms} style={styles.cardTitle} numberOfLines={1} />
                 <HighlightText text={item.snippet} terms={terms} style={styles.cardSnippet} numberOfLines={2} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                  <Text style={styles.cardGo}>{item.type === 'task' ? '일정 열기' : `${TYPE_INFO[item.type].label} 화면에서 보기`}</Text>
-                  <Icon name="chevronRight" size={14} color={colors.mintDark} />
+                  <Text style={styles.cardGo}>{item.type === 'task' ? '일정 열기 ›' : `${TYPE_INFO[item.type].label} 화면에서 보기 ›`}</Text>
                 </View>
               </Pressable>
             )}
@@ -258,7 +255,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
+  searchIcon: { fontSize: 16 },
   input: { flex: 1, fontSize: font.bodyLg, color: colors.ink, paddingVertical: 10 },
+  clear: { fontSize: 16, color: colors.muted },
 
   // 종류 칩
   filters: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.md },

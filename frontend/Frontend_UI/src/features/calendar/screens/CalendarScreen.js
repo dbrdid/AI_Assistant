@@ -1,5 +1,5 @@
 // ============================================================
-// CalendarScreen.js — 캘린더 화면 (하단 탭 '캘린더')
+// CalendarScreen.js — 캘린더 화면
 // ============================================================
 
 import React from 'react';
@@ -12,7 +12,7 @@ import { ROUTES } from '../../../navigation/routes';
 import { enterSpace } from '../../../data/workspaces/WorkspaceStore';
 
 export default function CalendarScreen({ navigation, calendar }) {
-  // 왼쪽 위: 탭으로 열었으면 버튼 없음, 다른 화면에서 왔으면 ‹
+  // 스택에서 들어온 캘린더 화면은 이전 화면으로 돌아갈 수 있습니다.
   const lead = useLeadAction(navigation.goBack);
 
   return (
@@ -26,7 +26,7 @@ export default function CalendarScreen({ navigation, calendar }) {
           enterSpace(t.workspaceId); // 그 항목의 공간에서 편집 (프로젝트 등이 그 공간 것)
           navigation.navigate(ROUTES.TaskEdit, { taskId: t.id });
         }}
-        // 아래로 밀어 닫기: 다른 화면에서 들어왔을 때만 (탭 화면은 닫을 곳이 없음)
+        // 아래로 밀면 캘린더 화면을 닫고 이전 화면으로 돌아갑니다.
         onClose={lead.hidden ? undefined : navigation.goBack}
         lead={lead.hidden ? null : <CircleButton icon="chevronLeft" label="뒤로 가기" onPress={lead.onPress} />}
       />

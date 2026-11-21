@@ -1,17 +1,17 @@
 import { CryptoDigestAlgorithm, digest, randomUUID } from 'expo-crypto';
 import * as DocumentPicker from 'expo-document-picker';
-import { File, Paths } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import { Linking, Platform } from 'react-native';
 import { list, saveList, scoped, useValue, runtime, maybeRuntime, runtimeSubscribe, readPreference, writePreference, emitRuntime } from '../hooks';
 import * as engine from '../../lib/stella/local-sync';
 import { supabase } from '../../lib/stella/supabase';
-import { attachmentErrorMessage, deleteAttachment, downloadAttachment, getAttachmentUrl, uploadAttachment } from '../../lib/stella/attachments';
+import { attachmentErrorMessage, deleteAttachment, downloadAttachment, getAttachmentUrl, MAX_ATTACHMENT_BYTES, uploadAttachment } from '../../lib/stella/attachments';
 import { describe, extract, readBytes } from '../../services/ai/ChatAttachments';
 
-// Device files ('local', this file's list) and cloud files (attachments uploaded to the current shared workspace).
-//   getFiles('local') / useFiles(): device files only (memo photos, project links and agenda use these).
-//   getFiles('cloud') / useCloudFiles(): the shared workspace's attachments, read from the sync engine's `assets`
-//   records (the server is the source of truth, other members see them after sync). The personal space has none.
+// 기기 파일('local', 이 파일의 목록)과 클라우드 파일(현재 공유 작업 공간에 업로드한 첨부 파일)을 다룹니다.
+//   getFiles('local') / useFiles(): 기기 파일만 반환합니다(메모 사진, 프로젝트 링크, 일정에서 사용).
+//   getFiles('cloud') / useCloudFiles(): 동기화 엔진의 `assets` 레코드에서 읽은 공유 작업 공간의 첨부 파일을 반환합니다.
+//   서버가 기준 데이터이며 동기화 후 다른 구성원도 확인할 수 있습니다. 개인 공간에는 클라우드 파일이 없습니다.
 export const getFiles = storage => (storage === 'cloud' ? getCloudFiles() : localFiles().filter(f => !storage || f.storage === storage));
 export const useFiles = () => useValue(localFiles);
 
@@ -53,7 +53,7 @@ function localFiles() {
 }
 
 // ---------------------------------------------------------------------
-// Cloud files
+// 클라우드 파일
 // ---------------------------------------------------------------------
 const EMPTY = Object.freeze([]);
 const KIND_BY_MIME = [[/^image\//, '이미지'], [/^audio\//, '녹음'], [/pdf$/, 'PDF'], [/presentation|powerpoint/, '슬라이드'], [/sheet|excel|csv/, '표']];
@@ -94,7 +94,7 @@ function refreshCloud() {
   });
   return cloudRun;
 }
-// Re-read after any runtime change (sync results, workspace switch). Coalesced.
+// 런타임 변경(동기화 결과, 작업 공간 전환 등) 후 다시 읽습니다. 여러 요청은 하나로 합칩니다.
 let cloudTimer = null;
 runtimeSubscribe(() => {
   if (cloudTimer) return;
@@ -109,7 +109,7 @@ export function getCloudFiles() {
 export const useCloudFiles = () => useValue(getCloudFiles);
 
 const sha256 = Platform.OS === 'web' ? undefined : bytes => digest(CryptoDigestAlgorithm.SHA256, bytes);
-/** Pick files and upload them to the current shared workspace. Returns { added, failed: [{ name, message }] }. */
+/** 파일을 선택해 현재 공유 작업 공간에 업로드합니다. { added, failed: [{ name, message }] }를 반환합니다. */
 export async function pickAndUploadCloudFiles() {
   const rt = runtime(); const ws = sharedWorkspace(rt);
   if (!ws) throw new Error('클라우드 파일은 공유 공간에서만 올릴 수 있어요');
@@ -119,7 +119,7 @@ export async function pickAndUploadCloudFiles() {
       const bytes = await readBytes(asset);
       await uploadAttachment(supabase, {
         workspaceId: ws.serverId, assetId: randomUUID(), bytes, name: asset.name ?? '파일',
-        mimeType: (asset.mimeType || 'application/octet-stream').split(';')[0], digest: sha256,
+        mimeType: uploadMimeOf(asset), digest: sha256,
       });
       out.added += 1;
     } catch (e) { out.failed.push({ name: asset.name ?? '파일', message: attachmentErrorMessage(e) }); }
@@ -127,7 +127,40 @@ export async function pickAndUploadCloudFiles() {
   if (out.added) { await rt.bridge.syncWorkspace(ws.id).catch(() => {}); await refreshCloud(); }
   return out;
 }
-/** Open a cloud file in the browser or the system viewer (1-hour link, members only). */
+export function checkCloudAsset(asset) {
+  if (!asset?.uri && !(WEB && asset?.file)) return { ok: false, reason: '파일을 읽을 수 없어요' };
+  const size = asset.size ?? asset.file?.size;
+  if (Number.isFinite(size) && size > MAX_ATTACHMENT_BYTES) return { ok: false, reason: '50MB보다 큰 파일이에요' };
+  return { ok: true, reason: null };
+}
+/** 선택한 기기 파일 하나를 현재 공유 작업 공간에 업로드합니다. */
+export async function uploadProjectFile(asset) {
+  const rt = runtime(); const ws = sharedWorkspace(rt);
+  if (!ws) throw new Error('클라우드 파일은 공유 공간에서만 올릴 수 있어요');
+  const check = checkCloudAsset(asset);
+  if (!check.ok) throw new Error(check.reason);
+  let uploaded;
+  try {
+    uploaded = await uploadAttachment(supabase, {
+      workspaceId: ws.serverId, assetId: randomUUID(), bytes: await readBytes(asset),
+      name: asset.name ?? '파일', mimeType: uploadMimeOf(asset), digest: sha256,
+    });
+  } catch (error) {
+    throw new Error(attachmentErrorMessage(error));
+  }
+  return uploaded;
+}
+export async function uploadLocalProjectFile(id) {
+  const row = localFiles().find(file => file.id === id);
+  if (!row) throw new Error('기기 파일을 찾을 수 없어요');
+  const asset = { uri: row.uri, name: row.name, mimeType: row.mimeType, size: row.size };
+  if (WEB && row.webName) {
+    asset.file = await (await webDir()).getFileHandle(row.webName).getFile();
+    asset.uri = asset.uri || `local:${row.id}`;
+  }
+  return uploadProjectFile(asset);
+}
+/** 클라우드 파일을 브라우저 또는 시스템 뷰어에서 엽니다(구성원 전용 1시간 링크). */
 export async function openCloudFile(id) {
   const row = getCloudFiles().find(f => f.id === id);
   if (!row) throw new Error('파일을 찾을 수 없어요');
@@ -136,7 +169,7 @@ export async function openCloudFile(id) {
     if (Platform.OS === 'web') window.open(url, '_blank', 'noopener'); else await Linking.openURL(url);
   } catch (e) { throw new Error(attachmentErrorMessage(e)); }
 }
-/** Delete a cloud file for everyone (uploader or workspace owner only). */
+/** 모든 구성원의 클라우드 파일을 삭제합니다(업로더 또는 작업 공간 소유자만 가능). */
 export async function deleteCloudFile(id) {
   const rt = runtime(); const ws = sharedWorkspace(rt);
   try { await deleteAttachment(supabase, id); } catch (e) { throw new Error(attachmentErrorMessage(e)); }
@@ -147,11 +180,11 @@ export async function deleteCloudFile(id) {
 }
 
 // ---------------------------------------------------------------------
-// Content recognition (both kinds): documents → server text extraction (doc-extract), photos → cloud OCR (needs the
-// "send to external AI" consent), text files → read here. The text stays on this device and makes the file searchable.
+// 두 종류의 파일에서 내용을 인식합니다. 문서는 서버에서 텍스트를 추출하고(doc-extract), 사진은 클라우드 OCR을 사용합니다
+// ("외부 AI로 전송" 동의 필요). 텍스트 파일은 여기서 읽습니다. 추출한 텍스트는 이 기기에만 저장되어 파일 검색에 사용됩니다.
 // ---------------------------------------------------------------------
 export const RECOGNIZED_MAX = 30000;
-/** Returns the text, or throws with a message for the screen. */
+/** 텍스트를 반환합니다. 오류가 발생하면 화면에 표시할 메시지와 함께 예외를 던집니다. */
 export async function recognizeFile(id) {
   const local = localFiles().find(f => f.id === id); // 웹이면 uri가 읽어 들인 임시 주소
   const remote = local ? null : getCloudFiles().find(f => f.id === id);
@@ -168,10 +201,19 @@ export async function recognizeFile(id) {
   return text;
 }
 const MIME_BY_EXT = { pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', jpg: 'image/jpeg', jpeg: 'image/jpeg',
   png: 'image/png', webp: 'image/webp', txt: 'text/plain', md: 'text/markdown', csv: 'text/csv', json: 'application/json' };
 const mimeOfName = name => MIME_BY_EXT[(String(name ?? '').split('.').pop() || '').toLowerCase()] ?? '';
-/** Whether "내용 인식" can read this file (photo, PDF·Word·PowerPoint, plain text). */
+const uploadMimeOf = asset => {
+  const mime = String(asset?.mimeType ?? '').split(';')[0].trim().toLowerCase();
+  const inferred = mimeOfName(asset?.name);
+  if (['text/csv', 'text/markdown', 'application/json'].includes(mime)) return 'text/plain';
+  if (mime && mime !== 'application/octet-stream' && mime !== 'application/zip') return mime;
+  const inferredMime = ['text/csv', 'text/markdown', 'application/json'].includes(inferred) ? 'text/plain' : inferred;
+  return inferredMime || mime || 'application/octet-stream';
+};
+/** 이 파일의 내용을 인식할 수 있는지 확인합니다(사진, PDF·Word·PowerPoint, 일반 텍스트). */
 export const canRecognize = f => !!describe({ name: f.name, mimeType: f.mimeType ?? mimeOfName(f.name) }).kind;
 export async function addAsset(asset, fields = {}) {
   if (!asset?.uri) throw new Error('기기 파일 경로가 필요합니다');
@@ -192,11 +234,93 @@ export async function addAsset(asset, fields = {}) {
     row = { ...base, webName: fileName, uri: '', size: blob.size };
   } else {
     const target = new File(Paths.document, fileName);
-    new File(asset.uri).copy(target);
+    await new File(asset.uri).copy(target);
     row = { ...base, uri: target.uri, size: target.size };
   }
   saveList('files', [row, ...list('files')]);
   return WEB ? { ...row, uri: webUrls.get(row.webName) } : row;
+}
+const exportedName = (name, suffix) => {
+  const original = (name || 'file').replace(/[\\/]/g, '_');
+  if (!suffix) return original;
+  const extensionIndex = original.lastIndexOf('.');
+  if (extensionIndex <= 0) return `${original} (${suffix})`;
+  return `${original.slice(0, extensionIndex)} (${suffix})${original.slice(extensionIndex)}`;
+};
+async function getBrowserFileName(directory, name) {
+  for (let suffix = 0; ; suffix += 1) {
+    const candidate = exportedName(name, suffix);
+    try {
+      await directory.getFileHandle(candidate);
+    } catch (error) {
+      if (error?.name === 'NotFoundError') return candidate;
+      if (error?.name !== 'TypeMismatchError') throw error;
+    }
+  }
+}
+async function saveInBrowser(row) {
+  let handle;
+  let directory = null;
+  let fileName = null;
+  try {
+    if (typeof window.showDirectoryPicker === 'function') {
+      directory = await window.showDirectoryPicker({ mode: 'readwrite' });
+      fileName = await getBrowserFileName(directory, row.name);
+    } else if (typeof window.showSaveFilePicker === 'function') {
+      handle = await window.showSaveFilePicker({ suggestedName: row.name || 'file' });
+    } else {
+      throw new Error('이 브라우저는 저장 위치 선택을 지원하지 않아요.');
+    }
+  } catch (error) {
+    if (error?.name === 'AbortError' || /cancel/i.test(error?.message || '')) return null;
+    throw error;
+  }
+  let blob;
+  if (row.storage === 'cloud') {
+    const bytes = await downloadAttachment(supabase, row.asset);
+    blob = new Blob([bytes], { type: row.mimeType ?? mimeOfName(row.name) });
+  } else {
+    blob = row.webName
+      ? await (await (await webDir()).getFileHandle(row.webName)).getFile()
+      : await (await fetch(row.uri)).blob();
+  }
+  if (directory) handle = await directory.getFileHandle(fileName, { create: true });
+  const writable = await handle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+  return handle.name;
+}
+export async function downloadFileToDevice(id) {
+  const row = localFiles().find(file => file.id === id) ?? getCloudFiles().find(file => file.id === id);
+  if (!row) throw new Error('파일을 찾을 수 없어요');
+  if (WEB) return saveInBrowser(row);
+
+  let directory;
+  try {
+    directory = await Directory.pickDirectoryAsync();
+  } catch (error) {
+    if (error?.name === 'PickerCancelled' || /cancel/i.test(error?.message || '')) return null;
+    throw error;
+  }
+  const existingNames = new Set(directory.list().map(file => file.name));
+  let fileName = exportedName(row.name);
+  for (let suffix = 1; existingNames.has(fileName); suffix += 1) fileName = exportedName(row.name, suffix);
+  const mimeType = row.mimeType ?? mimeOfName(row.name);
+  let source = row.uri;
+  let temporary = null;
+  try {
+    if (row.storage === 'cloud') {
+      const bytes = await downloadAttachment(supabase, row.asset);
+      temporary = new File(Paths.cache, `${randomUUID()}-${(row.name || 'file').replace(/[^\w.-]/g, '_')}`);
+      await temporary.write(bytes);
+      source = temporary.uri;
+    }
+    const destination = directory.createFile(fileName, mimeType || null);
+    await new File(source).copy(destination, { overwrite: true });
+  } finally {
+    if (temporary?.exists) temporary.delete();
+  }
+  return fileName;
 }
 export const addPhoto = value => addAsset(typeof value === 'string' ? { uri: value, name: '사진.jpg' } : value, { kind: '이미지' });
 export const addRecording = (uri, seconds) => addAsset({ uri, name: '녹음.m4a' }, { kind: '녹음', seconds });

@@ -21,25 +21,25 @@ export function updateSettings(section, patch) {
   const s = getSettings();
   return writePreference('settings', { ...s, [section]: { ...s[section], ...patch } });
 }
-// Local (self-hosted) AI needs the SERVER_AI consent migration, ai-gateway v15 and a reachable model server.
-// Until those are deployed the chat offers it as "준비 중" instead of failing on send.
+// 로컬(자체 호스팅) AI를 사용하려면 SERVER_AI 동의 마이그레이션, ai-gateway v15, 접속 가능한 모델 서버가 필요합니다.
+// 배포가 완료되기 전까지 채팅은 전송 오류를 내는 대신 "준비 중"으로 표시합니다.
 export const LOCAL_AI_AVAILABLE = false;
 export const AI_ROUTE_LABEL = { external: '클라우드 AI', self_hosted: '로컬 AI' };
 
-// Turn sending to the chosen AI route on/off. The server consent is recorded first; the device setting only
-// opens after the server accepted it (and closes before revoking, so a failure never leaves it open).
+// 선택한 AI 경로로 보내기를 켜거나 끕니다. 먼저 서버에 동의를 기록하고, 서버가 승인한 뒤에만 기기 설정을
+// 켭니다(동의를 취소하기 전에는 먼저 끄므로 실패하더라도 설정이 켜진 채로 남지 않습니다).
 export async function setAiTransmission(route, enabled) {
   const own = runtime();
   const type = route === 'self_hosted' ? 'SERVER_AI' : 'EXTERNAL_AI';
   const denied = { route, transmissionDisabled: true, allowedProviders: [], consent: {} };
   updateSettings('ai', denied);
-  // Switching routes back and forth must not pile up duplicate consent rows on the server
+  // 경로를 여러 번 전환해도 서버에 중복 동의 행이 쌓이지 않아야 합니다.
   if (enabled) { if (!(await hasConsent(type))) await grantConsent(type, { provider: route }); } else await revokeConsent(type);
   if (runtime() !== own) throw new Error('계정이 바뀌었습니다');
   return updateSettings('ai', { route, transmissionDisabled: !enabled, allowedProviders: enabled ? [route] : [], consent: { [route]: enabled } });
 }
-// This month's AI usage from the server: limits come from the plan catalog (FREE/PRO/TEAM), counts from
-// usage_counters (used + reserved for in-flight requests). The device counters (getUsage) are display-only.
+// 이번 달 AI 사용량입니다. 한도는 요금제 카탈로그(FREE/PRO/TEAM)에서, 횟수는 usage_counters(사용량 + 진행 중 요청 예약량)에서 가져옵니다.
+// 기기 카운터(getUsage)는 표시 전용입니다.
 const USAGE_ITEMS = [
   { key: 'query', metric: 'AI_QUERY', label: 'AI 채팅 질문' },
   { key: 'ocr', metric: 'AI_OCR', label: '사진 글자 인식' },
@@ -66,17 +66,17 @@ export async function loadAiUsage() {
   };
 }
 
-// Switching route always closes sending: consent is per route and must be given again.
+// 경로를 바꾸면 항상 전송을 끕니다. 동의는 경로별로 관리되므로 다시 받아야 합니다.
 export const setAiRoute = route => updateSettings('ai', { route, transmissionDisabled: true, allowedProviders: [], consent: {} });
 
-// Display copy of the server subscription (get_my_subscription). The server stays the authority for limits.
+// 서버 구독 정보(get_my_subscription)를 표시용으로 복사합니다. 한도 판정의 기준은 계속 서버입니다.
 export function setServerPlan(plan) {
   if (!PLANS[plan]) throw new Error(`알 수 없는 요금제: ${plan}`);
   const s = getSettings();
   return s.plan === plan ? s : writePreference('settings', { ...s, plan });
 }
 export const getUsage =() => readPreference('usage-display', { question: 0, summary: 0, record: 0 });
-// Display counters are not quota authority. Gateway and DB enforce real usage.
+// 표시용 카운터는 실제 할당량의 기준이 아닙니다. 실제 사용량은 게이트웨이와 DB에서 제한합니다.
 export const addUsage = key => writePreference('usage-display', { ...getUsage(), [key]: (getUsage()[key] ?? 0) + 1 });
 export const limitOf = () => null;
 export const changePassword = async () => ({ ok: false, reason: 'reset-flow-required' });

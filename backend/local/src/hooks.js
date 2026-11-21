@@ -1,10 +1,10 @@
 /**
- * React hooks over a store, without importing React here (this folder has no React dependency):
+ * 이 폴더에 React 의존성을 추가하지 않고 스토어에 React 훅을 연결합니다:
  *
  *   import { useSyncExternalStore } from 'react';
  *   export const { useMemos, useTasks, useProposals, useWorkspaces } = createHooks(useSyncExternalStore, store);
  *
- * useWorkspaces returns { list, current }, the shape WorkspaceScreen reads.
+ * useWorkspaces는 WorkspaceScreen이 사용하는 형태인 { list, current }를 반환합니다.
  */
 export function createHooks(useSyncExternalStore, store) {
   if (typeof useSyncExternalStore !== 'function') throw new TypeError("Pass React's useSyncExternalStore");

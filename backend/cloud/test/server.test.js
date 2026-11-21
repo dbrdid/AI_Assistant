@@ -287,7 +287,7 @@ test('client disconnect aborts in-flight inference over a real socket', async t 
   const socketRequest = http.request(url + '/v1/ai/organize', {
     method: 'POST', headers: { authorization: 'Bearer ' + bearer, 'content-type': 'application/json' },
   });
-  // ECONNRESET is the expected consequence of deliberately closing this test socket.
+  // 테스트 소켓을 의도적으로 닫았으므로 ECONNRESET은 예상된 결과입니다.
   socketRequest.on('error', error => {
     if (error.code !== 'ECONNRESET') throw error;
   });

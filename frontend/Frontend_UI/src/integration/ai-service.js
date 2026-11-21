@@ -1,6 +1,6 @@
 import { requireTransmission } from '../../../../shared/contracts/ai-policy.js';
 
-/** I/O is injected so the exact mobile policy and stale-result path can be exercised without paid calls. */
+/** 유료 호출 없이 모바일 정책과 오래된 결과 처리 경로를 그대로 검증할 수 있도록 I/O를 주입합니다. */
 export function createAIService({ store, gateway, getSession, getPolicy, newId }) {
   const active = new Set();
   const error = code => Object.assign(new Error(code), { code });
@@ -34,7 +34,7 @@ export function createAIService({ store, gateway, getSession, getPolicy, newId }
       const proposals = store.addProposals(store.serverMap.proposalsFromAnalyze(response.draft, {
         sourceType: 'memo', sourceId: snapshot.id, sourceTitle: snapshot.title, sourceRevision: snapshot.revision,
       }));
-      // Summary is a separate pending memo proposal: it is never silently written into the source.
+      // 요약은 별도의 대기 중인 메모 제안으로 저장하며 원본에 자동으로 기록하지 않습니다.
       if (typeof response.draft.summary === 'string' && response.draft.summary.trim()) {
         proposals.push(...store.addProposals([{ kind: 'memo', title: `${snapshot.title || '메모'} 요약`.slice(0, 200),
           body: response.draft.summary, sourceType: 'memo', sourceId: snapshot.id,

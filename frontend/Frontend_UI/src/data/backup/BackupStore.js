@@ -1,6 +1,6 @@
-// Backup and restore of the personal workspace (shared workspaces come back through sync, not backups).
-//   The device encrypts (AES-256-GCM, account key kept by the server) and uploads to the server's backups bucket.
-//   Restore first saves the current state as an automatic backup, then replaces the personal workspace.
+// 개인 작업 공간을 백업하고 복원합니다(공유 작업 공간은 백업이 아니라 동기화로 복구됩니다).
+//   기기에서 암호화(AES-256-GCM, 계정 키는 서버에 보관)한 뒤 서버의 백업 버킷에 업로드합니다.
+//   복원 전에 현재 상태를 자동 백업으로 저장한 다음 개인 작업 공간을 교체합니다.
 import { Platform } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { emitRuntime, list, maybeRuntime, readPreference, runtime, saveList, scoped, useValue, writePreference } from '../hooks';
@@ -16,13 +16,13 @@ const PAYLOAD_FORMAT = 1;
 const deps = () => ({
   newId: Crypto.randomUUID,
   randomBytes: n => Crypto.getRandomBytes(n),
-  // Web: attachments.ts hashes with WebCrypto itself
+  // 웹에서는 attachments.ts가 WebCrypto를 사용해 직접 해시를 계산합니다.
   digest: Platform.OS === 'web' ? undefined : bytes => Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, bytes),
   deviceName: Platform.OS,
 });
 
 // ---------------------------------------------------------------------
-// List (server) → synchronous snapshot for the screen
+// 서버 목록을 화면에서 사용할 동기 스냅샷으로 변환합니다.
 // ---------------------------------------------------------------------
 let cache = { session: null, order: 'new', raw: EMPTY, rows: EMPTY };
 const toRow = b => ({
@@ -53,7 +53,7 @@ function snapshot(order) {
 export const useBackups = (order = 'new') => useValue(() => snapshot(order));
 
 // ---------------------------------------------------------------------
-// What a backup holds: the local store's personal records + device-only project data
+// 백업에 포함되는 항목: 로컬 스토어의 개인 기록과 기기 전용 프로젝트 데이터
 // ---------------------------------------------------------------------
 function personalData(rt) {
   return {
@@ -61,7 +61,7 @@ function personalData(rt) {
     store: rt.store.exportAll(),
     prefs: {
       projects: list('projects'),
-      // Same fallbacks as ProjectStore/AgendaStore: readPreference caches the first fallback it sees for a key
+      // ProjectStore/AgendaStore와 동일하게 readPreference는 키마다 처음 본 대체값을 캐시합니다.
       projectLinks: readPreference(scoped('project-links'), EMPTY_LINKS),
       agenda: readPreference(scoped('agenda-snapshots'), EMPTY_OBJECT),
     },

@@ -21,6 +21,6 @@ services:
     restart: unless-stopped
     volumes:
       - models:/root/.ollama
-    # Internal network only; do not publish model runtime to the internet.
+    # 내부 네트워크 전용이며 모델 런타임을 인터넷에 공개하지 않습니다.
 volumes:
   models:

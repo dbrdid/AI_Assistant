@@ -4,17 +4,17 @@
 
 
 import React, { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import Icon from '../../../shared/components/Icon';
-import { CircleButton, DashedButton, Tag } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { memoTitle, trashMemos, useMemos } from '../../../data/memos/MemoStore';
 import { deleteTask, useTasks } from '../../../data/tasks/TaskStore';
-import { deleteFile, useFiles } from '../../../data/files/FileStore';
-import { getProject, linkItems, unlinkItems, useProjects } from '../../../data/projects/ProjectStore';
+import { addAsset, checkAsset, checkCloudAsset, cloudAvailable, deleteFile, downloadFileToDevice, pickAssets, uploadLocalProjectFile, uploadProjectFile, useCloudFiles, useFiles } from '../../../data/files/FileStore';
+import { getProject, linkItems, linkProjectFiles, unlinkItems, unlinkProjectFiles, useProjects } from '../../../data/projects/ProjectStore';
+import { alertUser } from '../../../data/alert';
 
 export default function ProjectDetailScreen({ navigation, route }) {
   const projectId = route?.params?.projectId;
@@ -23,12 +23,18 @@ export default function ProjectDetailScreen({ navigation, route }) {
   const memos = useMemos();
   const tasks = useTasks();
   const files = useFiles();
+  const cloudFiles = useCloudFiles();
+  const isSharedWorkspace = cloudAvailable();
 
   const [open, setOpen] = useState({ memos: true, todos: false, files: false, events: false });
   const [editing, setEditing] = useState(false);
   const [picked, setPicked] = useState([]);       // 편집 모드에서 체크한 항목 키 ('kind:id')
   const [adding, setAdding] = useState(null);      // 연결 추가 창: 'memos' | 'todos' | 'files' | 'events' | null
   const [addPicked, setAddPicked] = useState([]);
+  const [importingFiles, setImportingFiles] = useState(false);
+  const [fileImportMessage, setFileImportMessage] = useState('');
+  const [fileImportFailed, setFileImportFailed] = useState(false);
+  const [downloadingFileId, setDownloadingFileId] = useState(null);
   const [moving, setMoving] = useState(false);
   const [confirmUnlink, setConfirmUnlink] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -42,10 +48,13 @@ export default function ProjectDetailScreen({ navigation, route }) {
     return [
       { key: 'memos', kind: 'memos', label: '메모', unit: '개', all: memos.map((m) => ({ id: m.id, title: memoTitle(m), sub: `수정 ${new Date(m.updatedAt).getMonth() + 1}/${new Date(m.updatedAt).getDate()}` })) },
       { key: 'todos', kind: 'tasks', label: '할 일', unit: '개', all: tasks.filter((t) => taskKind(t) === 'todos').map((t) => ({ id: t.id, title: t.title, sub: `${t.date.slice(5).replace('-', '/')} · ${t.status}` })) },
-      { key: 'files', kind: 'files', label: '파일', unit: '개', all: files.map((f) => ({ id: f.id, title: f.name, sub: `${f.kind} · ${f.size}` })) },
+      { key: 'files', kind: 'files', label: '파일', unit: '개', all: [
+        ...files.map((f) => ({ id: f.id, title: f.name, sub: `${isSharedWorkspace ? '기기 · ' : ''}${f.kind} · ${f.size}`, isCloud: false })),
+        ...cloudFiles.map((f) => ({ id: f.id, title: f.name, sub: `클라우드 · ${f.kind} · ${f.size}`, isCloud: true })),
+      ] },
       { key: 'events', kind: 'tasks', label: '일정', unit: '개', all: tasks.filter((t) => taskKind(t) === 'events').map((t) => ({ id: t.id, title: t.title, sub: `${t.date.slice(5).replace('-', '/')} ${t.start}` })) },
     ].map((s) => ({ ...s, items: s.all.filter((x) => inL(s.kind, x.id)), candidates: s.all.filter((x) => !inL(s.kind, x.id)) }));
-  }, [project, memos, tasks, files]);
+  }, [project, memos, tasks, files, cloudFiles, isSharedWorkspace]);
 
   if (!project) {
     return (
@@ -65,11 +74,156 @@ export default function ProjectDetailScreen({ navigation, route }) {
       const ids = s.items.filter((x) => picked.includes(keyOf(s, x.id))).map((x) => x.id);
       if (ids.length) fn(s, ids);
     });
+  const selectedBySection = () => sections.map((s) => ({
+    section: s,
+    ids: s.items.filter((x) => picked.includes(keyOf(s, x.id))).map((x) => x.id),
+  })).filter((group) => group.ids.length);
+  const hasCloudPicked = selectedBySection().some(({ section, ids }) =>
+    section.kind === 'files' && ids.some((id) => section.items.find((item) => item.id === id)?.isCloud));
   const exitEdit = () => {
     setEditing(false);
     setPicked([]);
   };
+  const importPhoneFiles = async () => {
+    setFileImportMessage('');
+    setFileImportFailed(false);
+    setImportingFiles(true);
+    try {
+      const assets = await pickAssets();
+      const ids = [];
+      const failures = [];
+      for (const asset of assets) {
+        const check = isSharedWorkspace ? checkCloudAsset(asset) : checkAsset(asset);
+        if (!check.ok) {
+          failures.push(`${asset.name || '파일'}: ${check.reason}`);
+          continue;
+        }
+        try {
+          ids.push(isSharedWorkspace ? (await uploadProjectFile(asset)).id : (await addAsset(asset)).id);
+        } catch (error) {
+          failures.push(`${asset.name || '파일'}: ${error.message || '가져오지 못했어요'}`);
+        }
+      }
 
+      let linkedCount = 0;
+      if (ids.length) {
+        try {
+          if (isSharedWorkspace) await linkProjectFiles(project.id, ids);
+          else if (!linkItems(project.id, 'files', ids)) throw new Error('프로젝트에 연결하지 못했어요');
+          linkedCount = ids.length;
+        } catch (error) {
+          failures.push(`${ids.length}개 파일은 ${isSharedWorkspace ? '클라우드에 저장했지만' : '보관함에 저장했지만'} 프로젝트에 연결하지 못했어요. ${error.message || ''}`.trim());
+        }
+      }
+      if (failures.length) {
+        const linked = linkedCount
+          ? (isSharedWorkspace ? `${linkedCount}개 파일을 클라우드에 저장해 팀원과 공유했어요.\n` : `${linkedCount}개 파일을 가져와 연결했어요.\n`)
+          : '';
+        setFileImportMessage(`${linked}${failures.slice(0, 3).join('\n')}${failures.length > 3 ? `\n외 ${failures.length - 3}개 실패` : ''}`);
+        setFileImportFailed(true);
+      } else if (linkedCount) {
+        setFileImportMessage(isSharedWorkspace
+          ? `${linkedCount}개 파일을 클라우드에 저장해 팀원과 공유했어요.`
+          : `${linkedCount}개 파일을 가져와 연결했어요.`);
+      }
+    } catch (error) {
+      setFileImportMessage(error.message || '기기에서 파일을 가져오지 못했어요.');
+      setFileImportFailed(true);
+    } finally {
+      setImportingFiles(false);
+    }
+  };
+  const downloadProjectFile = async (id) => {
+    if (downloadingFileId) return;
+    setDownloadingFileId(id);
+    try {
+      const savedName = await downloadFileToDevice(id);
+      if (savedName) alertUser('다운로드 완료', `${savedName} 파일을 선택한 위치에 저장했어요.`);
+    } catch (error) {
+      alertUser('파일을 저장하지 못했어요', error.message || '다시 시도해 주세요.');
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
+  const uploadLocalFiles = async (ids) => {
+    const uploaded = [];
+    const failures = [];
+    for (const id of ids) {
+      try {
+        uploaded.push({ sourceId: id, assetId: (await uploadLocalProjectFile(id)).id });
+      } catch (error) {
+        const file = files.find((item) => item.id === id);
+        failures.push(`${file?.name || '파일'}: ${error.message || '클라우드에 올리지 못했어요'}`);
+      }
+    }
+    return { uploaded, failures };
+  };
+  const linkPicked = async () => {
+    const section = sections.find((s) => s.key === adding);
+    if (!section) return;
+    try {
+      if (section.kind !== 'files') {
+        linkItems(project.id, section.kind, addPicked);
+      } else if (isSharedWorkspace) {
+        const cloudIds = addPicked.filter((id) => section.candidates.find((item) => item.id === id)?.isCloud);
+        const localIds = addPicked.filter((id) => !cloudIds.includes(id));
+        const { uploaded, failures } = await uploadLocalFiles(localIds);
+        const assetIds = [...cloudIds, ...uploaded.map((file) => file.assetId)];
+        if (assetIds.length) await linkProjectFiles(project.id, assetIds);
+        if (uploaded.length) unlinkItems('files', uploaded.map((file) => file.sourceId));
+        setAdding(null);
+        if (failures.length) alertUser('일부 기기 파일을 올리지 못했어요', failures.slice(0, 3).join('\n'));
+      } else {
+        if (!linkItems(project.id, 'files', addPicked)) throw new Error('기기 파일을 연결하지 못했어요');
+        setAdding(null);
+      }
+    } catch (error) {
+      alertUser('파일을 연결하지 못했어요', error.message || '다시 시도해 주세요.');
+    }
+  };
+  const movePicked = async (targetProjectId) => {
+    try {
+      for (const { section, ids } of selectedBySection()) {
+        if (section.kind !== 'files') {
+          if (!linkItems(targetProjectId, section.kind, ids)) throw new Error(`${section.label}을(를) 이동하지 못했어요`);
+          continue;
+        }
+        const cloudIds = ids.filter((id) => section.items.find((item) => item.id === id)?.isCloud);
+        const localIds = ids.filter((id) => !cloudIds.includes(id));
+        if (isSharedWorkspace) {
+          const { uploaded, failures } = await uploadLocalFiles(localIds);
+          const assetIds = [...cloudIds, ...uploaded.map((file) => file.assetId)];
+          if (assetIds.length) await linkProjectFiles(targetProjectId, assetIds);
+          if (uploaded.length) unlinkItems('files', uploaded.map((file) => file.sourceId));
+          if (failures.length) alertUser('일부 기기 파일을 이동하지 못했어요', failures.slice(0, 3).join('\n'));
+        } else if (localIds.length && !linkItems(targetProjectId, 'files', localIds)) {
+          throw new Error('기기 파일을 이동하지 못했어요');
+        }
+      }
+      setMoving(false);
+      exitEdit();
+    } catch (error) {
+      alertUser('항목을 이동하지 못했어요', error.message || '다시 시도해 주세요.');
+    }
+  };
+  const unlinkPicked = async () => {
+    try {
+      for (const { section, ids } of selectedBySection()) {
+        if (section.kind !== 'files') {
+          unlinkItems(section.kind, ids);
+          continue;
+        }
+        const cloudIds = ids.filter((id) => section.items.find((item) => item.id === id)?.isCloud);
+        const localIds = ids.filter((id) => !cloudIds.includes(id));
+        if (localIds.length) unlinkItems('files', localIds);
+        if (cloudIds.length) await unlinkProjectFiles(project.id, cloudIds);
+      }
+      setConfirmUnlink(false);
+      exitEdit();
+    } catch (error) {
+      alertUser('연결을 해제하지 못했어요', error.message || '다시 시도해 주세요.');
+    }
+  };
   const openItem = (s, id) => {
     if (s.kind === 'memos') navigation.navigate(ROUTES.MemoEdit, { memoId: id });
     else if (s.kind === 'tasks') navigation.navigate(ROUTES.TaskEdit, { taskId: id });
@@ -86,22 +240,17 @@ export default function ProjectDetailScreen({ navigation, route }) {
       <ScreenHeader
         title={project.title}
         onBack={navigation.goBack}
-        right={<CircleButton icon="userPlus" label="팀원 초대" onPress={() => navigation.navigate(ROUTES.ProjectInvite, { projectId })} />}
+        right={
+          <Pressable accessibilityRole="button" accessibilityLabel="팀원 초대" onPress={() => navigation.navigate(ROUTES.ProjectInvite, { projectId })} hitSlop={10}>
+            <Text style={styles.headIcon}>👥＋</Text>
+          </Pressable>
+        }
       />
       <ScrollView contentContainerStyle={styles.content}>
-        {/* 프로젝트 정보: 상태 꼬리표 + 마감 · 담당 · 장소 (있는 값만) */}
-        <View style={[styles.section, styles.info]}>
-          <View style={styles.infoRow}>
-            <Tag label={project.status} tone={project.status === '진행 중' ? 'mint' : project.status === '완료' ? 'muted' : 'outline'} />
-            {!!project.due && (
-              <View style={styles.metaItem}>
-                <Icon name="calendar" size={15} color={colors.muted} />
-                <Text style={styles.infoLine}>마감 {project.due}</Text>
-              </View>
-            )}
-            {!!project.assignee && <Text style={styles.infoLine}>담당 {project.assignee}</Text>}
-            {!!project.place && <Text style={styles.infoLine}>{project.place}</Text>}
-          </View>
+        <View style={styles.info}>
+          <Text style={styles.infoLine}>
+            {project.status}{project.due ? ` · 마감 ${project.due}` : ''}{project.assignee ? ` · 담당 ${project.assignee}` : ''}{project.place ? ` · ${project.place}` : ''}
+          </Text>
           {!!project.desc && <Text style={styles.desc}>{project.desc}</Text>}
         </View>
 
@@ -113,7 +262,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
             <View key={s.key} style={styles.section}>
               <Pressable accessibilityRole="button" accessibilityState={{ expanded: isOpen }} onPress={() => setOpen((o) => ({ ...o, [s.key]: !o[s.key] }))} style={styles.sectionHead}>
                 <Text style={styles.sectionTitle}>{s.label} {s.items.length}{s.unit}</Text>
-                <Icon name="chevronDown" size={18} color={colors.muted} style={isOpen ? styles.flip : undefined} />
+                <Text style={styles.chev}>{isOpen ? '▴' : '▾'}</Text>
               </Pressable>
               {isOpen && (
                 <View style={{ gap: spacing.sm }}>
@@ -121,31 +270,66 @@ export default function ProjectDetailScreen({ navigation, route }) {
                   {s.items.map((x) => {
                     const k = keyOf(s, x.id);
                     const on = picked.includes(k);
+                    const content = (
+                      <>
+                        {editing && <Text style={[styles.check, on && { color: colors.mintDark }]}>{on ? '☑' : '☐'}</Text>}
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <Text style={styles.itemTitle} numberOfLines={1}>{x.title}</Text>
+                          <Text style={styles.itemSub} numberOfLines={1}>{x.sub}</Text>
+                        </View>
+                      </>
+                    );
+                    const beginEdit = () => {
+                      if (!editing) {
+                        setEditing(true);
+                        setPicked([k]);
+                      }
+                    };
+                    const pressItem = () => (editing ? toggle(k) : openItem(s, x.id));
+                    if (s.kind === 'files' && !editing) {
+                      return (
+                        <View key={x.id} style={styles.fileItemRow}>
+                          <Pressable
+                            accessibilityRole="button"
+                            onPress={pressItem}
+                            onLongPress={beginEdit}
+                            delayLongPress={350}
+                            style={[styles.item, styles.fileItemMain]}
+                          >
+                            {content}
+                          </Pressable>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={downloadingFileId === x.id ? `${x.title} 저장 중` : `${x.title} 다운로드`}
+                            disabled={downloadingFileId !== null}
+                            onPress={() => downloadProjectFile(x.id)}
+                            style={[styles.downloadBtn, downloadingFileId !== null && styles.off]}
+                          >
+                            {downloadingFileId === x.id
+                              ? <ActivityIndicator size="small" color={colors.mintDark} />
+                              : <Icon name="download" size={20} color={colors.mintDark} />}
+                          </Pressable>
+                        </View>
+                      );
+                    }
                     return (
                       <Pressable
                         key={x.id}
                         accessibilityRole={editing ? 'checkbox' : 'button'}
                         accessibilityState={editing ? { checked: on } : undefined}
-                        onPress={() => (editing ? toggle(k) : openItem(s, x.id))}
-                        onLongPress={() => {
-                          if (!editing) {
-                            setEditing(true);
-                            setPicked([k]);
-                          }
-                        }}
+                        onPress={pressItem}
+                        onLongPress={beginEdit}
                         delayLongPress={350}
                         style={[styles.item, on && styles.itemOn]}
                       >
-                        {editing && <Icon name={on ? 'checkSquare' : 'square'} size={22} color={on ? colors.mintDark : colors.muted} />}
-                        <View style={{ flex: 1, gap: 2 }}>
-                          <Text style={styles.itemTitle} numberOfLines={1}>{x.title}</Text>
-                          <Text style={styles.itemSub} numberOfLines={1}>{x.sub}</Text>
-                        </View>
+                        {content}
                       </Pressable>
                     );
                   })}
                   {!editing && (
-                    <DashedButton label={`${s.label} 연결`} onPress={() => { setAdding(s.key); setAddPicked([]); }} style={styles.linkBtn} />
+                    <Pressable accessibilityRole="button" onPress={() => { setAdding(s.key); setAddPicked([]); setFileImportMessage(''); setFileImportFailed(false); }} style={styles.linkBtn}>
+                      <Text style={styles.linkText}>＋ {s.label} 연결</Text>
+                    </Pressable>
                   )}
                 </View>
               )}
@@ -155,11 +339,8 @@ export default function ProjectDetailScreen({ navigation, route }) {
 
         {/* 팀원: 누르면 팀원 관리 화면 */}
         <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.ProjectTeam, { projectId })} style={[styles.section, styles.sectionHead]}>
-          <View style={styles.metaItem}>
-            <Icon name="users" size={18} color={colors.mintDark} />
-            <Text style={styles.sectionTitle}>팀원 {project.members.length}명</Text>
-          </View>
-          <Icon name="chevronRight" size={18} color={colors.muted} />
+          <Text style={styles.sectionTitle}>팀원 {project.members.length}명</Text>
+          <Text style={styles.chev}>›</Text>
         </Pressable>
 
         {!editing && (
@@ -194,10 +375,11 @@ export default function ProjectDetailScreen({ navigation, route }) {
             <Pressable accessibilityRole="button" disabled={picked.length === 0} onPress={() => setConfirmUnlink(true)} style={[styles.barBtn, picked.length === 0 && styles.off]}>
               <Text style={styles.barText}>연결 해제</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" disabled={picked.length === 0} onPress={() => setConfirmDelete(true)} style={[styles.barBtn, styles.barDanger, picked.length === 0 && styles.off]}>
+            <Pressable accessibilityRole="button" disabled={picked.length === 0 || hasCloudPicked} onPress={() => setConfirmDelete(true)} style={[styles.barBtn, styles.barDanger, (picked.length === 0 || hasCloudPicked) && styles.off]}>
               <Text style={[styles.barText, { color: colors.white }]}>삭제</Text>
             </Pressable>
           </View>
+          {hasCloudPicked && <Text style={styles.itemSub}>클라우드 파일은 연결 해제로 프로젝트에서만 제거할 수 있어요.</Text>}
         </View>
       )}
 
@@ -206,6 +388,24 @@ export default function ProjectDetailScreen({ navigation, route }) {
         <View style={styles.backdrop}>
           <View style={styles.dialog} accessibilityViewIsModal>
             <Text style={styles.dialogTitle}>{sections.find((s) => s.key === adding)?.label} 연결</Text>
+            {adding === 'files' && (
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={importingFiles}
+                  onPress={importPhoneFiles}
+                  style={[styles.linkBtn, importingFiles && styles.off]}
+                >
+                  <Text style={styles.linkText}>{importingFiles ? (isSharedWorkspace ? '클라우드에 올리는 중…' : '가져오는 중…') : '기기에서 파일 가져오기'}</Text>
+                </Pressable>
+                <Text style={styles.fileImportHint}>
+                  {isSharedWorkspace
+                    ? '기기에서 가져오거나 보관함 파일을 연결하면 클라우드에 저장되어 팀원과 공유됩니다. 다운로드 아이콘으로 기기에 따로 저장할 수 있어요. 파일당 50MB까지 가능해요.'
+                    : '선택한 파일은 보관함에 저장한 뒤 이 프로젝트에 연결합니다. 파일당 20MB까지 가능해요.'}
+                </Text>
+                {!!fileImportMessage && <Text style={[styles.fileImportMessage, fileImportFailed && styles.fileImportError]}>{fileImportMessage}</Text>}
+              </>
+            )}
             <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ gap: spacing.sm }}>
               {(sections.find((s) => s.key === adding)?.candidates || []).length === 0 && <Text style={styles.none}>연결할 수 있는 항목이 없어요</Text>}
               {(sections.find((s) => s.key === adding)?.candidates || []).map((x) => {
@@ -214,7 +414,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
                 const owner = projects.find((p) => p.id !== project.id && p.links[s.kind].includes(x.id));
                 return (
                   <Pressable key={x.id} accessibilityRole="checkbox" accessibilityState={{ checked: on }} onPress={() => setAddPicked((a) => (a.includes(x.id) ? a.filter((i) => i !== x.id) : [...a, x.id]))} style={[styles.item, on && styles.itemOn]}>
-                    <Icon name={on ? 'checkSquare' : 'square'} size={22} color={on ? colors.mintDark : colors.muted} />
+                    <Text style={[styles.check, on && { color: colors.mintDark }]}>{on ? '☑' : '☐'}</Text>
                     <View style={{ flex: 1, gap: 2 }}>
                       <Text style={styles.itemTitle} numberOfLines={1}>{x.title}</Text>
                       <Text style={styles.itemSub} numberOfLines={1}>{x.sub}{owner ? ` · 「${owner.title}」에서 이동` : ''}</Text>
@@ -228,11 +428,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
               <Pressable
                 accessibilityRole="button"
                 disabled={addPicked.length === 0}
-                onPress={() => {
-                  const s = sections.find((q) => q.key === adding);
-                  linkItems(project.id, s.kind, addPicked);
-                  setAdding(null);
-                }}
+                onPress={linkPicked}
                 style={[styles.bigBtn, styles.primary, { flex: 1 }, addPicked.length === 0 && styles.off]}
               >
                 <Text style={styles.primaryText}>연결 {addPicked.length || ''}</Text>
@@ -252,11 +448,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
                 <Pressable
                   key={p.id}
                   accessibilityRole="button"
-                  onPress={() => {
-                    pickedBySection((s, ids) => linkItems(p.id, s.kind, ids));
-                    setMoving(false);
-                    exitEdit();
-                  }}
+                  onPress={() => movePicked(p.id)}
                   style={styles.item}
                 >
                   <Text style={styles.itemTitle}>{p.title}</Text>
@@ -293,11 +485,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
         confirmText="연결 해제"
         danger
         onCancel={() => setConfirmUnlink(false)}
-        onConfirm={() => {
-          pickedBySection((s, ids) => unlinkItems(s.kind, ids));
-          setConfirmUnlink(false);
-          exitEdit();
-        }}
+        onConfirm={unlinkPicked}
       />
     </View>
   );
@@ -306,25 +494,32 @@ export default function ProjectDetailScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   gone: { padding: spacing.xl, fontSize: font.bodyLg, color: colors.muted, textAlign: 'center' },
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, gap: spacing.md, paddingBottom: 140 },
-  info: { gap: spacing.sm },
-  infoRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.md },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  infoLine: { fontSize: 13, color: colors.muted },
+  headIcon: { fontSize: 15, color: colors.mintDark, fontWeight: '800', textAlign: 'right' },
+  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 140 },
+  info: { gap: 4 },
+  infoLine: { fontSize: font.body, color: colors.muted },
   desc: { fontSize: font.body, color: colors.ink, lineHeight: 20 },
   heading: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink, marginTop: spacing.sm },
-  section: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, padding: spacing.lg, gap: spacing.sm },
+  section: { backgroundColor: colors.white, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.lg, gap: spacing.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 32 },
   sectionTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
-  flip: { transform: [{ rotate: '180deg' }] },
+  chev: { fontSize: 18, color: colors.muted },
   none: { fontSize: font.body, color: colors.muted },
   item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.cream, borderWidth: 1, borderColor: colors.line, minHeight: 48 },
   itemOn: { borderColor: colors.mint, backgroundColor: colors.mintSoft },
-  itemTitle: { fontSize: font.body, fontWeight: '800', color: colors.ink },
+  fileItemRow: { flexDirection: 'row', alignItems: 'stretch', gap: spacing.sm },
+  fileItemMain: { flex: 1, minWidth: 0 },
+  check: { fontSize: 22, color: colors.muted },
+  itemTitle: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   itemSub: { fontSize: font.caption, color: colors.muted },
-  linkBtn: { minHeight: 42, borderRadius: radius.md },
+  linkBtn: { minHeight: 40, borderRadius: radius.md, borderWidth: 1, borderColor: colors.mint, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.mintSoft },
+  linkText: { fontSize: font.body, fontWeight: '800', color: colors.mintDark },
+  downloadBtn: { width: 48, minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.mint, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.mintSoft },
+  fileImportHint: { fontSize: font.caption, color: colors.muted },
+  fileImportMessage: { fontSize: font.caption, color: colors.mintDark, lineHeight: 18 },
+  fileImportError: { color: colors.coral },
   bottomRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  bigBtn: { minHeight: 50, borderRadius: radius.card, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
+  bigBtn: { minHeight: 50, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
   primary: { flex: 1, backgroundColor: colors.mintDark },
   primaryText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
   ghost: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
@@ -337,7 +532,7 @@ const styles = StyleSheet.create({
   barDanger: { backgroundColor: colors.coral, borderColor: colors.coral, flex: 1.4 },
   barText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.lg, gap: spacing.md },
+  dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md },
   dialogTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
   dialogRow: { flexDirection: 'row', gap: spacing.sm },
 });

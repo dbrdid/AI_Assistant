@@ -19,7 +19,7 @@ function document(input) {
   return { ...input };
 }
 
-// Offsets are UTF-16 indices into the unchanged original document.
+// 오프셋은 수정되지 않은 원본 문서에서 UTF-16 인덱스로 계산합니다.
 export function splitDocument(source) {
   if (!text(source, 80000)) fail('INVALID_INPUT');
   const chunks = [];

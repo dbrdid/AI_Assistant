@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   heading: { fontSize: font.title, fontWeight: '800', color: colors.ink },
   plan: { fontSize: font.body, color: colors.mintDark, fontWeight: '700' },
-  item: { padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, gap: spacing.sm },
+  item: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, gap: spacing.sm },
   itemHead: { flexDirection: 'row', justifyContent: 'space-between' },
   itemLabel: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   itemCount: { fontSize: font.bodyLg, fontWeight: '800', color: colors.mintDark },

@@ -7,8 +7,8 @@ import { groupIntoLines, strokeBounds } from '../../features/memo/utils/InkUtils
 
 const ENDPOINT = 'https://inputtools.google.com/request?ime=handwriting&app=mobilesearch&cs=1&oe=UTF-8';
 const TIMEOUT_MS = 8000;
-// Direct third-party stroke upload bypasses the Gateway consent contract.
-// Keep it disabled until an approved Gateway capability is connected.
+// 획 데이터를 제3자에게 직접 전송하면 게이트웨이 동의 규약을 우회하게 됩니다.
+// 승인된 게이트웨이 기능을 연결할 때까지 비활성화합니다.
 const HANDWRITING_ENABLED = false;
 
 export async function recognizeHandwriting(strokes, width, height, language = 'ko') {

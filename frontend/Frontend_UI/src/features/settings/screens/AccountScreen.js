@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 30, fontWeight: '800', color: colors.white },
   email: { textAlign: 'center', fontSize: font.body, color: colors.muted, marginBottom: spacing.sm },
   field: { gap: spacing.xs },
-  label: { fontSize: font.body, fontWeight: '700', color: colors.ink, marginLeft: spacing.xs },
-  input: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
+  label: { fontSize: font.body, fontWeight: '700', color: colors.ink },
+  input: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
 });

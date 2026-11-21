@@ -93,7 +93,7 @@ export default function WithdrawScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
-  card: { padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, gap: spacing.sm },
+  card: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, gap: spacing.sm },
   cardTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
   line: { fontSize: font.body, color: colors.ink, lineHeight: 21 },
   agree: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 48 },
