@@ -96,7 +96,7 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
     convert();
   };
   const consentNeeded = error && (error.code === 'CONSENT_REQUIRED' || error.code === 'TRANSMISSION_DENIED');
-  const label = phase === 'upload' ? '녹음을 받아 적는 중…' : phase === 'analyze' ? '일정·할 일 찾는 중…' : phase === 'error' ? '다시 시도' : '텍스트로 정리하기';
+  const label = phase === 'upload' ? '녹음을 받아 적는 중…' : phase === 'analyze' ? '일정 / 할 일 찾는 중…' : phase === 'error' ? '다시 시도' : '텍스트로 정리하기';
 
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onClose}>
@@ -108,17 +108,17 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
                 <View style={styles.titleIcon}><Icon name="mic" size={20} color={colors.mintDark} /></View>
                 <Text style={styles.title}>녹음을 저장했어요</Text>
               </View>
-              <Text style={styles.sub}>{fmt(sheet.seconds || 0)}{sheet.fileId ? ' · 파일 보관함에 보관돼요' : ''}</Text>
+              <Text style={styles.sub}>{fmt(sheet.seconds || 0)}{sheet.fileId ? '  /  파일 보관함에 보관돼요' : ''}</Text>
               <Player uri={sheet.uri} />
               {phase === 'done' && result ? (
                 <>
                   {/* 받아 적은 글 (길면 안에서 스크롤) */}
-                  <ScrollView style={styles.textBox} contentContainerStyle={{ padding: spacing.md }}>
+                  <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={styles.textBox} contentContainerStyle={{ padding: spacing.md }}>
                     <Text style={styles.text} selectable>{result.text}</Text>
                   </ScrollView>
                   <Text style={styles.note}>
                     {result.memoId ? '메모로 저장했어요. ' : '메모로 저장하지 못했어요. 글을 길게 눌러 복사해 주세요. '}
-                    {result.memoId && (result.analyzeError ? '일정·할 일은 찾지 못했어요.' : result.added > 0 ? `AI 제안 ${result.added}건을 만들었어요.` : '찾은 일정이나 할 일은 없어요.')}
+                    {result.memoId && (result.analyzeError ? '일정 / 할 일은 찾지 못했어요.' : result.added > 0 ? `AI 제안 ${result.added}건을 만들었어요.` : '찾은 일정이나 할 일은 없어요.')}
                   </Text>
                   {result.added > 0 && onOpenProposals && (
                     <Pressable accessibilityRole="button" onPress={onOpenProposals} style={styles.primary}><Text style={styles.primaryText}>AI 제안 확인하기</Text></Pressable>
@@ -135,7 +135,7 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
                     </Pressable>
                   ) : (
                     <Pressable accessibilityRole="button" disabled={busy} onPress={convert} style={[styles.primary, busy && { opacity: 0.5 }]}>
-                      {busy ? <ActivityIndicator color={colors.white} /> : null}
+                      {busy ? <ActivityIndicator color={colors.onPrimary} /> : null}
                       <Text style={styles.primaryText}>{label}</Text>
                     </Pressable>
                   )}
@@ -178,17 +178,17 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   card: { width: '100%', maxWidth: 360, backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, padding: spacing.xl, gap: spacing.md },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  titleIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center' },
-  title: { flexShrink: 1, fontSize: font.title, fontWeight: '800', color: colors.ink },
+  titleIcon: { width: 36, height: 36, borderRadius: 4, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center' },
+  title: { flexShrink: 1, fontSize: font.title, fontWeight: '600', color: colors.ink },
   row: { flexDirection: 'row', gap: spacing.sm },
   sub: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
   note: { fontSize: font.body, color: colors.mintDark, lineHeight: 20, fontWeight: '600' },
   error: { fontSize: font.body, color: colors.coral, lineHeight: 20, fontWeight: '600' },
   hint: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
-  textBox: { maxHeight: 200, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white },
+  textBox: { maxHeight: 200, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   text: { fontSize: font.body, color: colors.ink, lineHeight: 21 },
   primary: { minHeight: 52, borderRadius: radius.pill, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.sm },
-  primaryText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
-  ghost: { minHeight: 48, borderRadius: radius.pill, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
+  ghost: { minHeight: 48, borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
 });

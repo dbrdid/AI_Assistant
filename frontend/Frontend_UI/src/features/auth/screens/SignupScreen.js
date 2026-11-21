@@ -11,7 +11,7 @@ import { AuthButton, AuthDialog, AuthField, AuthFrame } from '../components/Auth
 const TERMS = {
   required: {
     title: '필수 약관',
-    body: '[서비스 이용약관 · 개인정보 수집·이용 동의]\n\n(임시 문구) 서비스 이용에 필요한 이메일·이름·소속 정보를 수집하고, 계정 관리와 서비스 제공에만 사용합니다. 정식 약관은 서비스 출시 전에 이곳에 넣어 주세요.',
+    body: '[서비스 이용약관  /  개인정보 수집 / 이용 동의]\n\n(임시 문구) 서비스 이용에 필요한 이메일 / 이름 / 소속 정보를 수집하고, 계정 관리와 서비스 제공에만 사용합니다. 정식 약관은 서비스 출시 전에 이곳에 넣어 주세요.',
   },
   optional: {
     title: '선택 약관',
@@ -71,7 +71,7 @@ export default function SignupScreen({ onBack, onVerify }) {
         <View style={styles.backdrop}>
           <View style={styles.sheet} accessibilityViewIsModal>
             <Text style={styles.sheetTitle}>{viewing ? TERMS[viewing].title : ''}</Text>
-            <ScrollView style={{ maxHeight: 260 }}><Text style={styles.sheetBody}>{viewing ? TERMS[viewing].body : ''}</Text></ScrollView>
+            <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={{ maxHeight: 260 }}><Text style={styles.sheetBody}>{viewing ? TERMS[viewing].body : ''}</Text></ScrollView>
             <AuthButton label="닫기" onPress={() => setViewing(null)} />
           </View>
         </View>
@@ -85,9 +85,9 @@ const styles = StyleSheet.create({
   termMain: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 },
   box: { fontSize: 24, color: colors.muted },
   termText: { fontSize: font.body, color: colors.ink, fontWeight: '600', flexShrink: 1 },
-  view: { fontSize: font.body, color: colors.mintDark, fontWeight: '800', paddingHorizontal: spacing.sm },
+  view: { fontSize: font.body, color: colors.mintDark, fontWeight: '600', paddingHorizontal: spacing.sm },
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   sheet: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.md },
-  sheetTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
+  sheetTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   sheetBody: { fontSize: font.body, color: colors.ink, lineHeight: 22 },
 });

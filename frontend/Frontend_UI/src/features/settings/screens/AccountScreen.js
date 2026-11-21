@@ -33,7 +33,7 @@ export default function AccountScreen({ navigation }) {
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScreenHeader title="계정" onBack={navigation.goBack} />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{name.trim() ? name.trim().charAt(0) : '?'}</Text>
         </View>
@@ -69,11 +69,11 @@ export default function AccountScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
-  avatar: { alignSelf: 'center', width: 72, height: 72, borderRadius: 36, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 30, fontWeight: '800', color: colors.white },
+  avatar: { alignSelf: 'center', width: 72, height: 72, borderRadius: 4, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 30, fontWeight: '600', color: colors.onPrimary },
   email: { textAlign: 'center', fontSize: font.body, color: colors.muted, marginBottom: spacing.sm },
   field: { gap: spacing.xs },
   label: { fontSize: font.body, fontWeight: '700', color: colors.ink, marginLeft: spacing.xs },
-  input: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
+  input: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
 });

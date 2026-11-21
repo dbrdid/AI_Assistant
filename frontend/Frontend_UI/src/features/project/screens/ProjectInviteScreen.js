@@ -61,7 +61,7 @@ export default function InviteScreen({ navigation, route }) {
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScreenHeader title="팀원 초대" onBack={navigation.goBack} />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.field}>
           <Text style={styles.label}>초대할 프로젝트</Text>
           <View style={styles.box}>
@@ -123,14 +123,14 @@ const styles = StyleSheet.create({
   field: { gap: spacing.sm },
   label: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   box: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radius.md, backgroundColor: colors.mintSoft, borderWidth: 1, borderColor: colors.mint, paddingHorizontal: spacing.lg },
-  boxText: { flex: 1, fontSize: font.bodyLg, fontWeight: '800', color: colors.mintDark },
+  boxText: { flex: 1, fontSize: font.bodyLg, fontWeight: '600', color: colors.mintDark },
   chipRow: { flexDirection: 'row', gap: spacing.sm },
   chip: { paddingHorizontal: spacing.xl },
-  input: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
+  input: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
   warn: { gap: spacing.sm, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   warnText: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
-  left: { fontSize: font.body, fontWeight: '800', color: colors.ink },
+  left: { fontSize: font.body, fontWeight: '600', color: colors.ink },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
   send: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
-  sendText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
+  sendText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
 });

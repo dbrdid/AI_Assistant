@@ -35,7 +35,7 @@ export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarT
     lunarText || null,
   ]
     .filter(Boolean)
-    .join(' · ');
+    .join('  /  ');
 
   return (
     <View style={styles.root}>
@@ -74,8 +74,8 @@ export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarT
           const span = t.endDate ? `${shortDate(t.date)}~${shortDate(t.endDate)}` : null; // 여러 날 일정
           const space = spaces ? spaces[t.workspaceId] : null;
           const subText = isEvent
-            ? [space?.name, span, t.place || (span || space ? null : '일정'), t.project].filter(Boolean).join(' · ')
-            : [space?.name ?? '할 일', done ? '완료' : t.project, c === 'overdue' ? '초과' : null].filter(Boolean).join(' · ');
+            ? [space?.name, span, t.place || (span || space ? null : '일정'), t.project].filter(Boolean).join('  /  ')
+            : [space?.name ?? '할 일', done ? '완료' : t.project, c === 'overdue' ? '초과' : null].filter(Boolean).join('  /  ');
           // 색 막대: 여러 공간이면 공간 색, 아니면 일정 = 민트 · 할 일 = 진녹색
           const barColor = done ? colors.line : space ? space.color : isEvent ? colors.mint : colors.mintDark;
           const toggle = () => (t.workspaceId ? taskIn(t, 'toggleDone', t.id) : toggleDone(t.id)); // 합쳐 볼 때는 그 항목의 공간에서
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   headRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: 2 },
   headText: { flex: 1, gap: 2 },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: spacing.sm },
-  title: { fontSize: 18, fontWeight: '800', color: colors.ink },
+  title: { fontSize: 18, fontWeight: '600', color: colors.ink },
   holiday: { fontSize: font.caption, fontWeight: '700', color: colors.coral },
   sub: { fontSize: 13, color: colors.muted },
 
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: colors.mintSoft,
   },
-  addText: { fontSize: font.body, fontWeight: '800', color: colors.mintDark },
+  addText: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },
 
   empty: { fontSize: font.body, color: colors.muted, paddingVertical: spacing.sm },
 
@@ -192,12 +192,12 @@ const styles = StyleSheet.create({
   itemMain: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   itemBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 44 },
   timeCol: { width: 46, gap: 2 },
-  timeStart: { fontSize: 15, fontWeight: '800', color: colors.ink },
+  timeStart: { fontSize: 15, fontWeight: '600', color: colors.ink },
   timeAllDay: { fontSize: 13, color: colors.muted },
   timeEnd: { fontSize: 13, color: colors.muted },
-  bar: { width: 3, alignSelf: 'stretch', borderRadius: 2, minHeight: 36 },
+  bar: { width: 3, alignSelf: 'stretch', borderRadius: 4, minHeight: 36 },
   textCol: { flex: 1, gap: 4 },
-  itemTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  itemTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   itemTitleDone: { color: colors.muted, textDecorationLine: 'line-through' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   itemMeta: { flex: 1, fontSize: 13, color: colors.muted },
@@ -205,8 +205,8 @@ const styles = StyleSheet.create({
 
   actions: { flexDirection: 'row', gap: spacing.sm },
   actionBtn: { flex: 1, minHeight: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  editBtn: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  editBtn: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   editText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   delBtn: { backgroundColor: colors.coral },
-  delText: { fontSize: font.body, fontWeight: '700', color: colors.white },
+  delText: { fontSize: font.body, fontWeight: '700', color: colors.onPrimary },
 });

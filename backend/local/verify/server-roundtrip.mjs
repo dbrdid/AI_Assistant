@@ -8,8 +8,10 @@ import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
+import assert from 'node:assert/strict';
 import { openDatabaseSync } from '../tests/expo-sqlite-node.mjs';
 import { createLocalStore, createBridge } from '../src/index.js';
+import { appendMemoReference, memoReferenceIds, removeMemoReference } from '../../../frontend/Frontend_UI/src/features/memo/utils/memoReferences.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const verifyDir = process.env.STELLA_VERIFY ?? path.resolve(here, '../../../tests/sync-verify');
@@ -212,11 +214,11 @@ try {
     JSON.stringify([flushOf(rb), Object.values(rb)[0].merged, mergedRow.title, mergedRow.body]));
   // 같은 줄을 다르게 고치면 스스로 합치지 않고, 화면에 무엇이 다른지 알려 준 뒤 고른 대로 품
   a.store.updateMemo(shared.id, { body: mergedRow.body.replace('2. 예산', '2. 예산 100만') });
-  b.store.updateMemo(shared.id, { body: mergedRow.body.replace('2. 예산', '2. 예산 200만') });
+  b.hook.during = () => b.store.updateMemo(shared.id, { body: mergedRow.body.replace('2. 예산', '2. 예산 200만') });
   [ra, rb] = await syncBoth();
   const found = await b.bridge.issues(ws);
   const field = found.conflicts[0]?.items[0]?.fields[0];
-  check('같은 줄 충돌은 멈추고, 어느 칸이 어떻게 다른지 알려 줌', flushOf(rb) === 'CONFLICT' && found.conflicts.length === 1 && found.conflicts[0].mergeable === false
+  check('서버 변경을 받은 직후 화면에서 같은 줄을 저장해도 두 편집과 편집 기준이 남음', flushOf(rb) === 'CONFLICT' && found.conflicts.length === 1 && found.conflicts[0].mergeable === false
     && field?.field === 'body' && field.mine.includes('200만') && field.server.includes('100만') && field.base === mergedRow.body
     && (await b.bridge.status()).state === 'attention' && b.store.getMemo(shared.id).body.includes('200만'), JSON.stringify([flushOf(rb), found]).slice(0, 500));
   const solved = await b.bridge.resolve(ws, found.conflicts[0].outboxSeq, 'keep_both');
@@ -226,12 +228,203 @@ try {
     && same(bothRow.body.split('\n').filter(l => l.startsWith('2.')), ['2. 예산 200만', '2. 예산 100만']) && same(view(a.store), view(b.store))
     && (await b.bridge.status()).state === 'synced' && (await b.bridge.issues(ws)).conflicts.length === 0, JSON.stringify([solved.status, solved.flush, bothRow.body]));
 
+  const blockBase = '## 회의\n- [ ] 초안 검토\n- 공유할 자료';
+  const blockNote = a.store.addMemo({ title: '팀 체크리스트', body: blockBase });
+  await syncBoth();
+  const checkedBody = blockBase.replace('- [ ]', '- [x]');
+  const editedHeading = blockBase.replace('## 회의', '## 월간 회의');
+  a.store.updateMemo(blockNote.id, { body: checkedBody });
+  b.store.updateMemo(blockNote.id, { body: editedHeading });
+  [, rb] = await syncBoth();
+  await syncBoth();
+  const expectedBlockBody = editedHeading.replace('- [ ]', '- [x]');
+  const serverBlock = (await A.select('notes', 'id', blockNote.id))[0];
+  check('두 기기의 소제목 수정과 체크 상태가 서버 및 양쪽 기기에 함께 남음',
+    flushOf(rb) === 'DONE' && serverBlock.body === expectedBlockBody &&
+    a.store.getMemo(blockNote.id).body === expectedBlockBody && b.store.getMemo(blockNote.id).body === expectedBlockBody,
+    JSON.stringify([flushOf(rb), serverBlock.body]));
+  check('동기화가 본문을 합친 뒤 각 기기에서 합치기 전 편집을 확인할 수 있음',
+    a.store.listMemoVersions(blockNote.id).some(version => version.body === checkedBody) &&
+    b.store.listMemoVersions(blockNote.id).some(version => version.body === editedHeading));
+
+  const priorVersion = b.store.listMemoVersions(blockNote.id).find(version => version.body === editedHeading);
+  assert.ok(priorVersion, 'Expected a version that can be restored');
+  const { title, body, strokes } = priorVersion;
+  b.store.updateMemo(blockNote.id, { title, body, strokes });
+  [, rb] = await syncBoth();
+  const restoredRows = await A.select('notes', 'id', blockNote.id);
+  check('편집 기록에서 불러와 저장한 본문이 서버와 두 기기에 반영됨',
+    flushOf(rb) === 'DONE' && restoredRows[0]?.body === editedHeading &&
+    [a, b].every(device => device.store.getMemo(blockNote.id)?.body === editedHeading));
+  check('이전 버전 저장 후에도 복원 직전 본문을 두 기기의 편집 기록에서 찾을 수 있음',
+    [a, b].every(device => device.store.listMemoVersions(blockNote.id)
+      .some(version => version.body === expectedBlockBody)));
+
+  const childId = a.store.addMemo({ title: '하위 페이지', parentMemoId: blockNote.id }).id;
+  const pushHierarchy = (op) => A.transport().push(ws, randomUUID(), [{ entity: 'notes', ...op }]);
+  await syncBoth();
+  check('공유 페이지에 상위 페이지를 지정할 수 있음',
+    (await B.select('notes', 'id', childId))[0]?.parent_note_id === blockNote.id &&
+    b.store.getMemo(childId)?.parentMemoId === blockNote.id);
+  b.store.setMemoParent(childId, null);
+  await syncBoth();
+  check('다른 기기에서 최상위로 옮긴 페이지가 양쪽에 반영됨', a.store.getMemo(childId)?.parentMemoId === null);
+  b.store.setMemoParent(childId, blockNote.id);
+  await syncBoth();
+  a.store.setMemoParent(childId, shared.id);
+  b.hook.during = () => b.store.setMemoParent(childId, null);
+  [, rb] = await syncBoth();
+  const moveIssue = (await b.bridge.issues(ws)).conflicts[0];
+  const parentField = moveIssue?.items[0]?.fields.find(field => field.field === 'parent_note_id');
+  check('같은 페이지를 옮기면 내 위치·서버 위치·원래 위치가 모두 남음',
+    flushOf(rb) === 'CONFLICT' && parentField?.base === blockNote.id &&
+    parentField.mine === null && parentField.server === shared.id);
+  assert.ok(moveIssue, 'Expected page move conflict');
+  await b.bridge.resolve(ws, moveIssue.outboxSeq, 'use_server');
+  await syncBoth();
+  check('서버 위치를 선택하면 양쪽 페이지 계층이 같은 위치로 맞춰짐',
+    a.store.getMemo(childId)?.parentMemoId === shared.id && b.store.getMemo(childId)?.parentMemoId === shared.id);
+
+  const firstPage = a.store.addMemo({ title: '첫 번째 페이지' });
+  const secondPage = a.store.addMemo({ title: '두 번째 페이지' });
+  await syncBoth();
+  a.store.setMemoParent(firstPage.id, secondPage.id);
+  b.store.setMemoParent(secondPage.id, firstPage.id);
+  b.store.updateMemo(secondPage.id, { body: '이동 뒤 작성한 본문' });
+  [, rb] = await syncBoth();
+  const rejectedMove = (await b.bridge.issues(ws)).rejected.find(issue =>
+    issue.changes.length === 1 && issue.changes[0].id === secondPage.id &&
+    issue.changes[0].data.parent_note_id === firstPage.id);
+  assert.equal(flushOf(rb), 'BLOCKED');
+  assert.ok(rejectedMove, 'Expected a rejected page move in the outbox');
+  const discarded = await b.bridge.discard(ws, rejectedMove.outboxSeq);
+  await syncBoth();
+  check('거절된 이동을 취소하면 양쪽의 계층이 일치하고 대기하던 본문이 저장됨',
+    discarded.flush?.status === 'DONE' && [a, b].every(device =>
+      device.store.getMemo(firstPage.id)?.parentMemoId === secondPage.id &&
+      device.store.getMemo(secondPage.id)?.parentMemoId === null &&
+      device.store.getMemo(secondPage.id)?.body === '이동 뒤 작성한 본문'));
+
+  a.store.setMemoParent(childId, blockNote.id);
+  await syncBoth();
+  await assert.rejects(() => pushHierarchy({
+    op: 'UPSERT', id: blockNote.id, base_revision: restoredRows[0].revision, data: { parent_note_id: childId },
+  }), /cycle/i);
+  check('공유 페이지의 순환 이동을 서버에서 거부함', (await B.select('notes', 'id', blockNote.id))[0]?.parent_note_id === null);
+  const parentTrash = await pushHierarchy({ op: 'DELETE', id: blockNote.id, base_revision: restoredRows[0].revision, data: {} });
+  const parentPurge = await pushHierarchy({ op: 'PURGE', id: blockNote.id, base_revision: parentTrash.results[0].revision, data: {} });
+  check('상위 페이지를 영구 삭제하면 하위 페이지는 연결만 해제됨', parentTrash.status === 'ACCEPTED' &&
+    parentPurge.status === 'ACCEPTED' && (await B.select('notes', 'id', childId))[0]?.parent_note_id === null);
+  await syncBoth();
+  check('서버에서 해제한 계층을 두 기기에 반영함',
+    a.store.getMemo(childId)?.parentMemoId === null && b.store.getMemo(childId)?.parentMemoId === null);
+
+  // listLocal orders by key, so the new child is projected before the old link is cleared.
+  const [earlierId, laterId] = [randomUUID(), randomUUID()].sort();
+  const hierarchyTransport = A.transport();
+  const hierarchyBatch = (changes) => hierarchyTransport.push(ws, randomUUID(),
+    changes.map(change => ({ entity: 'notes', op: 'UPSERT', ...change })));
+  const initialHierarchy = await hierarchyBatch([
+    { id: earlierId, data: { title: '처음 상위' } },
+    { id: laterId, data: { title: '처음 하위', parent_note_id: earlierId } },
+  ]);
+  assert.equal(initialHierarchy.status, 'ACCEPTED');
+  await b.bridge.syncAll();
+  assert.equal(b.store.getMemo(laterId).parentMemoId, earlierId);
+  const reverseHierarchy = await hierarchyBatch([
+    { id: laterId, base_revision: initialHierarchy.results[1].revision, data: { parent_note_id: null } },
+    { id: earlierId, base_revision: initialHierarchy.results[0].revision, data: { parent_note_id: laterId } },
+  ]);
+  assert.equal(reverseHierarchy.status, 'ACCEPTED');
+  await b.bridge.syncAll();
+  check('서버 계층의 상하 반전을 한 번의 동기화에서 반영함',
+    b.store.getMemo(laterId).parentMemoId === null && b.store.getMemo(earlierId).parentMemoId === laterId);
+
+  const referenced = a.store.addMemo({ title: '참조 대상', body: '자료' });
+  const referencing = a.store.addMemo({ title: '참조 원본', body: '회의 본문' });
+  await syncBoth();
+  a.store.updateMemo(referencing.id, {
+    body: appendMemoReference(referencing.body, referenced.id, referenced.title),
+  });
+  b.store.updateMemo(referenced.id, { title: '새 자료 제목' });
+  b.store.updateMemo(referencing.id, { body: '다른 기기에서 수정한 회의 본문' });
+  await syncBoth();
+  await syncBoth();
+  const linkOnB = b.store.getMemo(referencing.id).body;
+  check('공유 메모의 연결 추가와 다른 기기의 본문 수정이 함께 동기화됨',
+    linkOnB.includes('다른 기기에서 수정한 회의 본문') && memoReferenceIds(linkOnB).has(referenced.id) &&
+    a.store.getMemo(referencing.id).body === linkOnB && a.store.getMemo(referenced.id).title === '새 자료 제목');
+  a.store.trashMemo(referenced.id);
+  await syncBoth();
+  assert.equal(b.store.getMemos().some(note => note.id === referenced.id), false);
+  assert.ok(memoReferenceIds(b.store.getMemo(referencing.id).body).has(referenced.id));
+  b.store.restoreMemos([referenced.id]);
+  await syncBoth();
+  check('참조 대상이 휴지통에서 복원되면 양쪽 기기에서 같은 ID를 다시 열 수 있음',
+    [a, b].every(({ store }) => store.getMemos().some(note => note.id === referenced.id) &&
+      memoReferenceIds(store.getMemo(referencing.id).body).has(referenced.id)));
+  a.store.updateMemo(referencing.id, { body: removeMemoReference(a.store.getMemo(referencing.id).body, referenced.id) });
+  await syncBoth();
+  check('공유 메모 연결을 해제해도 양쪽 기기에 대상 메모는 남음',
+    [a, b].every(({ store }) => store.getMemo(referencing.id).body === '다른 기기에서 수정한 회의 본문' &&
+      store.getMemo(referenced.id).title === '새 자료 제목'));
+
+  const boardTask = a.store.addTask({ kind: 'task', title: '보드 검증', date: '2026-11-25', projectId });
+  await syncBoth();
+  const boardCardBefore = b.store.getTask(boardTask.id);
+  a.store.updateTask(boardTask.id, { status: '진행 중' }, { expectedRevision: boardTask.revision });
+  await syncBoth();
+  assert.throws(() => b.store.updateTask(boardTask.id, { status: '취소' },
+    { expectedRevision: boardCardBefore.revision }), { code: 'revision_conflict' });
+  const activeBoardCard = b.store.getTask(boardTask.id);
+  check('공유 보드에서 상태 변경을 받으면 이전 카드로 덮어쓰지 못함',
+    activeBoardCard.status === '진행 중' && activeBoardCard.projectId === projectId);
+  b.store.updateTask(boardTask.id, { status: '완료' }, { expectedRevision: activeBoardCard.revision });
+  await syncBoth();
+  const finishedBoardTask = (await A.select('tasks', 'id', boardTask.id))[0];
+  check('다른 기기에서 바꾼 할 일 상태가 프로젝트 연결을 유지하면서 동기화됨',
+    finishedBoardTask.status === 'DONE' && finishedBoardTask.project_id === projectId &&
+    [a, b].every(device => device.store.getTask(boardTask.id)?.status === '완료'));
+
+  const tableProperties = {
+    fields: [{ key: 'property:review', label: '검토', type: 'checkbox' }],
+    properties: { [`tasks:${boardTask.id}`]: { 'property:review': false } },
+  };
+  const projectBeforeTable = (await A.select('projects', 'id', projectId))[0];
+  const pushProjectSettings = (revision, data) => A.transport().push(ws, randomUUID(), [
+    { entity: 'projects', op: 'UPSERT', id: projectId, base_revision: revision, data },
+  ]);
+  const savedTable = await pushProjectSettings(projectBeforeTable.revision, { table_properties: tableProperties });
+  assert.equal(savedTable.status, 'ACCEPTED');
+  const updatedProject = await pushProjectSettings(savedTable.results[0].revision, { name: '표 설정 유지 검증' });
+  assert.equal(updatedProject.status, 'ACCEPTED');
+  await assert.rejects(() => pushProjectSettings(updatedProject.results[0].revision, { table_properties: [] }));
+  const invalidTablePayloads = [
+    { ...tableProperties, fields: [...tableProperties.fields, ...tableProperties.fields] },
+    { ...tableProperties, properties: { [`tasks:${boardTask.id}`]: { 'property:review': 'false' } } },
+    { ...tableProperties, properties: { [`tasks:${boardTask.id}`]: { 'property:unknown': false } } },
+  ];
+  for (const invalid of invalidTablePayloads) {
+    await assert.rejects(() => pushProjectSettings(updatedProject.results[0].revision, { table_properties: invalid }));
+  }
+  check('잘못된 공유 표 속성이 기존 프로젝트 리비전을 바꾸지 않음',
+    Number((await A.select('projects', 'id', projectId))[0].revision) === Number(updatedProject.results[0].revision));
+  await syncBoth();
+  const synchronizedProject = await engine.getLocal(b.dev.db, ws, 'projects', projectId);
+  check('공유 프로젝트 속성 정의와 체크 해제 값이 다른 클라이언트에 전달됨',
+    synchronizedProject?.data.name === '표 설정 유지 검증' &&
+    synchronizedProject.data.table_properties?.fields?.[0]?.key === 'property:review' &&
+    synchronizedProject.data.table_properties?.properties?.[`tasks:${boardTask.id}`]?.['property:review'] === false);
+
   // 13. 공간의 내 역할·멤버 수: 관리자가 B를 보기 전용으로 바꾸면 B 기기에서도 저장이 막힘
   const wsB = () => b.store.getWorkspaces().find(w => w.serverId === ws);
   const before = [wsB().role, wsB().members];
   await A.rpc('change_member_role', { p_workspace_id: ws, p_account_id: idB, p_role: 'VIEWER' });
   await syncBoth();
   const blockedSave = (() => { try { b.store.addMemo({ title: '보기 전용이라 못 씀' }); return 'saved'; } catch (e) { return e.code; } })();
+  assert.throws(() => b.store.updateTask(boardTask.id, { status: '취소' },
+    { expectedRevision: b.store.getTask(boardTask.id).revision }), { code: 'read_only' });
+  check('보기 전용이 된 기기는 공유 보드 상태를 바꿀 수 없음', b.store.getTask(boardTask.id).status === '완료');
   check('멤버 수와 내 역할이 기기에 맞춰지고, 보기 전용이 되면 기기에서 저장이 막힘', same(before, ['멤버', 2]) && wsB().role === '보기 전용' && blockedSave === 'read_only',
     JSON.stringify([before, wsB().role, blockedSave]));
   await A.rpc('change_member_role', { p_workspace_id: ws, p_account_id: idB, p_role: 'EDITOR' });

@@ -60,7 +60,9 @@ export interface SyncContext {
 /** 사용자의 수정 1건. 한 번의 saveLocal = 한 번의 저장 시도(같이 성공·실패) */
 export type LocalChange =
   | { kind: 'create'; entity: RevisionedEntity | ImmutableEntity; id: string; data: Record<string, unknown> }
-  | { kind: 'update'; entity: RevisionedEntity; id: string; data: Record<string, unknown> }   // 바꾼 필드만
+  | { kind: 'update'; entity: RevisionedEntity; id: string; data: Record<string, unknown>;
+      tableBase?: { revision: number; properties: unknown };
+      noteBase?: { revision: number; fields: Record<string, unknown> } }   // 바꾼 필드만
   | { kind: 'delete'; entity: RevisionedEntity; id: string }                                  // 휴지통으로
   | { kind: 'restore'; entity: RevisionedEntity; id: string }                                // 휴지통에서 복구 (#32부터 7가지 모두)
   | { kind: 'purge'; entity: RevisionedEntity; id: string }                                  // 휴지통에서 영구 삭제 (#32, 관리자·지운 사람)
@@ -326,9 +328,16 @@ export async function saveLocal(ctx: SyncContext, changes: LocalChange[], opts: 
         await ctx.db.run('delete from stella_handoffs where created_at < ?', [new Date(t - HANDOFF_KEEP_MS).toISOString()]);
       }
     }
+    const intent = await Promise.all(changes.map(async change => {
+      if (change.kind !== 'update' || change.entity !== 'notes' || change.noteBase) return change;
+      const record = await getLocal(ctx.db, ws, 'notes', change.id);
+      if (!record || record.serverRevision == null) return change;
+      const fields = Object.fromEntries(Object.keys(change.data).map(key => [key, record.data[key] ?? null]));
+      return { ...change, noteBase: { revision: record.serverRevision, fields } };
+    }));
     await ctx.db.run(
       'insert into stella_outbox (workspace_id, operation_id, intent, created_at) values (?, ?, ?, ?)',
-      [ws, operationId, JSON.stringify(changes), at]);
+      [ws, operationId, JSON.stringify(intent), at]);
     await rebuildAll(ctx.db, ws, changes.map((c) => ({ entity: c.entity, key: changeKey(c) })));
   });
   return operationId;
@@ -350,14 +359,21 @@ async function buildOps(db: SqlDb, ws: string, intent: LocalChange[]): Promise<{
       'select server_revision, server_data from stella_records where workspace_id = ? and entity = ? and key = ?', [ws, c.entity, c.id]);
     const rev = rec?.server_revision;
     if (rev == null) throw new SyncError('NOT_FOUND', `서버에 없는 기록은 수정·삭제할 수 없습니다 (${c.entity} ${c.id})`);
+    const tableBase = c.kind === 'update' && c.entity === 'projects' && 'table_properties' in c.data ? c.tableBase : undefined;
+    let baseRevision = tableBase?.revision ?? rev;
     if (c.kind === 'update') {
       const server = parse(rec?.server_data ?? null) ?? {};
       const was: Json = {};
       for (const f of Object.keys(c.data)) was[f] = server[f] ?? null;
+      if (tableBase) was.table_properties = tableBase.properties;
+      if (c.entity === 'notes' && c.noteBase && !sameValue(was, c.noteBase.fields)) {
+        baseRevision = c.noteBase.revision;
+        Object.assign(was, c.noteBase.fields);
+      }
       base[ops.length] = was;
     }
     ops.push(c.kind === 'update'
-      ? { entity: c.entity, op: 'UPSERT', id: c.id, base_revision: rev, data: c.data }
+      ? { entity: c.entity, op: 'UPSERT', id: c.id, base_revision: baseRevision, data: c.data }
       : { entity: c.entity, op: c.kind === 'restore' ? 'RESTORE' : c.kind === 'purge' ? 'PURGE' : 'DELETE', id: c.id, base_revision: rev, data: {} });
   }
   return { ops, base };
@@ -502,6 +518,19 @@ export async function resolveConflict(ctx: SyncContext, outboxSeq: number, choic
             { fields: merged.unresolved });
         }
         intent = merged.intent;
+      }
+      for (const conflict of conflicts) {
+        const change = intent[conflict.index];
+        const revision = conflict.server?.revision;
+        if (change?.kind === 'update' && change.tableBase && typeof revision === 'number') {
+          intent[conflict.index] = {
+            ...change, tableBase: { revision, properties: conflict.server?.table_properties },
+          };
+        }
+        if (change?.kind === 'update' && change.noteBase && typeof revision === 'number') {
+          const fields = Object.fromEntries(Object.keys(change.data).map(key => [key, conflict.server?.[key] ?? null]));
+          intent[conflict.index] = { ...change, noteBase: { revision, fields } };
+        }
       }
       await db.run(
         `update stella_outbox set status = 'PENDING', intent = ?, ops = null, base = null, conflicts = null, attempts = 0, last_error = null,
@@ -675,6 +704,12 @@ async function getState(db: SqlDb, ws: string) {
     'select last_seq, auth_epoch, status, updated_at from stella_sync_state where workspace_id = ?', [ws]);
 }
 
+export async function listClosedWorkspaces(db: SqlDb): Promise<string[]> {
+  const rows = await db.all<{ workspace_id: string }>(
+    "select workspace_id from stella_sync_state where status = 'CLOSED'");
+  return rows.map(row => row.workspace_id);
+}
+
 /** 동기화 상태 (배지·배너용) */
 export async function getSyncStatus(db: SqlDb, workspaceId: string) {
   const st = await getState(db, workspaceId);
@@ -838,6 +873,34 @@ function parseBase(text: string | null | undefined): Record<number, Json> | null
   return text ? (JSON.parse(text) as Record<number, Json>) : null;
 }
 
+function asRecord(value: unknown): Json | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Json : null;
+}
+
+export function mergeTableProperties(baseValue: unknown, mineValue: unknown, serverValue: unknown, union = false): Json | null {
+  const base = asRecord(baseValue), mine = asRecord(mineValue), server = asRecord(serverValue);
+  if (!base || !mine || !server || !Array.isArray(base.fields) ||
+      !sameValue(base.fields, mine.fields) || !sameValue(base.fields, server.fields)) return null;
+  const baseRows = asRecord(base.properties), mineRows = asRecord(mine.properties), serverRows = asRecord(server.properties);
+  if (!baseRows || !mineRows || !serverRows) return null;
+  const properties: Json = {};
+  for (const rowId of new Set([...Object.keys(baseRows), ...Object.keys(mineRows), ...Object.keys(serverRows)])) {
+    const previous = asRecord(baseRows[rowId]) ?? {};
+    const local = asRecord(mineRows[rowId]) ?? {};
+    const remote = asRecord(serverRows[rowId]) ?? {};
+    const cells: Json = {};
+    for (const key of new Set([...Object.keys(previous), ...Object.keys(local), ...Object.keys(remote)])) {
+      const mineChanged = !sameValue(previous[key], local[key]);
+      const serverChanged = !sameValue(previous[key], remote[key]);
+      if (mineChanged && serverChanged && !sameValue(local[key], remote[key]) && !union) return null;
+      const value = mineChanged ? local[key] : remote[key];
+      if (value !== undefined) cells[key] = value;
+    }
+    if (Object.keys(cells).length) properties[rowId] = cells;
+  }
+  return { ...mine, properties };
+}
+
 /** 수정 1건의 칸별 합치기. unresolved = 양쪽이 다르게 고쳐서 스스로 못 합친 칸 */
 function mergeFields(was: Json | null, mine: Json, server: Json, union: boolean): { data: Json; unresolved: string[] } {
   const data: Json = {};
@@ -848,6 +911,10 @@ function mergeFields(was: Json | null, mine: Json, server: Json, union: boolean)
     const o = known ? was![f] : undefined;
     if (sameValue(m, t) || (known && sameValue(o, t))) { data[f] = m; continue; }          // 상대는 이 칸을 안 고침
     if (known && sameValue(o, m)) { data[f] = t; continue; }
+    if (f === 'table_properties' && known) {
+      const merged = mergeTableProperties(o, m, t, union);
+      if (merged) { data[f] = merged; continue; }
+    }
     if (f === 'strokes' && Array.isArray(m) && Array.isArray(t)) { data[f] = mergeStrokes(known ? o : [], m, t); continue; }
     if (MULTILINE_FIELDS.has(f) && typeof m === 'string' && typeof t === 'string' && (!known || typeof o === 'string' || o == null)) {
       if (!known) {                                          // 기준을 모름: 둘 다 남기는 것만 가능

@@ -57,5 +57,5 @@ export default function SwipeRow({ actionLabel, onAction, children, style }) {
 const styles = StyleSheet.create({
   wrap: { borderRadius: radius.card, overflow: 'hidden' },
   under: { position: 'absolute', top: 0, bottom: 0, right: 0, width: REVEAL + 40, alignItems: 'flex-end', justifyContent: 'center', paddingRight: 16, borderRadius: radius.card },
-  underText: { fontSize: font.body, fontWeight: '800', width: REVEAL - 16, textAlign: 'center' },
+  underText: { fontSize: font.body, fontWeight: '600', width: REVEAL - 16, textAlign: 'center' },
 });

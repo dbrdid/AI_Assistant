@@ -5,13 +5,12 @@
 
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
-import { colors, font, radius, shadow, spacing, FILL } from '../../../shared/theme/theme';
+import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import Icon from '../../../shared/components/Icon';
 import { CircleButton } from '../../../shared/components/Ui';
 
-export function AuthFrame({ title, subtitle, onBack, hero, children }) {
+export function AuthFrame({ title, subtitle, onBack, children }) {
   const insets = useSafeAreaInsets();
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.root, { paddingTop: insets.top + spacing.md }]}>
@@ -20,34 +19,13 @@ export function AuthFrame({ title, subtitle, onBack, hero, children }) {
           <CircleButton icon="chevronLeft" label="뒤로 가기" onPress={onBack} />
         </View>
       ) : null}
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]} keyboardShouldPersistTaps="handled">
-        {hero}
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]} keyboardShouldPersistTaps="handled">
+        {!onBack && <Text style={styles.brand}>Stella</Text>}
         <Text style={styles.title} accessibilityRole="header">{title}</Text>
         {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
         {children}
       </ScrollView>
     </KeyboardAvoidingView>
-  );
-}
-
-// 로그인 화면 위쪽의 앱 로고: 민트 그라데이션 원 + 반짝임 아이콘
-export function AuthLogo() {
-  return (
-    <View style={styles.logo} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Svg width={64} height={64} style={FILL}>
-        <Defs>
-          <LinearGradient id="authLogo" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={colors.mint} />
-            <Stop offset="1" stopColor={colors.mintDark} />
-          </LinearGradient>
-        </Defs>
-        <Circle cx={32} cy={32} r={32} fill="url(#authLogo)" />
-      </Svg>
-      {/* 웹에서는 absolute 배경이 아이콘 위에 그려지므로 아이콘을 한 층 위로 */}
-      <View style={{ zIndex: 1 }}>
-        <Icon name="sparkles" size={28} color={colors.white} />
-      </View>
-    </View>
   );
 }
 
@@ -73,7 +51,7 @@ export function AuthField({ label, value, onChangeText, secure, hint, keyboardTy
           accessibilityLabel={label}
         />
         {!!secure && (
-          <Pressable accessibilityRole="button" accessibilityLabel={show ? '비밀번호 숨기기' : '비밀번호 보기'} onPress={() => setShow((v) => !v)} hitSlop={10}>
+          <Pressable accessibilityRole="button" accessibilityLabel={show ? '비밀번호 숨기기' : '비밀번호 보기'} onPress={() => setShow((v) => !v)} style={{minWidth:44,minHeight:44,alignItems:"center",justifyContent:"center",marginRight:-12}}>
             <Icon name={show ? 'eyeOff' : 'eye'} size={20} color={colors.muted} />
           </Pressable>
         )}
@@ -102,9 +80,9 @@ export function AuthButton({ label, onPress, kind = 'primary', disabled, busy, i
 }
 
 const BUTTON_TONES = {
-  primary: { box: { backgroundColor: colors.mintDark }, text: colors.white },
-  ghost: { box: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line }, text: colors.ink },
-  outline: { box: { backgroundColor: colors.white, borderWidth: 1.5, borderColor: colors.mintDark }, text: colors.mintDark },
+  primary: { box: { backgroundColor: colors.mintDark }, text: colors.onPrimary },
+  ghost: { box: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line }, text: colors.ink },
+  outline: { box: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.line }, text: colors.mintDark },
   kakao: { box: { backgroundColor: colors.kakao }, text: '#191600' },
 };
 
@@ -116,10 +94,10 @@ export function AuthDialog({ dialog, onConfirm }) {
         <View style={styles.dialog} accessibilityViewIsModal>
           {dialog && (
             <>
-              <Text style={styles.dTitle}>{dialog.icon ? `${dialog.icon}  ` : ''}{dialog.title}</Text>
+              <Text style={styles.dTitle}>{dialog.title}</Text>
               <Text style={styles.dMsg}>{dialog.message}</Text>
               <Pressable accessibilityRole="button" onPress={onConfirm} style={[styles.btn, styles.btnPrimary, { marginTop: spacing.sm }]}>
-                <Text style={[styles.btnText, { color: colors.white }]}>확인</Text>
+                <Text style={[styles.btnText, { color: colors.onPrimary }]}>확인</Text>
               </Pressable>
             </>
           )}
@@ -132,19 +110,19 @@ export function AuthDialog({ dialog, onConfirm }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   back: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, alignItems: 'flex-start' },
-  content: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, gap: spacing.lg },
-  logo: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginTop: spacing.xl, ...shadow.float },
-  title: { fontSize: 26, lineHeight: 36, fontWeight: '800', color: colors.ink },
+  content: {width:'100%',maxWidth:420,alignSelf:'center',paddingHorizontal:28,paddingTop:28,gap:18},
+  brand:{fontSize:14,color:colors.muted,marginTop:12},
+  title: { fontSize: 24, lineHeight: 32, fontWeight: '600', color: colors.ink },
   subtitle: { fontSize: font.body, color: colors.muted, lineHeight: 21, marginTop: -spacing.sm },
-  label: { fontSize: 13, fontWeight: '700', color: colors.ink },
-  inputWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 52, paddingHorizontal: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  label: { fontSize: 13, fontWeight: '500', color: colors.ink },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 46, paddingHorizontal: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   input: { flex: 1, fontSize: font.bodyLg, color: colors.ink, paddingVertical: 10, outlineStyle: 'none' },
   hint: { fontSize: font.caption, color: colors.muted },
-  btn: { flexDirection: 'row', gap: spacing.sm, minHeight: 54, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
+  btn: { flexDirection: 'row', gap: spacing.sm, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
   btnPrimary: { backgroundColor: colors.mintDark },
-  btnText: { fontSize: font.bodyLg, fontWeight: '800' },
+  btnText: { fontSize: font.bodyLg, fontWeight: '500' },
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.md },
-  dTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
+  dTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   dMsg: { fontSize: font.body, color: colors.muted, lineHeight: 21 },
 });

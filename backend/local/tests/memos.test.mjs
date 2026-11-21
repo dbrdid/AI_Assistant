@@ -10,13 +10,106 @@ test('addMemo stores every field and returns a frozen memo that getMemo and getM
   const memo = t.store.addMemo({ title: '회의', body: '내일 보고서 제출', strokes: STROKES, photos: ['file-1'], taskIds: [task.id], favorite: true });
   assert.deepEqual(memo, {
     id: memo.id, title: '회의', body: '내일 보고서 제출', strokes: STROKES, photos: ['file-1'], taskIds: [task.id], favorite: true,
-    revision: 1, createdAt: t.clock.t, updatedAt: t.clock.t, deletedAt: null,
+    revision: 1, createdAt: t.clock.t, updatedAt: t.clock.t, deletedAt: null, parentMemoId: null,
   });
   assert.ok(Object.isFrozen(memo) && Object.isFrozen(memo.strokes) && Object.isFrozen(memo.strokes[0].p));
   assert.deepEqual(t.store.getMemo(memo.id), memo);
   assert.deepEqual(t.store.getMemos(), [memo]);
   assert.equal(t.store.getMemo('missing'), null);
   assert.equal(t.store.getMemo(undefined), null);
+});
+
+test('personal page hierarchy rejects cycles and preserves child content through parent removal', () => {
+  const t = setup();
+  const root = t.store.addMemo({ title: 'Root' });
+  const child = t.store.addMemo({ title: 'Child' });
+  const grandchild = t.store.addMemo({ title: 'Grandchild', body: 'Retained' });
+  assert.equal(t.store.setMemoParent(child.id, root.id), true);
+  assert.equal(t.store.setMemoParent(grandchild.id, child.id), true);
+  assert.equal(t.store.getMemos().find(memo => memo.id === child.id).parentMemoId, root.id);
+  rejectsUnchanged(t, () => t.store.setMemoParent(root.id, grandchild.id), 'invalid_input', 'parentMemoId');
+  t.store.trashMemo(child.id);
+  assert.equal(t.store.getMemo(grandchild.id).parentMemoId, child.id);
+  t.store.restoreMemos([child.id]);
+  assert.equal(t.store.getMemo(grandchild.id).parentMemoId, child.id);
+  t.store.deleteMemoForever(child.id);
+  assert.equal(t.store.getMemo(grandchild.id).parentMemoId, null);
+  assert.equal(t.store.getMemo(grandchild.id).body, 'Retained');
+});
+
+test('child creation is atomic and personal backups restore parent links in any order', () => {
+  const t = setup();
+  const parent = t.store.addMemo({ title: '상위 페이지' });
+  const child = t.store.addMemo({ title: '하위 페이지', parentMemoId: parent.id });
+  assert.equal(child.parentMemoId, parent.id);
+  t.store.trashMemo(parent.id);
+  rejectsUnchanged(t, () => t.store.addMemo({ title: '새 하위 페이지', parentMemoId: parent.id }), 'not_found', 'parentMemoId');
+
+  const backup = t.store.exportAll();
+  backup.memos.reverse();
+  t.store.importAll(backup);
+  assert.equal(t.store.getMemo(child.id).parentMemoId, parent.id);
+  assert.ok(t.store.getMemo(parent.id).deletedAt);
+
+  const corrupt = structuredClone(backup);
+  corrupt.memos.find(memo => memo.id === parent.id).parent_memo_id = child.id;
+  rejectsUnchanged(t, () => t.store.importAll(corrupt), 'unsupported_backup', 'parent_memo_id');
+
+  const legacy = structuredClone(backup);
+  legacy.schemaVersion = 1;
+  delete legacy.memo_versions;
+  for (const memo of legacy.memos) delete memo.parent_memo_id;
+  t.store.importAll(legacy);
+  assert.equal(t.store.getMemo(child.id).parentMemoId, null);
+});
+
+test('personal backup and related preference writes commit together', () => {
+  const source = setup();
+  source.store.addMemo({ title: 'Backup document' });
+  const target = setup();
+  target.store.addMemo({ title: 'Current document' });
+  target.db.execSync("create table preferences(value text not null); insert into preferences values('current')");
+  const backup = source.store.exportAll();
+  const before = target.store.exportAll();
+  const snapshots = [];
+  target.store.subscribe(() => snapshots.push([
+    target.store.getMemos()[0].title,
+    target.db.getFirstSync('select value from preferences').value,
+  ]));
+
+  assert.throws(() => target.store.importAll(backup, db => {
+    db.runSync("update preferences set value='backup'");
+    db.runSync('update preferences set value=null');
+  }), /NOT NULL/i);
+  assert.deepEqual(target.store.exportAll(), before);
+  assert.equal(target.db.getFirstSync('select value from preferences').value, 'current');
+  assert.deepEqual(snapshots, []);
+
+  target.store.importAll(backup, db => db.runSync("update preferences set value='backup'"));
+  assert.deepEqual(snapshots, [['Backup document', 'backup']]);
+});
+
+test('note history keeps recent content revisions, survives backup, and is removed on purge', () => {
+  const t = setup();
+  const memo = t.store.addMemo({ title: '회의', body: '초안' });
+  assert.deepEqual(t.store.listMemoVersions(memo.id), []);
+  t.store.setFavorites([memo.id], true);
+  assert.deepEqual(t.store.listMemoVersions(memo.id), []);
+  for (let revision = 2; revision <= 25; revision += 1) {
+    t.tick();
+    t.store.updateMemo(memo.id, { body: `문서 ${revision}` });
+  }
+  const versions = t.store.listMemoVersions(memo.id);
+  assert.equal(versions.length, 20);
+  assert.deepEqual([versions[0].revision, versions[0].body, versions.at(-1).revision], [24, '문서 24', 5]);
+  t.store.importAll(t.store.exportAll());
+  assert.deepEqual(t.store.listMemoVersions(memo.id), versions);
+  t.store.updateMemo(memo.id, { body: versions[0].body });
+  assert.equal(t.store.listMemoVersions(memo.id)[0].body, '문서 25');
+  t.store.trashMemo(memo.id);
+  assert.equal(t.store.listMemoVersions(memo.id).length, 20);
+  t.store.deleteMemoForever(memo.id);
+  assert.deepEqual(t.store.listMemoVersions(memo.id), []);
 });
 
 test('a memo needs a title, body or handwriting; the camera\'s title-only memo is fine', () => {

@@ -3,6 +3,15 @@ const { getDefaultConfig } = require('expo/metro-config');
 const config = getDefaultConfig(__dirname);
 config.watchFolders = [path.resolve(__dirname, '../..')];
 config.resolver.nodeModulesPaths = [path.resolve(__dirname, 'node_modules')];
+if (process.env.EXPO_PUBLIC_LOCAL_PREVIEW === '1') {
+  const { createLocalModelMiddleware } = require('./scripts/local-model-middleware.cjs');
+  const middleware = createLocalModelMiddleware();
+  const previous = config.server.enhanceMiddleware;
+  config.server.enhanceMiddleware = (metroMiddleware, server) => {
+    const next = previous ? previous(metroMiddleware, server) : metroMiddleware;
+    return (request, response, connectNext) => middleware(request, response, () => next(request, response, connectNext));
+  };
+}
 
 // expo-sqlite on web runs SQLite as WebAssembly and needs SharedArrayBuffer.
 // Metro must bundle .wasm, and the page must be cross-origin isolated (COOP/COEP).

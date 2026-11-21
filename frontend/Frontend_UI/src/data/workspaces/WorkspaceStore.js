@@ -3,6 +3,7 @@ import { runtime, useValue } from '../hooks';
 import * as api from '../../lib/stella/workspaces';
 import { colors } from '../../shared/theme/theme';
 export const useWorkspaces = () => useValue(() => runtime().store.getWorkspaceState());
+export const useWorkspaceAccessClosed = id => useValue(() => runtime().closedSpaces.has(id));
 export const getWorkspaces = () => runtime().store.getWorkspaces();
 export const switchWorkspace = id => runtime().store.switchWorkspace(id);
 

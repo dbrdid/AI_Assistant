@@ -36,7 +36,7 @@ export default function ProposalListScreen({ navigation }) {
           </Pressable>
         ))}
       </View>
-      <ScrollView contentContainerStyle={styles.body}>
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.body}>
         {list.length === 0 && (
           <Text style={styles.empty}>{tab === 'pending' ? '확인할 AI 제안이 없어요.\n메모나 녹음에서 일정이 보이면 여기에 알려드려요.' : '보류한 제안이 없어요.'}</Text>
         )}
@@ -62,10 +62,10 @@ export default function ProposalListScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   tabs: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
-  tab: { minHeight: 40, paddingHorizontal: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, justifyContent: 'center' },
+  tab: { minHeight: 40, paddingHorizontal: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, justifyContent: 'center' },
   tabOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
   tabText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
-  tabTextOn: { color: colors.white },
+  tabTextOn: { color: colors.onPrimary },
   body: { padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.md, paddingBottom: 96 },
   empty: { textAlign: 'center', color: colors.muted, fontSize: font.body, lineHeight: 22, marginTop: spacing.xxl },
 });

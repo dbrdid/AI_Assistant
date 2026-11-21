@@ -88,7 +88,7 @@ export default function SubscriptionScreen({ navigation, route }) {
   return (
     <View style={styles.root}>
       <ScreenHeader title="구독 관리" onBack={navigation.goBack} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.card}>
           <Text style={styles.label}>현재 요금제</Text>
           {sub ? (
@@ -178,20 +178,20 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   card: { padding: spacing.xl, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, gap: spacing.xs },
   label: { fontSize: font.caption, color: colors.muted, marginTop: spacing.sm },
-  plan: { fontSize: 28, fontWeight: '800', color: colors.mintDark },
+  plan: { fontSize: 28, fontWeight: '600', color: colors.mintDark },
   date: { fontSize: font.bodyLg, color: colors.ink, fontWeight: '600' },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
   primary: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
-  ghost: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
+  ghost: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   note: { fontSize: font.caption, color: colors.muted },
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.sm },
-  dialogTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink, marginBottom: spacing.sm },
-  option: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  dialogTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink, marginBottom: spacing.sm },
+  option: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   optionOn: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
-  optionName: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  optionName: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   optionSub: { fontSize: font.caption, color: colors.muted },
-  current: { fontSize: font.caption, fontWeight: '800', color: colors.mintDark, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: colors.white, overflow: 'hidden' },
+  current: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, backgroundColor: colors.card, overflow: 'hidden' },
 });

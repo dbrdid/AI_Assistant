@@ -1,10 +1,14 @@
-import { Platform } from 'react-native';
+import { createStellaDocumentStore, prepareDocumentTables } from '../../../../backend/local/src/stella-documents.js';
+import { LOCAL_PREVIEW } from './mode';
+import { createDocumentWorkspace } from './documentWorkspace.mjs';
+import { AppState, Platform } from 'react-native';
 import { deleteDatabaseAsync, openDatabaseAsync, openDatabaseSync } from 'expo-sqlite';
 import { randomUUID } from 'expo-crypto';
 import { createLocalStore, createBridge } from '../../../../backend/local/src/index.js';
 import * as engine from '../lib/stella/local-sync';
 import { expoSqliteDb } from '../lib/stella/sqlite-expo';
 import { supabaseTransport } from '../lib/stella/sync';
+import { subscribeWorkspace } from '../lib/stella/realtime';
 import { supabase } from '../lib/stella/supabase';
 import { listMyWorkspaces } from '../lib/stella/workspaces';
 import { listNoteFavorites, setNoteFavorites } from '../lib/stella/favorites';
@@ -50,9 +54,21 @@ export function readPreference(key, fallback) {
   return value;
 }
 export function writePreference(key, value) {
-  runtime().db.runSync('insert into integration_preferences(key,value) values(?,?) on conflict(key) do update set value=excluded.value', [key, JSON.stringify(value)]);
+  persistPreference(runtime().db, key, value);
   preferenceCache.set(key, value);
   emit(); return value;
+}
+
+function persistPreference(db, key, value) {
+  db.runSync('insert into integration_preferences(key,value) values(?,?) on conflict(key) do update set value=excluded.value', [key, JSON.stringify(value)]);
+}
+
+export function restorePersonalData(payload, preferences) {
+  return runtime().store.importAll(payload, db => {
+    for (const [key, value] of preferences) persistPreference(db, key, value);
+    // Store subscribers run after commit. A rollback leaves the cache safe to reload as well.
+    for (const [key] of preferences) preferenceCache.delete(key);
+  });
 }
 
 export async function gateway(path, body, { route = 'external', signal } = {}) {
@@ -192,21 +208,79 @@ async function initSession(user, db, syncNative) {
   await engine.setupLocalSync(syncDb);
   // Both files are account-scoped. Never reuse or wipe another account's pending DB on sign-in.
   await engine.bindSyncAccount(syncDb, user.id);
+  const closedServerIds = new Set(await engine.listClosedWorkspaces(syncDb));
+  const closedSpaces = new Set(
+    store.getWorkspaces().filter(ws => closedServerIds.has(ws.serverId)).map(ws => ws.id),
+  );
   const bridge = createBridge({ store, engine, db: syncDb, transport: supabaseTransport, accountId: user.id,
+    onWorkspaceAccess: (id, hasAccess) => {
+      if (current?.session !== session || current.closedSpaces.has(id) === !hasAccess) return;
+      const next = new Set(current.closedSpaces);
+      if (hasAccess) next.delete(id);
+      else next.add(id);
+      current.closedSpaces = next;
+      emit();
+    },
     favorites: { set: (ws, ids, on) => setNoteFavorites(supabase, ws, ids, on), list: ws => listNoteFavorites(supabase, ws) },
     workspaces: { list: async () => (await listMyWorkspaces()).map(m => ({ id: m.workspace.id, name: m.workspace.name,
       description: m.workspace.description, role: m.role })) },
   });
-  current = { db, syncNative, syncDb, store, bridge, session, stop: null, ai: null };
+  current = { db, syncNative, syncDb, store, bridge, session, stop: null, ai: null, closedSpaces };
   preferenceCache.clear();
   const own = current;
+  await prepareDocumentTables(db);
+  const documentContent = createStellaDocumentStore({ db, store, notify: emit, tablesReady: true });
+  current.documents = createDocumentWorkspace({ content: documentContent, store, read: readPreference, write: writePreference, isActive: () => current === own, isClosed: id => own.closedSpaces.has(id) });
   current.ai = createAIService({ store, gateway, newId: randomUUID,
     getSession: () => current?.session,
     getPolicy: aiPolicy,
   });
-  current.stop = bridge.start({ onResult: () => { if (current === own) emit(); } });
+  const stopBridge = LOCAL_PREVIEW ? () => {} : bridge.start({ onResult: () => { if (current === own) emit(); } });
+  const stopSignals = LOCAL_PREVIEW ? () => {} : watchSharedWorkspaces(own);
+  current.stop = () => { stopSignals(); stopBridge(); documentContent.dispose(); };
   store.subscribe(emit); emit();
   return current;
+}
+
+function watchSharedWorkspaces(own) {
+  const channels = new Map();
+  let stopped = false;
+  const requestSync = (delay, options) => {
+    if (!stopped && current === own) own.bridge.requestSync(delay, options);
+  };
+  const update = () => {
+    if (stopped || current !== own) return;
+    const linked = new Set(own.store.getWorkspaces()
+      .filter(ws => !ws.personal && ws.serverId && !own.closedSpaces.has(ws.id))
+      .map(ws => ws.serverId));
+    for (const [id, stop] of channels) {
+      if (linked.has(id)) continue;
+      stop();
+      channels.delete(id);
+    }
+    for (const id of linked) {
+      if (channels.has(id)) continue;
+      channels.set(id, subscribeWorkspace(supabase, id, {
+        onSignal: () => requestSync(150),
+        onStatus: status => {
+          if (status === 'denied') requestSync(150);
+          if (status === 'connected') requestSync(5000, { expedite: false });
+        },
+      }));
+    }
+  };
+  const unsubscribe = runtimeSubscribe(update);
+  const foreground = AppState.addEventListener('change', state => {
+    if (state === 'active') requestSync(0);
+  });
+  update();
+  return () => {
+    stopped = true;
+    foreground.remove();
+    unsubscribe();
+    for (const stop of channels.values()) stop();
+    channels.clear();
+  };
 }
 
 // Chat attachment photo → text (cloud OCR). Same consent gate as chat; local AI has no image model here.

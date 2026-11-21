@@ -121,7 +121,35 @@ create table outbox(
 );
 `;
 
-const STEPS = [V1];
+const V2 = `
+alter table memos add column parent_memo_id text references memos(id) on delete set null;
+create index memos_parent on memos(workspace_id, parent_memo_id);
+`;
+
+const V3 = `
+create table memo_versions(
+  workspace_id text not null,
+  memo_id text not null,
+  revision integer not null,
+  title text not null,
+  body text not null,
+  strokes text not null,
+  updated_at integer not null,
+  primary key(workspace_id, memo_id, revision),
+  foreign key(workspace_id, memo_id) references memos(workspace_id, id) on delete cascade
+);
+create trigger memo_versions_on_edit before update of title, body, strokes on memos
+when new.title <> old.title or new.body <> old.body or new.strokes <> old.strokes
+begin
+  insert into memo_versions(workspace_id,memo_id,revision,title,body,strokes,updated_at)
+    values(old.workspace_id,old.id,old.revision,old.title,old.body,old.strokes,old.updated_at);
+  delete from memo_versions where workspace_id=old.workspace_id and memo_id=old.id and revision <= old.revision-20;
+end;
+`;
+
+const V4 = `alter table memos add column server_revision integer;`;
+
+const STEPS = [V1, V2, V3, V4];
 export const SCHEMA_VERSION = STEPS.length;
 
 export function createPersonal(db, { now, newId }) {

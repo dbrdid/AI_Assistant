@@ -5,7 +5,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { hitsStroke, newStrokeId, pointsToPath } from '../utils/InkUtils';
+import { hitsStroke, newStrokeId, pointsToPath, visibleInkColor } from '../utils/InkUtils';
 import { FILL } from '../../../shared/theme/theme';
 
 const ERASE_RADIUS = 14; // 지우개 반지름(px)
@@ -16,7 +16,7 @@ const StrokePath = React.memo(function StrokePath({ stroke, faded }) {
   return (
     <Path
       d={pointsToPath(stroke.p)}
-      stroke={stroke.c}
+      stroke={visibleInkColor(stroke.c)}
       strokeWidth={stroke.w}
       strokeLinecap="round"
       strokeLinejoin="round"

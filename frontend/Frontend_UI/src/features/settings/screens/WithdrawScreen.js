@@ -32,15 +32,15 @@ export default function WithdrawScreen({ navigation }) {
   return (
     <View style={styles.root}>
       <ScreenHeader title="회원탈퇴" onBack={navigation.goBack} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>탈퇴하면 이렇게 돼요</Text>
-          <Text style={styles.line}>• 계정과 개인 공간의 메모·할 일·일정이 삭제돼요</Text>
+          <Text style={styles.line}>• 계정과 개인 공간의 메모 / 할 일 / 일정이 삭제돼요</Text>
           <Text style={styles.line}>• 삭제된 정보는 되돌릴 수 없어요</Text>
           <Text style={styles.line}>• 조직에 공유한 기록은 워크스페이스에 남아요</Text>
         </View>
         <View style={styles.card}>
-          <Text style={styles.line}>• 이용 중인 요금제·백업·녹음은 탈퇴와 함께 삭제돼요</Text>
+          <Text style={styles.line}>• 이용 중인 요금제 / 백업 / 녹음은 탈퇴와 함께 삭제돼요</Text>
           <Text style={styles.line}>• 공유 공간에 남긴 기록의 작성자는 '탈퇴한 사용자'로 표시돼요</Text>
         </View>
         <View style={styles.card}>
@@ -94,12 +94,12 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   card: { padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, gap: spacing.sm },
-  cardTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  cardTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   line: { fontSize: font.body, color: colors.ink, lineHeight: 21 },
   agree: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 48 },
   agreeText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   danger: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.coral, alignItems: 'center', justifyContent: 'center' },
-  dangerText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
-  cancel: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  dangerText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
+  cancel: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   cancelText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
 });

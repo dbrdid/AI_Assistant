@@ -31,7 +31,7 @@ export default function WorkspaceCreateScreen({ navigation }) {
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScreenHeader title="새 워크스페이스" onBack={navigation.goBack} />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.field}>
           <Text style={styles.label}>조직 이름 *</Text>
           <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="예) 팀 프로젝트 회의" placeholderTextColor={colors.muted} maxLength={30} autoFocus accessibilityLabel="조직 이름" />
@@ -55,9 +55,9 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
   field: { gap: spacing.sm },
   label: { fontSize: font.body, fontWeight: '700', color: colors.ink, marginLeft: spacing.xs },
-  input: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
+  input: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
   note: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
   save: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
-  saveText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
+  saveText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
 });

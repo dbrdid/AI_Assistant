@@ -9,7 +9,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "setup": "npm install && npx expo install expo-audio expo-camera expo-notifications expo-document-picker expo-status-bar expo-asset expo-constants react-native-svg react-native-safe-area-context @react-native-async-storage/async-storage && npx expo install --fix",
-    "doctor": "npx expo-doctor"
+    "doctor": "npx expo-doctor",
+    "preview:local": "node scripts/local-preview.cjs"
   },
   "dependencies": {
     "@noble/ciphers": "^1.3.0",

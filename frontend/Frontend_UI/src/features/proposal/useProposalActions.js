@@ -91,7 +91,7 @@ export function useProposalActions(navigation, snackOptions) {
       try { approveProposal(p.id, {}); added += 1; } catch { left += 1; }
     }
     if (!added) snack.show('바로 추가할 수 있는 제안이 없어요. 하나씩 확인해 주세요');
-    else snack.show(left ? `${added}건 추가했어요 · ${left}건은 확인이 필요해요` : `${added}건 모두 추가했어요`);
+    else snack.show(left ? `${added}건 추가했어요  /  ${left}건은 확인이 필요해요` : `${added}건 모두 추가했어요`);
   };
 
   return { add, edit, hold, dismiss, addAll, hidden, snack };

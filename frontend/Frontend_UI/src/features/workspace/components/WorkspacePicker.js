@@ -36,7 +36,7 @@ export default function WorkspacePicker({ visible, onClose, navigation, onSwitch
         <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]} accessibilityViewIsModal>
           <View style={styles.grip} />
           <Text style={styles.title}>공간 선택</Text>
-          <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ gap: spacing.sm }}>
+          <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={{ maxHeight: 320 }} contentContainerStyle={{ gap: spacing.sm }}>
             {list.map((w) => {
               const on = w.id === current.id;
               return (
@@ -51,7 +51,7 @@ export default function WorkspacePicker({ visible, onClose, navigation, onSwitch
                   <View style={[styles.dot, on && { backgroundColor: colors.mint }]} />
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={styles.name} numberOfLines={1}>{w.name}</Text>
-                    <Text style={styles.sub} numberOfLines={1}>{w.personal ? w.desc : `멤버 ${w.members}명 · ${w.role}`}</Text>
+                    <Text style={styles.sub} numberOfLines={1}>{w.personal ? w.desc : `멤버 ${w.members}명  /  ${w.role}`}</Text>
                   </View>
                   {on && (
                     <View style={styles.badge}>
@@ -80,17 +80,17 @@ export default function WorkspacePicker({ visible, onClose, navigation, onSwitch
 const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...FILL, backgroundColor: 'rgba(38,57,53,0.4)' },
-  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.md },
-  grip: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.line, marginBottom: spacing.xs },
-  title: { fontSize: font.title, fontWeight: '800', color: colors.ink },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 60, padding: spacing.md, borderRadius: radius.card, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 4, borderTopRightRadius: 4, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.md },
+  grip: { alignSelf: 'center', width: 40, height: 4, borderRadius: 4, backgroundColor: colors.line, marginBottom: spacing.xs },
+  title: { fontSize: font.title, fontWeight: '600', color: colors.ink },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 60, padding: spacing.md, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   rowOn: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.line },
-  name: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  name: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   sub: { fontSize: font.caption, color: colors.muted },
-  badge: { paddingHorizontal: spacing.md, minHeight: 26, borderRadius: 13, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
-  badgeText: { fontSize: font.caption, fontWeight: '800', color: colors.white },
+  badge: { paddingHorizontal: spacing.md, minHeight: 26, borderRadius: 4, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  badgeText: { fontSize: font.caption, fontWeight: '600', color: colors.onPrimary },
   links: { flexDirection: 'row', gap: spacing.sm },
-  link: { flex: 1, flexDirection: 'row', gap: 4, minHeight: 46, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  link: { flex: 1, flexDirection: 'row', gap: 4, minHeight: 46, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   linkText: { fontSize: font.body, fontWeight: '700', color: colors.mintDark },
 });

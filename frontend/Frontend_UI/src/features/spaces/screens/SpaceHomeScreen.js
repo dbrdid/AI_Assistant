@@ -10,7 +10,7 @@ import ScreenHeader from '../../../shared/components/ScreenHeader';
 import Icon from '../../../shared/components/Icon';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
-import { deleteWorkspace, enterSpace, listMembers, useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
+import { deleteWorkspace, enterSpace, listMembers, useSpaceInfo, useWorkspaceAccessClosed, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { lastDate, shiftKey, shortDate, taskIn, useAllTasks } from '../../../data/tasks/TaskStore';
 import { memoTitle, useAllMemos } from '../../../data/memos/MemoStore';
@@ -52,26 +52,27 @@ export default function SpaceHomeScreen({ navigation, route }) {
   const id = route?.params?.workspaceId;
   const { list, current } = useWorkspaces();
   const ws = list.find((w) => w.id === id);
+  const accessClosed = useWorkspaceAccessClosed(id);
   const space = useSpaceInfo()[id];
 
   // 이 공간을 현재 공간으로 (프로젝트·파일·안건 화면이 이 공간 것을 보여 주도록)
   useEffect(() => {
-    if (ws) enterSpace(id);
-  }, [id, ws]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (ws && !accessClosed) enterSpace(id);
+  }, [id, ws, accessClosed]); // eslint-disable-line react-hooks/exhaustive-deps
   const ready = current.id === id;
   const projects = useProjects();
 
   // ---------- 멤버 (팀 공간만, 서버에서 받아 옴) ----------
   const [members, setMembers] = useState({ list: [], loading: false, error: '' });
   useEffect(() => {
-    if (!ws || ws.personal || !ws.serverId) return undefined;
+    if (accessClosed || !ws || ws.personal || !ws.serverId) return undefined;
     let alive = true;
     setMembers((m) => ({ ...m, loading: true, error: '' }));
     listMembers(ws.serverId)
       .then((r) => alive && setMembers({ list: r, loading: false, error: '' }))
       .catch(() => alive && setMembers({ list: [], loading: false, error: '멤버 목록을 불러오지 못했어요' }));
     return () => { alive = false; };
-  }, [ws?.serverId, ws?.personal]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [accessClosed, ws?.serverId, ws?.personal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- 초대 (관리자만) ----------
   const [invite, setInvite] = useState(null); // { code, url } | { error } | 'loading'
@@ -122,11 +123,13 @@ export default function SpaceHomeScreen({ navigation, route }) {
     return { done: linked.filter((t) => t.status === '완료').length, total: linked.length };
   };
 
-  if (!ws) {
+  if (!ws || accessClosed) {
     return (
       <View style={styles.root}>
         <ScreenHeader title="공간" onBack={navigation.goBack} />
-        <Text style={styles.empty}>이 공간을 찾을 수 없어요. 나갔거나 삭제된 공간일 수 있어요.</Text>
+        <Text accessibilityLiveRegion="polite" style={styles.empty}>{accessClosed
+          ? '이 공유 공간에 대한 접근이 종료됐어요.'
+          : '이 공간을 찾을 수 없어요. 나갔거나 삭제된 공간일 수 있어요.'}</Text>
       </View>
     );
   }
@@ -324,7 +327,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
   danger: { gap: spacing.sm, marginTop: spacing.lg, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.line },
-  dangerBtn: { flexDirection: 'row', gap: 6, minHeight: 48, borderRadius: radius.card, borderWidth: 1, borderColor: colors.coral, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  dangerBtn: { flexDirection: 'row', gap: 6, minHeight: 48, borderRadius: radius.card, borderWidth: 1, borderColor: colors.coral, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   dangerText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.coral },
   dangerError: { fontSize: font.body, fontWeight: '700', color: colors.coral, textAlign: 'center' },
   hero: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
@@ -336,9 +339,9 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 12, fontWeight: '800' },
   more: { marginLeft: 6, fontSize: font.caption, fontWeight: '700', color: colors.muted },
   inviteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 34, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: colors.mintDark },
-  inviteText: { fontSize: font.body, fontWeight: '800', color: colors.white },
+  inviteText: { fontSize: font.body, fontWeight: '800', color: colors.onPrimary },
   quick: { flexDirection: 'row', gap: spacing.sm },
-  quickBtn: { flex: 1, minHeight: 64, gap: 4, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  quickBtn: { flex: 1, minHeight: 64, gap: 4, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   quickText: { fontSize: font.caption, fontWeight: '800', color: colors.ink },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { fontSize: font.body, fontWeight: '800', color: colors.muted },
@@ -360,7 +363,7 @@ const styles = StyleSheet.create({
   dialogTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
   code: { fontSize: 28, fontWeight: '800', letterSpacing: 2, color: colors.mintDark, textAlign: 'center', paddingVertical: spacing.sm },
   primary: { minHeight: 48, borderRadius: radius.card, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
+  primaryText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.onPrimary },
   ghost: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: font.body, fontWeight: '700', color: colors.muted },
 });

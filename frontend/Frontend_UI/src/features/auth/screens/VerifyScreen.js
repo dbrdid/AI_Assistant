@@ -84,11 +84,11 @@ export default function VerifyScreen({ email, initial, onVerified, onBack, onExp
 }
 
 const styles = StyleSheet.create({
-  dev: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: '#FFF1CC', gap: 2 },
-  devTitle: { fontSize: font.caption, fontWeight: '800', color: '#9A6A00' },
+  dev: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: '#3b3523', gap: 2 },
+  devTitle: { fontSize: font.caption, fontWeight: '600', color: '#e8cc84' },
   devText: { fontSize: font.body, color: colors.ink, lineHeight: 20 },
-  devCode: { fontWeight: '800', letterSpacing: 2 },
-  timer: { fontSize: 28, fontWeight: '800', color: colors.mintDark, textAlign: 'center' },
+  devCode: { fontWeight: '600', letterSpacing: 2 },
+  timer: { fontSize: 28, fontWeight: '600', color: colors.mintDark, textAlign: 'center' },
   link: { alignSelf: 'center', minHeight: 40, justifyContent: 'center' },
   linkText: { fontSize: font.body, color: colors.mintDark, fontWeight: '700' },
 });

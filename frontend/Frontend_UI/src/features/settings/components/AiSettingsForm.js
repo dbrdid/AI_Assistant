@@ -40,7 +40,7 @@ export default function AiSettingsForm({ onOpenUsage, contentStyle, compact = fa
 
   return (
     <>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.content, contentStyle]}>
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={[styles.content, contentStyle]}>
         <SectionTitle>AI 처리와 전송 허용</SectionTitle>
         {/* 좁은 창(AI 채팅 오른쪽)에서도 한 줄에 들어가게 값은 짧게. 로컬 준비 중 안내는 누르면 표시 */}
         <Group>
@@ -115,7 +115,7 @@ export default function AiSettingsForm({ onOpenUsage, contentStyle, compact = fa
         <Group>
           <ToggleRow label="주간 브리핑" sub={ai.weekly.on ? `${ai.weekly.day} ${ai.weekly.time}` : '받지 않음'} value={ai.weekly.on} onValueChange={(v) => set({ weekly: { ...ai.weekly, on: v } })} />
           {ai.weekly.on && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+            <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
               {WEEKDAY_NAMES.map((d) => (
                 <Pressable key={d} accessibilityRole="button" accessibilityState={{ selected: ai.weekly.day === d }} onPress={() => set({ weekly: { ...ai.weekly, day: d } })} style={[styles.chip, ai.weekly.day === d && styles.chipOn]}>
                   <Text style={[styles.chipText, ai.weekly.day === d && styles.chipTextOn]}>{d.charAt(0)}</Text>
@@ -166,13 +166,13 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   mode: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   modeOn: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
-  modeTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  modeTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   modeSub: { fontSize: font.caption, color: colors.muted, lineHeight: 17 },
   sub: { gap: spacing.sm, paddingLeft: spacing.lg },
   // 주간 브리핑 요일 칩 (Group 카드 안)
   chips: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
-  chip: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  chip: { width: 42, height: 42, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   chipOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
   chipText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
-  chipTextOn: { color: colors.white },
+  chipTextOn: { color: colors.onPrimary },
 });

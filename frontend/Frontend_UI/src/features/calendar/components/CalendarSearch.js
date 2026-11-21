@@ -51,7 +51,7 @@ export default function CalendarSearch({ query, onChange, matches, onPick, onClo
               <View style={styles.body}>
                 <Text style={styles.title} numberOfLines={1}>{t.title}</Text>
                 <Text style={styles.meta} numberOfLines={1}>
-                  {[t.start, tagText(t, todayKey), t.place].filter(Boolean).join(' · ')}
+                  {[t.start, tagText(t, todayKey), t.place].filter(Boolean).join('  /  ')}
                 </Text>
               </View>
             </Pressable>
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     minHeight: 48,
     borderRadius: radius.pill,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.line,
   },
@@ -85,12 +85,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.card,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.line,
   },
-  date: { fontSize: font.body, fontWeight: '800', color: colors.mintDark, minWidth: 44 },
+  date: { fontSize: font.body, fontWeight: '600', color: colors.mintDark, minWidth: 44 },
   body: { flex: 1, gap: 2 },
-  title: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  title: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   meta: { fontSize: 13, color: colors.muted },
 });

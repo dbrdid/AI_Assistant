@@ -52,7 +52,7 @@ export function DatePickerModal({ visible, value, onPick, onClose }) {
                 style={styles.dayCell}
               >
                 <View style={[styles.day, selected && isSameDay(d, selected) && styles.dayOn]}>
-                  <Text style={[styles.dayText, di === 0 && { color: colors.coral }, selected && isSameDay(d, selected) && { color: colors.white, fontWeight: '800' }]}>{d.getDate()}</Text>
+                  <Text style={[styles.dayText, di === 0 && { color: colors.coral }, selected && isSameDay(d, selected) && { color: colors.onPrimary, fontWeight: '600' }]}>{d.getDate()}</Text>
                 </View>
               </Pressable>
             ) : (
@@ -77,14 +77,14 @@ export function TimePickerModal({ visible, value, title, onPick, onClear, onClos
     <Shell visible={visible} onClose={onClose}>
       <Text style={styles.navTitle}>{title || '시간 선택'}</Text>
       <View style={styles.cols}>
-        <ScrollView style={styles.col} contentContainerStyle={{ gap: 6 }}>
+        <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={styles.col} contentContainerStyle={{ gap: 6 }}>
           {HOURS.map((x) => (
             <Pressable key={x} accessibilityRole="button" accessibilityState={{ selected: hh === x }} onPress={() => setHh(x)} style={[styles.opt, hh === x && styles.optOn]}>
               <Text style={[styles.optText, hh === x && styles.optTextOn]}>{x}시</Text>
             </Pressable>
           ))}
         </ScrollView>
-        <ScrollView style={styles.col} contentContainerStyle={{ gap: 6 }}>
+        <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={styles.col} contentContainerStyle={{ gap: 6 }}>
           {MINUTES.map((x) => (
             <Pressable key={x} accessibilityRole="button" accessibilityState={{ selected: mm === x }} onPress={() => setMm(x)} style={[styles.opt, mm === x && styles.optOn]}>
               <Text style={[styles.optText, mm === x && styles.optTextOn]}>{x}분</Text>
@@ -95,7 +95,7 @@ export function TimePickerModal({ visible, value, title, onPick, onClear, onClos
       <View style={styles.row}>
         <Pressable accessibilityRole="button" onPress={onClear} style={[styles.btn, styles.btnGhost]}><Text style={styles.closeText}>지우기</Text></Pressable>
         <Pressable accessibilityRole="button" onPress={onClose} style={[styles.btn, styles.btnGhost]}><Text style={styles.closeText}>취소</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => onPick(`${hh}:${mm}`)} style={[styles.btn, { backgroundColor: colors.mintDark }]}><Text style={[styles.closeText, { color: colors.white }]}>확인</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => onPick(`${hh}:${mm}`)} style={[styles.btn, { backgroundColor: colors.mintDark }]}><Text style={[styles.closeText, { color: colors.onPrimary }]}>확인</Text></Pressable>
       </View>
     </Shell>
   );
@@ -106,21 +106,21 @@ const styles = StyleSheet.create({
   dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md },
   navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   nav: { fontSize: 28, color: colors.ink, paddingHorizontal: spacing.sm },
-  navTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink, textAlign: 'center' },
+  navTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink, textAlign: 'center' },
   row: { flexDirection: 'row', gap: spacing.sm },
   wd: { flex: 1, textAlign: 'center', fontSize: font.caption, fontWeight: '700', color: colors.muted },
   dayCell: { flex: 1, height: 40, alignItems: 'center', justifyContent: 'center' },
-  day: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  day: { width: 34, height: 34, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   dayOn: { backgroundColor: colors.mintDark },
   dayText: { fontSize: font.body, color: colors.ink },
-  closeBtn: { minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   closeText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   cols: { flexDirection: 'row', gap: spacing.md, height: 240 },
   col: { flex: 1 },
-  opt: { minHeight: 40, borderRadius: radius.sm, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  opt: { minHeight: 40, borderRadius: radius.sm, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   optOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
   optText: { fontSize: font.bodyLg, color: colors.ink },
-  optTextOn: { color: colors.white, fontWeight: '800' },
+  optTextOn: { color: colors.onPrimary, fontWeight: '600' },
   btn: { flex: 1, minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  btnGhost: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  btnGhost: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
 });

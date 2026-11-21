@@ -7,7 +7,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { memoTitle } from '../../../data/memos/MemoStore';
-import { pointsToPath } from '../utils/InkUtils';
+import { pointsToPath, visibleInkColor } from '../utils/InkUtils';
 import Icon from '../../../shared/components/Icon';
 import { IconTile, Tag } from '../../../shared/components/Ui';
 import SpaceTag from '../../../shared/components/SpaceTag';
@@ -45,7 +45,7 @@ function InkPreview({ strokes }) {
   return (
     <Svg width="100%" height="100%" viewBox={`${minX - pad} ${minY - pad} ${w} ${h}`} preserveAspectRatio="xMidYMid meet">
       {strokes.map((s) => (
-        <Path key={s.id} d={pointsToPath(s.p)} stroke={s.c} strokeWidth={Math.max(s.w, thin)} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <Path key={s.id} d={pointsToPath(s.p)} stroke={visibleInkColor(s.c)} strokeWidth={Math.max(s.w, thin)} strokeLinecap="round" strokeLinejoin="round" fill="none" />
       ))}
     </Svg>
   );
@@ -150,18 +150,18 @@ const styles = StyleSheet.create({
   focus: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
   on: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
   thumbBase: { backgroundColor: colors.mintSoft },
-  inkBox: { backgroundColor: '#FBFAF4', padding: 4 },
+  inkBox: { backgroundColor: colors.card, padding: 4 },
   gridThumb: { width: '100%', height: 104 },
   listTile: { borderRadius: radius.md },
   listText: { flex: 1, gap: 6 },
   gridText: { padding: spacing.md, gap: 4, flexGrow: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  title: { flexShrink: 1, fontSize: font.header, fontWeight: '800', color: colors.ink },
+  title: { flexShrink: 1, fontSize: font.header, fontWeight: '600', color: colors.ink },
   body: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
   foot: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
   count: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   date: { fontSize: font.caption, color: colors.muted },
   tag: { maxWidth: 160 },
-  check: { position: 'absolute', top: 8, right: 8, backgroundColor: colors.white, borderRadius: 6 },
+  check: { position: 'absolute', top: 8, right: 8, backgroundColor: colors.card, borderRadius: 4 },
 });

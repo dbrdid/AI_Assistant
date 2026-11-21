@@ -72,9 +72,9 @@ export default function QuickInputScreen({ navigation, route }) {
   const events = open.filter((t) => !!t.start);
   const todos = open.filter((t) => !t.start);
   const rows = [];
-  if (filter === 'all' || filter === 'event') events.forEach((t) => rows.push({ kind: 'task', id: t.id, title: t.title, sub: `${shortDate(t)} · ${tagText(t, todayKey)}` }));
-  if (filter === 'all' || filter === 'todo') todos.forEach((t) => rows.push({ kind: 'task', id: t.id, title: t.title, sub: `${shortDate(t)} · ${tagText(t, todayKey)}` }));
-  if (filter === 'all' || filter === 'project') projects.forEach((p) => rows.push({ kind: 'project', id: p.id, title: p.title || '(제목 없음)', sub: `${p.due ? `${shortDateKey(p.due)} · ` : ''}${p.priority}` }));
+  if (filter === 'all' || filter === 'event') events.forEach((t) => rows.push({ kind: 'task', id: t.id, title: t.title, sub: `${shortDate(t)}  /  ${tagText(t, todayKey)}` }));
+  if (filter === 'all' || filter === 'todo') todos.forEach((t) => rows.push({ kind: 'task', id: t.id, title: t.title, sub: `${shortDate(t)}  /  ${tagText(t, todayKey)}` }));
+  if (filter === 'all' || filter === 'project') projects.forEach((p) => rows.push({ kind: 'project', id: p.id, title: p.title || '(제목 없음)', sub: `${p.due ? `${shortDateKey(p.due)}  /  ` : ''}${p.priority}` }));
   const shown = rows.slice(0, 40);
 
   const toggle = (r) => {
@@ -96,7 +96,7 @@ export default function QuickInputScreen({ navigation, route }) {
     setTaskIds([]);
     setProjectId(null);
     AsyncStorage.removeItem(scopedKey(DRAFT_KEY)).catch(() => {});
-    analyzeText({ sourceType: 'memo', sourceId: memo.id, sourceTitle: text.slice(0, 20), text }).then((r) => { if (r && r.added) notice.show(`메모를 저장했어요 · AI 제안 ${r.added}건`); });
+    analyzeText({ sourceType: 'memo', sourceId: memo.id, sourceTitle: text.slice(0, 20), text }).then((r) => { if (r && r.added) notice.show(`메모를 저장했어요  /  AI 제안 ${r.added}건`); });
     notice.show('메모를 저장했어요');
     leaving.current = setTimeout(navigation.goBack, 700);
   };
@@ -136,7 +136,7 @@ export default function QuickInputScreen({ navigation, route }) {
   const saveFiles = async () => {
     const todo = staged.filter((s) => s.status === 'ready');
     if (!todo.length) {
-      notice.show(staged.length ? '올릴 수 있는 파일이 없어요' : '사진·파일을 먼저 선택해 주세요');
+      notice.show(staged.length ? '올릴 수 있는 파일이 없어요' : '사진 / 파일을 먼저 선택해 주세요');
       return;
     }
     const n = await upload(todo);
@@ -160,15 +160,15 @@ export default function QuickInputScreen({ navigation, route }) {
         }
       />
       <View style={styles.tabs}>
-        {[{ id: 'memo', label: '메모' }, { id: 'file', label: '사진 · 문서' }].map((t) => (
+        {[{ id: 'memo', label: '메모' }, { id: 'file', label: '사진  /  문서' }].map((t) => (
           <Pressable key={t.id} accessibilityRole="tab" accessibilityState={{ selected: tab === t.id }} onPress={() => setTab(t.id)} style={[styles.tab, tab === t.id && styles.tabOn]}>
-            <Text style={[styles.tabText, tab === t.id && { color: colors.white }]}>{t.label}</Text>
+            <Text style={[styles.tabText, tab === t.id && { color: colors.onPrimary }]}>{t.label}</Text>
           </Pressable>
         ))}
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {tab === 'memo' ? (
             <>
               <TextInput
@@ -183,7 +183,7 @@ export default function QuickInputScreen({ navigation, route }) {
                 maxLength={MAX_LEN}
                 accessibilityLabel_1="메모 내용"
               />
-              <Text style={[styles.counter, body.length >= MAX_LEN && { color: colors.coral, fontWeight: '800' }]}>
+              <Text style={[styles.counter, body.length >= MAX_LEN && { color: colors.coral, fontWeight: '600' }]}>
                 {body.length >= MAX_LEN ? `입력할 수 있는 길이를 넘었어요 (${MAX_LEN}자)` : `${body.length}/${MAX_LEN}`}
               </Text>
             </>
@@ -192,9 +192,9 @@ export default function QuickInputScreen({ navigation, route }) {
               <Pressable accessibilityRole="button" onPress={pick} style={styles.pick}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Icon name="plus" size={18} color={colors.mintDark} />
-                  <Text style={styles.pickText}>사진 · 파일 선택</Text>
+                  <Text style={styles.pickText}>사진  /  파일 선택</Text>
                 </View>
-                <Text style={styles.pickSub}>여러 개를 한 번에 고를 수 있어요 (PDF · PPT · 문서 · 이미지, 20MB 이하)</Text>
+                <Text style={styles.pickSub}>여러 개를 한 번에 고를 수 있어요 (PDF  /  PPT  /  문서  /  이미지, 20MB 이하)</Text>
               </Pressable>
               {staged.map((s) => (
                 <View key={s.key} style={styles.file}>
@@ -219,10 +219,10 @@ export default function QuickInputScreen({ navigation, route }) {
           )}
 
           <Text style={styles.sectionTitle}>{tab === 'memo' ? '메모와 연결' : '파일과 연결'}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+          <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
             {FILTERS.map((f) => (
               <Pressable key={f.id} accessibilityRole="button" accessibilityState={{ selected: filter === f.id }} onPress={() => setFilter(f.id)} style={[styles.chip, filter === f.id && styles.chipOn]}>
-                <Text style={[styles.chipText, filter === f.id && { color: colors.white }]}>{f.label}</Text>
+                <Text style={[styles.chipText, filter === f.id && { color: colors.onPrimary }]}>{f.label}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -234,12 +234,12 @@ export default function QuickInputScreen({ navigation, route }) {
                 <Icon name={on ? 'checkSquare' : 'square'} size={22} color={on ? colors.mintDark : colors.muted} />
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={styles.rowTitle} numberOfLines={1}>{r.title}</Text>
-                  <Text style={styles.rowSub}>{r.kind === 'project' ? '프로젝트 · ' : ''}{r.sub}</Text>
+                  <Text style={styles.rowSub}>{r.kind === 'project' ? '프로젝트  /  ' : ''}{r.sub}</Text>
                 </View>
               </Pressable>
             );
           })}
-          <Text style={styles.counter}>프로젝트는 하나만, 일정·할 일은 여러 개 연결할 수 있어요.</Text>
+          <Text style={styles.counter}>프로젝트는 하나만, 일정 / 할 일은 여러 개 연결할 수 있어요.</Text>
         </ScrollView>
       </KeyboardAvoidingView>
       {notice.view}
@@ -250,27 +250,27 @@ export default function QuickInputScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   tabs: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
-  tab: { flex: 1, minHeight: 44, borderRadius: 22, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  tab: { flex: 1, minHeight: 44, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   tabOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
-  tabText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  tabText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
-  memo: { minHeight: 180, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, fontSize: font.bodyLg, color: colors.ink, lineHeight: 24 },
+  memo: { minHeight: 180, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, fontSize: font.bodyLg, color: colors.ink, lineHeight: 24 },
   counter: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
   pick: { padding: spacing.xl, borderRadius: radius.card, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.mint, backgroundColor: colors.mintSoft, alignItems: 'center', gap: 4 },
-  pickText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.mintDark },
+  pickText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.mintDark },
   pickSub: { fontSize: font.caption, color: colors.muted, textAlign: 'center' },
-  file: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  file: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   fileName: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   fileState: { fontSize: font.caption, color: colors.muted },
-  miniBtn: { minHeight: 34, paddingHorizontal: spacing.md, borderRadius: 17, borderWidth: 1, borderColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
-  miniText: { fontSize: font.caption, fontWeight: '800', color: colors.mintDark },
+  miniBtn: { minHeight: 34, paddingHorizontal: spacing.md, borderRadius: 4, borderWidth: 1, borderColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
+  miniText: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
   remove: { fontSize: 18, color: colors.muted, paddingHorizontal: 4 },
-  sectionTitle: { fontSize: font.caption, fontWeight: '800', color: colors.muted, marginTop: spacing.lg },
+  sectionTitle: { fontSize: font.caption, fontWeight: '600', color: colors.muted, marginTop: spacing.lg },
   filters: { gap: spacing.sm, paddingVertical: spacing.xs },
-  chip: { minHeight: 36, paddingHorizontal: spacing.lg, borderRadius: 18, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  chip: { minHeight: 36, paddingHorizontal: spacing.lg, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   chipOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
   chipText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, minHeight: 56 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, minHeight: 56 },
   rowOn: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
   box: { fontSize: 24, color: colors.muted },
   rowTitle: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },

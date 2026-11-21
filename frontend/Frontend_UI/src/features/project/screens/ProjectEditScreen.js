@@ -70,7 +70,7 @@ export default function ProjectEditScreen({ navigation, route }) {
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScreenHeader title={existing ? '프로젝트 편집' : '프로젝트 추가'} onBack={navigation.goBack} />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.field}>
           <Text style={styles.label}>제목 *</Text>
           <TextInput style={styles.input} value={f.title} onChangeText={set('title')} placeholder="프로젝트 이름" placeholderTextColor={colors.muted} maxLength={60} accessibilityLabel="제목" />
@@ -118,7 +118,7 @@ export default function ProjectEditScreen({ navigation, route }) {
       <ConfirmDialog
         visible={confirmDelete}
         title="프로젝트를 삭제할까요?"
-        sub="연결된 메모·할 일·파일은 지워지지 않고, 프로젝트와의 연결만 풀려요."
+        sub="연결된 메모 / 할 일 / 파일은 지워지지 않고, 프로젝트와의 연결만 풀려요."
         confirmText="삭제"
         danger
         onCancel={() => setConfirmDelete(false)}
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
   field: { gap: spacing.sm },
   label: { fontSize: font.body, fontWeight: '700', color: colors.ink },
-  input: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
+  input: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
   pick: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   pickText: { fontSize: font.bodyLg, color: colors.ink },
   row: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   note: { fontSize: font.caption, color: colors.muted, marginTop: -spacing.sm },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
   save: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
-  saveText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
-  del: { minHeight: 48, borderRadius: radius.card, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.coral, alignItems: 'center', justifyContent: 'center' },
+  saveText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
+  del: { minHeight: 48, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.coral, alignItems: 'center', justifyContent: 'center' },
   delText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.coral },
 });

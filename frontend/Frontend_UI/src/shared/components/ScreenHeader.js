@@ -10,7 +10,7 @@ import { colors, font, spacing } from '../theme/theme';
 import { useLeadAction } from '../../navigation/ScreenEntry';
 import { CircleButton } from './Ui';
 
-export default function ScreenHeader({ title, onBack, right, lead: leadOverride }) {
+export default function ScreenHeader({ title, onBack, right, titleRightInset, lead: leadOverride }) {
   // 노치/상태바에 제목이 가려지지 않도록 위쪽 안전영역 높이를 가져옴
   const insets = useSafeAreaInsets();
   // 왼쪽 버튼: 하단 탭으로 연 화면이면 없음, 다른 화면에서 들어왔으면 ‹(onBack)
@@ -19,7 +19,11 @@ export default function ScreenHeader({ title, onBack, right, lead: leadOverride 
   return (
     <View style={[styles.bar, { paddingTop: insets.top + spacing.sm }]}>
       {/* 제목: 양옆 버튼 폭과 상관없이 화면 정가운데 */}
-      <View pointerEvents="none" style={[styles.titleWrap, { top: insets.top + spacing.sm }]}>
+      <View pointerEvents="none" style={[
+        styles.titleWrap,
+        { top: insets.top + spacing.sm },
+        titleRightInset != null && { right: titleRightInset },
+      ]}>
         <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
           {title}
         </Text>
@@ -40,13 +44,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1, borderBottomColor: colors.line, marginBottom: 8,
     paddingBottom: spacing.md,
     backgroundColor: colors.cream,
     minHeight: 40,
   },
-  titleWrap: { position: 'absolute', left: 96, right: 96, height: 40, alignItems: 'center', justifyContent: 'center' },
+  titleWrap: { position: 'absolute', left: 64, right: 64, height: 40, alignItems: 'center', justifyContent: 'center' },
   side: { minWidth: 40, minHeight: 40, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   right: { justifyContent: 'flex-end' },
-  title: { fontSize: font.header, fontWeight: '800', color: colors.ink },
+  title: { fontSize: font.header, fontWeight: '600', color: colors.ink },
 });

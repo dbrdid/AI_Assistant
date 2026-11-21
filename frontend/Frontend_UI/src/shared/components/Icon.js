@@ -12,6 +12,13 @@ import { colors } from '../theme/theme';
 // 각 아이콘은 24x24 viewBox 안에 그린 요소 배열입니다.
 //   'M…' 문자열 = Path, { c: [cx, cy, r] } = Circle, { r: [x, y, w, h, rx] } = Rect, { fill: 'M…' } = 채운 Path
 const PATHS = {
+  copy: ['M9 9h12v12H9z', 'M5 15H3V3h12v2'],
+  moreHorizontal: [{ c: [5, 12, 1] }, { c: [12, 12, 1] }, { c: [19, 12, 1] }],
+  list: ['M9 6h12', 'M9 12h12', 'M9 18h12', 'M3 6h.01', 'M3 12h.01', 'M3 18h.01'],
+  minus: ['M5 12h14'],
+  chevronUp: ['m6 15 6-6 6 6'],
+  link: ['M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-2 2', 'M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l2-2'],
+  starFilled: [{ fill: 'm12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9z' }],
   menu: ['M4 6h16', 'M4 12h16', 'M4 18h16'],
   home: ['M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8', 'M3 10a2 2 0 0 1 .71-1.53l7-6a2 2 0 0 1 2.58 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'],
   settings: [

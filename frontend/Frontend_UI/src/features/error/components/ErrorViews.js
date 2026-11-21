@@ -117,13 +117,13 @@ export function PaymentFailedDialog({ visible, onConfirm }) {
 
 const styles = StyleSheet.create({
   box: { alignItems: 'center', gap: spacing.md, width: '100%' },
-  iconCircle: { width: 84, height: 84, borderRadius: 42, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
+  iconCircle: { width: 84, height: 84, borderRadius: 4, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
   icon: { fontSize: 38 },
-  title: { fontSize: font.title, fontWeight: '800', color: colors.ink, textAlign: 'center' },
+  title: { fontSize: font.title, fontWeight: '600', color: colors.ink, textAlign: 'center' },
   msg: { fontSize: font.body, color: colors.muted, textAlign: 'center', lineHeight: 21 },
   primary: { width: '100%', minHeight: 52, borderRadius: radius.md, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm },
-  primaryText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
-  ghost: { width: '100%', minHeight: 52, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
+  ghost: { width: '100%', minHeight: 52, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   card: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, alignItems: 'center' },

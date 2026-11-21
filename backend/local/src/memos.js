@@ -3,7 +3,7 @@ import { LIMITS, bool, id, idList, isUuid, onlyKeys, positiveInt, strokesJson, t
 import { noteIdOf, queueNoteLink } from './tasks.js';
 
 const FIELDS = ['title', 'body', 'strokes', 'photos', 'taskIds', 'favorite'];
-const COLUMNS = 'id,title,body,strokes,photos,favorite,revision,created_at,updated_at,deleted_at';
+const COLUMNS = 'id,title,body,strokes,photos,favorite,revision,created_at,updated_at,deleted_at,parent_memo_id';
 // 휴지통에 있는 일정·할 일은 메모의 taskIds에서 빠짐
 const LINKS = 'select l.memo_id, l.task_id from memo_tasks l join tasks t on t.id = l.task_id and t.deleted_at is null';
 
@@ -29,6 +29,7 @@ function toMemo(row, taskIds) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
+    parentMemoId: row.parent_memo_id,
   };
 }
 
@@ -42,7 +43,7 @@ export function listMemos(ctx, trashed, reuse) {
   const next = new Map();
   const list = rows.map(row => {
     const taskIds = links.get(row.id) ?? [];
-    const key = `${ctx.ws()}|${row.revision}|${row.updated_at}|${row.deleted_at}|${row.favorite}|${row.photos}|${taskIds.join(',')}`;
+    const key = `${ctx.ws()}|${row.revision}|${row.updated_at}|${row.deleted_at}|${row.favorite}|${row.photos}|${row.parent_memo_id}|${taskIds.join(',')}`;
     const cached = reuse.get(row.id);
     const memo = cached && cached.key === key ? cached.memo : ctx.freeze(toMemo(row, taskIds));
     next.set(row.id, { key, memo });
@@ -54,7 +55,7 @@ export function listMemos(ctx, trashed, reuse) {
 }
 
 function row(ctx, memoId) {
-  return ctx.db.getFirstSync(`select ${COLUMNS} from memos where workspace_id=? and id=?`, [ctx.ws(), memoId]);
+  return ctx.db.getFirstSync(`select ${COLUMNS},server_revision from memos where workspace_id=? and id=?`, [ctx.ws(), memoId]);
 }
 
 function taskIdsOf(ctx, memoId) {
@@ -68,9 +69,56 @@ export function getMemo(ctx, memoId) {
   return r ? ctx.freeze(toMemo(r, taskIdsOf(ctx, memoId))) : null;
 }
 
+export function listMemoVersions(ctx, memoId) {
+  id(memoId);
+  return ctx.db.getAllSync(
+    'select revision,title,body,strokes,updated_at from memo_versions where workspace_id=? and memo_id=? order by revision desc',
+    [ctx.ws(), memoId],
+  ).map(version => ctx.freeze({
+    revision: version.revision,
+    title: version.title,
+    body: version.body,
+    strokes: JSON.parse(version.strokes),
+    updatedAt: version.updated_at,
+  }));
+}
+
 function requireMemo(ctx, memoId) {
   id(memoId);
   return row(ctx, memoId) ?? fail('not_found');
+}
+
+function requireActiveParent(ctx, parentMemoId) {
+  id(parentMemoId, 'parentMemoId');
+  const parent = row(ctx, parentMemoId);
+  if (!parent || parent.deleted_at !== null) fail('not_found', 'parentMemoId');
+}
+
+export function setMemoParent(ctx, memoId, parentMemoId) {
+  const memo = requireMemo(ctx, memoId);
+  if (memo.deleted_at !== null) fail('not_found');
+  if (parentMemoId !== null) {
+    requireActiveParent(ctx, parentMemoId);
+    const cycle = ctx.db.getFirstSync(`
+      with recursive ancestors(id, parent_memo_id) as (
+        select id, parent_memo_id from memos where workspace_id=? and id=?
+        union
+        select m.id, m.parent_memo_id from memos m join ancestors a on m.id=a.parent_memo_id
+        where m.workspace_id=?
+      )
+      select id from ancestors where id=?
+    `, [ctx.ws(), parentMemoId, ctx.ws(), memoId]);
+    if (cycle) fail('invalid_input', 'parentMemoId');
+  }
+  if (memo.parent_memo_id === parentMemoId) return false;
+  ctx.db.runSync('update memos set parent_memo_id=? where workspace_id=? and id=?', [parentMemoId, ctx.ws(), memoId]);
+  const change = { kind: 'update', entity: 'notes', id: memoId, data: { parent_note_id: parentMemoId } };
+  if (memo.server_revision != null) {
+    change.noteBase = { revision: memo.server_revision, fields: { parent_note_id: memo.parent_memo_id } };
+  }
+  ctx.queue([change]);
+  ctx.touch('memos');
+  return true;
 }
 
 /**
@@ -123,16 +171,20 @@ function queuePhoto(ctx, memoId, photoId, position) {
 
 /** 현재 워크스페이스에 메모를 만듦. 제목·본문·손글씨 중 하나는 있어야 함 */
 export function addMemo(ctx, input) {
-  onlyKeys(input, FIELDS);
+  onlyKeys(input, [...FIELDS, 'parentMemoId']);
   const v = checkFields(ctx, input);
+  const parentMemoId = 'parentMemoId' in input ? input.parentMemoId : null;
+  if (parentMemoId !== null) requireActiveParent(ctx, parentMemoId);
   const title = v.title ?? '', body = v.body ?? '', strokes = v.strokes ?? '[]', photos = v.photos ?? '[]';
   if (isEmpty(title, body, strokes)) fail('empty_memo');
   const memoId = ctx.newId(), t = ctx.now();
   ctx.db.runSync(
-    'insert into memos(workspace_id,id,title,body,strokes,photos,favorite,revision,created_at,updated_at) values(?,?,?,?,?,?,?,1,?,?)',
-    [ctx.ws(), memoId, title, body, strokes, photos, v.favorite ?? 0, t, t],
+    'insert into memos(workspace_id,id,title,body,strokes,photos,favorite,revision,created_at,updated_at,parent_memo_id) values(?,?,?,?,?,?,?,1,?,?,?)',
+    [ctx.ws(), memoId, title, body, strokes, photos, v.favorite ?? 0, t, t, parentMemoId],
   );
-  ctx.queue([{ kind: 'create', entity: 'notes', id: memoId, data: ctx.map.noteData({ title, body, strokes }) }]);
+  const noteData = ctx.map.noteData({ title, body, strokes });
+  if (parentMemoId !== null) noteData.parent_note_id = parentMemoId;
+  ctx.queue([{ kind: 'create', entity: 'notes', id: memoId, data: noteData }]);
   JSON.parse(photos).forEach((photoId, i) => queuePhoto(ctx, memoId, photoId, i));
   if (v.favorite) ctx.queueSeparate(favoriteChange([memoId], true));
   if (v.taskIds) setLinks(ctx, memoId, v.taskIds);
@@ -159,7 +211,18 @@ export function updateMemo(ctx, memoId, patch, { expectedRevision } = {}) {
       [title, body, strokes, photos, favorite, current.revision + (contentChanged ? 1 : 0), contentChanged ? ctx.now() : current.updated_at, memoId],
     );
     const changes = [];
-    if (contentChanged) changes.push({ kind: 'update', entity: 'notes', id: memoId, data: ctx.map.diff(ctx.map.noteData(current), ctx.map.noteData({ title, body, strokes })) });
+    if (contentChanged) {
+      const previous = ctx.map.noteData(current);
+      const data = ctx.map.diff(previous, ctx.map.noteData({ title, body, strokes }));
+      const change = { kind: 'update', entity: 'notes', id: memoId, data };
+      if (current.server_revision != null) {
+        change.noteBase = {
+          revision: current.server_revision,
+          fields: Object.fromEntries(Object.keys(data).map(key => [key, previous[key]])),
+        };
+      }
+      changes.push(change);
+    }
     if (photos !== current.photos) {
       const was = JSON.parse(current.photos), now = JSON.parse(photos);
       for (const assetId of was) if (!now.includes(assetId) && isUuid(assetId)) changes.push(photoLink('unlink', memoId, assetId));
@@ -180,9 +243,12 @@ export function updateMemo(ctx, memoId, patch, { expectedRevision } = {}) {
   return getMemo(ctx, memoId);
 }
 
-export function trashMemo(ctx, memoId) {
+export function trashMemo(ctx, memoId, { promoteChildren = false } = {}) {
   const current = requireMemo(ctx, memoId);
   if (current.deleted_at === null) {
+    // Promote direct children within the same store transaction; their bodies and descendants remain intact.
+    const children = promoteChildren ? ctx.db.getAllSync('select id from memos where workspace_id=? and parent_memo_id=? and deleted_at is null', [ctx.ws(), memoId]) : [];
+    for (const child of children) setMemoParent(ctx, child.id, current.parent_memo_id);
     ctx.db.runSync('update memos set deleted_at=? where id=?', [ctx.now(), memoId]);
     ctx.queue([{ kind: 'delete', entity: 'notes', id: memoId }]);
     ctx.touch('memos');

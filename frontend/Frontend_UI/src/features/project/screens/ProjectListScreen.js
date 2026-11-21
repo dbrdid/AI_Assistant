@@ -40,7 +40,7 @@ export default function ProjectsScreen({ navigation }) {
         onBack={selecting ? exitSelect : navigation.goBack}
         right={!selecting && <CircleButton icon="plus" label="프로젝트 생성" onPress={() => navigation.navigate(ROUTES.ProjectEdit)} />}
       />
-      <ScrollView contentContainerStyle={[styles.list, selecting && { paddingBottom: 110 }]}>
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.list, selecting && { paddingBottom: 110 }]}>
         <View style={styles.summary}>
           <StatBox icon="clock" label="진행 중" value={doing} style={styles.stat} />
           <StatBox icon="checkCircle" label="완료" value={done} style={styles.stat} />
@@ -71,7 +71,7 @@ export default function ProjectsScreen({ navigation }) {
                 }
               }}
               delayLongPress={350}
-              style={({ pressed }) => [styles.card, on && styles.cardOn, pressed && !on && { backgroundColor: '#F7FBF9' }]}
+              style={({ pressed }) => [styles.card, on && styles.cardOn, pressed && !on && { backgroundColor: colors.mintSoft }]}
             >
               {selecting && <Icon name={on ? 'checkSquare' : 'square'} size={22} color={on ? colors.mintDark : colors.muted} />}
               <View style={{ flex: 1, gap: spacing.sm }}>
@@ -118,7 +118,7 @@ export default function ProjectsScreen({ navigation }) {
       <ConfirmDialog
         visible={confirm}
         title={`프로젝트 ${ids.length}개를 삭제할까요?`}
-        sub="프로젝트만 삭제돼요. 안에 있던 메모·할 일·파일은 지워지지 않고 프로젝트에서만 빠져요."
+        sub="프로젝트만 삭제돼요. 안에 있던 메모 / 할 일 / 파일은 지워지지 않고 프로젝트에서만 빠져요."
         confirmText="삭제"
         danger
         onCancel={() => setConfirm(false)}
@@ -134,23 +134,23 @@ export default function ProjectsScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
-  list: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, gap: spacing.md, paddingBottom: spacing.xxl },
+  list: {paddingHorizontal:20,paddingTop:spacing.xs,gap:12,paddingBottom:spacing.xxl},
   summary: { flexDirection: 'row', gap: spacing.sm },
-  stat: { backgroundColor: colors.white },
+  stat: { backgroundColor: colors.card },
   empty: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: spacing.xl, gap: spacing.sm },
   emptyTitle: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   emptySub: { fontSize: font.body, color: colors.muted, textAlign: 'center', lineHeight: 20 },
   hint: { fontSize: font.caption, color: colors.muted },
-  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  card: {flexDirection:'row',alignItems:'center',gap:spacing.md,padding:spacing.lg,borderRadius:0,backgroundColor:colors.cream,borderWidth:0,borderColor:colors.line,borderBottomWidth:1,paddingHorizontal:0,paddingVertical:20},
   cardOn: { borderColor: colors.mint, backgroundColor: colors.mintSoft },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  title: { flex: 1, fontSize: font.header, fontWeight: '800', color: colors.ink },
+  title: {flex:1,fontSize:17,fontWeight:'500',color:colors.ink},
   titleDone: { color: colors.muted },
   tag: { alignSelf: 'center' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   meta: { fontSize: 13, color: colors.muted },
   bar: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, backgroundColor: colors.cream, borderTopWidth: 1, borderTopColor: colors.line },
-  barBtn: { flex: 1, minHeight: 46, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  barText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  barBtn: {flex:1,minHeight:42,borderRadius:4,backgroundColor:colors.card,borderWidth:0,borderColor:colors.line,alignItems:'center',justifyContent:'center'},
+  barText: {fontSize:14,fontWeight:'500',color:colors.ink},
 });

@@ -35,9 +35,9 @@ export default function AiUsageScreen({ navigation }) {
   return (
     <View style={styles.root}>
       <ScreenHeader title="AI 이용량" onBack={navigation.goBack} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Text style={styles.heading}>이번 달 사용량</Text>
-        <Text style={styles.plan}>현재 요금제 · {PLANS[s.plan].name}</Text>
+        <Text style={styles.plan}>현재 요금제  /  {PLANS[s.plan].name}</Text>
         {Object.keys(USAGE_LABELS).map((k) => (
           <Bar key={k} label={USAGE_LABELS[k]} used={u[k]} limit={limitOf(k)} />
         ))}
@@ -55,15 +55,15 @@ export default function AiUsageScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
-  heading: { fontSize: font.title, fontWeight: '800', color: colors.ink },
+  heading: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   plan: { fontSize: font.body, color: colors.mintDark, fontWeight: '700' },
   item: { padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, gap: spacing.sm },
   itemHead: { flexDirection: 'row', justifyContent: 'space-between' },
   itemLabel: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
-  itemCount: { fontSize: font.bodyLg, fontWeight: '800', color: colors.mintDark },
+  itemCount: { fontSize: font.bodyLg, fontWeight: '600', color: colors.mintDark },
   track: { height: 8, borderRadius: 4, backgroundColor: colors.line, overflow: 'hidden' },
   fill: { height: 8, borderRadius: 4, backgroundColor: colors.mint },
   btn: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
-  btnText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
+  btnText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   note: { fontSize: font.caption, color: colors.muted },
 });

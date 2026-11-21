@@ -1,3 +1,4 @@
+import ScreenHeader from '../../../shared/components/ScreenHeader';
 // ============================================================
 // AiChatScreen.js — AI 채팅 화면
 //   이전 대화(기기에 저장) · 새 채팅 · 사진/파일 첨부 · 클라우드/로컬 AI 선택
@@ -25,7 +26,7 @@ import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets'
 import { PinIcon } from '../components/ChatIcons';
 import Icon from '../../../shared/components/Icon';
 import { CircleButton } from '../../../shared/components/Ui';
-import { useLeadAction } from '../../../navigation/ScreenEntry';
+
 import SlidePanel from '../components/SlidePanel';
 import { openParams } from '../../../data/memos/MemoStore';
 import { AI_ROUTE_LABEL, LOCAL_AI_AVAILABLE, PLANS, addUsage, loadAiUsage, setAiRoute, setAiTransmission, useSettings } from '../../../data/settings/SettingsStore';
@@ -141,7 +142,7 @@ function MessageBubble({ message, onOpenSource }) {
         </View>
         {sources.length > 0 && (
           <View style={styles.sources}>
-            <Text style={styles.sourcesLabel}>출처{sources.some((s) => s.route) ? ' · 누르면 해당 위치로 이동해요' : ''}</Text>
+            <Text style={styles.sourcesLabel}>출처{sources.some((s) => s.route) ? '  /  누르면 해당 위치로 이동해요' : ''}</Text>
             <View style={styles.sourceChips}>
               {sources.map((src) => (
                 <Pressable
@@ -167,7 +168,7 @@ function MessageBubble({ message, onOpenSource }) {
 
 export default function AiChatScreen({ navigation }) {
   // 왼쪽 위: 사이드 메뉴로 열었으면 ☰, 다른 화면(홈의 ✦ 등)에서 왔으면 ‹
-  const lead = useLeadAction(navigation.goBack);
+
   const insets = useSafeAreaInsets();
   const settings = useSettings();
   const ai = settings.ai ?? {};
@@ -362,7 +363,7 @@ export default function AiChatScreen({ navigation }) {
   const togglePin = () => {
     setPanel(null);
     const ok = setPinned(chatId, !pinned, messages.map((m) => (m.role === 'ai' ? { ...m, done: true } : m)));
-    setBanner(!ok ? '답이 끝난 뒤에 고정할 수 있어요' : pinned ? '고정을 해제했어요' : '이 대화를 고정했어요 · 이전 대화 맨 위에 보여요');
+    setBanner(!ok ? '답이 끝난 뒤에 고정할 수 있어요' : pinned ? '고정을 해제했어요' : '이 대화를 고정했어요  /  이전 대화 맨 위에 보여요');
   };
 
   // ---------- 이 대화에 올린 파일 ----------
@@ -403,26 +404,12 @@ export default function AiChatScreen({ navigation }) {
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.flex}>
         {/* 머리글: 왼쪽 뒤로 가기 · 가운데 제목 · 오른쪽 [새 채팅 | 더보기] (이전 대화는 더보기 안, AI 선택·사용량은 입력창 오른쪽 아래) */}
-        <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]} onLayout={(e) => setHeaderBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}>
-          {/* 대화 중에는 대화 제목 (자동으로 만든 제목 또는 사용자가 바꾼 제목) · 양옆 버튼과 상관없이 정가운데 */}
-          <View pointerEvents="none" style={[styles.headerTitleWrap, { top: insets.top + spacing.sm }]}>
-            <Text style={styles.headerTitle} numberOfLines={1} accessibilityRole="header">
-              {(messages.length > 0 && chats.find((c) => c.id === chatId)?.title) || 'AI 채팅'}
-            </Text>
-          </View>
-          {lead.hidden ? <View style={{ width: 40 }} /> : <CircleButton icon="chevronLeft" label="뒤로 가기" onPress={lead.onPress} />}
-          {/* 첫 화면: 이전 대화 하나 · 대화 중: [새 채팅] [더보기] */}
-          <View style={styles.headerRight}>
-            {messages.length === 0 ? (
-              <CircleButton icon="history" label="이전 대화" onPress={() => setPanel('history')} />
-            ) : (
-              <>
+        <View onLayout={e => setHeaderBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}><ScreenHeader title={(messages.length > 0 && chats.find(c=>c.id===chatId)?.title) || "AI 작업 공간"} onBack={navigation.goBack} right={<View style={styles.headerRight}>
+            {messages.length === 0 ? <CircleButton icon="history" label="이전 대화" onPress={() => setPanel('history')} /> : <>
                 <CircleButton icon="edit" label="새 채팅" onPress={newChat} />
                 <CircleButton icon="more" label="더보기" onPress={() => setPanel('more')} />
-              </>
-            )}
-          </View>
-        </View>
+              </>}
+          </View>}/></View>
 
         {!routeReady ? (
           <View style={styles.notice}>
@@ -451,8 +438,8 @@ export default function AiChatScreen({ navigation }) {
             <View style={styles.emptyIconWrap}>
               <Icon name="sparkles" size={30} color={colors.mintDark} />
             </View>
-            <Text style={styles.emptyTitle}>무엇을 도와드릴까요?</Text>
-            <Text style={styles.emptySub}>앱에 저장된 기록과 첨부한 사진·파일을 바탕으로 답해드려요</Text>
+            <Text style={styles.emptyTitle}>기록으로 작업하기</Text>
+            <Text style={styles.emptySub}>앱에 저장된 기록과 첨부한 사진 / 파일을 바탕으로 답해드려요</Text>
             <View style={styles.chips}>
               {SUGGESTIONS.map((s) => (
                 <Pressable key={s} accessibilityRole="button" onPress={() => send(s)} style={({ pressed }) => [styles.chip, pressed && { backgroundColor: colors.mintSoft }]}>
@@ -462,7 +449,7 @@ export default function AiChatScreen({ navigation }) {
             </View>
           </View>
         ) : (
-          <FlatList
+          <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}
             ref={listRef}
             data={messages}
             keyExtractor={(m) => m.id}
@@ -486,7 +473,7 @@ export default function AiChatScreen({ navigation }) {
 
       {/* ---------- 보내기 전 첨부 ---------- */}
       {attachments.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pendingBar} contentContainerStyle={styles.pendingRow}>
+        <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} style={styles.pendingBar} contentContainerStyle={styles.pendingRow}>
           {attachments.map((a) => (
             <View key={a.id} style={[styles.pending, a.status === 'error' && styles.pendingError]}>
               {a.status === 'reading' && <ActivityIndicator size="small" color={colors.mintDark} />}
@@ -536,11 +523,11 @@ export default function AiChatScreen({ navigation }) {
             disabled={!canSend}
             style={[styles.sendBtn, canSend ? styles.sendOn : styles.sendOff]}
           >
-            <Icon name="arrowUp" size={22} color={colors.white} strokeWidth={2.4} />
+            <Icon name="arrowUp" size={22} color={colors.onPrimary} strokeWidth={2.4} />
           </Pressable>
         ) : (
           <Pressable accessibilityRole="button" accessibilityLabel="답변 중지" onPress={stop} style={({ pressed }) => [styles.sendBtn, styles.sendOn, pressed && { opacity: 0.85 }]}>
-            <Icon name="stop" size={20} color={colors.white} />
+            <Icon name="stop" size={20} color={colors.onPrimary} />
           </Pressable>
         )}
       </View>
@@ -563,11 +550,11 @@ export default function AiChatScreen({ navigation }) {
             <Text style={styles.sheetTitle}>첨부하기</Text>
             <Pressable accessibilityRole="button" onPress={() => addFiles('image')} style={styles.option}>
               <Text style={styles.optionName}>사진</Text>
-              <Text style={styles.optionSub}>사진 속 글자를 읽어서 함께 보내요 (클라우드 AI · 월 사용 횟수 차감)</Text>
+              <Text style={styles.optionSub}>사진 속 글자를 읽어서 함께 보내요 (클라우드 AI  /  월 사용 횟수 차감)</Text>
             </Pressable>
             <Pressable accessibilityRole="button" onPress={() => addFiles('file')} style={styles.option}>
               <Text style={styles.optionName}>파일</Text>
-              <Text style={styles.optionSub}>PDF·Word·PowerPoint·텍스트의 글자를 꺼내서 함께 보내요</Text>
+              <Text style={styles.optionSub}>PDF / Word / PowerPoint / 텍스트의 글자를 꺼내서 함께 보내요</Text>
             </Pressable>
             <Text style={styles.sheetNote}>파일은 저장되지 않고, 꺼낸 글자만 질문과 함께 보내요. 한 번에 {MAX_ATTACHMENTS}개까지.</Text>
           </View>
@@ -591,7 +578,7 @@ export default function AiChatScreen({ navigation }) {
                   onPress={() => chooseRoute(id)}
                   style={[styles.option, on && styles.optionOn, off && { opacity: 0.5 }]}
                 >
-                  <Text style={styles.optionName}>{AI_ROUTE_LABEL[id]}{on ? ' · 사용 중' : off ? ' · 준비 중' : ''}</Text>
+                  <Text style={styles.optionName}>{AI_ROUTE_LABEL[id]}{on ? '  /  사용 중' : off ? '  /  준비 중' : ''}</Text>
                   <Text style={styles.optionSub}>
                     {id === 'external' ? '외부 AI 제공자가 답해요. 빠르고 사진 글자 인식도 돼요' : '팀 서버의 자체 모델이 답해요. 외부 AI로 넘기지 않아요 (서버 연결 후 사용)'}
                   </Text>
@@ -635,14 +622,14 @@ export default function AiChatScreen({ navigation }) {
               <ActivityIndicator color={colors.mintDark} style={{ alignSelf: 'flex-start', marginVertical: spacing.md }} />
             ) : (
               <>
-                <Text style={styles.optionSub}>요금제 · {PLANS[usage.data.plan].name}</Text>
+                <Text style={styles.optionSub}>요금제  /  {PLANS[usage.data.plan].name}</Text>
                 {usage.data.items.map((u) => {
                   const ratio = u.limit > 0 ? Math.min(1, u.used / u.limit) : 0;
                   return (
                     <View key={u.key} style={styles.usageRow}>
                       <View style={styles.usageHead}>
                         <Text style={styles.usageLabel}>{u.label}</Text>
-                        <Text style={styles.usageNum}>{u.used} / {u.limit}회 · 남은 {u.remaining}회</Text>
+                        <Text style={styles.usageNum}>{u.used} / {u.limit}회  /  남은 {u.remaining}회</Text>
                       </View>
                       <View style={styles.usageTrack}>
                         <View style={[styles.usageFill, { width: `${ratio * 100}%`, backgroundColor: ratio >= 0.9 ? colors.coral : colors.mint }]} />
@@ -677,7 +664,7 @@ export default function AiChatScreen({ navigation }) {
               placeholderTextColor={colors.muted}
               accessibilityLabel="대화 제목"
             />
-            <Text style={styles.sheetNote}>{(renaming?.value ?? '').length} / {TITLE_MAX}자 · 직접 바꾼 제목은 AI가 다시 바꾸지 않아요</Text>
+            <Text style={styles.sheetNote}>{(renaming?.value ?? '').length} / {TITLE_MAX}자  /  직접 바꾼 제목은 AI가 다시 바꾸지 않아요</Text>
             <View style={styles.renameRow}>
               <Pressable accessibilityRole="button" onPress={() => setRenaming(null)} style={[styles.renameBtn, styles.renameCancel]}>
                 <Text style={styles.renameCancelText}>취소</Text>
@@ -693,9 +680,9 @@ export default function AiChatScreen({ navigation }) {
       {/* ---------- 업로드된 파일 (아래에서 머리글 바로 아래까지 올라오는 창) ---------- */}
       <UpSheet visible={panel === 'files'} top={headerBottom} title="업로드된 파일" onClose={() => setPanel(null)}>
         {chatUploads.length === 0 ? (
-          <Text style={styles.historyEmpty}>이 대화에 올린 사진·파일이 없어요. 입력창 왼쪽 + 버튼으로 올릴 수 있어요.</Text>
+          <Text style={styles.historyEmpty}>이 대화에 올린 사진 / 파일이 없어요. 입력창 왼쪽 + 버튼으로 올릴 수 있어요.</Text>
         ) : (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: spacing.sm }}>
+          <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ gap: spacing.sm }}>
             {chatUploads.map((u) => (
               <Pressable
                 key={`${u.messageId}:${u.id}`}
@@ -710,7 +697,7 @@ export default function AiChatScreen({ navigation }) {
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={styles.optionName} numberOfLines={1}>{u.name}</Text>
-                  <Text style={styles.optionSub} numberOfLines={1}>질문 · {u.question}</Text>
+                  <Text style={styles.optionSub} numberOfLines={1}>질문  /  {u.question}</Text>
                 </View>
               </Pressable>
             ))}
@@ -724,7 +711,7 @@ export default function AiChatScreen({ navigation }) {
         {chats.length === 0 ? (
           <Text style={styles.historyEmpty}>아직 저장된 대화가 없어요. 질문하면 이 기기에 자동으로 저장돼요.</Text>
         ) : (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: spacing.sm }}>
+          <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={{ gap: spacing.sm }}>
             {sortChats(chats).map((c) => (
               <View key={c.id} style={[styles.historyItem, c.id === chatId && styles.optionOn]}>
                 <Pressable accessibilityRole="button" accessibilityLabel={`${c.pinnedAt ? '고정된 ' : ''}${c.title} 대화 열기`} onPress={() => openChat(c)} style={{ flex: 1, gap: 2 }}>
@@ -757,30 +744,30 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingBottom: spacing.md, backgroundColor: colors.cream },
   // 오른쪽 버튼이 두 개(88)여도 제목이 겹치지 않도록 양옆 여백을 넉넉히
   headerTitleWrap: { position: 'absolute', left: 112, right: 112, height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: font.header, fontWeight: '800', color: colors.ink },
+  headerTitle: { fontSize: font.header, fontWeight: '600', color: colors.ink },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   pressed: { backgroundColor: colors.mintSoft },
-  rowIconBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  rowIconBtn: { width: 32, height: 32, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   menuBackdrop: { flex: 1 },
-  menu: { position: 'absolute', right: spacing.lg, minWidth: 220, paddingVertical: spacing.sm, borderRadius: radius.card, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, ...shadow.float, shadowColor: '#263935', shadowOpacity: 0.14 },
+  menu: { position: 'absolute', right: spacing.lg, minWidth: 220, paddingVertical: spacing.sm, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, ...shadow.float, shadowColor: '#263935', shadowOpacity: 0.14 },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radius.md, marginHorizontal: spacing.xs },
-  menuText: { fontSize: font.body + 1, fontWeight: '700', color: colors.ink },
+  menuText: {fontSize:font.body+1,fontWeight:'500',color:colors.ink},
   menuLine: { height: 1, backgroundColor: colors.line, marginVertical: spacing.xs },
   historyTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  renameInput: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
+  renameInput: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
   renameRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   renameBtn: { flex: 1, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  renameCancel: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  renameCancel: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   renameCancelText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   renameSave: { backgroundColor: colors.mintDark },
-  renameSaveText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
-  pinTag: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, backgroundColor: colors.mintSoft },
-  pinTagText: { fontSize: 11, fontWeight: '800', color: colors.mintDark },
-  fileItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.card, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
-  fileBadge: { width: 44, height: 44, borderRadius: 12, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center', gap: 1 },
-  fileBadgeText: { fontSize: 10, fontWeight: '800', color: colors.mintDark },
-  panelSection: { fontSize: font.caption, fontWeight: '800', color: colors.muted, marginTop: spacing.md },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  renameSaveText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
+  pinTag: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, backgroundColor: colors.mintSoft },
+  pinTagText: { fontSize: 11, fontWeight: '600', color: colors.mintDark },
+  fileItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  fileBadge: {width:44,height:44,borderRadius:0,backgroundColor:'transparent',alignItems:'center',justifyContent:'center',gap:1},
+  fileBadgeText: { fontSize: 10, fontWeight: '600', color: colors.mintDark },
+  panelSection: { fontSize: font.caption, fontWeight: '600', color: colors.muted, marginTop: spacing.md },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
 
   // ----- 도구 줄 -----
   toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
@@ -792,83 +779,83 @@ const styles = StyleSheet.create({
   usageNum: { fontSize: font.caption, color: colors.muted },
   usageTrack: { height: 8, borderRadius: 4, backgroundColor: colors.line, overflow: 'hidden' },
   usageFill: { height: 8, borderRadius: 4 },
-  routeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  routeChip: {flexDirection:'row',alignItems:'center',gap:6,paddingHorizontal:spacing.md,paddingVertical:5,borderRadius:0,backgroundColor:'transparent',borderWidth:0,borderColor:colors.line},
   routeDot: { width: 8, height: 8, borderRadius: 4 },
   routeText: { fontSize: font.caption + 1, fontWeight: '700', color: colors.ink },
-  newChatBtn: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.mintSoft },
-  newChatText: { fontSize: font.body, fontWeight: '700', color: colors.mintDark },
+  newChatBtn: {paddingHorizontal:spacing.md,paddingVertical:6,borderRadius:4,backgroundColor:'transparent'},
+  newChatText: {fontSize:13,fontWeight:'500',color:colors.mintDark},
   notice: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.lg, marginBottom: spacing.sm, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.coralSoft, borderWidth: 1, borderColor: colors.coral },
   noticeText: { flex: 1, fontSize: font.caption + 1, color: colors.ink, lineHeight: 19 },
   noticeBtn: { paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.mintDark },
-  noticeBtnText: { fontSize: font.caption, fontWeight: '800', color: colors.white },
+  noticeBtnText: { fontSize: font.caption, fontWeight: '600', color: colors.onPrimary },
   banner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.lg, marginBottom: spacing.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.mintSoft },
   bannerText: { flex: 1, fontSize: font.caption + 1, color: colors.ink },
 
   // ----- 대화가 없을 때 -----
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl, gap: spacing.sm },
-  emptyIconWrap: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
-  emptyTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
-  emptySub: { fontSize: font.body, color: colors.muted, textAlign: 'center', lineHeight: 20 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.lg },
-  chip: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm + 2, borderRadius: radius.pill, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
-  chipText: { fontSize: font.body, fontWeight: '600', color: colors.ink },
+  empty: {flex:1,alignItems:'flex-start',justifyContent:'flex-start',paddingHorizontal:24,gap:12,paddingTop:64},
+  emptyIconWrap: {width:32,height:32,borderRadius:0,backgroundColor:'transparent',alignItems:'center',justifyContent:'center',marginBottom:12},
+  emptyTitle: {fontSize:27,fontWeight:'600',color:colors.ink,lineHeight:37},
+  emptySub: {fontSize:15,color:colors.muted,textAlign:'left',lineHeight:25},
+  chips: {flexDirection:'row',flexWrap:'wrap',justifyContent:'flex-start',gap:0,marginTop:16,alignSelf:'stretch'},
+  chip: {paddingHorizontal:0,paddingVertical:15,borderRadius:0,backgroundColor:'transparent',borderWidth:0,borderColor:colors.line,width:'100%',borderBottomWidth:1},
+  chipText: {fontSize:14,fontWeight:'400',color:colors.ink},
 
   // ----- 대화 목록 -----
-  list: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.lg, gap: spacing.lg },
+  list: {paddingHorizontal:20,paddingTop:spacing.sm,paddingBottom:spacing.lg,gap:24},
   dayDivider: { alignSelf: 'center', fontSize: font.caption, color: colors.muted },
   userRow: { alignItems: 'flex-end', gap: 6 },
   // 내 말풍선: 진한 민트 · 오른쪽 아래 모서리만 덜 둥글게
-  userBubble: { maxWidth: '80%', backgroundColor: colors.mintDark, paddingHorizontal: spacing.lg, paddingVertical: 11, borderRadius: radius.card, borderBottomRightRadius: 6 },
-  userText: { fontSize: 15, color: colors.white, lineHeight: 22 },
+  userBubble: {maxWidth:'80%',backgroundColor:colors.card,paddingHorizontal:spacing.lg,paddingVertical:11,borderRadius:4,borderBottomRightRadius:4},
+  userText: {fontSize:15,color:colors.ink,lineHeight:25},
   sentFiles: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6, maxWidth: '80%' },
-  sentFile: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, maxWidth: '100%' },
+  sentFile: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, maxWidth: '100%' },
   sentFileText: { flexShrink: 1, fontSize: font.caption, fontWeight: '700', color: colors.ink },
   aiRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
-  avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center' },
+  avatar: {width:24,height:30,borderRadius:0,backgroundColor:'transparent',alignItems:'center',justifyContent:'center'},
   // AI 말풍선: 흰 바탕 + 얇은 테두리
-  aiBubble: { maxWidth: '80%', backgroundColor: colors.white, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line },
-  aiText: { fontSize: 15, color: colors.ink, lineHeight: 22 },
+  aiBubble: {maxWidth:'100%',backgroundColor:'transparent',paddingHorizontal:0,paddingVertical:8,borderRadius:0,borderWidth:0,borderColor:colors.line},
+  aiText: {fontSize:16,color:colors.ink,lineHeight:27},
   errorBubble: { borderColor: colors.coral, backgroundColor: colors.coralSoft },
   errorText: { color: colors.ink, fontSize: font.body },
-  aiCol: { flex: 1, maxWidth: '88%', gap: spacing.sm },
+  aiCol: {flex:1,maxWidth:'100%',gap:spacing.sm},
   aiBubbleFit: { alignSelf: 'flex-start', maxWidth: '100%' },
   sources: { gap: 6 },
   sourcesLabel: { fontSize: font.caption, color: colors.muted },
   sourceChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   // 출처 칩: 흰 바탕 + 테두리, 아이콘 + 굵은 제목
-  sourceChip: { flexDirection: 'row', alignItems: 'center', gap: 5, maxWidth: '100%', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
-  sourceText: { flexShrink: 1, fontSize: font.caption + 1, fontWeight: '800', color: colors.ink },
+  sourceChip: {flexDirection:'row',alignItems:'center',gap:5,maxWidth:'100%',paddingHorizontal:10,paddingVertical:7,borderRadius:0,backgroundColor:'transparent',borderWidth:0,borderColor:colors.line,borderBottomWidth:1},
+  sourceText: { flexShrink: 1, fontSize: font.caption + 1, fontWeight: '600', color: colors.ink },
   dotsBubble: { flexDirection: 'row', gap: 5, alignItems: 'center', paddingVertical: 14 },
   dot: { width: 7, height: 7, borderRadius: 4 },
 
   // ----- 보내기 전 첨부 -----
   pendingBar: { flexGrow: 0, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.cream },
   pendingRow: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
-  pending: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  pending: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   pendingError: { borderColor: colors.coral },
   pendingName: { fontSize: font.caption, fontWeight: '700', color: colors.ink },
   pendingSub: { fontSize: 11, color: colors.muted },
 
   // ----- 입력창 -----
   inputBar: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
-  attachBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
-  input: { flex: 1, minHeight: 46, maxHeight: 120, paddingHorizontal: 18, paddingTop: 12, paddingBottom: 12, fontSize: 15, color: colors.ink, backgroundColor: colors.white, borderRadius: 23, borderWidth: 1, borderColor: colors.line },
-  sendBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 1 },
+  attachBtn: {width:44,height:44,borderRadius:4,alignItems:'center',justifyContent:'center',backgroundColor:'transparent',borderWidth:0,borderColor:colors.line},
+  input: {flex:1,minHeight:46,maxHeight:120,paddingHorizontal:12,paddingTop:12,paddingBottom:12,fontSize:16,color:colors.ink,backgroundColor:colors.card,borderRadius:4,borderWidth:0,borderColor:colors.line},
+  sendBtn: {width:44,height:44,borderRadius:4,alignItems:'center',justifyContent:'center',marginBottom:1},
   sendOn: { backgroundColor: colors.mintDark },
   sendOff: { backgroundColor: colors.mintDark, opacity: 0.35 },
 
   // ----- 창 -----
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  sheet: { width: '100%', maxWidth: 380, backgroundColor: colors.cream, borderRadius: radius.lg + 4, padding: spacing.xl, gap: spacing.sm, borderWidth: 1, borderColor: colors.line },
-  sheetTitle: { fontSize: font.title - 2, fontWeight: '800', color: colors.ink, marginBottom: spacing.xs },
+  sheet: {width:'100%',maxWidth:380,backgroundColor:colors.cream,borderRadius:4,padding:spacing.xl,gap:spacing.sm,borderWidth:1,borderColor:colors.line},
+  sheetTitle: { fontSize: font.title - 2, fontWeight: '600', color: colors.ink, marginBottom: spacing.xs },
   sheetNote: { fontSize: font.caption, color: colors.muted, marginTop: spacing.xs, lineHeight: 17 },
-  option: { padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, gap: 2 },
+  option: {padding:spacing.lg,borderRadius:0,backgroundColor:colors.cream,borderWidth:0,borderColor:colors.line,gap:2,borderBottomWidth:1},
   optionOn: { borderColor: colors.mintDark, borderWidth: 1.5, backgroundColor: colors.mintSoft },
-  optionName: { fontSize: font.bodyLg - 1, fontWeight: '800', color: colors.ink },
+  optionName: { fontSize: font.bodyLg - 1, fontWeight: '600', color: colors.ink },
   optionSub: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
   historySheet: { maxWidth: 420 },
   historyHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   close: { fontSize: font.body, fontWeight: '700', color: colors.mintDark },
   historyEmpty: { fontSize: font.body, color: colors.muted, paddingVertical: spacing.lg },
-  historyItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  historyItem: {flexDirection:'row',alignItems:'center',gap:spacing.md,padding:spacing.md,borderRadius:0,backgroundColor:colors.cream,borderWidth:0,borderColor:colors.line,borderBottomWidth:1},
 });

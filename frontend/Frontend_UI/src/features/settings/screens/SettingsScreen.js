@@ -23,14 +23,14 @@ export default function SettingsScreen({ navigation }) {
   return (
     <View style={styles.root}>
       <ScreenHeader title="설정" onBack={navigation.goBack} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Pressable accessibilityRole="button" accessibilityLabel="계정 정보 보기" onPress={() => navigation.navigate(ROUTES.Account)} style={({ pressed }) => [styles.account, pressed && { backgroundColor: colors.mintSoft }]}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{name ? name.charAt(0) : '?'}</Text>
           </View>
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={styles.name}>{name || '이름을 설정해 주세요'}</Text>
-            <Text style={styles.email} numberOfLines={1}>{s.profile.email || '로그인 전'} · {PLANS[s.plan].name}</Text>
+            <Text style={styles.email} numberOfLines={1}>{s.profile.email || '로그인 전'}  /  {PLANS[s.plan].name}</Text>
           </View>
           <Icon name="chevronRight" size={18} color={colors.muted} />
         </Pressable>
@@ -75,8 +75,8 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   // 프로필 카드 (시안: 흰 카드 + 얇은 테두리)
   account: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 22, fontWeight: '800', color: colors.white },
-  name: { fontSize: font.header, fontWeight: '800', color: colors.ink },
+  avatar: { width: 52, height: 52, borderRadius: 4, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 22, fontWeight: '600', color: colors.onPrimary },
+  name: { fontSize: font.header, fontWeight: '600', color: colors.ink },
   email: { fontSize: 13, color: colors.muted },
 });

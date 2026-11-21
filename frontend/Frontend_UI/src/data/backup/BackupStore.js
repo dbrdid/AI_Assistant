@@ -3,9 +3,11 @@
 //   Restore first saves the current state as an automatic backup, then replaces the personal workspace.
 import { Platform } from 'react-native';
 import * as Crypto from 'expo-crypto';
-import { emitRuntime, list, maybeRuntime, readPreference, runtime, saveList, scoped, useValue, writePreference } from '../hooks';
+import { emitRuntime, list, maybeRuntime, readPreference, runtime, scoped, useValue } from '../hooks';
+import { restorePersonalData } from '../../integration/runtime';
 import { supabase } from '../../lib/stella/supabase';
 import * as api from '../../lib/stella/backup';
+import { exportProjectTablePreferences, prepareProjectTablePreferences } from '../projects/projectTablePreferences.mjs';
 
 export const MAX_BACKUPS = 10;
 const EMPTY = Object.freeze([]);
@@ -34,7 +36,7 @@ async function load() {
   const { session, order } = cache;
   try {
     const raw = await api.listBackups(supabase, order);
-    if (cache.session !== session || cache.order !== order) return;
+    if (cache.session !== session || cache.order !== order || maybeRuntime()?.session !== session) return;
     cache = { ...cache, raw, rows: Object.freeze(raw.map(toRow)) };
     emitRuntime();
   } catch (error) {
@@ -44,8 +46,8 @@ async function load() {
 function snapshot(order) {
   const rt = maybeRuntime();
   if (!rt) return EMPTY;
-  if (cache.session !== rt.session.id || cache.order !== order) {
-    cache = { session: rt.session.id, order, raw: EMPTY, rows: EMPTY };
+  if (cache.session !== rt.session || cache.order !== order) {
+    cache = { session: rt.session, order, raw: EMPTY, rows: EMPTY };
     void load();
   }
   return cache.rows;
@@ -56,11 +58,13 @@ export const useBackups = (order = 'new') => useValue(() => snapshot(order));
 // What a backup holds: the local store's personal records + device-only project data
 // ---------------------------------------------------------------------
 function personalData(rt) {
+  const projects = list('projects');
   return {
     format: PAYLOAD_FORMAT,
     store: rt.store.exportAll(),
     prefs: {
-      projects: list('projects'),
+      projects,
+      projectTables: exportProjectTablePreferences(projects, (key, fallback) => readPreference(scoped(key), fallback)),
       // Same fallbacks as ProjectStore/AgendaStore: readPreference caches the first fallback it sees for a key
       projectLinks: readPreference(scoped('project-links'), EMPTY_LINKS),
       agenda: readPreference(scoped('agenda-snapshots'), EMPTY_OBJECT),
@@ -70,6 +74,10 @@ function personalData(rt) {
 function countsOf(rt) {
   const c = rt.store.counts();
   return { memos: c.memos, tasks: c.tasks, projects: list('projects').length };
+}
+function backupContents(data) {
+  const { exportedAt, ...records } = data.store;
+  return JSON.stringify({ records, prefs: data.prefs });
 }
 function personalOnly() {
   const rt = runtime();
@@ -95,29 +103,45 @@ export async function createBackup(auto = false) {
 export async function restoreBackup(id) {
   const rt = personalOnly();
   if (!rt) return { ok: false, reason: 'not-personal' };
-  const backup = cache.raw.find(b => b.id === id);
+  const backup = cache.session === rt.session ? cache.raw.find(b => b.id === id) : null;
   if (!backup) return { ok: false, reason: 'failed', message: '백업을 찾을 수 없어요. 목록을 다시 열어 주세요' };
   try {
+    const currentData = personalData(rt);
+    const safetySnapshot = backupContents(currentData);
     const r = await api.restoreBackup(supabase, {
-      backup, currentData: personalData(rt), currentCounts: countsOf(rt), keep: MAX_BACKUPS, deps: deps(),
+      backup, currentData, currentCounts: countsOf(rt), keep: MAX_BACKUPS, deps: deps(),
       apply: data => {
-        if (maybeRuntime() !== rt || !rt.store.getCurrentWorkspace().personal) throw new Error('계정이나 공간이 바뀌어서 복원하지 않았어요');
+        if (maybeRuntime() !== rt || !rt.store.getCurrentWorkspace().personal) {
+          throw new api.BackupError('RESTORE_CONTEXT_CHANGED', '복원 중 계정이나 공간이 바뀌었어요');
+        }
+        if (backupContents(personalData(rt)) !== safetySnapshot) {
+          throw new api.BackupError('RESTORE_DATA_CHANGED', '복원 중 개인 공간의 기록이 바뀌었어요');
+        }
         if (data?.format !== PAYLOAD_FORMAT || !data.store) throw Object.assign(new Error('백업 형식이 다릅니다'), { code: 'BACKUP_CORRUPT' });
-        rt.store.importAll(data.store);
-        saveList('projects', Array.isArray(data.prefs?.projects) ? data.prefs.projects : []);
-        if (data.prefs?.projectLinks) writePreference(scoped('project-links'), data.prefs.projectLinks);
-        if (data.prefs?.agenda) writePreference(scoped('agenda-snapshots'), data.prefs.agenda);
+        const projects = Array.isArray(data.prefs?.projects) ? data.prefs.projects : [];
+        let tablePreferences;
+        try {
+          tablePreferences = prepareProjectTablePreferences(projects, data.prefs?.projectTables);
+        } catch {
+          throw Object.assign(new Error('프로젝트 표 백업 형식이 다릅니다'), { code: 'BACKUP_CORRUPT' });
+        }
+        const preferences = [['projects', projects], ...tablePreferences];
+        if (data.prefs?.projectLinks) preferences.push(['project-links', data.prefs.projectLinks]);
+        if (data.prefs?.agenda) preferences.push(['agenda-snapshots', data.prefs.agenda]);
+        restorePersonalData(data.store, preferences.map(([key, value]) => [scoped(key), value]));
       },
     });
     await load();
     return { ok: true, safety: !!r.safety };
   } catch (error) {
     console.warn('[backup] 복원 실패', error);
+    if (maybeRuntime() === rt) await load();
     return failed(error);
   }
 }
 
 export async function deleteBackup(id) {
+  if (cache.session !== maybeRuntime()?.session || !cache.raw.some(backup => backup.id === id)) return false;
   try {
     await api.deleteBackup(supabase, id);
     await load();

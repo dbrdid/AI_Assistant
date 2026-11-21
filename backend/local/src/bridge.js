@@ -71,7 +71,7 @@ function fingerprint(data) {
 export function createBridge({
   store, engine, db, transport, accountId = null, deviceId = null,
   favorites = null, photos = null, workspaces = null, conflicts = 'merge',
-  pause = () => new Promise(resolve => setTimeout(resolve, 0)),
+  pause = () => new Promise(resolve => setTimeout(resolve, 0)), onWorkspaceAccess,
 }) {
   for (const fn of ['saveLocal', 'syncNow', 'listLocal']) if (typeof engine?.[fn] !== 'function') throw new Error(`engine.${fn}가 필요해요 (local-sync)`);
   if (conflicts !== 'merge' && conflicts !== 'ask') throw new Error("conflicts는 'merge' 또는 'ask'");
@@ -200,13 +200,17 @@ export function createBridge({
     const local = store.sharedState(serverId);
     const have = new Set([...local.notes.map(n => n.id), ...local.tasks.map(t => t.id)]);
     const items = [], marks = new Map();
+    const noteParents = [];
     const seen = { notes: new Set(), tasks: new Set() };
     for (const entity of ['notes', 'tasks', 'events']) {
       for (const r of await engine.listLocal(db, serverId, entity, { includeDeleted: true })) {
+        if (entity === 'notes' && (r.data.parent_note_id === null || isUuid(r.data.parent_note_id))) {
+          noteParents.push([r.key, r.data.parent_note_id]);
+        }
         seen[entity === 'notes' ? 'notes' : 'tasks'].add(r.key);
-        const key = `${entity}|${r.key}`, mark = fingerprint(r.data);
+        const key = `${entity}|${r.key}`, mark = fingerprint(entity === 'notes' ? [r.serverRevision, r.data] : r.data);
         if (cache.get(key) === mark && have.has(r.key)) continue;    // 지난번에 반영한 그대로
-        const item = { entity, data: r.data };
+        const item = { entity, data: r.data, serverRevision: r.serverRevision };
         items.push(item);
         marks.set(item, [key, mark]);
       }
@@ -241,6 +245,7 @@ export function createBridge({
       if (i + APPLY_CHUNK < items.length) await pause();
     }
     lastApplied.set(serverId, cache);
+    if (noteParents.length) store.applyServerNoteParents(serverId, noteParents);
 
     if (favorites?.list) {
       try { store.applyFavorites(serverId, [...await favorites.list(serverId)]); } catch { /* 다음 sync 때 */ }
@@ -264,20 +269,28 @@ export function createBridge({
     if (typeof workspaces?.list !== 'function') return;
     let list;
     try { list = await workspaces.list(); } catch { return; }       // 연결 안 됨: 다음에
+    const memberships = new Set();
     for (const w of Array.isArray(list) ? list : []) {
       try {
         store.upsertServerWorkspace({
           id: w.id, name: w.name, description: w.description ?? '',
           ...(w.role ? { role: w.role } : {}), ...(Number.isSafeInteger(w.members) ? { members: w.members } : {}),
         });
+        memberships.add(w.id);
       } catch { /* 이름이 기기 한도를 넘는 등: 그 공간만 건너뜀 */ }
     }
+    return memberships;
   }
 
-  async function syncOnce(ws) {
+  async function syncOnce(ws, isMember) {
     const blocked = await handOff(ws);
-    const { flush, pull, merged } = await exchange(ws);
+    const { flush, pull: initialPull, merged } = await exchange(ws);
+    // A fresh membership list can confirm a new invitation after the engine cached CLOSED.
+    const pull = initialPull.status === 'CLOSED' && isMember && typeof engine.resyncWorkspace === 'function'
+      ? await engine.resyncWorkspace(contextOf(ws.serverId))
+      : initialPull;
     if (pull.status === 'CLOSED') return { status: 'CLOSED', flush, pull };   // 공간에서 빠짐·공간 삭제: 화면에서 알리고 store.deleteWorkspace
+    if (initialPull.status === 'CLOSED' && pull.status === 'OFFLINE') return { status: 'OK', flush, pull };
     const uploadFailed = await sendSide(ws, flush.status === 'DONE');
     const applied = await reconcile(ws);
     return {
@@ -286,12 +299,12 @@ export function createBridge({
     };
   }
 
-  async function attempt(workspaceId) {
+  async function attempt(workspaceId, memberships) {
     const ws = find(workspaceId);
     if (!ws || ws.personal) return { status: 'NOT_SHARED' };
     if (!ws.serverId) return { status: 'NOT_LINKED' };
     try {
-      return await syncOnce(ws);
+      return await syncOnce(ws, memberships?.has(ws.serverId));
     } catch (error) {
       return { status: 'ERROR', code: codeOf(error), error: String(error?.message ?? error) };
     }
@@ -309,12 +322,15 @@ export function createBridge({
   /** only(공간 id들)를 차례로 돌고, 그동안 새 저장이 생긴 공간은 이어서 다시 (MAX_ROUNDS까지). only가 없으면 연결된 공간 전부 */
   async function rounds(only = null) {
     await ensureAccount();
-    if (!only) await workspaceList();
+    const memberships = only ? null : await workspaceList();
     let ids = only ?? store.getWorkspaces().filter(ws => !ws.personal && ws.serverId).map(ws => ws.id);
     const out = {}, stuck = new Set();
     for (let round = 0; round < MAX_ROUNDS && ids.length; round++) {
       for (const id of ids) {
-        out[id] = await attempt(id);
+        out[id] = await attempt(id, memberships);
+        const { status, pull } = out[id];
+        if (status === 'CLOSED') onWorkspaceAccess?.(id, false);
+        if (pull?.status === 'OK' || pull?.status === 'RESYNCED') onWorkspaceAccess?.(id, true);
         if (out[id].status !== 'OK' || out[id].handOff) { stuck.add(id); stuckNow.add(id); } else stuckNow.delete(id);
       }
       ids = waiting(stuck).filter(id => !only || only.includes(id));
@@ -415,6 +431,10 @@ export function createBridge({
   }
 
   let stop = null;
+  let scheduleSync = null;
+  function requestSync(delay, { expedite = true } = {}) {
+    scheduleSync?.(delay, expedite);
+  }
   /**
    * 알아서 돌기: 공유 공간에서 저장할 때마다(조금 모아서) 동기화하고, 연결이 안 되거나 오류가 나면 간격을 늘려 가며 다시 시도.
    * 앱이 앞으로 올 때와 실시간 신호가 올 때는 syncAll()을 직접 부르세요. 돌려주는 함수를 부르면 멈춤.
@@ -424,15 +444,22 @@ export function createBridge({
     // Wrapped: browsers throw "Illegal invocation" when setTimeout is called as timers.set(...).
     if (stop) return stop;
     let timer = null, failures = 0, stopped = false;
-    const schedule = ms => {
+    const schedule = (ms, expedite = true) => {
       if (stopped) return;
-      if (timer !== null) timers.clear(timer);
+      if (timer !== null) {
+        if (!expedite) return;
+        timers.clear(timer);
+      }
       timer = timers.set(run, ms);
     };
+    scheduleSync = schedule;
     async function run() {
       timer = null;
       let retry = false;
       try {
+        // A signal can arrive after a running pull has read its last page.
+        if (running) await running.catch(() => {});
+        if (stopped) return;
         const out = await syncAll();
         retry = Object.values(out).some(r => r.status === 'ERROR' || r.flush?.status === 'OFFLINE' || r.pull?.status === 'OFFLINE');
         onResult?.(out);
@@ -454,7 +481,10 @@ export function createBridge({
       if (timer !== null) timers.clear(timer);
       unsubscribe();
       afterJob = null;
-      if (stop === halt) stop = null;
+      if (stop === halt) {
+        stop = null;
+        scheduleSync = null;
+      }
     };
     stop = halt;
     schedule(0);
@@ -480,5 +510,5 @@ export function createBridge({
     });
   }
 
-  return Object.freeze({ syncWorkspace, syncAll, refresh, issues, resolve, discard, status, start, signOut });
+  return Object.freeze({ syncWorkspace, syncAll, requestSync, refresh, issues, resolve, discard, status, start, signOut });
 }

@@ -100,7 +100,7 @@ export default function HomeScreen({ navigation }) {
     const late = mine.filter((t) => lastDate(t) < todayKey).length;
     const week = mine.filter((t) => daysBetween(todayKey, t.date) > 0 && daysBetween(todayKey, t.date) <= 7).length;
     const parts = [today ? `오늘 ${today}` : '', late ? `기한 지남 ${late}` : '', week ? `일주일 안 ${week}` : ''].filter(Boolean);
-    return { w, text: parts.length ? parts.join(' · ') : '이번 주 예정 없음', alert: late > 0 };
+    return { w, text: parts.length ? parts.join('  /  ') : '이번 주 예정 없음', alert: late > 0 };
   });
 
   // ---------- 입력줄: 어느 공간에 쓸지 + 글 메모 ----------
@@ -124,7 +124,7 @@ export default function HomeScreen({ navigation }) {
     snack.show(`${where}메모를 저장했어요`, { label: '열기', onPress: () => go(ROUTES.MemoEdit, { memoId: memo.id }) });
     // AI 자동 분석이 켜져 있으면 일정·할 일 후보를 찾아 위의 제안 카드로 보여 줌
     analyzeText({ sourceType: 'memo', sourceId: memo.id }).then((r) => {
-      if (r && r.added) snack.show(`AI가 일정·할 일 ${r.added}건을 찾았어요`, { label: '확인', onPress: () => go(ROUTES.Proposals) });
+      if (r && r.added) snack.show(`AI가 일정 / 할 일 ${r.added}건을 찾았어요`, { label: '확인', onPress: () => go(ROUTES.Proposals) });
     });
   };
 
@@ -169,19 +169,19 @@ export default function HomeScreen({ navigation }) {
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* ---------- 머리: 나 · 날짜 · AI · 검색 · 알림 ---------- */}
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="나 · 설정" onPress={() => go(ROUTES.More)} hitSlop={6} style={({ pressed }) => [styles.me, pressed && { opacity: 0.7 }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="나  /  설정" onPress={() => go(ROUTES.More)} hitSlop={6} style={({ pressed }) => [styles.me, pressed && { opacity: 0.7 }]}>
           <Text style={styles.meText}>{myName ? myName.charAt(0) : '나'}</Text>
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={styles.date} accessibilityRole="header" numberOfLines={1}>{dateText}</Text>
-          {multi && <Text style={styles.scope}>모든 공간 · 개인 + 팀 {teams.length}개</Text>}
+          {multi && <Text style={styles.scope}>모든 공간  /  개인 + 팀 {teams.length}개</Text>}
         </View>
         <CircleButton icon="sparkles" label="AI 채팅" color={colors.mintDark} onPress={() => go(ROUTES.Ai)} />
         <CircleButton icon="search" label="검색" onPress={() => go(ROUTES.Search)} />
         <Bell onPress={() => go(ROUTES.Notices)} />
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* ---------- AI 제안: 가장 먼저 확인할 것 하나 ---------- */}
         {waiting.length > 0 && (
           <View style={styles.aiBox}>
@@ -228,7 +228,7 @@ export default function HomeScreen({ navigation }) {
                     {multi && <SpaceTag space={spaces[t.workspaceId]} />}
                     {!!(t.place || t.end || t.endDate) && (
                       <Text style={styles.itemSub} numberOfLines={1}>
-                        {[t.place, t.end ? `${t.end}까지` : '', t.endDate ? `${Number(t.endDate.slice(5, 7))}/${Number(t.endDate.slice(8))}까지` : ''].filter(Boolean).join(' · ')}
+                        {[t.place, t.end ? `${t.end}까지` : '', t.endDate ? `${Number(t.endDate.slice(5, 7))}/${Number(t.endDate.slice(8))}까지` : ''].filter(Boolean).join('  /  ')}
                       </Text>
                     )}
                   </View>
@@ -239,7 +239,7 @@ export default function HomeScreen({ navigation }) {
         )}
 
         {/* ---------- 오늘 할 일 (기한 지난 것 포함) ---------- */}
-        <SectionHead title={left ? `오늘 할 일 · ${left}개 남음` : '오늘 할 일'} addLabel="오늘 할 일 추가" onAdd={() => go(ROUTES.TaskEdit, { date: todayKey, kind: 'task' })} />
+        <SectionHead title={left ? `오늘 할 일  /  ${left}개 남음` : '오늘 할 일'} addLabel="오늘 할 일 추가" onAdd={() => go(ROUTES.TaskEdit, { date: todayKey, kind: 'task' })} />
         {todos.length === 0 ? (
           <Text style={styles.empty}>오늘 할 일이 없어요</Text>
         ) : (
@@ -276,7 +276,7 @@ export default function HomeScreen({ navigation }) {
             <View style={styles.recDot} />
             <Text style={styles.recText} accessibilityLiveRegion="polite">녹음 중 {formatTime(seconds)}</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="녹음 끝내기" onPress={toggleRecording} style={[styles.round, styles.stop]}>
-              <Icon name="stop" size={18} color={colors.white} />
+              <Icon name="stop" size={18} color={colors.onPrimary} />
             </Pressable>
           </>
         ) : (
@@ -303,14 +303,14 @@ export default function HomeScreen({ navigation }) {
             </View>
             {text.trim() ? (
               <Pressable accessibilityRole="button" accessibilityLabel="메모 저장" onPress={saveMemo} style={styles.round}>
-                <Icon name="arrowUp" size={20} color={colors.white} strokeWidth={2.4} />
+                <Icon name="arrowUp" size={20} color={colors.onPrimary} strokeWidth={2.4} />
               </Pressable>
             ) : (
               <>
-                <CircleButton icon="paperclip" label="사진 · 문서 올리기" size={38} iconSize={18} color={colors.muted} onPress={() => go(ROUTES.QuickInput, { tab: 'file' })} style={styles.ghost} />
+                <CircleButton icon="paperclip" label="사진  /  문서 올리기" size={38} iconSize={18} color={colors.muted} onPress={() => go(ROUTES.QuickInput, { tab: 'file' })} style={styles.ghost} />
                 <CircleButton icon="camera" label="카메라" size={38} iconSize={18} color={colors.muted} onPress={() => go(ROUTES.Camera)} style={styles.ghost} />
                 <Pressable accessibilityRole="button" accessibilityLabel="녹음 시작" onPress={toggleRecording} style={styles.round}>
-                  <Icon name="mic" size={20} color={colors.white} strokeWidth={2} />
+                  <Icon name="mic" size={20} color={colors.onPrimary} strokeWidth={2} />
                 </Pressable>
               </>
             )}
@@ -360,58 +360,58 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
-  me: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
-  meText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
-  date: { fontSize: font.title, fontWeight: '800', color: colors.ink },
+  me: { width: 40, height: 40, borderRadius: 4, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  meText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
+  date: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   scope: { fontSize: font.caption, color: colors.muted },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl * 2, gap: spacing.sm },
 
   aiBox: { backgroundColor: colors.mintSoft, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm, marginBottom: spacing.xs },
   aiHead: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
-  aiTitle: { flex: 1, fontSize: font.body, fontWeight: '800', color: colors.mintDark },
+  aiTitle: { flex: 1, fontSize: font.body, fontWeight: '600', color: colors.mintDark },
   aiMore: { fontSize: font.caption, fontWeight: '700', color: colors.mintDark },
 
   teamCard: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  teamTitle: { fontSize: font.caption, fontWeight: '800', color: colors.muted, marginBottom: 2 },
+  teamTitle: { fontSize: font.caption, fontWeight: '600', color: colors.muted, marginBottom: 2 },
   teamRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 38 },
-  teamName: { maxWidth: '40%', fontSize: font.body, fontWeight: '800', color: colors.ink },
+  teamName: { maxWidth: '40%', fontSize: font.body, fontWeight: '600', color: colors.ink },
   teamText: { flex: 1, fontSize: font.caption, color: colors.muted },
 
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md },
-  sectionTitle: { fontSize: font.body, fontWeight: '800', color: colors.muted },
+  sectionTitle: { fontSize: font.body, fontWeight: '600', color: colors.muted },
   addLink: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 28 },
-  addLinkText: { fontSize: font.caption, fontWeight: '800', color: colors.mintDark },
+  addLinkText: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
   empty: { fontSize: font.body, color: colors.muted, paddingVertical: spacing.xs },
 
   eventRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  eventTime: { width: 44, fontSize: font.body, fontWeight: '800' },
+  eventTime: { width: 44, fontSize: font.body, fontWeight: '600' },
   allDay: { fontSize: font.caption, color: colors.muted },
   eventCard: { flex: 1, minHeight: 48, justifyContent: 'center', gap: 3, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderLeftWidth: 3, borderRadius: radius.md },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  itemTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  itemTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   itemSub: { flexShrink: 1, fontSize: font.caption, color: colors.muted },
 
   todoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md, minHeight: 50, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md },
   todoBody: { flex: 1, minHeight: 46, justifyContent: 'center', gap: 2 },
   todoTitle: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   todoDone: { color: colors.muted, textDecorationLine: 'line-through' },
-  mine: { fontSize: font.caption, fontWeight: '800', color: colors.mintDark },
+  mine: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
   late: { fontSize: font.caption, fontWeight: '700', color: colors.coral },
 
   capture: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, minHeight: CAPTURE_HEIGHT, paddingHorizontal: spacing.lg, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.cream },
-  inputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: 42, borderRadius: 21, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingLeft: 6 },
-  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 110, height: 30, paddingHorizontal: 8, borderRadius: 15, backgroundColor: colors.mintSoft },
-  spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '800', color: colors.mintDark },
+  inputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: 42, borderRadius: 4, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, paddingLeft: 6 },
+  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 110, height: 30, paddingHorizontal: 8, borderRadius: 4, backgroundColor: colors.mintSoft },
+  spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
   input: { flex: 1, minHeight: 40, maxHeight: 120, paddingHorizontal: spacing.md, paddingTop: 8, paddingBottom: 8, fontSize: font.bodyLg, lineHeight: 22, color: colors.ink },
-  round: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  round: { width: 42, height: 42, borderRadius: 4, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
   ghost: { borderWidth: 0, backgroundColor: 'transparent', marginBottom: 2 },
   stop: { backgroundColor: colors.coral },
-  recDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.coral, alignSelf: 'center' },
-  recText: { flex: 1, alignSelf: 'center', fontSize: font.bodyLg, fontWeight: '800', color: colors.coral },
+  recDot: { width: 10, height: 10, borderRadius: 2, backgroundColor: colors.coral, alignSelf: 'center' },
+  recText: { flex: 1, alignSelf: 'center', fontSize: font.bodyLg, fontWeight: '600', color: colors.coral },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.4)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xs },
-  sheetTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink, marginBottom: spacing.sm },
+  sheetTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink, marginBottom: spacing.sm },
   sheetRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 50, paddingHorizontal: spacing.md, borderRadius: radius.md },
   sheetText: { flex: 1, fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
 });

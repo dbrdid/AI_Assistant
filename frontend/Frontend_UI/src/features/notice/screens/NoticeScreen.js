@@ -31,8 +31,8 @@ export default function NoticeScreen({ navigation }) {
   return (
     <View style={styles.root}>
       <ScreenHeader title="알림" onBack={navigation.goBack} />
-      <ScrollView contentContainerStyle={styles.content}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
           {FILTERS.map((f) => (
             <Chip key={f.id} label={f.label} active={filter === f.id} onPress={() => setFilter(f.id)} />
           ))}
@@ -41,7 +41,7 @@ export default function NoticeScreen({ navigation }) {
           <View style={styles.actions}>
             {unread > 0 ? (
               <Pressable accessibilityRole="button" onPress={markAllRead} hitSlop={8}>
-                <Text style={styles.readAllText} numberOfLines={1}>안 읽은 {unread}개 · 모두 읽음</Text>
+                <Text style={styles.readAllText} numberOfLines={1}>안 읽은 {unread}개  /  모두 읽음</Text>
               </Pressable>
             ) : (
               <Text style={styles.allRead}>모두 읽었어요</Text>
@@ -78,7 +78,7 @@ export default function NoticeScreen({ navigation }) {
                     <Text style={styles.title} numberOfLines={1}>{n.title}</Text>
                   </View>
                   <Text style={styles.body} numberOfLines={2}>{n.body}</Text>
-                  <Text style={styles.time}>{k.label} · {dateLabel(n.at)}</Text>
+                  <Text style={styles.time}>{k.label}  /  {dateLabel(n.at)}</Text>
                 </View>
                 <Pressable accessibilityRole="button" accessibilityLabel="이 알림 지우기" onPress={() => removeNotice(n.id)} hitSlop={10}>
                   <Icon name="x" size={18} color={colors.muted} />
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   cardNew: { borderColor: colors.mint, backgroundColor: colors.mintSoft },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.mintDark },
-  title: { flex: 1, fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  title: { flex: 1, fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   body: { fontSize: font.body, color: colors.ink, lineHeight: 20 },
   time: { fontSize: font.caption, color: colors.muted },
 });

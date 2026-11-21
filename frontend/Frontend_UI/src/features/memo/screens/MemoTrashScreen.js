@@ -73,9 +73,9 @@ export default function TrashScreen({ navigation }) {
         }
       />
 
-      <ScrollView contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}>
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}>
         <Text style={styles.count}>
-          메모 {memos.length}개{selecting ? ` · ${ids.length}개 선택` : ' · 복구하거나 완전히 삭제할 수 있어요'}
+          메모 {memos.length}개{selecting ? `  /  ${ids.length}개 선택` : '  /  복구하거나 완전히 삭제할 수 있어요'}
         </Text>
 
         {memos.length === 0 ? (
@@ -104,7 +104,7 @@ export default function TrashScreen({ navigation }) {
                 {selecting && <Icon name={on ? 'checkSquare' : 'square'} size={24} color={on ? colors.mintDark : colors.muted} strokeWidth={on ? 2.2 : 1.8} />}
                 <View style={styles.info}>
                   <Text style={styles.title} numberOfLines={1}>{memoTitle(m)}</Text>
-                  <Text style={styles.date}>삭제 {formatMD(m.deletedAt)} · 수정 {formatMD(m.updatedAt)}</Text>
+                  <Text style={styles.date}>삭제 {formatMD(m.deletedAt)}  /  수정 {formatMD(m.updatedAt)}</Text>
                   {projectOf('memos', m.id) && <Tag label={projectOf('memos', m.id).title} style={styles.tag} />}
                   {m.body.trim().length > 0 && <Text style={styles.body} numberOfLines={2}>{m.body}</Text>}
                   {m.strokes && m.strokes.length > 0 && (
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   },
   cardOn: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
   info: { flex: 1, gap: 6 },
-  title: { fontSize: font.header, fontWeight: '800', color: colors.ink },
+  title: { fontSize: font.header, fontWeight: '600', color: colors.ink },
   date: { fontSize: font.caption, color: colors.muted },
   body: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
   tag: { maxWidth: 200 },
@@ -204,11 +204,11 @@ const styles = StyleSheet.create({
   notice: { position: 'absolute', left: spacing.lg, right: spacing.lg, alignItems: 'center' },
   noticeText: {
     backgroundColor: colors.ink,
-    color: colors.white,
+    color: colors.onPrimary,
     fontSize: font.body,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm + 2,
-    borderRadius: 999,
+    borderRadius: 4,
     overflow: 'hidden',
   },
 
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.line,
     backgroundColor: colors.cream,
   },
-  barBtn: { flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  barBtn: { flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   barText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   off: { opacity: 0.35 },
 });

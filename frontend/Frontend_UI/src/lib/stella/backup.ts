@@ -140,11 +140,13 @@ function cleanCounts(c: BackupCounts | null | undefined): BackupCounts {
   return out;
 }
 
-/** 백업하기. 반환: 새 백업 + 보관 개수를 넘어서 지운 오래된 백업 수 */
-export async function createBackup<T>(
+type CreateBackupInput<T> = { data: T; counts?: BackupCounts; kind?: 'MANUAL' | 'AUTO'; keep?: number; deps: BackupDeps };
+type RegisteredBackup = { backup: BackupInfo; remove_asset_ids?: string[] };
+
+async function registerBackup<T>(
   client: SupabaseClient,
-  p: { data: T; counts?: BackupCounts; kind?: 'MANUAL' | 'AUTO'; keep?: number; deps: BackupDeps },
-): Promise<{ backup: BackupInfo; removed: number; removeFailed: string[] }> {
+  p: CreateBackupInput<T>,
+): Promise<RegisteredBackup> {
   const { deps } = p;
   const counts = cleanCounts(p.counts);
   const payload: BackupPayload<T> = { format: BACKUP_FORMAT, created_at: (deps.now?.() ?? new Date()).toISOString(), counts, data: p.data };
@@ -165,13 +167,24 @@ export async function createBackup<T>(
     p_keep: p.keep ?? BACKUP_DEFAULT_KEEP, p_format_version: BACKUP_FORMAT,
   });
   if (error) throw toSyncError(error);
-  const r = data as { backup: BackupInfo; remove_asset_ids: string[] };
+  return data as RegisteredBackup;
+}
+
+async function pruneBackups(client: SupabaseClient, registration: RegisteredBackup, preserveBackupId?: string) {
   // 보관 개수를 넘은 오래된 백업 지우기 (실패해도 백업 자체는 성공: 다음 백업 때 다시 지움)
+  let removed = 0;
   const removeFailed: string[] = [];
-  for (const id of r.remove_asset_ids ?? []) {
-    try { await deleteAttachment(client, id); } catch { removeFailed.push(id); }
+  for (const id of registration.remove_asset_ids ?? []) {
+    if (id === registration.backup.id || id === preserveBackupId) continue;
+    try { await deleteAttachment(client, id); removed++; } catch { removeFailed.push(id); }
   }
-  return { backup: r.backup, removed: (r.remove_asset_ids ?? []).length - removeFailed.length, removeFailed };
+  return { removed, removeFailed };
+}
+
+/** 백업하기. 반환: 새 백업 + 보관 개수를 넘어서 지운 오래된 백업 수 */
+export async function createBackup<T>(client: SupabaseClient, p: CreateBackupInput<T>) {
+  const registration = await registerBackup(client, p);
+  return { backup: registration.backup, ...await pruneBackups(client, registration) };
 }
 
 /** 내 백업 목록 ('new' 최신순 / 'old' 오래된순) */
@@ -220,17 +233,21 @@ export async function restoreBackup<T>(
   },
 ): Promise<{ restored: BackupPayload<T>; safety: BackupInfo | null }> {
   const restored = await readBackup<T>(client, p.backup, p.deps);
-  let safety: BackupInfo | null = null;
+  let safety: RegisteredBackup | null = null;
   if (!p.skipSafety) {
     try {
-      // 자동 백업이 고른 백업을 지우지 않게 보관 개수를 하나 늘려서 계산
-      safety = (await createBackup(client, { data: p.currentData, counts: p.currentCounts, kind: 'AUTO', keep: Math.min(50, (p.keep ?? BACKUP_DEFAULT_KEEP) + 1), deps: p.deps })).backup;
+      // Reserve room for the safety backup and keep the selected source even if it falls outside retention.
+      safety = await registerBackup(client, {
+        data: p.currentData, counts: p.currentCounts, kind: 'AUTO',
+        keep: Math.min(50, (p.keep ?? BACKUP_DEFAULT_KEEP) + 1), deps: p.deps,
+      });
     } catch (e) {
       throw new BackupError('SAFETY_BACKUP_FAILED', '복원 전에 지금 상태를 저장하지 못해서 복원하지 않았어요', e);
     }
   }
   await p.apply(restored.data, restored);
-  return { restored, safety };
+  if (safety) await pruneBackups(client, safety, p.backup.id);
+  return { restored, safety: safety?.backup ?? null };
 }
 
 /** 백업 삭제 (본인 것만) */
@@ -247,6 +264,8 @@ export function backupErrorMessage(err: unknown): string {
     BACKUP_CORRUPT: '백업 파일을 풀 수 없어요 (손상됐거나 다른 계정의 백업)',
     BACKUP_TOO_NEW: '더 새 버전 앱에서 만든 백업이에요. 앱을 업데이트해 주세요',
     SAFETY_BACKUP_FAILED: '복원 전에 지금 상태를 저장하지 못해서 복원하지 않았어요. 저장 공간을 확인해 주세요',
+    RESTORE_CONTEXT_CHANGED: '복원 중 계정이나 공간이 바뀌었어요. 개인 공간에서 다시 시도해 주세요',
+    RESTORE_DATA_CHANGED: '복원 중 새로 저장된 기록을 보존했어요. 백업을 다시 선택해 복원해 주세요',
     NOT_FOUND: '백업을 찾을 수 없어요',
     NETWORK: '인터넷 연결을 확인해 주세요',
     UPLOAD_FAILED: '백업 파일을 올리지 못했어요. 잠시 후 다시 시도해 주세요',

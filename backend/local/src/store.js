@@ -4,7 +4,7 @@ import * as tasks from './tasks.js';
 import * as proposals from './proposals.js';
 import * as workspaces from './workspaces.js';
 import * as backup from './backup.js';
-import { applyServer, applyFavorites, sharedState } from './apply.js';
+import { applyServer, applyServerNoteParents, applyFavorites, sharedState } from './apply.js';
 import { createServerMap } from './server.js';
 import { fail } from './errors.js';
 import { isUuid } from './validate.js';
@@ -255,9 +255,12 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, timezo
     getMemos: () => (cache.memos ??= Object.freeze(memos.listMemos(ctx, false, reuse.memos))),
     getTrashedMemos: () => (cache.trashed ??= Object.freeze(memos.listMemos(ctx, true, reuse.trashed))),
     getMemo: memoId => memos.getMemo(ctx, memoId),
+    listMemoVersions: memoId => memos.listMemoVersions(ctx, memoId),
     addMemo: input => edit(() => memos.addMemo(ctx, input)),
     updateMemo: (memoId, patch, options) => edit(() => memos.updateMemo(ctx, memoId, patch, options)),
+    setMemoParent: (memoId, parentMemoId) => edit(() => memos.setMemoParent(ctx, memoId, parentMemoId)),
     trashMemo: memoId => edit(() => memos.trashMemo(ctx, memoId)),
+    trashDocument: memoId => edit(() => memos.trashMemo(ctx, memoId, { promoteChildren: true })),
     trashMemos: ids => edit(() => memos.trashMemos(ctx, ids)),
     restoreMemos: ids => edit(() => memos.restoreMemos(ctx, ids)),
     deleteMemoForever: memoId => edit(() => memos.deleteMemoForever(ctx, memoId)),
@@ -333,6 +336,7 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, timezo
     outboxCount: () => db.getFirstSync('select count(*) as n from outbox').n,
     subscribeOutbox: subscriber('outbox'),
     applyServer: (workspaceRef, items) => write(() => applyServer(ctx, workspaceRef, items)),
+    applyServerNoteParents: (workspaceRef, relations) => write(() => applyServerNoteParents(ctx, workspaceRef, relations)),
     applyFavorites: (workspaceRef, noteIds) => write(() => applyFavorites(ctx, workspaceRef, noteIds)),
     /** 기기 파일을 서버에 올린 뒤: 메모의 그 사진을 첨부 id로 바꾸고 연결을 보낼 목록에 적음. 사진이 그새 지워졌으면 false */
     resolveUpload: (workspaceRef, memoId, ref, assetId) => write(() => memos.resolveUpload(ctx, workspaceRef, memoId, ref, assetId)),
@@ -342,7 +346,12 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, timezo
 
     // 백업·계정
     exportAll: () => backup.exportAll(ctx),
-    importAll: payload => write(() => backup.importAll(ctx, payload)),
+    importAll: (payload, writeRelatedRecords) => write(() => {
+      const counts = backup.importAll(ctx, payload);
+      // The integration layer can restore its own records on this same connection before commit.
+      writeRelatedRecords?.(db);
+      return counts;
+    }),
     clearAll: () => write(() => backup.clearAll(ctx)),
     counts: () => backup.counts(ctx),
     getAccount: () => backup.getAccount(ctx),

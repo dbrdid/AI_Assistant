@@ -27,7 +27,7 @@ export default function MemoLinks({ memoId, navigation }) {
   const linked = ((memo && memo.taskIds) || []).map((id) => tasks.find((t) => t.id === id)).filter(Boolean);
   if (linked.length === 0) return null;
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row} style={styles.wrap}>
+    <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row} style={styles.wrap}>
       {linked.map((t) => (
         <Pressable key={t.id} accessibilityRole="button" accessibilityLabel={`연결된 ${t.title} 열기`} onPress={() => navigation.navigate(ROUTES.TaskEdit, { taskId: t.id })} style={styles.chip}>
           <LinkIcon />
@@ -41,6 +41,6 @@ export default function MemoLinks({ memoId, navigation }) {
 const styles = StyleSheet.create({
   wrap: { flexGrow: 0 },
   row: { gap: spacing.sm, paddingVertical: spacing.xs },
-  chip: { flexDirection: 'row', gap: 4, maxWidth: 220, minHeight: 30, paddingHorizontal: spacing.md, borderRadius: 999, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  chip: { flexDirection: 'row', gap: 4, maxWidth: 220, minHeight: 30, paddingHorizontal: spacing.md, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   text: { flexShrink: 1, fontSize: font.caption, fontWeight: '700', color: colors.mintDark },
 });

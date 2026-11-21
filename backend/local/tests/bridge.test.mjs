@@ -10,6 +10,49 @@ const ACCOUNT = '33333333-3333-4333-8333-333333333333';
 const STRANGER = '55555555-5555-4555-8555-555555555555';
 const ASSET = '11111111-1111-4111-8111-111111111111';
 
+test('a realtime request during a pull runs again and retries an offline result', async () => {
+  let releasePull;
+  const pulling = Promise.withResolvers();
+  let pulls = 0;
+  const t = world({ engineExtra: {
+    syncNow: async () => {
+      pulls++;
+      if (pulls === 1) {
+        const pause = Promise.withResolvers();
+        releasePull = pause.resolve;
+        pulling.resolve();
+        await pause.promise;
+      }
+      return { flush: { status: 'DONE' }, pull: { status: pulls === 2 ? 'OFFLINE' : 'UP_TO_DATE' } };
+    },
+  } });
+  const timers = new Set();
+  const stop = t.bridge.start({ timers: {
+    set(fn, ms) { const timer = { fn, ms }; timers.add(timer); return timer; },
+    clear(timer) { timers.delete(timer); },
+  } });
+  function fire(delay) {
+    assert.equal(timers.size, 1);
+    const [timer] = timers;
+    assert.equal(timer.ms, delay);
+    timers.delete(timer);
+    return timer.fn();
+  }
+  const initial = fire(0);
+  await pulling.promise;
+  t.bridge.requestSync(150);
+  t.bridge.requestSync(5000, { expedite: false });
+  const followUp = fire(150);
+  releasePull();
+  await Promise.all([initial, followUp]);
+  assert.equal(pulls, 2);
+  await fire(2000);
+  assert.equal(pulls, 3);
+  stop();
+  t.bridge.requestSync(150);
+  assert.equal(timers.size, 0);
+});
+
 /**
  * 공유 공간으로 전환한 저장소 + 가짜 엔진.
  * 가짜 엔진은 local-sync의 규칙을 흉내 냄: 한 묶음 1~100개·같은 대상 한 번, handoffKey는 한 번만, 넘겨받은 변경을 자기 기록에 얹음.
@@ -374,6 +417,36 @@ test('공간의 내 역할·멤버 수·이름을 맞춘다: 보기 전용으로
   assert.deepEqual([joined.name, joined.role, out[joined.id].status], ['다른 기기에서 들어간 공간', '보기 전용', 'OK']);   // 새 공간도 같은 호출에서 동기화
   list.offline = true;                                                                  // 목록을 못 받아도 동기화는 계속
   assert.equal((await t.bridge.syncAll())[t.team].status, 'OK');
+});
+
+test('a closed workspace resumes only after the server confirms renewed membership', async () => {
+  let memberships = [];
+  let snapshotAttempts = 0;
+  let offline = true;
+  const access = [];
+  const t = world({
+    bridgeOptions: {
+      workspaces: { list: async () => memberships },
+      onWorkspaceAccess: (id, hasAccess) => access.push([id, hasAccess]),
+    },
+    engineExtra: {
+      syncNow: async () => ({ flush: { status: 'DONE' }, pull: { status: 'CLOSED' } }),
+      resyncWorkspace: async () => {
+        snapshotAttempts++;
+        return { status: offline ? 'OFFLINE' : 'RESYNCED' };
+      },
+    },
+  });
+  assert.equal((await t.bridge.syncWorkspace(t.team)).status, 'CLOSED');
+  assert.equal(snapshotAttempts, 0);
+  assert.deepEqual(access, [[t.team, false]]);
+  memberships = [{ id: SERVER_WS, name: '팀 공간', role: 'EDITOR' }];
+  assert.equal((await t.bridge.syncAll())[t.team].pull.status, 'OFFLINE');
+  assert.deepEqual(access, [[t.team, false]]);
+  offline = false;
+  assert.equal((await t.bridge.syncAll())[t.team].pull.status, 'RESYNCED');
+  assert.equal(snapshotAttempts, 2);
+  assert.deepEqual(access, [[t.team, false], [t.team, true]]);
 });
 
 test('바뀐 기록만 화면용 표에 반영하고, 많을 때는 나눠서 반영한다', async () => {

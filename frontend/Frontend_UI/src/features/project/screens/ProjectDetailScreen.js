@@ -8,13 +8,18 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import Icon from '../../../shared/components/Icon';
-import { CircleButton, DashedButton, Tag } from '../../../shared/components/Ui';
+import { Chip, CircleButton, DashedButton, Tag } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { memoTitle, trashMemos, useMemos } from '../../../data/memos/MemoStore';
 import { deleteTask, useTasks } from '../../../data/tasks/TaskStore';
 import { deleteFile, useFiles } from '../../../data/files/FileStore';
-import { getProject, linkItems, unlinkItems, useProjects } from '../../../data/projects/ProjectStore';
+import { findSharedTableCellConflict, getProject, linkItems, saveSharedProjectTable, unlinkItems, useProjects } from '../../../data/projects/ProjectStore';
+import { useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
+import { readPreference, scoped, writePreference } from '../../../data/hooks';
+import ProjectItemsTable from '../components/ProjectItemsTable';
+import ProjectTaskBoard from '../components/ProjectTaskBoard';
+import { projectTableKey, projectViewKey } from '../../../data/projects/projectTablePreferences.mjs';
 
 export default function ProjectDetailScreen({ navigation, route }) {
   const projectId = route?.params?.projectId;
@@ -23,6 +28,15 @@ export default function ProjectDetailScreen({ navigation, route }) {
   const memos = useMemos();
   const tasks = useTasks();
   const files = useFiles();
+  const { current: workspace } = useWorkspaces();
+  const canCreateMemo = workspace.personal || workspace.roleCode !== 'VIEWER';
+  const viewKey = scoped(projectViewKey(projectId));
+  const tableSettingsKey = scoped(projectTableKey(projectId));
+  const [view, setView] = useState(() => readPreference(viewKey, 'list'));
+  const changeView = (nextView) => {
+    writePreference(viewKey, nextView);
+    setView(nextView);
+  };
 
   const [open, setOpen] = useState({ memos: true, todos: false, files: false, events: false });
   const [editing, setEditing] = useState(false);
@@ -38,12 +52,12 @@ export default function ProjectDetailScreen({ navigation, route }) {
     if (!project) return [];
     const L = project.links;
     const inL = (kind, id) => L[kind].includes(id);
-    const taskKind = (t) => (t.start ? 'events' : 'todos');
+    const taskKind = (t) => (t.kind === 'event' ? 'events' : 'todos');
     return [
-      { key: 'memos', kind: 'memos', label: '메모', unit: '개', all: memos.map((m) => ({ id: m.id, title: memoTitle(m), sub: `수정 ${new Date(m.updatedAt).getMonth() + 1}/${new Date(m.updatedAt).getDate()}` })) },
-      { key: 'todos', kind: 'tasks', label: '할 일', unit: '개', all: tasks.filter((t) => taskKind(t) === 'todos').map((t) => ({ id: t.id, title: t.title, sub: `${t.date.slice(5).replace('-', '/')} · ${t.status}` })) },
+      { key: 'memos', kind: 'memos', label: '메모', unit: '개', all: memos.map((m) => ({ id: m.id, title: memoTitle(m), date: new Date(m.updatedAt).toLocaleDateString('sv-SE'), sub: `수정 ${new Date(m.updatedAt).getMonth() + 1}/${new Date(m.updatedAt).getDate()}` })) },
+      { key: 'todos', kind: 'tasks', label: '할 일', unit: '개', all: tasks.filter((t) => taskKind(t) === 'todos').map((t) => ({ id: t.id, title: t.title, date: t.date, status: t.status, sub: `${t.date.slice(5).replace('-', '/')} · ${t.status}` })) },
       { key: 'files', kind: 'files', label: '파일', unit: '개', all: files.map((f) => ({ id: f.id, title: f.name, sub: `${f.kind} · ${f.size}` })) },
-      { key: 'events', kind: 'tasks', label: '일정', unit: '개', all: tasks.filter((t) => taskKind(t) === 'events').map((t) => ({ id: t.id, title: t.title, sub: `${t.date.slice(5).replace('-', '/')} ${t.start}` })) },
+      { key: 'events', kind: 'tasks', label: '일정', unit: '개', all: tasks.filter((t) => taskKind(t) === 'events').map((t) => ({ id: t.id, title: t.title, date: t.date, status: t.status, sub: `${t.date.slice(5).replace('-', '/')} ${t.start}` })) },
     ].map((s) => ({ ...s, items: s.all.filter((x) => inL(s.kind, x.id)), candidates: s.all.filter((x) => !inL(s.kind, x.id)) }));
   }, [project, memos, tasks, files]);
 
@@ -105,9 +119,37 @@ export default function ProjectDetailScreen({ navigation, route }) {
           {!!project.desc && <Text style={styles.desc}>{project.desc}</Text>}
         </View>
 
-        <Text style={styles.heading}>연결된 항목</Text>
+        <View style={styles.viewHeader}>
+          <Text accessibilityRole="header" style={styles.heading}>연결된 항목</Text>
+          {!editing && <View style={styles.viewControls}>
+            <Chip label="목록" active={view === 'list'} onPress={() => changeView('list')} />
+            <Chip label="표" active={view === 'table'} onPress={() => changeView('table')} />
+            <Chip label="보드" active={view === 'board'} onPress={() => changeView('board')} />
+          </View>}
+        </View>
+        {!editing && canCreateMemo && (
+          <DashedButton label="이 프로젝트에 새 메모" onPress={() => navigation.navigate(ROUTES.MemoEdit, { projectId })} style={styles.linkBtn} />
+        )}
 
-        {sections.map((s) => {
+        {!editing && view === 'table' ? (
+          <ProjectItemsTable
+            initialSettings={readPreference(tableSettingsKey, null)}
+            onSaveSettings={next => writePreference(tableSettingsKey, next)}
+            sharedTable={project.sharedTable}
+            canEditSharedTable={project.canEditSharedTable}
+            onSaveSharedTable={(expected, table) => saveSharedProjectTable(projectId, expected, table)}
+            onFindCellConflict={(rowKey, key) => findSharedTableCellConflict(projectId, rowKey, key)}
+            sections={sections}
+            onOpen={openItem}
+          />
+        ) :
+          !editing && view === 'board' ? (
+            <ProjectTaskBoard
+              tasks={tasks.filter(task => task.kind === 'task' && project.links.tasks.includes(task.id))}
+              canEdit={canCreateMemo}
+              onOpen={taskId => navigation.navigate(ROUTES.TaskEdit, { taskId })}
+            />
+          ) : sections.map((s) => {
           const isOpen = open[s.key] || editing;
           return (
             <View key={s.key} style={styles.section}>
@@ -195,7 +237,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
               <Text style={styles.barText}>연결 해제</Text>
             </Pressable>
             <Pressable accessibilityRole="button" disabled={picked.length === 0} onPress={() => setConfirmDelete(true)} style={[styles.barBtn, styles.barDanger, picked.length === 0 && styles.off]}>
-              <Text style={[styles.barText, { color: colors.white }]}>삭제</Text>
+              <Text style={[styles.barText, { color: colors.onPrimary }]}>삭제</Text>
             </Pressable>
           </View>
         </View>
@@ -312,7 +354,9 @@ const styles = StyleSheet.create({
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   infoLine: { fontSize: 13, color: colors.muted },
   desc: { fontSize: font.body, color: colors.ink, lineHeight: 20 },
-  heading: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink, marginTop: spacing.sm },
+  heading: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  viewHeader: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.sm },
+  viewControls: { flexDirection: 'row', gap: spacing.sm },
   section: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, padding: spacing.lg, gap: spacing.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 32 },
   sectionTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
@@ -326,11 +370,11 @@ const styles = StyleSheet.create({
   bottomRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   bigBtn: { minHeight: 50, borderRadius: radius.card, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
   primary: { flex: 1, backgroundColor: colors.mintDark },
-  primaryText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
-  ghost: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  primaryText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.onPrimary },
+  ghost: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   ghostText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   off: { opacity: 0.4 },
-  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: colors.line, padding: spacing.md, gap: spacing.sm },
+  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.line, padding: spacing.md, gap: spacing.sm },
   barCount: { fontSize: font.body, fontWeight: '700', color: colors.ink, textAlign: 'center' },
   barRow: { flexDirection: 'row', gap: spacing.sm },
   barBtn: { flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.cream, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },

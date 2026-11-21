@@ -54,7 +54,8 @@ export function applyServer(ctx, workspaceRef, items) {
       const n = ctx.map.noteFromServer(item.data);
       uuid(n.id, 'id');
       if (busy.has(n.id)) continue;
-      const cur = ctx.db.getFirstSync('select workspace_id,title,body,strokes,revision,updated_at,deleted_at from memos where id=?', [n.id]);
+      const cur = ctx.db.getFirstSync('select workspace_id,title,body,strokes,revision,server_revision,updated_at,deleted_at from memos where id=?', [n.id]);
+      const serverRevision = Number.isSafeInteger(item.serverRevision) && item.serverRevision > 0 ? item.serverRevision : cur?.server_revision ?? null;
       if (cur && cur.workspace_id !== ws.id) fail('invalid_input', 'id');
       if (item.purged) {
         if (!cur) continue;
@@ -62,14 +63,19 @@ export function applyServer(ctx, workspaceRef, items) {
         ctx.db.runSync('delete from memos where id=?', [n.id]);
         count.notes++;
       } else if (!cur) {
-        ctx.db.runSync('insert into memos(workspace_id,id,title,body,strokes,photos,favorite,revision,created_at,updated_at,deleted_at) values(?,?,?,?,?,?,0,1,?,?,?)',
-          [ws.id, n.id, n.title, n.body, n.strokes, '[]', n.created_at ?? t, n.updated_at ?? t, n.deleted_at]);
+        ctx.db.runSync('insert into memos(workspace_id,id,title,body,strokes,photos,favorite,revision,created_at,updated_at,deleted_at,server_revision) values(?,?,?,?,?,?,0,1,?,?,?,?)',
+          [ws.id, n.id, n.title, n.body, n.strokes, '[]', n.created_at ?? t, n.updated_at ?? t, n.deleted_at, serverRevision]);
         count.notes++;
       } else {
         const content = cur.title !== n.title || cur.body !== n.body || canonStrokes(cur.strokes) !== n.strokes;
-        if (!content && cur.deleted_at === n.deleted_at) continue;   // 내용이 같으면 그대로 (수정 시각만 다른 것은 무시)
-        ctx.db.runSync('update memos set title=?,body=?,strokes=?,revision=?,updated_at=?,deleted_at=? where id=?',
-          [n.title, n.body, content ? n.strokes : cur.strokes, cur.revision + (content ? 1 : 0), content ? n.updated_at ?? t : cur.updated_at, n.deleted_at, n.id]);
+        if (!content && cur.deleted_at === n.deleted_at) {
+          if (cur.server_revision !== serverRevision) {
+            ctx.db.runSync('update memos set server_revision=? where id=?', [serverRevision, n.id]);
+          }
+          continue;
+        }
+        ctx.db.runSync('update memos set title=?,body=?,strokes=?,revision=?,updated_at=?,deleted_at=?,server_revision=? where id=?',
+          [n.title, n.body, content ? n.strokes : cur.strokes, cur.revision + (content ? 1 : 0), content ? n.updated_at ?? t : cur.updated_at, n.deleted_at, serverRevision, n.id]);
         count.notes++;
       }
       ctx.touch('memos');
@@ -133,6 +139,37 @@ export function applyServer(ctx, workspaceRef, items) {
     }
   }
   return count;
+}
+
+// Parent rows may arrive later than their children in a paginated snapshot.
+export function applyServerNoteParents(ctx, workspaceRef, relations) {
+  const ws = ctx.db.getFirstSync('select id from workspaces where server_id=? and personal=0', [workspaceRef]) ?? fail('not_found');
+  const busy = pendingTargets(ctx, ws.id).ids;
+  const current = new Map(ctx.db.getAllSync('select id,parent_memo_id from memos where workspace_id=?', [ws.id])
+    .map(row => [row.id, row.parent_memo_id]));
+  let pending = relations.filter(([id, parent]) =>
+    current.has(id) && !busy.has(id) && current.get(id) !== parent && (parent === null || current.has(parent)));
+  while (pending.length) {
+    const deferred = [];
+    for (const [id, parent] of pending) {
+      const visited = new Set([id]);
+      let ancestor = parent;
+      while (ancestor !== null && !visited.has(ancestor)) {
+        visited.add(ancestor);
+        ancestor = current.get(ancestor) ?? null;
+      }
+      if (ancestor !== null) {
+        deferred.push([id, parent]);
+        continue;
+      }
+      ctx.db.runSync('update memos set parent_memo_id=? where workspace_id=? and id=?', [parent, ws.id, id]);
+      current.set(id, parent);
+      ctx.touch('memos');
+    }
+    // A later move can clear a temporary cycle created by mixing old and new relationships.
+    if (deferred.length === pending.length) break;
+    pending = deferred;
+  }
 }
 
 /** 공유 공간의 내 즐겨찾기 전체를 서버 값(listNoteFavorites)으로 맞춤. 바뀐 개수. 아직 안 보낸 별표 변경이 있는 메모는 그대로 둠 */

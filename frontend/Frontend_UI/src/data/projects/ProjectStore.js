@@ -114,6 +114,8 @@ function buildShared(rt, entry, tasks, links) {
       ...map.projectFromServer(row),
       createdAt: Date.parse(row.created_at) || 0,
       updatedAt: Date.parse(row.updated_at) || 0,
+      sharedTable: row.table_properties,
+      canEditSharedTable: wsCanEditTable(rt, row.workspace_id, row.id, entry.members),
       members: entry.members.filter(m => m.project_id === row.id)
         .sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || String(a.name).localeCompare(String(b.name)))
         .map(m => ({ id: m.id, name: m.name, role: m.role, accountId: m.account_id })),
@@ -127,6 +129,12 @@ function buildShared(rt, entry, tasks, links) {
     }));
 }
 
+function wsCanEditTable(rt, serverId, projectId, members) {
+  const workspace = rt.store.getCurrentWorkspace();
+  return workspace.serverId === serverId && workspace.roleCode !== 'VIEWER' &&
+    canManageProject({ me: rt.session.id, myRole: workspace.roleCode, members: members.filter(member => member.project_id === projectId) });
+}
+
 let view = { deps: null, value: EMPTY };
 export function getProjects() {
   const rt = maybeRuntime();
@@ -135,7 +143,7 @@ export function getProjects() {
   const tasks = rt.store.getTasks();
   const links = readLinks();
   const base = ws.personal ? list('projects') : ws.serverId ? sharedEntry(rt, ws.serverId) : EMPTY_SHARED;
-  const deps = [rt, ws.id, tasks, links, base];
+  const deps = [rt, ws.id, ws.roleCode, tasks, links, base];
   if (view.deps && deps.every((d, i) => d === view.deps[i])) return view.value;
   const value = Object.freeze(ws.personal ? buildPersonal(base, tasks, links) : buildShared(rt, base, tasks, links));
   view = { deps, value };
@@ -165,6 +173,7 @@ function current() {
   return { rt, ws: rt.store.getCurrentWorkspace() };
 }
 function guardShared(ws) {
+  if (runtime().closedSpaces.has(ws.id)) throw new Error('이 공유 공간에 대한 접근이 종료됐어요.');
   if (!ws.serverId) throw new Error('이 공간은 아직 서버에 연결되지 않았어요. 동기화된 뒤 다시 시도해 주세요');
   if (ws.roleCode === 'VIEWER') throw new Error('보기 전용 멤버는 할 수 없어요');
 }
@@ -180,19 +189,95 @@ const myName = () => {
 
 // Hand changes to the sync engine, then push. `before` first hands pending memo/task saves over so links never
 // reach the server before the record they point at.
-async function pushShared(rt, ws, changes, { before = false } = {}) {
+async function pushShared(rt, ws, changes, { before = false, onConflict } = {}) {
   if (!changes.length) return;
-  if (before) await rt.bridge.syncWorkspace(ws.id);
-  for (let i = 0; i < changes.length; i += 100) await engine.saveLocal(syncContext(ws.serverId), changes.slice(i, i + 100));
+  if (before) {
+    const result = await rt.bridge.syncWorkspace(ws.id);
+    if (result?.status === 'CLOSED') throw new Error('이 공유 공간에 대한 접근이 종료됐어요.');
+  }
+  if (maybeRuntime() !== rt || rt.store.getCurrentWorkspace().id !== ws.id) throw new Error('공간이 바뀌었어요.');
+  guardShared(rt.store.getCurrentWorkspace());
+  const operationIds = [];
+  for (let i = 0; i < changes.length; i += 100) {
+    operationIds.push(await engine.saveLocal(syncContext(ws.serverId), changes.slice(i, i + 100)));
+  }
   await refreshShared(ws.serverId);
   const result = await rt.bridge.syncWorkspace(ws.id);
   await refreshShared(ws.serverId);
+  if (result?.status === 'CLOSED') throw new Error('이 공유 공간에 대한 접근이 종료됐어요.');
   if (result?.status === 'ERROR') throw new Error(result.error || '동기화하지 못했어요');
   const flush = result?.flush;
   if (flush?.status === 'CONFLICT') {
+    if (onConflict) {
+      const outbox = await engine.listOutbox(rt.syncDb, ws.serverId);
+      const pending = outbox.find(row => row.seq === flush.outboxSeq && operationIds.includes(row.operationId));
+      if (pending) onConflict(pending);
+    }
     throw new Error(flush.conflicts?.some(isLeaderConflict) ? teamErrorMessage({ code: 'NOT_PROJECT_LEADER' }) : '다른 기기의 수정과 겹쳤어요. 동기화 상태를 확인해 주세요');
   }
   if (flush?.status === 'BLOCKED') throw new Error(flush.error || '서버가 저장을 거절했어요');
+  if (flush?.status === 'OFFLINE') rt.bridge.requestSync(0);
+  return result;
+}
+
+async function resolveSharedTableConflict(rt, ws, projectId, seq, choice) {
+  if (maybeRuntime() !== rt || rt.store.getCurrentWorkspace().id !== ws.id) throw new Error('공간이 바뀌었어요.');
+  guardManage(rt, rt.store.getCurrentWorkspace(), projectId);
+  const result = await rt.bridge.resolve(ws.id, seq, choice);
+  await refreshShared(ws.serverId);
+  if (result?.status === 'OK' && result.flush?.status === 'OFFLINE') {
+    rt.bridge.requestSync(0);
+    return { pending: choice !== 'use_server' };
+  }
+  if (result?.status !== 'OK' || result.flush?.status !== 'DONE') throw new Error('동기화를 완료하지 못했어요. 다시 연결한 뒤 확인해 주세요.');
+  return { pending: false };
+}
+
+export async function findSharedTableCellConflict(projectId, rowKey, key) {
+  const { rt, ws } = current();
+  guardManage(rt, ws, projectId);
+  for (const pending of await engine.listConflicts(rt.syncDb, ws.serverId)) {
+    const [item] = pending.items;
+    if (!pending.canKeep || pending.items.length !== 1 || item?.entity !== 'projects' || item.id !== projectId) continue;
+    const field = item.fields.find(candidate => candidate.field === 'table_properties');
+    if (!field?.base || !field.mine || !field.server ||
+        !engine.sameValue(field.base.fields, field.mine.fields) || !engine.sameValue(field.mine.fields, field.server.fields)) continue;
+    const base = field.base.properties?.[rowKey]?.[key];
+    const local = field.mine.properties?.[rowKey]?.[key];
+    const remote = field.server.properties?.[rowKey]?.[key];
+    if (engine.sameValue(base, local) || engine.sameValue(base, remote) || engine.sameValue(local, remote)) continue;
+    return { local, remote, resolve: choice => resolveSharedTableConflict(rt, ws, projectId, pending.outboxSeq, choice) };
+  }
+  return null;
+}
+
+export async function saveSharedProjectTable(projectId, expected, table) {
+  const { rt, ws } = current();
+  guardManage(rt, ws, projectId);
+  const record = await engine.getLocal(rt.syncDb, ws.serverId, 'projects', projectId);
+  if (maybeRuntime() !== rt || rt.store.getCurrentWorkspace().id !== ws.id) throw new Error('공간이 바뀌었어요.');
+  guardManage(rt, rt.store.getCurrentWorkspace(), projectId);
+  const latestTable = record?.data?.table_properties;
+  const nextTable = engine.sameValue(latestTable, expected) ? table : engine.mergeTableProperties(expected, table, latestTable);
+  if (!latestTable || record.data.deleted_at || record.serverRevision == null || !nextTable) {
+    throw new Error('다른 기기에서 표가 바뀌었어요. 최신 값을 확인한 뒤 다시 편집해 주세요.');
+  }
+  const result = await pushShared(rt, ws, [{
+    kind: 'update', entity: 'projects', id: projectId, data: { table_properties: nextTable },
+    tableBase: { revision: record.serverRevision, properties: latestTable },
+  }], {
+    onConflict: pending => {
+      const [conflict] = pending.conflicts;
+      const remoteTable = conflict?.server?.table_properties;
+      if (pending.conflicts.length !== 1 || conflict.reason !== 'REVISION_MISMATCH' || conflict.server?.deleted_at ||
+          !engine.sameValue(expected.fields, table.fields) || !engine.sameValue(table.fields, remoteTable?.fields)) return;
+      throw Object.assign(new Error('같은 표의 수정이 겹쳤어요.'), {
+        remoteTable,
+        resolveTableConflict: choice => resolveSharedTableConflict(rt, ws, projectId, pending.seq, choice),
+      });
+    },
+  });
+  return { pending: result?.flush?.status === 'OFFLINE' };
 }
 
 // ---------------------------------------------------------------------

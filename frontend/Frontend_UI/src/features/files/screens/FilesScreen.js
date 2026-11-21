@@ -86,7 +86,7 @@ export default function FilesScreen({ navigation, route }) {
   return (
     <View style={styles.root}>
       <ScreenHeader title="파일 보관함" onBack={navigation.goBack} />
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.list}>
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} ref={scrollRef} contentContainerStyle={styles.list}>
         {/* 로컬 / 클라우드 탭 (칩 안의 숫자 = 그 위치의 파일 개수) */}
         <View style={styles.tabs}>
           {['local', 'cloud'].map((key) => {
@@ -131,7 +131,7 @@ export default function FilesScreen({ navigation, route }) {
             <View style={styles.info}>
               <Text style={styles.name}>{f.name}</Text>
               <Text style={styles.meta}>
-                {[f.kind, sizeText(f.size), dateText(f.createdAt)].filter(Boolean).join(' · ')}
+                {[f.kind, sizeText(f.size), dateText(f.createdAt)].filter(Boolean).join('  /  ')}
               </Text>
               {f.text ? (
                 <Text style={styles.desc} numberOfLines={3}>{f.text.slice(0, 120)}</Text>
@@ -176,38 +176,23 @@ export default function FilesScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
-  list: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
+  list: {padding:spacing.lg,gap:12,paddingBottom:spacing.xxl,paddingHorizontal:20},
   count: { fontSize: font.body, color: colors.muted },
   // 탭
   tabs: { flexDirection: 'row', gap: spacing.sm },
   // 파일이 없을 때 안내
-  empty: { alignItems: 'center', paddingTop: 60, paddingHorizontal: spacing.xl, gap: spacing.sm },
-  emptyTitle: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink, textAlign: 'center' },
-  emptySub: { fontSize: font.body, color: colors.muted, textAlign: 'center', lineHeight: 20 },
-  card: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: spacing.lg,
-  },
+  empty: {alignItems:'flex-start',paddingTop:50,paddingHorizontal:4,gap:spacing.sm},
+  emptyTitle: {fontSize:22,fontWeight:'600',color:colors.ink,textAlign:'left'},
+  emptySub: {fontSize:14,color:colors.muted,textAlign:'left',lineHeight:24},
+  card: {flexDirection:'row',gap:spacing.md,backgroundColor:colors.cream,borderRadius:0,borderWidth:0,borderColor:colors.line,padding:spacing.lg,borderBottomWidth:1,paddingHorizontal:0,paddingVertical:18},
   cardFocus: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
-  icon: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    backgroundColor: colors.mintSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  icon: {width:32,height:36,borderRadius:0,backgroundColor:'transparent',alignItems:'center',justifyContent:'center'},
   info: { flex: 1, gap: 4 },
-  name: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  name: {fontSize:15,fontWeight:'500',color:colors.ink},
   meta: { fontSize: font.caption, color: colors.muted },
   note: { fontSize: font.caption, color: colors.muted, marginTop: 2 },
   desc: { fontSize: font.body, color: colors.ink, lineHeight: 20, marginTop: 2 },
   actions: { gap: 4, marginTop: 2 },
-  smallBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: spacing.md, minHeight: 32, borderRadius: 16, borderWidth: 1, borderColor: colors.mint, backgroundColor: colors.mintSoft, marginTop: 4 },
-  smallBtnText: { fontSize: font.body, fontWeight: '700', color: colors.mintDark },
+  smallBtn: {flexDirection:'row',alignItems:'center',gap:6,alignSelf:'flex-start',paddingHorizontal:spacing.md,minHeight:36,borderRadius:4,borderWidth:0,borderColor:colors.mint,backgroundColor:colors.card,marginTop:4},
+  smallBtnText: {fontSize:13,fontWeight:'400',color:colors.mintDark},
 });

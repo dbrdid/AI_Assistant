@@ -9,7 +9,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import Icon from './Icon';
-import { IconTile } from './Ui';
 import { colors, font, radius, spacing } from '../theme/theme';
 
 // Group 안에 있는 줄인지, 첫 줄인지 알려 주는 통로 (null 이면 혼자 있는 줄)
@@ -35,7 +34,7 @@ export function Group({ children, style }) {
 
 // 줄 위쪽 구분선: 아이콘이 있으면 아이콘 다음부터 시작
 function Divider({ icon }) {
-  return <View pointerEvents="none" style={[styles.divider, { left: icon ? spacing.lg + 32 + spacing.md : spacing.lg }]} />;
+  return <View pointerEvents="none" style={[styles.divider, { left: icon ? spacing.lg + 20 + spacing.md : spacing.lg }]} />;
 }
 
 function useRowFrame() {
@@ -53,13 +52,7 @@ export function Row({ label, value, onPress, danger, sub, icon }) {
     <>
       {!first && <Divider icon={icon} />}
       {!!icon && (
-        <IconTile
-          icon={icon}
-          size={32}
-          iconSize={18}
-          bg={danger ? colors.coralSoft : colors.mintSoft}
-          color={danger ? colors.coral : colors.mintDark}
-        />
+        <Icon name={icon} size={20} color={danger ? colors.coral : colors.muted}/>
       )}
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={[styles.rowLabel, danger && { color: colors.coral }]}>{label}</Text>
@@ -82,7 +75,7 @@ export function ToggleRow({ label, sub, value, onValueChange, disabled, icon }) 
   return (
     <View style={[styles.row, frame, disabled && { opacity: 0.5 }]}>
       {!first && <Divider icon={icon} />}
-      {!!icon && <IconTile icon={icon} size={32} iconSize={18} />}
+      {!!icon && <Icon name={icon} size={20} color={colors.muted}/>}
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={styles.rowLabel}>{label}</Text>
         {!!sub && <Text style={styles.rowSub}>{sub}</Text>}
@@ -143,19 +136,19 @@ export const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 const styles = StyleSheet.create({
   sectionTitle: { fontSize: font.caption, fontWeight: '700', color: colors.muted, marginTop: spacing.md, marginLeft: spacing.xs },
-  group: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
+  group: { backgroundColor: colors.cream, borderRadius: radius.md, borderWidth: 0, borderColor: colors.line, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 58, paddingHorizontal: spacing.lg, paddingVertical: 10 },
   // 혼자 있는 줄: 그대로 카드 모양
   rowAlone: { borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   // Group 안의 줄: 카드는 Group 이 그림
-  rowGrouped: { backgroundColor: colors.card },
+  rowGrouped: { backgroundColor: colors.cream },
   divider: { position: 'absolute', top: 0, right: 0, height: 1, backgroundColor: colors.line },
-  rowLabel: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
+  rowLabel: { fontSize: font.body, fontWeight: '400', color: colors.ink },
   rowSub: { fontSize: font.caption, color: colors.muted, lineHeight: 17 },
   rowValue: { fontSize: font.body, color: colors.muted },
-  radio: { borderWidth: 2, borderColor: colors.line, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  radio: { borderWidth: 2, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   save: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
-  saveText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
+  saveText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   notice: { position: 'absolute', left: spacing.xl, right: spacing.xl, bottom: spacing.xl, backgroundColor: colors.ink, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
-  noticeText: { color: colors.white, fontSize: font.body, textAlign: 'center' },
+  noticeText: { color: colors.onPrimary, fontSize: font.body, textAlign: 'center' },
 });

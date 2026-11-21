@@ -37,6 +37,7 @@ export function workspaceTopic(workspaceId: string): string {
 }
 
 const DENIED = /unauthori[sz]ed|permission|not allowed|denied/i;
+const closingChannels = new WeakMap<SupabaseClient, Map<string, Promise<void>>>();
 
 /**
  * 공간 신호 구독. 반환값을 부르면 구독 해제.
@@ -46,10 +47,16 @@ export function subscribeWorkspace(client: SupabaseClient, workspaceId: string, 
   const topic = workspaceTopic(workspaceId);
   let stopped = false;
   let channel: ReturnType<SupabaseClient['channel']> | null = null;
+  const closing = closingChannels.get(client) ?? new Map<string, Promise<void>>();
+  closingChannels.set(client, closing);
 
   const start = async () => {
+    // The SDK removes channels by topic, so wait for the old unsubscribe before rejoining.
+    await closing.get(topic);
+    if (stopped) return;
     // 비공개 채널은 로그인 토큰이 있어야 구독됨
     const { data } = await client.auth.getSession();
+    if (stopped) return;
     const token = data.session?.access_token;
     if (!token) {
       h.onStatus?.('denied', 'AUTH_REQUIRED: 로그인이 필요합니다');
@@ -61,12 +68,14 @@ export function subscribeWorkspace(client: SupabaseClient, workspaceId: string, 
     channel = client.channel(topic, { config: { private: true } });
     channel
       .on('broadcast', { event: 'changed' }, (msg) => {
+        if (stopped) return;
         const p = (msg.payload ?? {}) as { workspace_id?: string; last_seq?: number | string };
         const lastSeq = Number(p.last_seq);
         if (!Number.isFinite(lastSeq)) return;
         h.onSignal({ type: 'changed', workspaceId: p.workspace_id ?? workspaceId, lastSeq });
       })
       .on('broadcast', { event: 'closed' }, (msg) => {
+        if (stopped) return;
         const p = (msg.payload ?? {}) as { workspace_id?: string };
         h.onSignal({ type: 'closed', workspaceId: p.workspace_id ?? workspaceId });
       })
@@ -86,8 +95,14 @@ export function subscribeWorkspace(client: SupabaseClient, workspaceId: string, 
   });
 
   return () => {
+    if (stopped) return;
     stopped = true;
-    if (channel) void client.removeChannel(channel);
+    if (!channel) return;
+    const operation = client.removeChannel(channel)
+      .then(() => undefined)
+      .catch((error: unknown) => console.warn('[realtime] 구독을 해제하지 못했습니다', error))
+      .finally(() => { if (closing.get(topic) === operation) closing.delete(topic); });
+    closing.set(topic, operation);
   };
 }
 

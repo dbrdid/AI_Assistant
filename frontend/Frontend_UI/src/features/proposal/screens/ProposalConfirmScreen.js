@@ -2,7 +2,7 @@
 // ProposalConfirmScreen.js — AI 제안 확인 (스토리보드 99~101장)
 // ============================================================
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
@@ -24,12 +24,15 @@ export default function ProposalConfirmScreen({ navigation, route }) {
   const [f, setF] = useState(() => (p ? { ...p, body: p.body || (p.evidence ? `${p.title}\n근거: ${p.evidence}` : p.title) } : null));
   const [picker, setPicker] = useState(null);
   const [dup, setDup] = useState(null);
+  const completion=useRef('');
+  const finishTimer=useRef(null);
+  useEffect(()=>()=>clearTimeout(finishTimer.current),[]);
   const done = useRef(false); // 저장·보류·거절을 두 번 누르는 것 방지
   if (!p || !f) {
     return (
       <View style={styles.root}>
         <ScreenHeader title="AI 제안 확인" onBack={navigation.goBack} />
-        <Text style={styles.empty}>이미 처리했거나 찾을 수 없는 제안이에요.</Text>
+        <Text style={styles.empty}>{done.current ? completion.current : '이미 처리했거나 찾을 수 없는 제안이에요.'}</Text>
       </View>
     );
   }
@@ -37,7 +40,7 @@ export default function ProposalConfirmScreen({ navigation, route }) {
   const isMemo = f.kind === 'memo';
   const paid = getSettings().plan && getSettings().plan !== 'free';
 
-  const finish = (msg) => { done.current = true; notice.show(msg); setTimeout(navigation.goBack, 600); };
+  const finish = (msg) => { done.current = true; completion.current=msg; notice.show(msg); finishTimer.current=setTimeout(navigation.goBack, 600); };
   const doSave = () => {
     if (done.current) return;
     try {
@@ -59,7 +62,7 @@ export default function ProposalConfirmScreen({ navigation, route }) {
   return (
     <View style={styles.root}>
       <ScreenHeader title="AI 제안 확인" onBack={navigation.goBack} />
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <View style={styles.seg}>
           {['event', 'task', 'memo'].map((k) => (
             <Pressable key={k} accessibilityRole="button" accessibilityState={{ selected: f.kind === k }} onPress={() => set('kind')(k)} style={[styles.segBtn, f.kind === k && styles.segOn]}>
@@ -91,14 +94,14 @@ export default function ProposalConfirmScreen({ navigation, route }) {
             <TextInput style={[styles.input, { minHeight: 120, textAlignVertical: 'top' }]} multiline value={f.body} onChangeText={set('body')} placeholderTextColor={colors.muted} accessibilityLabel="메모 본문" />
             <Pressable accessibilityRole="button" onPress={() => (paid ? notice.show('자료 분석은 서버가 연결되면 사용할 수 있어요') : navigation.navigate(ROUTES.Subscription))} style={styles.locked}>
               <Text style={styles.lockedTitle}>{paid ? '✦ AI 자동 이미지' : '🔒 AI 자동 이미지'}</Text>
-              <Text style={styles.lockedSub}>{paid ? '서버 연결 후 사용할 수 있어요' : '이미지 포함 저장은 Pro·Team  ›'}</Text>
+              <Text style={styles.lockedSub}>{paid ? '서버 연결 후 사용할 수 있어요' : '이미지 포함 저장은 Pro / Team  ›'}</Text>
             </Pressable>
           </>
         )}
 
         {!!p.evidence && (
           <View style={styles.evBox}>
-            <Text style={styles.evLabel}>근거 · {p.sourceType === 'record' ? '녹음' : '메모'}{p.sourceTitle ? ` “${p.sourceTitle}”` : ''}</Text>
+            <Text style={styles.evLabel}>근거  /  {p.sourceType === 'record' ? '녹음' : '메모'}{p.sourceTitle ? ` “${p.sourceTitle}”` : ''}</Text>
             <Text style={styles.evText}>“<Text style={styles.hl}>{p.evidence}</Text>”</Text>
           </View>
         )}
@@ -122,25 +125,25 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   empty: { textAlign: 'center', color: colors.muted, marginTop: spacing.xxl, fontSize: font.body },
   body: { padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl },
-  seg: { flexDirection: 'row', backgroundColor: colors.white, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, padding: 4, marginBottom: spacing.sm },
+  seg: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, padding: 4, marginBottom: spacing.sm },
   segBtn: { flex: 1, minHeight: 40, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   segOn: { backgroundColor: colors.mintDark },
   segText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
-  segTextOn: { color: colors.white },
+  segTextOn: { color: colors.onPrimary },
   label: { fontSize: font.body, fontWeight: '700', color: colors.ink, marginTop: spacing.sm },
-  input: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.md, fontSize: font.bodyLg, color: colors.ink },
+  input: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, paddingHorizontal: spacing.md, fontSize: font.bodyLg, color: colors.ink },
   rowGap: { flexDirection: 'row', gap: spacing.sm },
   pick: { flex: 1, justifyContent: 'center' },
   pickText: { fontSize: font.bodyLg, color: colors.ink },
-  locked: { minHeight: 72, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.line, backgroundColor: colors.white, padding: spacing.md, justifyContent: 'center', gap: 4, marginTop: spacing.sm },
-  lockedTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  locked: { minHeight: 72, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.line, backgroundColor: colors.card, padding: spacing.md, justifyContent: 'center', gap: 4, marginTop: spacing.sm },
+  lockedTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   lockedSub: { fontSize: font.body, color: colors.muted },
-  evBox: { backgroundColor: '#EAF4F0', borderRadius: radius.md, padding: spacing.md, gap: 4, marginTop: spacing.md },
-  evLabel: { fontSize: font.caption, fontWeight: '800', color: colors.mintDark },
+  evBox: { backgroundColor: colors.mintSoft, borderRadius: radius.md, padding: spacing.md, gap: 4, marginTop: spacing.md },
+  evLabel: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
   evText: { fontSize: font.body, color: colors.ink, lineHeight: 21 },
-  hl: { backgroundColor: '#FFF1B8' },
+  hl: { backgroundColor: '#474022' },
   primary: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center', marginTop: spacing.lg },
-  primaryText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
-  ghost: { minHeight: 48, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
+  ghost: { minHeight: 48, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
 });

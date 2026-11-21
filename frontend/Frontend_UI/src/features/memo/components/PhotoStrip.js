@@ -9,7 +9,7 @@ import Icon from '../../../shared/components/Icon';
 import { detachPhoto, useMemos } from '../../../data/memos/MemoStore';
 import { useFiles } from '../../../data/files/FileStore';
 
-export default function PhotoStrip({ memoId }) {
+export default function PhotoStrip({ memoId, canDetach = true }) {
   const memos = useMemos();
   const files = useFiles();
   const [big, setBig] = useState(null); // 크게 볼 파일
@@ -35,9 +35,9 @@ export default function PhotoStrip({ memoId }) {
         <View style={styles.backdrop}>
           {big && <Image source={{ uri: big.uri }} style={styles.big} resizeMode="contain" accessibilityLabel={big.name} />}
           <View style={styles.btns}>
-            <Pressable accessibilityRole="button" onPress={() => { detachPhoto(memoId, big.id); setBig(null); }} style={[styles.btn, styles.ghost]}>
+            {canDetach && <Pressable accessibilityRole="button" onPress={() => { detachPhoto(memoId, big.id); setBig(null); }} style={[styles.btn, styles.ghost]}>
               <Text style={styles.ghostText}>메모에서 빼기</Text>
-            </Pressable>
+            </Pressable>}
             <Pressable accessibilityRole="button" onPress={() => setBig(null)} style={[styles.btn, styles.main]}>
               <Text style={styles.mainText}>닫기</Text>
             </Pressable>

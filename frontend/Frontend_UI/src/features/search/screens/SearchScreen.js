@@ -25,11 +25,15 @@ import {
   highlightParts,
   searchApp,
   searchTerms,
+  useAllMemos,
 } from '../../../data/memos/MemoStore';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import Icon from '../../../shared/components/Icon';
-import { useTasks } from '../../../data/tasks/TaskStore';
+import { useAllTasks } from '../../../data/tasks/TaskStore';
 import { useProjects } from '../../../data/projects/ProjectStore';
+import { useCloudFiles, useFiles } from '../../../data/files/FileStore';
+import { enterSpace, useSpaceInfo, useWorkspaceAccessClosed, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
+import { excerptFor } from '../../../lib/stella/ai-chat';
 
 // 입력창이 비어 있을 때 보여줄 추천 키워드 (샘플 데이터에 맞춘 것)
 const SUGGESTED_KEYWORDS = ['회의', '중간고사', '발표', '장보기'];
@@ -58,19 +62,28 @@ function HighlightText({ text, terms, style, numberOfLines }) {
   );
 }
 
-export default function SearchScreen({ navigation }) {
+export default function SearchScreen({ navigation, route }) {
 
   // ---------- 상태 ----------
-  const [query, setQuery] = useState('');                    // 입력창에 적힌 검색어
-  const [filter, setFilter] = useState('all');                // 선택한 종류 칩
-  const [recent, setRecent] = useState(getRecentSearches()); // 최근 검색어 목록
+  const [query, setQuery] = useState(route?.params?.query ?? '');
+  const [filter, setFilter] = useState(route?.params?.filter ?? 'all');
+  const [recent, setRecent] = useState(getRecentSearches);
 
   // ---------- 검색 결과 계산 ----------
   // query 가 바뀔 때만 다시 계산 (useMemo)
   const terms = useMemo(() => searchTerms(query), [query]);
-  const tasks = useTasks(); // 일정이 추가/수정/불러오기 되면 다시 검색
+  const memos = useAllMemos();
+  const tasks = useAllTasks();
   const projects = useProjects();
-  const allResults = useMemo(() => searchApp(query), [query, tasks, projects]);
+  const localFiles = useFiles();
+  const cloudFiles = useCloudFiles();
+  const { current: workspace } = useWorkspaces();
+  const accessClosed = useWorkspaceAccessClosed(workspace.id);
+  const spaces = useSpaceInfo();
+  const allResults = useMemo(
+    () => searchApp(query, { memos, tasks, projects, files: accessClosed ? localFiles : [...localFiles, ...cloudFiles] }),
+    [query, memos, tasks, projects, localFiles, cloudFiles, accessClosed],
+  );
   // 칩에 따라 종류별로 거르기
   const results = useMemo(
     () => (filter === 'all' ? allResults : allResults.filter((r) => r.type === filter)),
@@ -96,6 +109,8 @@ export default function SearchScreen({ navigation }) {
   const openResult = (item) => {
     Keyboard.dismiss();
     remember(query);
+    navigation.setParams({ query, filter });
+    if (item.type === 'memo' || item.type === 'task') enterSpace(item.workspaceId);
     navigation.navigate(TYPE_INFO[item.type].route, openParams(item.type, item.id));
   };
 
@@ -115,16 +130,12 @@ export default function SearchScreen({ navigation }) {
           accessibilityLabel="검색어 입력"
           style={styles.input}
           value={query}
-          onChangeText={(t) => {
-            setQuery(t);
-            setFilter('all'); // 검색어가 바뀌면 칩은 "전체"로
-          }}
-          placeholder="메모, 파일에서 검색"
+          onChangeText={setQuery}
+          placeholder="메모, 일정, 프로젝트, 파일 검색"
           placeholderTextColor={colors.muted}
           autoFocus // 화면이 열리면 바로 키보드가 올라옴
           returnKeyType="search"
           onSubmitEditing={() => hasQuery && remember(query)} // 키보드의 검색 키 → 최근 검색어에 저장
-          accessibilityLabel_2="검색어 입력"
         />
         {/* 지우기(✕): 글자가 있을 때만 */}
         {hasQuery && (
@@ -208,14 +219,14 @@ export default function SearchScreen({ navigation }) {
           // (3) 결과 목록
           <FlatList
             data={results}
-            keyExtractor={(r) => r.id}
+            keyExtractor={(r) => `${r.type}:${r.workspaceId ?? ''}:${r.id}`}
             contentContainerStyle={styles.list}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             renderItem={({ item }) => (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${TYPE_INFO[item.type].label}: ${item.title}`}
+                accessibilityLabel={[TYPE_INFO[item.type].label, item.title, spaces[item.workspaceId]?.name].filter(Boolean).join(', ')}
                 onPress={() => openResult(item)}
                 style={({ pressed }) => [styles.card, pressed && { backgroundColor: colors.mintSoft }]}
               >
@@ -223,10 +234,10 @@ export default function SearchScreen({ navigation }) {
                   <Text style={styles.badge}>
                     {TYPE_INFO[item.type].icon ? `${TYPE_INFO[item.type].icon} ` : ''}{TYPE_INFO[item.type].label}
                   </Text>
-                  <Text style={styles.date}>{item.date}</Text>
+                  <Text style={styles.date}>{spaces[item.workspaceId]?.name ?? item.date}</Text>
                 </View>
                 <HighlightText text={item.title} terms={terms} style={styles.cardTitle} numberOfLines={1} />
-                <HighlightText text={item.snippet} terms={terms} style={styles.cardSnippet} numberOfLines={2} />
+                {!!item.text && <HighlightText text={excerptFor(item.text.replace(/\s+/g, ' '), terms, 120)} terms={terms} style={styles.cardSnippet} numberOfLines={2} />}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                   <Text style={styles.cardGo}>{item.type === 'task' ? '일정 열기' : `${TYPE_INFO[item.type].label} 화면에서 보기`}</Text>
                   <Icon name="chevronRight" size={14} color={colors.mintDark} />

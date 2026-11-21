@@ -1,11 +1,11 @@
-import { runtime, runtimeSubscribe, useValue } from '../hooks';
+import { accessibleRecords, runtime, runtimeSubscribe, useValue } from '../hooks';
 export const PRIORITIES = ['낮음','보통','높음'];
 export const STATUSES = ['진행 전','진행 중','완료','취소'];
 export const ALARMS = ['없음','정시','10분 전','1시간 전','2시간 전','하루 전'];
 export const getTasks = () => runtime().store.getTasks();
 export const useTasks = () => useValue(getTasks);
 // 모든 공간의 일정·할 일 (항목마다 workspaceId) + 그 항목의 공간에서 고치기
-export const getAllTasks = () => runtime().store.getAllTasks();
+export const getAllTasks = () => accessibleRecords(runtime().store.getAllTasks());
 export const useAllTasks = () => useValue(getAllTasks);
 export const taskIn = (t, action, ...args) => runtime().store.inWorkspace(t.workspaceId, action, ...args);
 export const subscribeTasks = runtimeSubscribe;

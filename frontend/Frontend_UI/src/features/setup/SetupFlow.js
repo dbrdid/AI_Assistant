@@ -98,15 +98,15 @@ export default function SetupFlow({ user, onDone }) {
   // ---------- 소개 (19장) ----------
   if (name === 'intro') {
     const flow = [
-      ['1', '정보 입력', '메모 · 녹음 · 사진 · 문서'],
-      ['2', 'AI 분석', '일정 · 할 일 후보 추출'],
+      ['1', '정보 입력', '메모  /  녹음  /  사진  /  문서'],
+      ['2', 'AI 분석', '일정  /  할 일 후보 추출'],
       ['3', '사용자 확인', '추출 내용 확인'],
-      ['4', '저장', '캘린더 · 할 일에 저장'],
+      ['4', '저장', '캘린더  /  할 일에 저장'],
     ];
     return (
       <View style={styles.root}>
         {header('시작하기', false, false)}
-        <ScrollView contentContainerStyle={styles.body}>
+        <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.body}>
           <Text style={styles.big}>일정 및 할 일 모두{'\n'}AI가 정리해 드려요</Text>
           {flow.map(([n, t, s]) => (
             <View key={n} style={styles.flowRow}>
@@ -129,7 +129,7 @@ export default function SetupFlow({ user, onDone }) {
     return (
       <View style={styles.root}>
         {header('기본 정보 (1/3)', true, false)}
-        <ScrollView contentContainerStyle={styles.body}>
+        <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.body}>
           <Text style={styles.q}>앱의 사용 목적을 선택해주세요</Text>
           <Text style={styles.note}>여러 개를 고를 수 있어요. 선택하지 않아도 넘어갈 수 있어요. 고른 만큼 시작용 메모 템플릿을 만들어 드려요.</Text>
           {PURPOSES.map((p) => {
@@ -149,7 +149,7 @@ export default function SetupFlow({ user, onDone }) {
           <Pressable accessibilityRole="button" onPress={() => setTzOpen(true)} style={styles.card}>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={styles.cardTitle}>{timezoneLabel(tz)}</Text>
-              <Text style={styles.cardSub}>{tz === deviceTimezone() ? '기기 시간대' : '직접 선택한 시간대'} · 일정과 브리핑에 적용돼요</Text>
+              <Text style={styles.cardSub}>{tz === deviceTimezone() ? '기기 시간대' : '직접 선택한 시간대'}  /  일정과 브리핑에 적용돼요</Text>
             </View>
             <Icon name="chevronRight" size={18} color={colors.muted} />
           </Pressable>
@@ -159,7 +159,7 @@ export default function SetupFlow({ user, onDone }) {
           <View style={styles.backdrop}>
             <View style={styles.sheet} accessibilityViewIsModal>
               <Text style={styles.sheetTitle}>시간대 선택</Text>
-              <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ gap: spacing.sm }}>
+              <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={{ maxHeight: 360 }} contentContainerStyle={{ gap: spacing.sm }}>
                 {TIMEZONES.map((t) => (
                   <Pressable key={t.id} accessibilityRole="button" accessibilityState={{ selected: t.id === tz }} onPress={() => { setTz(t.id); setTzOpen(false); }} style={[styles.opt, t.id === tz && styles.cardOn]}>
                     <Text style={styles.optText}>{t.label} ({t.gmt})</Text>
@@ -181,23 +181,23 @@ export default function SetupFlow({ user, onDone }) {
     const all = KEYS.every(([k]) => targets[k]);
     const chip = (label, on, onPress) => (
       <Pressable key={label} accessibilityRole="checkbox" accessibilityState={{ checked: on }} onPress={onPress} style={[styles.chip, on && styles.chipOn]}>
-        <Text style={[styles.chipText, on && { color: colors.white }]}>{label}</Text>
+        <Text style={[styles.chipText, on && { color: colors.onPrimary }]}>{label}</Text>
       </Pressable>
     );
     return (
       <View style={styles.root}>
         {header('AI 설정 (2/3)', true, true)}
-        <ScrollView contentContainerStyle={styles.body}>
+        <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.body}>
           <Text style={styles.q}>AI가 자동으로 찾을 항목</Text>
           <Text style={styles.note}>선택한 항목만 분석 결과에 포함돼요. 권장값이 미리 선택되어 있어요.</Text>
           <View style={styles.chipRow}>
             {chip('전체', all, () => setTargets(all ? { schedule: false, task: false, person: false, place: false } : { schedule: true, task: true, person: true, place: true }))}
             {KEYS.map(([k, l]) => chip(l, targets[k], () => setTargets((t) => ({ ...t, [k]: !t[k] }))))}
           </View>
-          <ToggleRow label="AI 자동 요약" sub="메모·녹음·회의 내용을 AI가 자동으로 요약해 드려요" value={autoSummary} onValueChange={setAutoSummary} />
+          <ToggleRow label="AI 자동 요약" sub="메모 / 녹음 / 회의 내용을 AI가 자동으로 요약해 드려요" value={autoSummary} onValueChange={setAutoSummary} />
           <View style={styles.info}>
             <Text style={styles.infoTitle}>외부 AI로 전달되는 정보</Text>
-            <Text style={styles.infoText}>분석 요청한 메모 · 녹음 · 텍스트가 전달돼요. 설정에서 기기 내 처리로 바꿀 수 있어요.</Text>
+            <Text style={styles.infoText}>분석 요청한 메모  /  녹음  /  텍스트가 전달돼요. 설정에서 기기 내 처리로 바꿀 수 있어요.</Text>
           </View>
         </ScrollView>
         {footer('다음', saveAi)}
@@ -218,24 +218,24 @@ export default function SetupFlow({ user, onDone }) {
     if (items.task) parts.push(`남은 할 일 ${nTodos}건`);
     if (items.due) parts.push(`마감 임박 ${nDue}건`);
     if (items.note) parts.push(`중요 메모 ${nNotes}건`);
-    const via = [channels.app && '앱 알림', channels.voice && '음성', channels.external && '외부 채널'].filter(Boolean).join(' · ');
+    const via = [channels.app && '앱 알림', channels.voice && '음성', channels.external && '외부 채널'].filter(Boolean).join('  /  ');
     const KEYS = [['schedule', '일정'], ['task', '할 일'], ['due', '마감 임박'], ['note', '중요 메모']];
     const allItems = KEYS.every(([k]) => items[k]);
     const chip = (label, on, onPress) => (
       <Pressable key={label} accessibilityRole="checkbox" accessibilityState={{ checked: on }} onPress={onPress} style={[styles.chip, on && styles.chipOn]}>
-        <Text style={[styles.chipText, on && { color: colors.white }]}>{label}</Text>
+        <Text style={[styles.chipText, on && { color: colors.onPrimary }]}>{label}</Text>
       </Pressable>
     );
     return (
       <View style={styles.root}>
         {header('브리핑 설정 (3/3)', false, true)}
-        <ScrollView contentContainerStyle={styles.body}>
+        <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.body}>
           <Text style={styles.q}>브리핑에 포함할 내용</Text>
           <View style={styles.chipRow}>
             {chip('전체', allItems, () => setItems(allItems ? { schedule: false, task: false, due: false, note: false } : { schedule: true, task: true, due: true, note: true }))}
             {KEYS.map(([k, l]) => chip(l, items[k], () => setItems((t) => ({ ...t, [k]: !t[k] }))))}
           </View>
-          <ToggleRow label="상황 맞춤 브리핑" sub="하루 시작·회의 직전 등 상황에 따라 길이와 전달 방식이 달라져요" value={contextual} onValueChange={setContextual} />
+          <ToggleRow label="상황 맞춤 브리핑" sub="하루 시작 / 회의 직전 등 상황에 따라 길이와 전달 방식이 달라져요" value={contextual} onValueChange={setContextual} />
           <Text style={styles.q}>브리핑 받는 방법</Text>
           <View style={styles.chipRow}>
             {chip('앱 알림', channels.app, () => setChannels((c) => ({ ...c, app: !c.app })))}
@@ -245,7 +245,7 @@ export default function SetupFlow({ user, onDone }) {
           {channels.external && <Text style={styles.note}>외부 채널은 동의한 경우에만 쓸 수 있어요. 실제 연결은 서버가 준비되면 시작돼요.</Text>}
           <View style={styles.preview}>
             <Text style={styles.previewLabel}>미리 보기</Text>
-            <Text style={styles.previewText}>{parts.length ? parts.join(' · ') : '브리핑에 포함할 내용을 선택해 주세요'}</Text>
+            <Text style={styles.previewText}>{parts.length ? parts.join('  /  ') : '브리핑에 포함할 내용을 선택해 주세요'}</Text>
             {contextual && <Text style={styles.previewSub}>회의 직전에는 짧게 요약해 드려요</Text>}
             {!!via && <Text style={styles.previewSub}>받는 방법: {via}</Text>}
           </View>
@@ -265,7 +265,7 @@ export default function SetupFlow({ user, onDone }) {
   return (
     <View style={styles.root}>
       {header('설정 (마무리)', false, true)}
-      <ScrollView contentContainerStyle={styles.body}>
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.body}>
         <Text style={styles.big}>앱 기능 이용 권한 안내</Text>
         <Text style={styles.note}>원활한 서비스 제공을 위해 아래 권한이 필요합니다</Text>
         {PERMS.map(([k, t, s]) => (
@@ -298,44 +298,44 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, minHeight: 56 },
   hSide: { width: 72 },
-  hTitle: { flex: 1, textAlign: 'center', fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  hTitle: { flex: 1, textAlign: 'center', fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   back: { fontSize: 32, color: colors.ink, marginTop: -4 },
   skip: { fontSize: font.body, fontWeight: '700', color: colors.muted },
   body: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xl, gap: spacing.md },
   footer: { paddingHorizontal: spacing.xl, paddingTop: spacing.md, gap: spacing.xs, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.cream },
-  big: { fontSize: 26, fontWeight: '800', color: colors.ink, lineHeight: 34 },
-  q: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  big: { fontSize: 26, fontWeight: '600', color: colors.ink, lineHeight: 34 },
+  q: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   note: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
   textBtn: { alignSelf: 'center', minHeight: 40, justifyContent: 'center' },
   textBtnText: { fontSize: font.body, fontWeight: '700', color: colors.muted },
-  flowRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
-  flowNum: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
-  flowNumText: { color: colors.white, fontWeight: '800' },
-  flowTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  flowRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  flowNum: { width: 34, height: 34, borderRadius: 4, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  flowNumText: { color: colors.onPrimary, fontWeight: '600' },
+  flowTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   flowSub: { fontSize: font.body, color: colors.muted },
-  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, minHeight: 64 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, minHeight: 64 },
   cardOn: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
   cardIcon: { fontSize: 26 },
-  cardTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  cardTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   cardSub: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
   radio: { fontSize: 22, color: colors.muted },
   chev: { fontSize: 24, color: colors.muted },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chip: { minHeight: 40, paddingHorizontal: spacing.lg, borderRadius: 20, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  chip: { minHeight: 40, paddingHorizontal: spacing.lg, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   chipOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
   chipText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   info: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.mintSoft, gap: 4 },
-  infoTitle: { fontSize: font.body, fontWeight: '800', color: colors.mintDark },
+  infoTitle: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },
   infoText: { fontSize: font.body, color: colors.ink, lineHeight: 20 },
-  preview: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.mint, gap: 4 },
-  previewLabel: { fontSize: font.caption, fontWeight: '800', color: colors.muted },
+  preview: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.mint, gap: 4 },
+  previewLabel: { fontSize: font.caption, fontWeight: '600', color: colors.muted },
   previewText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink, lineHeight: 24 },
   previewSub: { fontSize: font.body, color: colors.muted },
-  permState: { fontSize: font.body, fontWeight: '800', color: colors.mintDark },
+  permState: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   sheet: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.md },
-  sheetTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
-  opt: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, paddingHorizontal: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  sheetTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
+  opt: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, paddingHorizontal: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   optText: { fontSize: font.bodyLg, color: colors.ink, fontWeight: '600' },
-  optTag: { fontSize: font.caption, fontWeight: '800', color: colors.mintDark },
+  optTag: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
 });

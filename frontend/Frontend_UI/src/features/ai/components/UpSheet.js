@@ -60,6 +60,6 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: radius.lg + 4, borderTopRightRadius: radius.lg + 4, paddingHorizontal: spacing.lg, borderTopWidth: 1, borderColor: colors.line },
   grip: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: colors.line, marginTop: spacing.sm, marginBottom: spacing.md },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
-  title: { flexShrink: 1, fontSize: font.header + 1, fontWeight: '800', color: colors.ink },
+  title: { flexShrink: 1, fontSize: font.header + 1, fontWeight: '600', color: colors.ink },
   body: { flex: 1, gap: spacing.sm },
 });

@@ -137,14 +137,14 @@ export default function TasksScreen({ navigation }) {
         right={<CircleButton icon="plus" label="할 일 추가" onPress={() => navigation.navigate(ROUTES.TaskEdit, { date: today, kind: 'task', ...(space !== 'all' ? { workspaceId: space } : {}) })} />}
       />
       <View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+        <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
           <Chip label={`진행 중 ${open.length}`} active={tab === 'open'} onPress={() => setTab('open')} />
           <Chip label={`완료 ${done.length}`} active={tab === 'done'} onPress={() => setTab('done')} />
           {!!myName && <Chip label="내 담당" active={mineOnly} onPress={() => setMineOnly((v) => !v)} />}
         </ScrollView>
         {/* 공간 칩: 모든 공간 또는 한 공간만 */}
         {multi && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
             {[{ id: 'all', name: '모든 공간' }, ...spaceList.map((w) => ({ id: w.id, name: spaces[w.id]?.name, color: spaces[w.id]?.color }))].map((s) => {
               const on = space === s.id;
               return (
@@ -158,7 +158,7 @@ export default function TasksScreen({ navigation }) {
         )}
       </View>
 
-      <ScrollView contentContainerStyle={styles.list}>
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.list}>
         {tab === 'open' ? (
           open.length === 0 ? (
             <View style={styles.emptyBox}>
@@ -192,20 +192,20 @@ export default function TasksScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   chips: { flexDirection: 'row', paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.md },
-  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white },
+  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   spaceChipOn: { borderColor: colors.mintDark, borderWidth: 2, backgroundColor: colors.mintSoft },
-  spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '800', color: colors.ink },
-  list: { paddingHorizontal: spacing.lg, paddingBottom: 96, gap: spacing.lg },
+  spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.ink },
+  list: {paddingHorizontal:20,paddingBottom:96,gap:20},
   group: { gap: spacing.sm },
-  groupTitle: { fontSize: font.body, fontWeight: '800', color: colors.muted, marginLeft: 4 },
-  item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: 10, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  groupTitle: {fontSize:13,fontWeight:'500',color:colors.muted,marginLeft:4},
+  item: {flexDirection:'row',alignItems:'center',gap:spacing.md,paddingHorizontal:0,paddingVertical:12,borderRadius:0,backgroundColor:colors.cream,borderWidth:0,borderColor:colors.line,borderBottomWidth:1},
   body: { flex: 1, minHeight: 40, justifyContent: 'center', gap: 4 },
-  title: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  title: {fontSize:15,fontWeight:'500',color:colors.ink},
   titleDone: { color: colors.muted, textDecorationLine: 'line-through' },
   tags: { flexDirection: 'row', gap: 6 },
   when: { fontSize: font.caption, color: colors.muted },
   emptyBox: { alignItems: 'center', gap: 6, paddingVertical: spacing.xxl },
-  emptyTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  emptyTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   empty: { fontSize: font.body, color: colors.muted },
   hint: { fontSize: font.caption, color: colors.muted, textAlign: 'center' },
 });

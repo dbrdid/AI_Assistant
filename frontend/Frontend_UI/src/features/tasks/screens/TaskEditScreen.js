@@ -19,6 +19,7 @@ import { DatePickerModal, TimePickerModal } from '../../../shared/components/Dat
 import { projectOf, setItemProject, useProjects } from '../../../data/projects/ProjectStore';
 import { enterSpace, useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import { SpaceDot } from '../../../shared/components/SpaceTag';
+import {SheetModal} from '../../../shared/components/Motion';
 
 const KINDS = [{ id: 'event', label: '일정' }, { id: 'task', label: '할 일' }];
 
@@ -28,15 +29,11 @@ const dateLabel = (k) => {
 };
 
 function Chips({ label, options, value, onChange }) {
+  const [open,setOpen]=useState(false);
   return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.chipRow}>
-        {options.map((o) => (
-          <Chip key={o} label={o} active={value === o} onPress={() => onChange(o)} />
-        ))}
-      </View>
-    </View>
+    <><Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${value}`} onPress={()=>setOpen(true)} style={styles.line}>
+      <Icon name={label==='알림'?'bell':label==='중요도'?'flag':'checkSquare'} size={18} color={colors.muted}/><Text style={styles.lineLabel}>{label}</Text><Text style={styles.lineValue}>{value}</Text><Icon name="chevronDown" size={15} color={colors.muted}/>
+    </Pressable><SheetModal visible={open} onClose={()=>setOpen(false)} label={`${label} 선택`}><View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",minHeight:44}}><Text style={styles.label}>{label}</Text><Pressable accessibilityRole="button" accessibilityLabel={`${label} 선택 닫기`} onPress={()=>setOpen(false)} style={{minWidth:44,minHeight:44,alignItems:"center",justifyContent:"center"}}><Icon name="x" size={18} color={colors.muted}/></Pressable></View><ScrollView showsVerticalScrollIndicator={false}>{options.map(option=><Pressable key={option} accessibilityRole="radio" accessibilityState={{checked:value===option}} accessibilityLabel={option} onPress={()=>{onChange(option);setOpen(false);}} style={styles.line}><Text style={styles.lineValue}>{option}</Text><View style={{flex:1}}/>{value===option&&<Icon name="check" size={18} color={colors.ink}/>}</Pressable>)}</ScrollView></SheetModal></>
   );
 }
 
@@ -182,10 +179,10 @@ export default function TaskEditScreen({ navigation, route }) {
 
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScreenHeader title={title} onBack={navigation.goBack} />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScreenHeader title={title} onBack={navigation.goBack} right={<Pressable accessibilityRole="button" accessibilityLabel="저장하기" onPress={save} style={styles.headerSave}><Text style={styles.headerSaveText}>저장</Text></Pressable>}/>
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* ---------- 종류 ---------- */}
-        <View style={styles.seg} accessibilityRole="tablist">
+        {!existing && <View style={styles.seg} accessibilityRole="tablist">
           {KINDS.map((k) => {
             const on = kind === k.id;
             return (
@@ -201,8 +198,8 @@ export default function TaskEditScreen({ navigation, route }) {
               </Pressable>
             );
           })}
-        </View>
-        {!!existing && <Text style={styles.note}>종류는 만든 뒤에 바꿀 수 없어요.</Text>}
+        </View>}
+        {!!existing && <View style={styles.spaceLine}><Icon name={isEvent?'calendar':'checkSquare'} size={16} color={colors.muted}/><Text style={styles.note}>{isEvent?'일정':'할 일'} / {currentSpace.name}</Text></View>}
 
         {/* ---------- 공간 (팀 공간이 있을 때만) ---------- */}
         {spaceList.length > 1 && (existing ? (
@@ -244,6 +241,7 @@ export default function TaskEditScreen({ navigation, route }) {
           placeholderTextColor={colors.muted}
           maxLength={100}
           autoFocus={!existing}
+          multiline
         />
 
         {/* ---------- 날짜 · 시간 ---------- */}
@@ -274,7 +272,7 @@ export default function TaskEditScreen({ navigation, route }) {
         {/* ---------- 더보기 ---------- */}
         <Pressable accessibilityRole="button" accessibilityState={{ expanded: more }} onPress={() => setMore((v) => !v)} style={styles.moreBtn}>
           <Icon name="chevronDown" size={18} color={colors.mintDark} style={more ? styles.flip : undefined} />
-          <Text style={styles.moreText}>{more ? '접기' : `더보기 · 프로젝트, ${isEvent ? '' : '장소, '}담당자, 중요도, 메모`}</Text>
+          <Text style={styles.moreText}>{more ? '접기' : `더보기  /  프로젝트, ${isEvent ? '' : '장소, '}담당자, 중요도, 메모`}</Text>
         </Pressable>
         {more && (
           <>
@@ -300,9 +298,6 @@ export default function TaskEditScreen({ navigation, route }) {
 
         {!!error && <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text>}
 
-        <Pressable accessibilityRole="button" onPress={save} style={styles.save}>
-          <Text style={styles.saveText}>저장하기</Text>
-        </Pressable>
         {existing && (
           <Pressable accessibilityRole="button" onPress={() => setConfirmDelete(true)} style={styles.del}>
             <Text style={styles.delText}>삭제</Text>
@@ -389,40 +384,40 @@ export default function TaskEditScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create({headerSaveText:{fontSize:13,fontWeight:'600',color:colors.onPrimary},headerSave:{minHeight:36,minWidth:54,paddingHorizontal:12,borderRadius:4,backgroundColor:colors.ink,alignItems:'center',justifyContent:'center'},
   root: { flex: 1, backgroundColor: colors.cream },
-  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
-  seg: { flexDirection: 'row', backgroundColor: colors.white, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, padding: 4 },
-  segBtn: { flex: 1, minHeight: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  segOn: { backgroundColor: colors.mintDark },
-  segText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
-  segTextOn: { color: colors.white },
-  spaceLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -spacing.sm },
-  spacePick: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, maxWidth: 180, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white },
+  content: {paddingHorizontal:20,paddingBottom:32,gap:10},
+  seg: {flexDirection:'row',backgroundColor:'transparent',borderRadius:0,borderWidth:0,borderColor:colors.line,padding:0,borderBottomWidth:1},
+  segBtn: {flex:1,minHeight:40,borderRadius:0,alignItems:'center',justifyContent:'center'},
+  segOn: {backgroundColor:'transparent',borderBottomWidth:2,borderColor:colors.ink},
+  segText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
+  segTextOn: {color:colors.ink},
+  spaceLine: {flexDirection:'row',alignItems:'center',gap:6,marginTop:8},
+  spacePick: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, maxWidth: 180, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   spacePickOn: { borderColor: colors.mintDark, borderWidth: 2, backgroundColor: colors.mintSoft },
-  spacePickText: { flexShrink: 1, fontSize: font.body, fontWeight: '800', color: colors.ink },
-  titleInput: { minHeight: 52, borderBottomWidth: 1, borderBottomColor: colors.line, fontSize: font.title, fontWeight: '800', color: colors.ink, paddingHorizontal: 2 },
-  group: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
-  line: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 52, paddingHorizontal: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.line },
-  lineLabel: { flex: 1, fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
-  lineValue: { fontSize: font.bodyLg, color: colors.ink },
-  lineBlock: { padding: spacing.md, gap: spacing.sm },
-  lineHint: { fontSize: font.caption, fontWeight: '700', color: colors.muted, marginLeft: 4 },
+  spacePickText: { flexShrink: 1, fontSize: font.body, fontWeight: '600', color: colors.ink },
+  titleInput: {minHeight:96,borderBottomWidth:0,borderBottomColor:colors.line,fontSize:28,fontWeight:'600',color:colors.ink,paddingHorizontal:2,lineHeight:38,paddingTop:12,paddingBottom:16,textAlignVertical:'top'},
+  group: {backgroundColor:'transparent',borderRadius:0,borderWidth:0,borderColor:colors.line,overflow:'hidden'},
+  line: {flexDirection:'row',alignItems:'center',gap:spacing.md,minHeight:52,paddingHorizontal:0,borderBottomWidth:1,borderBottomColor:colors.line},
+  lineLabel: {flex:1,fontSize:14,fontWeight:'400',color:colors.muted},
+  lineValue: {fontSize:15,color:colors.ink},
+  lineBlock: {padding:spacing.md,gap:spacing.sm,paddingHorizontal:0,paddingVertical:12},
+  lineHint: {fontSize:font.caption,fontWeight:'400',color:colors.muted,marginLeft:0},
   field: { gap: spacing.sm },
-  label: { fontSize: font.body, fontWeight: '700', color: colors.ink },
-  input: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
-  pickBtn: { flex: 1, minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg },
+  label: {fontSize:14,fontWeight:'500',color:colors.muted},
+  input: {minHeight:46,borderRadius:0,borderWidth:0,borderColor:colors.line,backgroundColor:colors.cream,paddingHorizontal:0,fontSize:font.bodyLg,color:colors.ink,borderBottomWidth:1},
+  pickBtn: {flex:1,minHeight:46,flexDirection:'row',alignItems:'center',gap:spacing.sm,borderRadius:0,borderWidth:0,borderColor:colors.line,backgroundColor:colors.cream,paddingHorizontal:0,borderBottomWidth:1},
   pickText: { fontSize: font.bodyLg, color: colors.ink },
   timeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   tilde: { fontSize: font.bodyLg, color: colors.muted },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  note: { fontSize: font.caption, color: colors.muted, marginTop: -spacing.sm },
+  note: {fontSize:font.caption,color:colors.muted,marginTop:0,lineHeight:20},
   moreBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 40 },
-  moreText: { flex: 1, fontSize: font.body, fontWeight: '800', color: colors.mintDark },
+  moreText: {flex:1,fontSize:13,fontWeight:'400',color:colors.muted},
   flip: { transform: [{ rotate: '180deg' }] },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
   save: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
-  saveText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
-  del: { minHeight: 48, borderRadius: radius.card, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.coral, alignItems: 'center', justifyContent: 'center' },
-  delText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.coral },
+  saveText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
+  del: {minHeight:48,borderRadius:radius.card,backgroundColor:'transparent',borderWidth:0,borderColor:colors.coral,alignItems:'flex-start',justifyContent:'center'},
+  delText: {fontSize:14,fontWeight:'400',color:colors.coral},
 });

@@ -24,7 +24,7 @@ export function CircleButton({ icon, onPress, label, size = 40, iconSize = 20, c
       disabled={disabled}
       onPress={onPress}
       hitSlop={6}
-      style={({ pressed }) => [styles.circle, { width: size, height: size, borderRadius: size / 2 }, pressed && { backgroundColor: colors.mintSoft }, disabled && { opacity: 0.4 }, style]}
+      style={({ pressed }) => [styles.circle, { width: size, height: size, borderRadius: 4 }, pressed && { backgroundColor: colors.mintSoft }, disabled && { opacity: 0.4 }, style]}
     >
       {children || <Icon name={icon} size={iconSize} color={color} />}
       {!!badge && <View style={styles.badgeDot} />}
@@ -44,7 +44,7 @@ export function PillButton({ label, onPress, kind = 'primary', disabled, style }
       hitSlop={6}
       style={({ pressed }) => [styles.pill, primary ? styles.pillPrimary : styles.pillGhost, pressed && { opacity: 0.8 }, disabled && { opacity: 0.4 }, style]}
     >
-      <Text style={[styles.pillText, { color: primary ? colors.white : colors.ink }]}>{label}</Text>
+      <Text style={[styles.pillText, { color: primary ? colors.onPrimary : colors.ink }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -57,7 +57,7 @@ export function Card({ children, style, onPress, onLongPress, accessibilityLabel
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
       onLongPress={onLongPress}
-      style={({ pressed }) => [styles.card, dim && { opacity: 0.7 }, pressed && { backgroundColor: '#F7FBF9' }, style]}
+      style={({ pressed }) => [styles.card, dim && { opacity: 0.7 }, pressed && { backgroundColor: colors.mintSoft }, style]}
     >
       {children}
     </Pressable>
@@ -72,7 +72,7 @@ export function Chip({ label, active, onPress, style }) {
       onPress={onPress}
       style={[styles.chip, active && styles.chipActive, style]}
     >
-      <Text style={[styles.chipText, active && { color: colors.white }]} numberOfLines={1}>{label}</Text>
+      <Text style={[styles.chipText, active && { color: colors.onPrimary }]} numberOfLines={1}>{label}</Text>
     </Pressable>
   );
 }
@@ -126,24 +126,24 @@ export const uiStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  circle: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  circle: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.line },
   badgeDot: { position: 'absolute', top: 7, right: 8, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.coral, borderWidth: 1, borderColor: colors.white },
   pill: { minHeight: 40, paddingHorizontal: 18, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   pillPrimary: { backgroundColor: colors.mintDark },
-  pillGhost: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
-  pillText: { fontSize: font.body, fontWeight: '800' },
+  pillGhost: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  pillText: { fontSize: font.body, fontWeight: '600' },
   card: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, padding: spacing.lg },
-  chip: { minHeight: 36, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  chip: { minHeight: 36, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   chipActive: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
   chipText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
-  tag: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: colors.mintSoft },
-  tagOutline: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, borderRadius: radius.pill },
-  tagMuted: { backgroundColor: '#E6ECEA', borderRadius: radius.pill },
+  tag: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, backgroundColor: colors.mintSoft },
+  tagOutline: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.pill },
+  tagMuted: { backgroundColor: colors.raised, borderRadius: radius.pill },
   tagText: { fontSize: font.caption, fontWeight: '700', color: colors.mintDark },
   tile: { alignItems: 'center', justifyContent: 'center' },
   dashed: { flexDirection: 'row', gap: 6, minHeight: 50, borderRadius: radius.card, borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
-  dashedText: { fontSize: font.body, fontWeight: '800', color: colors.mintDark },
-  stat: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 48, paddingHorizontal: spacing.md, borderRadius: 14, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.cream },
+  dashedText: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },
+  stat: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 48, paddingHorizontal: spacing.md, borderRadius: 4, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.cream },
   statLabel: { flex: 1, fontSize: font.body, color: colors.muted },
-  statValue: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  statValue: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
 });

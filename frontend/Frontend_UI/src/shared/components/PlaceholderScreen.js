@@ -24,6 +24,6 @@ export default function PlaceholderScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   body: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  text: { fontSize: font.headline, fontWeight: '800', color: colors.ink },
+  text: { fontSize: font.headline, fontWeight: '600', color: colors.ink },
   sub: { fontSize: font.body, color: colors.muted },
 });

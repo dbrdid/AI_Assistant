@@ -100,3 +100,11 @@ export function groupIntoLines(strokes) {
   });
   return lines.map((ln) => ln.items.sort((a, b) => a.b.minX - b.b.minX).map((it) => it.s));
 }
+
+// Preserve stored pen colours; only adapt legacy dark ink for the dark canvas.
+export function visibleInkColor(color) {
+  const value = String(color).toLowerCase();
+  if (['#000','#000000','#111','#111111','#263935'].includes(value)) return '#f0f0ee';
+  if (value === '#2a6858') return '#b8cbb3';
+  return color;
+}

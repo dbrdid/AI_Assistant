@@ -1,11 +1,17 @@
+import DocumentEditor from '../features/stella/DocumentEditor';
+import LocalModelScreen from '../features/stella/LocalModelScreen';
 // ============================================================
 // AppNavigator.js — "어떤 화면을 보여줄지" 를 정하는 직접 만든 간단한 화면 이동기
 // ============================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, StyleSheet, View } from 'react-native';
-import TabBar from './TabBar';
-import HomeScreen from '../features/home/screens/HomeScreen';
+import StellaWorkspaceScreen from '../features/stella/WorkspaceScreen';
+import { ScreenMotion } from '../shared/components/Motion';
+import TodayScreen from '../features/home/screens/HomeScreen';
+const HomeScreen = props => <StellaWorkspaceScreen {...props} />;
+const RelationsScreen = props => <StellaWorkspaceScreen {...props} mode="relations" />;
+const ReviewScreen = props => <StellaWorkspaceScreen {...props} mode="review" />;
 import MoreScreen from '../features/more/screens/MoreScreen';
 import SpacesScreen from '../features/spaces/screens/SpacesScreen';
 import SpaceHomeScreen from '../features/spaces/screens/SpaceHomeScreen';
@@ -59,9 +65,11 @@ import { ScreenEntryProvider } from './ScreenEntry';
 // 나중에 다른 화면(예: 할 일)을 만들면 이 목록에 한 줄만 추가하면 됩니다.
 //   예)  [ROUTES.Tasks]: TasksScreen,
 // 즐겨찾기 = 메모 화면을 "즐겨찾기만" 보이게 해서 재사용
-const FavoritesScreen = (props) => <MemosScreen {...props} favoritesOnly />;
+const FavoritesScreen = props => <StellaWorkspaceScreen {...props} mode="documents" favoritesOnly />;
 
 const REAL_SCREENS = {
+  [ROUTES.Today]: TodayScreen,
+  [ROUTES.Relations]: RelationsScreen,
   [ROUTES.More]: MoreScreen,                               // '나' (홈 왼쪽 위 프로필)
   [ROUTES.Spaces]: SpacesScreen,                           // 하단 탭 '공간'
   [ROUTES.SpaceHome]: SpaceHomeScreen,                     // 공간 하나의 홈
@@ -70,7 +78,7 @@ const REAL_SCREENS = {
   [ROUTES.ServerError]: ServerErrorScreen,
   [ROUTES.AnalysisFailed]: AnalysisFailedScreen,
   [ROUTES.Notices]: NoticeScreen,                          // 홈 🔔 > 알림
-  [ROUTES.Proposals]: ProposalListScreen,                  // AI 제안 확인 목록
+  [ROUTES.Proposals]: ReviewScreen,                  // AI 제안 확인 목록
   [ROUTES.ProposalConfirm]: ProposalConfirmScreen,         // AI 제안 하나 확인
   [ROUTES.Camera]: CameraScreen,                           // 홈 구슬 > 카메라
   [ROUTES.AgendaCompare]: AgendaCompareScreen,             // 홈 구슬 > 안건 비교
@@ -89,8 +97,11 @@ const REAL_SCREENS = {
   [ROUTES.Calendar]: CalendarScreen, // 사이드 메뉴 "캘린더" + 홈 시트를 끝까지 올렸을 때
   [ROUTES.Ai]: AiChatScreen,         // 사이드 메뉴 "AI 채팅"
   [ROUTES.Search]: SearchScreen,     // 사이드 메뉴 "검색"
-  [ROUTES.Memos]: MemosScreen,       // 사이드 메뉴 "메모" + 검색/AI 결과에서 이동
-  [ROUTES.MemoEdit]: MemoEditScreen, // 메모 작성/편집 (메모 화면의 ＋ 버튼, 메모 카드)
+  [ROUTES.Memos]: props => <StellaWorkspaceScreen {...props} mode="documents" />,       // 사이드 메뉴 "메모" + 검색/AI 결과에서 이동
+  [ROUTES.MemoEdit]: DocumentEditor,
+  [ROUTES.AdvancedMemoEdit]: MemoEditScreen,
+  [ROUTES.AdvancedMemos]: MemosScreen,
+  [ROUTES.LocalModel]: LocalModelScreen, // 메모 작성/편집 (메모 화면의 ＋ 버튼, 메모 카드)
   [ROUTES.Files]: FilesScreen,       // 사이드 메뉴 "파일 보관함" + 검색/AI 결과에서 이동
   [ROUTES.Trash]: TrashScreen,       // 사이드 메뉴 "휴지통" + 메모 화면의 ⋮ 메뉴
   [ROUTES.Favorites]: FavoritesScreen, // 사이드 메뉴 "즐겨찾기" + 메모 화면의 ⋮ 메뉴
@@ -143,7 +154,7 @@ export default function AppNavigator() {
   );
 
   // ---------- 화면 이동 ----------
-  const navigate = useCallback((route, params) => {
+  const navigate = useCallback((route, params, { push = false } = {}) => {
     setHistory((prev) => {
       const top = prev[prev.length - 1];
 
@@ -151,7 +162,7 @@ export default function AppNavigator() {
       if (route === ROUTES.Home) return top.name === ROUTES.Home ? prev : [{ name: ROUTES.Home, key: 0 }];
 
       // 지금 보고 있는 화면으로 다시 이동하는 경우
-      if (top.name === route) {
+      if (top.name === route && !push) {
         if (params === undefined) return prev; // 전달값도 없으면 아무것도 안 함 (메뉴에서 같은 항목 누름)
         // 전달값이 새로 왔다면 지금 화면을 새 전달값으로 "교체" (예: 메모 화면에서 다른 메모로 이동)
         keyRef.current += 1;
@@ -180,12 +191,25 @@ export default function AppNavigator() {
   const goBack = useCallback(() => {
     setHistory((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
   }, []);
+  const setParams = useCallback((params) => {
+    setHistory((prev) => {
+      const top = prev[prev.length - 1];
+      return [...prev.slice(0, -1), { ...top, params: { ...top.params, ...params } }];
+    });
+  }, []);
+  const hardwareBackGuard = useRef(null);
+  const registerHardwareBackGuard = useCallback((guard) => {
+    hardwareBackGuard.current = guard;
+    return () => {
+      if (hardwareBackGuard.current === guard) hardwareBackGuard.current = null;
+    };
+  }, []);
 
   // 안드로이드 하드웨어 뒤로가기 버튼: 홈이 아니면 앱을 끄지 않고 이전 화면으로
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (history.length > 1) {
-        goBack();
+        if (!hardwareBackGuard.current || hardwareBackGuard.current()) goBack();
         return true; // true = 내가 처리했음(앱 종료 안 함)
       }
       return false; // false = 홈에서는 기본 동작(앱 종료/백그라운드)
@@ -211,10 +235,10 @@ export default function AppNavigator() {
   );
 
   // 각 화면에 넘겨줄 navigation 도구 (값이 바뀔 때만 새로 만듦)
-  const navigation = useMemo(() => ({ navigate, goBack }), [navigate, goBack]);
+  const navigation = useMemo(() => ({ navigate, goBack, setParams, registerHardwareBackGuard, selectTab }), [navigate, goBack, setParams, registerHardwareBackGuard, selectTab]);
   const onHome = currentRoute === ROUTES.Home;
   // 탭 첫 화면(홈 포함)에서만 하단 탭을 보여 줌. 그 안에서 들어간 화면(편집 등)은 탭 없이 ‹ 로 돌아옴
-  const tabRoot = onHome || !!current.tab;
+  const tabRoot = onHome || !!current.tab || [ROUTES.Memos, ROUTES.Relations, ROUTES.Proposals].includes(currentRoute);
   const entry = useMemo(() => ({ tabRoot, goBack }), [tabRoot, goBack]);
   // 지금 화면에 맞는 컴포넌트 선택: 등록된 진짜 화면이 있으면 그것, 없으면 임시 화면
   const Screen = REAL_SCREENS[currentRoute] || PlaceholderScreen;
@@ -234,7 +258,7 @@ export default function AppNavigator() {
             route 는 React Navigation 처럼 { name, params } 모양으로 넘깁니다.
             key 가 바뀌면(= 새로 이동하면) 화면이 새로 만들어집니다. */}
         {!onHome && (
-          <View style={styles.fill}>
+          <ScreenMotion style={styles.fill} transitionKey={current.key}>
             <ScreenEntryProvider value={entry}>
               <Screen
                 key={current.key}
@@ -243,11 +267,11 @@ export default function AppNavigator() {
                 route={{ name: current.name, params: current.params }}
               />
             </ScreenEntryProvider>
-          </View>
+          </ScreenMotion>
         )}
       </View>
 
-      {tabRoot && <TabBar current={currentRoute} onSelect={selectTab} />}
+
     </View>
   );
 }

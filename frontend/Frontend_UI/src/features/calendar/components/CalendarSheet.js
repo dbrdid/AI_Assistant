@@ -271,7 +271,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
              닫혀 있을 땐 pointerEvents="none" 이라 아래 화면 터치를 막지 않음 */}
       <Animated.View
         pointerEvents={level !== 'closed' ? 'auto' : 'none'}
-        style={[FILL, { backgroundColor: colors.ink, opacity: backdropOpacity }]}
+        style={[FILL, { backgroundColor: '#000', opacity: backdropOpacity }]}
       >
         <Pressable style={FILL} onPress={() => snapTo('closed')} accessibilityLabel="캘린더 닫기" />
       </Animated.View>
@@ -358,9 +358,9 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
                 <>
                   {/* 공간 칩: 눌러서 그 공간 일정을 켜고 끔 (구글 캘린더의 캘린더 목록처럼) */}
                   {spaceList.length > 1 && (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.spaceChipsBar} contentContainerStyle={styles.spaceChips}>
+                    <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} style={styles.spaceChipsBar} contentContainerStyle={styles.spaceChips}>
                       <Pressable accessibilityRole="button" accessibilityState={{ selected: hiddenSpaces.size === 0 }} onPress={() => setHiddenSpaces(new Set())} style={[styles.spaceChip, hiddenSpaces.size === 0 && styles.spaceChipAll]}>
-                        <Text style={[styles.spaceChipText, hiddenSpaces.size === 0 && { color: colors.white }]}>모두</Text>
+                        <Text style={[styles.spaceChipText, hiddenSpaces.size === 0 && { color: colors.onPrimary }]}>모두</Text>
                       </Pressable>
                       {spaceList.map((w) => {
                         const on = !hiddenSpaces.has(w.id);
@@ -426,7 +426,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
                 return (
                   <View key={k} style={styles.peekCell}>
                     <View style={[styles.peekCircle, isToday && styles.peekToday]}>
-                      <Text style={[styles.peekDay, red && { color: colors.coral }, isToday && { color: colors.white }]}>
+                      <Text style={[styles.peekDay, red && { color: colors.coral }, isToday && { color: colors.onPrimary }]}>
                         {d.getDate()}
                       </Text>
                     </View>
@@ -445,66 +445,31 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
 
 const styles = StyleSheet.create({
   // 시트 본체: 화면 맨 아래에 붙여 두고(position absolute + bottom 0) 위쪽 모서리를 둥글게
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.cream,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    // 그림자 (iOS 는 shadow*, 안드로이드는 elevation)
-    shadowColor: '#263935',
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: -3 },
-    elevation: 12,
-  },
+  sheet: {position:'absolute',left:0,right:0,bottom:0,backgroundColor:colors.cream,borderTopLeftRadius:4,borderTopRightRadius:4,shadowColor:'#263935',shadowOpacity:0,shadowRadius:14,shadowOffset:{width:0,height:-3},elevation:0},
   // 캘린더 화면: 화면 전체를 덮으므로 모서리를 둥글게 하지 않음
   sheetFull: { borderTopLeftRadius: 0, borderTopRightRadius: 0 },
   grab: { paddingBottom: spacing.md },
   barWrap: { height: HOME_BAR, alignItems: 'center', justifyContent: 'center' },
-  bar: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.line },
+  bar: { width: 40, height: 4, borderRadius: 4, backgroundColor: colors.line },
   // 제목 줄: 가운데 '캘린더', 양옆 버튼은 absolute 로 겹쳐 그림
   headerRow: { height: 40, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: font.header, fontWeight: '800', color: colors.ink },
+  headerTitle: {fontSize:17,fontWeight:'600',color:colors.ink},
   side: { position: 'absolute', height: 40, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   sideLeft: { left: spacing.lg },
   sideRight: { right: spacing.lg },
-  todayBtn: {
-    minHeight: 34,
-    paddingHorizontal: 14,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  todayText: { fontSize: 13, fontWeight: '800', color: colors.ink },
+  todayBtn: {minHeight:34,paddingHorizontal:14,borderRadius:4,borderWidth:0,borderColor:colors.line,backgroundColor:'transparent',alignItems:'center',justifyContent:'center'},
+  todayText: { fontSize: 13, fontWeight: '600', color: colors.ink },
   searchOn: { backgroundColor: colors.mintSoft, borderColor: colors.mint },
 
   // 선택한 날의 일정 시트 (흰 바탕 + 둥근 위쪽 + 손잡이 막대)
-  panel: {
-    flexGrow: 1,
-    marginTop: spacing.xs,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    shadowColor: '#263935',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: -2 },
-    elevation: 4,
-  },
-  panelBarWrap: { height: 20, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs },
+  panel: {flexGrow:1,marginTop:spacing.xs,paddingHorizontal:20,backgroundColor:colors.cream,borderTopLeftRadius:0,borderTopRightRadius:0,shadowColor:'#263935',shadowOpacity:0,shadowRadius:12,shadowOffset:{width:0,height:-2},elevation:0,borderTopWidth:1,borderColor:colors.line},
+  panelBarWrap: {height:12,alignItems:'center',justifyContent:'center',marginBottom:spacing.xs},
   spaceChipsBar: { flexGrow: 0, flexShrink: 0, marginBottom: spacing.md },
   spaceChips: { gap: spacing.sm, alignItems: 'center' },
-  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white },
+  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   spaceChipAll: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
   spaceChipOff: { backgroundColor: colors.cream },
-  spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '800', color: colors.ink },
+  spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.ink },
 
   // 홈의 '이번 주' 띠 (흰 바탕, 시트와 같은 둥근 위쪽)
   peek: {
@@ -513,19 +478,19 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: GRAB_HEIGHT,
-    backgroundColor: colors.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
     paddingHorizontal: spacing.lg,
   },
   peekHead: { height: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.sm },
-  peekTitle: { fontSize: 15, fontWeight: '800', color: colors.ink },
-  peekLink: { fontSize: 13, fontWeight: '800', color: colors.mintDark },
+  peekTitle: { fontSize: 15, fontWeight: '600', color: colors.ink },
+  peekLink: { fontSize: 13, fontWeight: '600', color: colors.mintDark },
   peekRow: { flexDirection: 'row' },
   peekWeekday: { flex: 1, textAlign: 'center', fontSize: font.caption, fontWeight: '700', color: colors.muted, paddingVertical: 4 },
   peekCell: { flex: 1, alignItems: 'center' },
-  peekCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  peekCircle: { width: 36, height: 36, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   peekToday: { backgroundColor: colors.mintDark },
-  peekDay: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  peekDay: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   peekDot: { width: 4, height: 4, borderRadius: 2, marginTop: 4, backgroundColor: 'transparent' },
 });

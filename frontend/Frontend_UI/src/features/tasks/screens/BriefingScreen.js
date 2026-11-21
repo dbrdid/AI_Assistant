@@ -47,7 +47,7 @@ export default function BriefingScreen({ navigation }) {
       <Text style={styles.rowTime}>{t.date === todayKey ? t.start || '종일' : shortDate(t)}</Text>
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={[styles.rowTitle, t.status === '완료' && styles.done]} numberOfLines={1}>{t.title}</Text>
-        <Text style={styles.rowMeta} numberOfLines={1}>{[tagText(t, todayKey), t.place].filter(Boolean).join(' · ')}</Text>
+        <Text style={styles.rowMeta} numberOfLines={1}>{[tagText(t, todayKey), t.place].filter(Boolean).join('  /  ')}</Text>
       </View>
     </Pressable>
   );
@@ -55,7 +55,7 @@ export default function BriefingScreen({ navigation }) {
   return (
     <View style={styles.root}>
       <ScreenHeader title="오늘의 브리핑" onBack={navigation.goBack} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Text style={styles.date}>{now.getMonth() + 1}월 {now.getDate()}일 {WEEKDAYS_LONG[now.getDay()]}</Text>
         {empty ? (
           <Text style={styles.empty}>오늘은 브리핑할 내용이 없어요</Text>
@@ -77,7 +77,7 @@ export default function BriefingScreen({ navigation }) {
                   </View>
                   <Icon name="chevronRight" size={18} color={colors.muted} />
                 </View>
-                <Text style={styles.rowMeta}>AI가 찾은 일정·할 일을 확인해 주세요</Text>
+                <Text style={styles.rowMeta}>AI가 찾은 일정 / 할 일을 확인해 주세요</Text>
               </Pressable>
             )}
             <Section title="마감 임박" count={soon.length} open={soonOpen} onToggle={() => setSoonOpen((v) => !v)}>
@@ -101,11 +101,11 @@ const styles = StyleSheet.create({
   section: { gap: spacing.sm, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   headLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 28 },
-  sectionTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  sectionTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   flip: { transform: [{ rotate: '180deg' }] },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.cream, borderWidth: 1, borderColor: colors.line },
-  rowTime: { minWidth: 48, fontSize: font.body, fontWeight: '800', color: colors.mintDark },
-  rowTitle: { fontSize: font.body, fontWeight: '800', color: colors.ink },
+  rowTime: { minWidth: 48, fontSize: font.body, fontWeight: '600', color: colors.mintDark },
+  rowTitle: { fontSize: font.body, fontWeight: '600', color: colors.ink },
   rowMeta: { fontSize: font.caption, color: colors.muted },
   done: { color: colors.muted, textDecorationLine: 'line-through' },
 });

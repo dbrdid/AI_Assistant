@@ -3,7 +3,12 @@
 // ============================================================
 
 export const ROUTES = {
-  Home: 'Home',           // 홈
+  Home: 'Home',
+  AdvancedMemoEdit: 'AdvancedMemoEdit',
+  AdvancedMemos: 'AdvancedMemos',
+  LocalModel: 'LocalModel',
+  Today: 'Today',
+  Relations: 'Relations',           // 홈
   Search: 'Search',       // 검색
   Calendar: 'Calendar',   // 캘린더
   Ai: 'Ai',               // AI 채팅
@@ -51,11 +56,10 @@ export const ROUTES = {
 // 하단 탭. 배열 순서 = 화면 왼쪽부터. icon 은 shared/components/Icon.js 이름
 //   오늘·캘린더·할 일·메모 = 모든 공간을 합친 "나" 보기 · 공간 = 공간(팀)별 홈
 export const TABS = [
-  { route: ROUTES.Home, label: '오늘', icon: 'home' },
-  { route: ROUTES.Calendar, label: '캘린더', icon: 'calendar' },
-  { route: ROUTES.Tasks, label: '할 일', icon: 'checkSquare' },
-  { route: ROUTES.Memos, label: '메모', icon: 'file' },
-  { route: ROUTES.Spaces, label: '공간', icon: 'users' },
+  { route: ROUTES.Home, label: '홈', icon: 'home' },
+  { route: ROUTES.Memos, label: '문서', icon: 'file' },
+  { route: ROUTES.Relations, label: '문서 관계', icon: 'link' },
+  { route: ROUTES.Proposals, label: '작업 검토', icon: 'checkSquare' },
 ];
 
 // '나' 화면(홈 왼쪽 위 프로필)의 목록. 묶음(section)마다 한 카드로 보입니다

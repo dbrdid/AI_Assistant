@@ -1,3 +1,4 @@
+import { SheetModal } from '../../../shared/components/Motion';
 // ============================================================
 // MemoEditScreen.js — 메모 쓰기 / 편집 화면
 // ============================================================
@@ -5,6 +6,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -21,13 +23,22 @@ import ScreenHeader from '../../../shared/components/ScreenHeader';
 import InkCanvas from '../components/InkCanvas';
 import PhotoStrip from '../components/PhotoStrip';
 import MemoLinks from '../components/MemoLinks';
+import MemoBlockEditor from '../components/MemoBlockEditor';
+import MemoBlockReader from '../components/MemoBlockReader';
+import MemoReferences from '../components/MemoReferences';
 import { ROUTES } from '../../../navigation/routes';
 import { analyzeText } from '../../../services/ai/AiAnalyze';
 import { runtime, maybeRuntime, registerSessionFlush } from '../../../integration/runtime';
 import SelectionOverlay from '../components/SelectionOverlay';
 import { recognizeStrokes } from '../../../services/ai/Handwriting';
 import { strokesInRect } from '../utils/InkUtils';
-import { addMemo, deleteMemoForever, getMemo, trashMemo, updateMemo } from '../../../data/memos/MemoStore';
+import { addMemo, findMemoSyncConflict, getMemo, listMemoVersions, memoTitle, setMemoParent, trashMemo, updateMemo, useMemos } from '../../../data/memos/MemoStore';
+import { rankSearchRows, searchTerms } from '../../../data/memos/memoSearch.mjs';
+import { useWorkspaceAccessClosed, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
+import { alertUser } from '../../../data/alert';
+import { shareMarkdownFile } from '../../../services/device/ShareTextFile';
+import { shareMemoPdf } from '../utils/shareMemoPdf';
+import { memoMarkdown } from '../utils/memoMarkdown.mjs';
 import { projectOf, setItemProject, useProjects } from '../../../data/projects/ProjectStore';
 import { summarizeText } from '../../../services/ai/AiSummary';
 import { addUsage } from '../../../data/settings/SettingsStore';
@@ -55,7 +66,7 @@ function ToolBtn({ icon, label, active, disabled, onPress }) {
       style={({ pressed }) => [styles.tool, active && styles.toolOn, pressed && !active && { backgroundColor: colors.cream }, disabled && { opacity: 0.3 }]}
     >
       <Icon name={icon} size={22} color={tint} strokeWidth={active ? 2.1 : 1.8} />
-      <Text style={[styles.toolLabel, active && styles.toolLabelOn]} numberOfLines={1}>{label}</Text>
+
     </Pressable>
   );
 }
@@ -69,21 +80,60 @@ const summaryLines = (text) =>
 
 export default function MemoEditScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const memoId = route.params?.memoId;
   // 편집할 기존 메모 (새 메모면 null). 화면이 열릴 때 한 번만 찾음
   const original = useMemo(() => (memoId ? getMemo(memoId) : null), [memoId]);
+  const savedId = useRef(original?.id ?? null);
+  const { current: workspace } = useWorkspaces();
+  const accessClosed = useWorkspaceAccessClosed(workspace.id);
+  const canEdit = workspace.personal || (!accessClosed && workspace.roleCode !== 'VIEWER');
+  const supportsHierarchy = workspace.personal || process.env.EXPO_PUBLIC_SHARED_PAGE_HIERARCHY === 'true';
+  const memos = useMemos();
+  const [isParentPickerOpen, setParentPickerOpen] = useState(false);
+  const [parentQuery, setParentQuery] = useState('');
+  const [versions, setVersions] = useState(null);
+  const [previewVersion, setPreviewVersion] = useState(null);
+  const [showSaveConflict, setShowSaveConflict] = useState(false);
+  const [syncConflict, setSyncConflict] = useState(null);
+  const [isResolvingSyncConflict, setResolvingSyncConflict] = useState(false);
+  const [syncConflictError, setSyncConflictError] = useState('');
+  const resolvingSyncConflict = useRef(false);
+  const exportingMarkdown = useRef(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [draftParentId, setDraftParentId] = useState(route.params?.parentMemoId ?? null);
+  const persistedMemo = memos.find((memo) => memo.id === savedId.current);
+  const activeMemo = supportsHierarchy && persistedMemo;
+  const parentId = activeMemo ? activeMemo.parentMemoId : draftParentId;
+  const parent = memos.find((memo) => memo.id === parentId);
+  const children = activeMemo ? memos.filter((memo) => memo.parentMemoId === memoId) : [];
+  const parentCandidates = useMemo(() => {
+    if (!isParentPickerOpen) return [];
+    const byId = new Map(memos.map((memo) => [memo.id, memo]));
+    return memos.filter((candidate) => {
+      for (let ancestor = candidate; ancestor; ancestor = byId.get(ancestor.parentMemoId)) {
+        if (ancestor.id === persistedMemo?.id) return false;
+      }
+      return true;
+    }).map(memo => ({ id: memo.id, title: memoTitle(memo) }));
+  }, [isParentPickerOpen, memos, persistedMemo?.id]);
+  const parentTerms = searchTerms(parentQuery);
+  const matchingParents = parentTerms.length ? rankSearchRows(parentCandidates, parentTerms) : parentCandidates;
 
   // ---------- 입력 상태 ----------
   const [title, setTitle] = useState(original ? original.title : '');
   const [body, setBody] = useState(original ? original.body : '');
+  const [showBlocks, setShowBlocks] = useState(route.params?.showBlocks === true);
   const [strokes, setStrokes] = useState(original?.strokes || []); // 손글씨 획들
-  const [mode, setMode] = useState('keyboard');   // 'keyboard' | 'pen' | 'eraser' | 'move' | 'convert'
+  const [editMode, setMode] = useState('keyboard');
+  const mode = canEdit ? editMode : 'move';
   const [penColor, setPenColor] = useState(PEN_COLORS[0]);
   const [penWidth, setPenWidth] = useState(PEN_WIDTHS[1]);
   const [confirmDelete, setConfirmDelete] = useState(false); // 삭제 확인 창 표시 여부
   const [keyboardUp, setKeyboardUp] = useState(false);       // 키보드가 올라와 있나 (아래 여백 조절용)
   const [notice, setNotice] = useState('');                  // 잠깐 보여주는 안내 글자
+  const [saveStatus, setSaveStatus] = useState('');
   const [errView, setErrView] = useState(null); // 오류 안내 창 { kind:'network'|'server', retry }
   const [converting, setConverting] = useState(false);       // 손글씨를 글자로 바꾸는 중인가
   const bodyRef = useRef(null);
@@ -104,68 +154,159 @@ export default function MemoEditScreen({ navigation, route }) {
 
   // ---------- "나갈 때 자동 저장" 을 위한 준비 ----------
   // 화면이 사라질 때 실행되는 코드는 "그때의 최신 입력값"이 필요해서 ref 에 계속 복사해 둡니다.
-  const latest = useRef({ title, body, strokes, projectId });
-  latest.current = { title, body, strokes, projectId };
+  const latest = useRef({ title, body, strokes, projectId, draftParentId });
+  latest.current = { title, body, strokes, projectId, draftParentId };
+  const savedDraft = useRef(latest.current);
+  const savedRevision = useRef(original?.revision);
+  const pendingAnalysis = useRef(false);
   const skipSave = useRef(false);                          // true 면 나갈 때 저장하지 않음 (삭제한 경우)
-  const savedId = useRef(original ? original.id : null);   // 기존 메모의 번호 (새 메모면 null)
   const flushRef = useRef(null);
+  const editorScope = useRef({ runtime: runtime(), workspaceId: workspace.id });
 
   // 이 화면이 사라질 때(어떤 방법으로 나가든) 한 번 실행됨
   useEffect(
     () => {
       const own = runtime(); const workspaceId = own.store.getCurrentWorkspace().id;
-      const flush = ({ analyze = true } = {}) => {
-        if (maybeRuntime() !== own || own.store.getCurrentWorkspace().id !== workspaceId) return;
+      const flush = ({ analyze = true, checkpoint = false } = {}) => {
+        if (maybeRuntime() !== own) return;
+        const currentWorkspace = own.store.getCurrentWorkspace();
+        if (currentWorkspace.id !== workspaceId) return;
         if (skipSave.current) return;
         const t = latest.current.title.trim();
         const b = latest.current.body.trim();
         const s = latest.current.strokes;
-        const id = savedId.current;
+        let id = savedId.current;
+        const previous = savedDraft.current;
+        const contentChanged = previous.title.trim() !== t || previous.body.trim() !== b || previous.strokes !== s;
+        const projectChanged = previous.projectId !== latest.current.projectId;
+        if (!currentWorkspace.personal && (currentWorkspace.roleCode === 'VIEWER' || own.closedSpaces.has(workspaceId))) {
+          if (contentChanged || projectChanged) {
+            throw Object.assign(new Error('이 공간의 편집 권한이 변경됐어요.'), { code: 'editor_permission_changed' });
+          }
+          return false;
+        }
         const empty = !t && !b && s.length === 0; // 글자도 필기도 없음
+        if (checkpoint && empty) return false;
 
         if (!id) {
-          // 새 메모: 내용이 있을 때만 추가
-          if (!empty) {
-            const m = addMemo({ title: t, body: b, strokes: s });
-            savedId.current = m.id;
-            if (b && analyze) analyzeText({ sourceType: 'memo', sourceId: m.id, sourceTitle: t || b.slice(0, 20), text: b });
-            if (latest.current.projectId) setItemProject('memos', m.id, latest.current.projectId);
+          if (empty) return false;
+          const memo = addMemo({ title: t, body: b, strokes: s, parentMemoId: latest.current.draftParentId });
+          id = memo.id;
+          savedId.current = id;
+          savedRevision.current = memo.revision;
+          pendingAnalysis.current = !!b;
+          savedDraft.current = { ...latest.current, projectId: null };
+        } else if (contentChanged || projectChanged) {
+          const current = getMemo(id);
+          if (!current || current.deletedAt !== null || (contentChanged && current.revision !== savedRevision.current)) {
+            throw Object.assign(new Error('다른 곳에서 메모가 변경됐어요.'), { code: 'revision_conflict' });
           }
-          return;
+          if (contentChanged && empty) {
+            trashMemo(id); // 휴지통에서 마지막으로 저장된 내용을 복구할 수 있음
+            savedId.current = null;
+            savedDraft.current = latest.current;
+            pendingAnalysis.current = false;
+            return true;
+          }
+          if (contentChanged) {
+            const updated = updateMemo(id, { title: t, body: b, strokes: s }, { expectedRevision: savedRevision.current });
+            savedRevision.current = updated.revision;
+            if (current.body !== b) pendingAnalysis.current = !!b;
+            savedDraft.current = { ...latest.current, projectId: previous.projectId };
+          }
         }
-        // 기존 메모
-        if (empty) {
-          deleteMemoForever(id); // 전부 지웠으면 빈 메모는 휴지통 없이 바로 삭제
-          savedId.current = null;
-          return;
+        if (!checkpoint && savedDraft.current.projectId !== latest.current.projectId) {
+          if (!setItemProject('memos', id, latest.current.projectId)) throw new Error('프로젝트 연결을 저장하지 못했어요.');
         }
-        const current = getMemo(id);
-        const changed =
-          current &&
-          (current.title !== t ||
-            current.body !== b ||
-            JSON.stringify(current.strokes || []) !== JSON.stringify(s));
-        if (changed) {
-          updateMemo(id, { title: t, body: b, strokes: s }); // 바뀐 게 있을 때만 수정(수정일이 괜히 바뀌지 않게)
-          if (b && analyze && current.body !== b) analyzeText({ sourceType: 'memo', sourceId: id, sourceTitle: t || b.slice(0, 20), text: b });
+        if (!checkpoint && pendingAnalysis.current) {
+          if (analyze && getMemo(id)?.revision === savedRevision.current) {
+            analyzeText({ sourceType: 'memo', sourceId: id, sourceTitle: t || b.slice(0, 20), text: b });
+          }
+          pendingAnalysis.current = false;
         }
-        // 프로젝트를 바꿨으면 연결도 바꿈
-        const nowProject = projectOf('memos', id)?.id ?? null;
-        if (nowProject !== latest.current.projectId) setItemProject('memos', id, latest.current.projectId);
+        if (checkpoint) return contentChanged;
+        savedDraft.current = latest.current;
+        return true;
       };
       flushRef.current = flush;
       const unregister = registerSessionFlush(flush);
-      return () => { unregister(); flush(); flushRef.current = null; };
+      return () => {
+        unregister();
+        try {
+          flush();
+        } catch (error) {
+          alertUser('메모를 저장하지 못했어요', error.message);
+        } finally {
+          flushRef.current = null;
+        }
+      };
     },
     [],
   );
 
+  const checkpointMemo = useCallback(() => {
+    try {
+      if (flushRef.current?.({ analyze: false, checkpoint: true })) setSaveStatus('기기에 저장됨');
+    } catch (error) {
+      if (error.code === 'editor_permission_changed') {
+        setSaveStatus('편집 권한이 바뀌었어요 · 초안 보존 중');
+      } else {
+        setSaveStatus(error.code === 'revision_conflict' ? '저장 충돌 · 완료에서 해결' : '자동 저장 실패 · 완료에서 다시 시도');
+      }
+    }
+  }, []);
+  useEffect(() => {
+    if (!canEdit) return undefined;
+    const previous = savedDraft.current;
+    if (previous.title.trim() === title.trim() && previous.body.trim() === body.trim() && previous.strokes === strokes) {
+      setSaveStatus('');
+      return undefined;
+    }
+    if (!title.trim() && !body.trim() && strokes.length === 0) {
+      setSaveStatus('');
+      return undefined;
+    }
+    setSaveStatus('저장 대기 중');
+    const timer = setTimeout(checkpointMemo, 1600);
+    return () => clearTimeout(timer);
+  }, [body, canEdit, checkpointMemo, strokes, title]);
+  useEffect(() => {
+    if (!canEdit) return undefined;
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'background') checkpointMemo();
+    });
+    return () => subscription.remove();
+  }, [canEdit, checkpointMemo]);
+
   // ---------- 되돌리기 / 다시 실행 ----------
-  // hist.list : 지금까지의 "상태 사진" 목록 ({ body, strokes }). hist.i : 지금 보고 있는 사진 번호
-  const hist = useRef({ list: [{ body: original ? original.body : '', strokes: original?.strokes || [] }], i: 0 });
+  const hist = useRef({ list: [{ title, body, strokes }], i: 0 });
   const textTimer = useRef(null); // 글자 입력은 잠깐 멈췄을 때 한 번에 기록(글자마다 기록하면 되돌리기가 너무 잘게 쪼개짐)
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+
+  useEffect(() => {
+    if (!persistedMemo || persistedMemo.revision === savedRevision.current) return;
+    const draft = latest.current;
+    const saved = savedDraft.current;
+    if (draft.title !== saved.title || draft.body !== saved.body || draft.strokes !== saved.strokes) {
+      setSaveStatus('다른 곳에서 변경됨 · 완료에서 해결');
+      return;
+    }
+    const next = { ...draft, title: persistedMemo.title, body: persistedMemo.body, strokes: persistedMemo.strokes };
+    savedRevision.current = persistedMemo.revision;
+    savedDraft.current = { ...next, projectId: saved.projectId };
+    latest.current = next;
+    pendingAnalysis.current = false;
+    clearTimeout(textTimer.current);
+    textTimer.current = null;
+    hist.current = { list: [{ title: next.title, body: next.body, strokes: next.strokes }], i: 0 };
+    setCanUndo(false);
+    setCanRedo(false);
+    setTitle(next.title);
+    setBody(next.body);
+    setStrokes(next.strokes);
+    setSaveStatus('');
+  }, [persistedMemo]);
 
   const syncButtons = () => {
     setCanUndo(hist.current.i > 0);
@@ -175,9 +316,10 @@ export default function MemoEditScreen({ navigation, route }) {
   // 현재 상태를 기록. 직전 기록과 같으면 무시
   const record = useCallback(() => {
     const h = hist.current;
-    const snap = { body: latest.current.body, strokes: latest.current.strokes };
+    const { title, body, strokes } = latest.current;
+    const snap = { title, body, strokes };
     const cur = h.list[h.i];
-    if (cur.body === snap.body && cur.strokes === snap.strokes) return;
+    if (cur.title === title && cur.body === body && cur.strokes === strokes) return;
     h.list = h.list.slice(0, h.i + 1); // 되돌린 뒤 새로 쓰면 "다시 실행" 기록은 버림
     h.list.push(snap);
     if (h.list.length > 100) h.list.shift(); // 최대 100단계
@@ -195,13 +337,17 @@ export default function MemoEditScreen({ navigation, route }) {
   }, [record]);
   useEffect(() => () => clearTimeout(textTimer.current), []);
 
-  const onChangeBody = (t) => {
-    setBody(t);
+  const scheduleTextRecord = () => {
     clearTimeout(textTimer.current);
     textTimer.current = setTimeout(() => {
       textTimer.current = null;
       record(); // 이 시점엔 latest.current 가 이미 새 글자로 갱신돼 있음
     }, 700);
+  };
+  const onChangeBody = (text) => {
+    latest.current = { ...latest.current, body: text };
+    setBody(text);
+    scheduleTextRecord();
   };
 
   // 필기를 하나 그렸거나 지웠을 때 (InkCanvas 가 호출)
@@ -213,7 +359,8 @@ export default function MemoEditScreen({ navigation, route }) {
   };
 
   const restore = (snap) => {
-    latest.current = { ...latest.current, body: snap.body, strokes: snap.strokes };
+    latest.current = { ...latest.current, title: snap.title, body: snap.body, strokes: snap.strokes };
+    setTitle(snap.title);
     setBody(snap.body);
     setStrokes(snap.strokes);
     syncButtons();
@@ -404,21 +551,163 @@ export default function MemoEditScreen({ navigation, route }) {
     setConfirmDelete(false);
     navigation.goBack();
   };
+  const saveBeforeLeaving = useCallback(() => {
+    try {
+      flushRef.current?.();
+      return true;
+    } catch (error) {
+      if (error.code === 'revision_conflict' || error.code === 'editor_permission_changed') {
+        setShowSaveConflict(true);
+        return false;
+      }
+      alertUser('메모를 저장하지 못했어요', error.field === 'parentMemoId'
+        ? '상위 페이지를 사용할 수 없어요. 페이지 이동에서 다른 상위 페이지나 최상위를 선택해 주세요.'
+        : error.message);
+      return false;
+    }
+  }, []);
+  useEffect(() => navigation.registerHardwareBackGuard?.(saveBeforeLeaving), [navigation, saveBeforeLeaving]);
+  const saveAndClose = () => { if (saveBeforeLeaving()) navigation.goBack(); };
+  const saveConflictCopy = () => {
+    if (skipSave.current) return;
+    const scope = editorScope.current;
+    if (maybeRuntime() !== scope.runtime || scope.runtime.store.getCurrentWorkspace().id !== scope.workspaceId) {
+      alertUser('별도 메모를 저장하지 못했어요', '편집을 시작한 공간으로 돌아간 뒤 다시 시도해 주세요.');
+      return;
+    }
+    const draft = latest.current;
+    try {
+      const copy = addMemo({ title: draft.title.trim() || '복구한 메모', body: draft.body.trim(), strokes: draft.strokes });
+      skipSave.current = true;
+      setShowSaveConflict(false);
+      navigation.navigate(ROUTES.MemoEdit, { memoId: copy.id });
+    } catch (error) {
+      alertUser('별도 메모를 저장하지 못했어요', error.message);
+    }
+  };
+  const canAccessCurrentPage = () => {
+    const { runtime: own, workspaceId } = editorScope.current;
+    return maybeRuntime() === own && own.store.getCurrentWorkspace().id === workspaceId && !own.closedSpaces.has(workspaceId);
+  };
+  const openRelatedPage = (relatedId, fromReference = false) => {
+    if (!canAccessCurrentPage()) {
+      alertUser('페이지를 열 수 없어요', '현재 공간에서 이 페이지를 열 수 없어요.');
+      return false;
+    }
+    if (!memos.some(memo => memo.id === relatedId)) {
+      alertUser('페이지를 열 수 없어요', '현재 공간에서 찾을 수 없는 페이지예요.');
+      return false;
+    }
+    if (!saveBeforeLeaving()) return false;
+    if (fromReference) navigation.navigate(ROUTES.MemoEdit, { memoId: relatedId, showBlocks }, { push: true });
+    else navigation.navigate(ROUTES.MemoEdit, { memoId: relatedId });
+    return true;
+  };
+  const openReferencedPage = (relatedId) => openRelatedPage(relatedId, true);
+  const createChildPage = () => {
+    if (!saveBeforeLeaving() || !savedId.current) return;
+    navigation.navigate(ROUTES.MemoEdit, { parentMemoId: savedId.current }, { push: true });
+  };
+  const moveToParent = (nextParentId) => {
+    try {
+      if (activeMemo) setMemoParent(activeMemo.id, nextParentId);
+      else setDraftParentId(nextParentId);
+      setParentPickerOpen(false);
+    } catch {
+      alertUser('페이지를 이동하지 못했어요', '상위 페이지가 여전히 사용 가능한지 확인해 주세요.');
+    }
+  };
+  const closeHistory = () => {
+    setVersions(null);
+    setPreviewVersion(null);
+  };
+  useEffect(() => {
+    if (!accessClosed) return;
+    setExportOpen(false);
+    setVersions(null);
+    setPreviewVersion(null);
+  }, [accessClosed]);
+  const openSyncConflict = async () => {
+    if (resolvingSyncConflict.current) return;
+    try {
+      const conflict = await findMemoSyncConflict(savedId.current);
+      if (conflict) {
+        setSyncConflictError('');
+        setSyncConflict(conflict);
+      }
+      else showNotice('이 문서에 해결할 동기화 문제가 없어요.');
+    } catch (error) {
+      alertUser('동기화 문제를 불러오지 못했어요', error.message);
+    }
+  };
+  const closeSyncConflict = () => {
+    if (!resolvingSyncConflict.current) setSyncConflict(null);
+  };
+  const conflictParentTitle = id => {
+    if (!id) return '최상위';
+    const page = memos.find(memo => memo.id === id);
+    return page ? memoTitle(page) : '열 수 없는 페이지';
+  };
+  const resolveSyncConflict = async choice => {
+    if (!syncConflict || resolvingSyncConflict.current) return;
+    resolvingSyncConflict.current = true;
+    setResolvingSyncConflict(true);
+    setSyncConflictError('');
+    try {
+      const result = await syncConflict.resolve(choice);
+      setSyncConflict(null);
+      if (result?.hasOtherSyncIssues) showNotice('페이지 이동을 취소했어요. 동기화가 멈춘 다른 변경이 있어요.');
+      else showNotice(syncConflict.isRejectedMove ? '페이지 이동을 취소했어요.' : '동기화에 사용할 변경을 선택했어요.');
+    } catch (error) {
+      setSyncConflictError(error.message || '충돌을 해결하지 못했어요. 다시 시도해 주세요.');
+    } finally {
+      resolvingSyncConflict.current = false;
+      setResolvingSyncConflict(false);
+    }
+  };
+  const loadVersionIntoEditor = () => {
+    flushText();
+    const { title, body, strokes } = previewVersion;
+    latest.current = { ...latest.current, title, body, strokes };
+    setTitle(title);
+    setBody(body);
+    setStrokes(strokes);
+    record();
+    closeHistory();
+  };
+  const exportMarkdown = async () => {
+    if (!canAccessCurrentPage() || exportingMarkdown.current) return;
+    exportingMarkdown.current = true;
+    try {
+      await shareMarkdownFile(memoMarkdown(latest.current));
+    } catch (error) {
+      alertUser('Markdown 파일을 내보내지 못했어요', error.message);
+    } finally {
+      exportingMarkdown.current = false;
+    }
+  };
+  const exportCurrentPdf = async () => {
+    setExportOpen(false);
+    if (!canAccessCurrentPage()) return;
+    try {
+      await shareMemoPdf(latest.current);
+    } catch (error) {
+      alertUser('PDF를 내보내지 못했어요', error.message);
+    }
+  };
 
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       {/* 헤더 (여기에 밀기 제스처 연결. 입력창/필기 영역은 겹쳐서 제외) */}
       <View>
-        {/* 시안: 가운데 제목 없이 왼쪽 ‹ · 오른쪽 휴지통 + 완료 */}
         <ScreenHeader
-          title=""
-          onBack={navigation.goBack}
-          right={
-            <>
-              {original && <CircleButton icon="trash" label="메모 삭제" onPress={() => setConfirmDelete(true)} />}
-              <PillButton label="완료" onPress={navigation.goBack} />
-            </>
-          }
+          title={workspace.name}
+          onBack={saveAndClose}
+          titleRightInset={canEdit ? 136 : undefined}
+          right={<>
+            {canEdit && <PillButton label="완료" onPress={saveAndClose} />}
+            <CircleButton icon="moreHorizontal" label="문서 도구 열기" onPress={() => setDetailsOpen(true)} />
+          </>}
         />
       </View>
 
@@ -427,48 +716,91 @@ export default function MemoEditScreen({ navigation, route }) {
         <TextInput
           style={styles.titleInput}
           value={title}
-          onChangeText={setTitle}
+          onChangeText={(text) => {
+            latest.current = { ...latest.current, title: text };
+            setTitle(text);
+            scheduleTextRecord();
+          }}
           placeholder="제목"
           placeholderTextColor={colors.muted}
-          autoFocus={!original} // 새 메모일 때만 바로 키보드가 올라옴
+          editable={canEdit}
+          autoFocus={canEdit && !original}
           maxLength={80}
           accessibilityLabel="메모 제목"
         />
 
+        <SheetModal visible={detailsOpen} onClose={() => setDetailsOpen(false)} label="문서 도구"><View style={styles.detailHeading}><Text style={styles.detailTitle}>문서 도구</Text><CircleButton icon="x" label="문서 도구 닫기" onPress={() => setDetailsOpen(false)} /></View><ScrollView keyboardShouldPersistTaps="handled"><View style={styles.detailActions}>{!accessClosed && <PillButton kind="ghost" label="내보내기" onPress={() => { setDetailsOpen(false); setExportOpen(true); }} />}{!!persistedMemo && canEdit && <PillButton kind="ghost" label="휴지통으로 이동" onPress={() => { setDetailsOpen(false); setConfirmDelete(true); }} />}</View>
         {/* 프로젝트(폴더) 고르기 + 마지막 수정 시각 */}
         <View style={styles.metaRow}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`프로젝트 선택, 현재 ${projectName || '없음'}`}
+            disabled={!canEdit}
             onPress={() => setPickingProject(true)}
             hitSlop={8}
             style={({ pressed }) => [styles.projPill, pressed && { opacity: 0.75 }]}
           >
             <Icon name="folder" size={14} color={colors.mintDark} strokeWidth={2} />
             <Text style={styles.projPillText} numberOfLines={1}>{projectName || '프로젝트 선택'}</Text>
-            <Icon name="chevronDown" size={14} color={colors.mintDark} strokeWidth={2} />
+            {canEdit && <Icon name="chevronDown" size={14} color={colors.mintDark} strokeWidth={2} />}
           </Pressable>
+          {!canEdit && <Text accessibilityLiveRegion="polite" style={styles.edited}>{accessClosed ? '공유 공간 접근 종료' : '보기 전용'}</Text>}
+          {!!saveStatus && <Text accessibilityLiveRegion="polite" style={styles.edited}>{saveStatus}</Text>}
           {original && <Text style={styles.edited} numberOfLines={1}>{dateLabel(original.updatedAt, new Date(), true)} 수정</Text>}
         </View>
 
-        {original && <MemoLinks memoId={original.id} navigation={navigation} />}
-        {original && <PhotoStrip memoId={original.id} />}
+        {original && !accessClosed && <MemoLinks memoId={original.id} navigation={navigation} />}
+        {original && !accessClosed && <PhotoStrip memoId={original.id} canDetach={canEdit} />}
+        {!accessClosed && <View style={styles.editorViewToggle}>
+          <MemoReferences body={body} memos={memos} memoId={persistedMemo?.id} canEdit={canEdit} onChange={onChangeBody} onOpen={openReferencedPage} />
+        </View>}
+        {!!persistedMemo && !accessClosed && (
+          <View style={styles.editorViewToggle}>
+            <PillButton kind="ghost" label="편집 기록" onPress={() => setVersions(listMemoVersions(persistedMemo.id))} />
+            {workspace.serverId && canEdit && <PillButton kind="ghost" label="동기화 문제" onPress={openSyncConflict} />}
+          </View>
+        )}
+        {!accessClosed && !!(activeMemo || (supportsHierarchy && draftParentId)) && (
+          <View style={styles.hierarchy}>
+            <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hierarchyRow}>
+              {!!parent && <PillButton kind="ghost" label={`상위 · ${memoTitle(parent)}`} onPress={() => openRelatedPage(parent.id)} />}
+              {!!parentId && !parent && <Text style={styles.edited}>상위 페이지를 열 수 없어요</Text>}
+              {canEdit && <PillButton kind="ghost" label="페이지 이동" onPress={() => {
+                setParentQuery('');
+                setParentPickerOpen(true);
+              }} />}
+              {!!activeMemo && canEdit && <PillButton kind="ghost" label="하위 페이지 추가" onPress={createChildPage} />}
+              {children.map((child) => <PillButton key={child.id} kind="ghost" label={`하위 · ${memoTitle(child)}`} onPress={() => openRelatedPage(child.id)} />)}
+            </ScrollView>
+          </View>
+        )}
+        {mode === 'keyboard' && strokes.length === 0 && (
+          <View style={styles.editorViewToggle}>
+            <PillButton kind="ghost" label={showBlocks ? '텍스트 편집' : '블록 편집'} onPress={() => setShowBlocks(!showBlocks)} />
+          </View>
+        )}
 
+        </ScrollView></SheetModal>
         {/* 메모 영역: 위아래로 스크롤되는 긴 페이지. 글자 입력창 위에 필기 캔버스를 겹쳐 둠.
             펜/지우개일 땐 한 손가락이 "그리기"라서 스크롤을 잠그고, ✋ 이동 모드에서 넘김 */}
         <ScrollView
           ref={scrollRef}
-          style={styles.scroll}
+          style={[styles.scroll, styles.webScrollbar]}
+          indicatorStyle="white"
           scrollEnabled={mode === 'keyboard' || mode === 'move'}
           keyboardShouldPersistTaps="handled"
           onLayout={(e) => setViewH(e.nativeEvent.layout.height)}
           onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
           scrollEventThrottle={16}
         >
-          <View style={{ height: pageH }}>
+          {!canEdit && strokes.length === 0 ? (
+            <MemoBlockReader body={body} pages={memos} onOpenPage={accessClosed ? undefined : openReferencedPage} />
+          ) : showBlocks && mode === 'keyboard' && strokes.length === 0 ? (
+            <MemoBlockEditor body={body} onChange={onChangeBody} />
+          ) : <View style={{ height: pageH }}>
             <TextInput
               ref={bodyRef}
-              style={styles.bodyInput}
+              style={[styles.bodyInput, styles.webScrollbar]}
               value={body}
               onChangeText={onChangeBody}
               editable={mode === 'keyboard'} // 다른 모드에서는 글자 입력 잠금
@@ -484,9 +816,137 @@ export default function MemoEditScreen({ navigation, route }) {
             {mode === 'convert' && !converting && (
               <SelectionOverlay onSelect={(r) => convert(strokesInRect(latest.current.strokes, r))} />
             )}
-          </View>
+          </View>}
         </ScrollView>
       </View>
+
+      <Modal transparent visible={exportOpen && !accessClosed} animationType="fade" onRequestClose={() => setExportOpen(false)}>
+        <View style={styles.backdrop}>
+          <View style={styles.dialog} accessibilityViewIsModal>
+            <Text accessibilityRole="header" style={styles.dialogTitle}>메모 내보내기</Text>
+            <PillButton label="PDF · 텍스트와 손글씨" onPress={exportCurrentPdf} />
+            {!!(title.trim() || body.trim()) && (
+              <PillButton kind="ghost" label="Markdown · 텍스트" onPress={() => {
+                setExportOpen(false);
+                void exportMarkdown();
+              }} />
+            )}
+            <PillButton kind="ghost" label="닫기" onPress={() => setExportOpen(false)} />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={showSaveConflict} animationType="fade" onRequestClose={() => setShowSaveConflict(false)}>
+        <View style={styles.backdrop}>
+          <View style={styles.dialog} accessibilityViewIsModal>
+            <Text accessibilityRole="header" style={styles.dialogTitle}>{accessClosed
+              ? '공유 공간에 대한 접근이 종료됐어요'
+              : canEdit ? '메모가 다른 곳에서 변경됐어요' : '편집 권한이 변경됐어요'}</Text>
+            <Text style={styles.dialogSub}>{canEdit
+              ? '입력한 제목, 본문, 손글씨를 같은 공간의 별도 메모로 저장할 수 있어요.'
+              : '저장하지 않은 변경이 있어요. 화면에 머물면 초안을 확인할 수 있어요.'}</Text>
+            {canEdit ? <PillButton label="별도 메모로 저장" onPress={saveConflictCopy} />
+              : <PillButton label="저장하지 않고 닫기" onPress={() => { skipSave.current = true; navigation.goBack(); }} />}
+            <PillButton kind="ghost" label={canEdit ? '편집 계속' : '초안 확인'} onPress={() => setShowSaveConflict(false)} />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={syncConflict !== null && canEdit} animationType="fade" onRequestClose={closeSyncConflict}>
+        <View style={styles.backdrop}>
+          <View style={styles.dialog} accessibilityViewIsModal>
+            <Text accessibilityRole="header" style={styles.dialogTitle}>
+              {syncConflict?.isRejectedMove ? '공유 페이지를 이동할 수 없어요' : '공유 문서 수정이 겹쳤어요'}
+            </Text>
+            <ScrollView style={styles.parentList}>
+              <Text style={styles.projOptText}>내 변경</Text>
+              {'title' in (syncConflict?.fields ?? {}) && <Text selectable>{syncConflict.fields.title || '제목 없음'}</Text>}
+              {'body' in (syncConflict?.fields ?? {}) && <Text selectable>{syncConflict.fields.body || '본문 없음'}</Text>}
+              {'strokes' in (syncConflict?.fields ?? {}) && <Text>손글씨 변경 포함</Text>}
+              {'parent_note_id' in (syncConflict?.fields ?? {}) && <Text>상위 페이지 · {conflictParentTitle(syncConflict.fields.parent_note_id)}</Text>}
+              {syncConflict?.server && <>
+                <Text style={styles.projOptText}>서버 문서</Text>
+                <Text selectable>{syncConflict.server.title || '제목 없음'}</Text>
+                <Text selectable>{syncConflict.server.body || '본문 없음'}</Text>
+                {'parent_note_id' in syncConflict.fields && <Text>상위 페이지 · {conflictParentTitle(syncConflict.server.parent_note_id)}</Text>}
+              </>}
+            </ScrollView>
+            {isResolvingSyncConflict && <Text accessibilityLiveRegion="polite" style={styles.edited}>처리 중…</Text>}
+            {!!syncConflictError && <Text accessibilityRole="alert" style={styles.edited}>{syncConflictError}</Text>}
+            {syncConflict?.isRejectedMove ? (
+              <PillButton label="이동 취소" disabled={isResolvingSyncConflict} onPress={() => resolveSyncConflict()} />
+            ) : <>
+              <PillButton label="내 변경 유지" disabled={isResolvingSyncConflict} onPress={() => resolveSyncConflict('keep_mine')} />
+              {Object.keys(syncConflict?.fields ?? {}).length === 1 && typeof syncConflict.fields.body === 'string' &&
+                typeof syncConflict.server.body === 'string' && syncConflict.fields.body !== syncConflict.server.body &&
+                <PillButton kind="ghost" label="두 본문 합치기" disabled={isResolvingSyncConflict} onPress={() => resolveSyncConflict('keep_both')} />}
+              <PillButton kind="ghost" label="서버 문서 사용" disabled={isResolvingSyncConflict} onPress={() => resolveSyncConflict('use_server')} />
+            </>}
+            <PillButton kind="ghost" label="나중에 해결" disabled={isResolvingSyncConflict} onPress={closeSyncConflict} />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={versions !== null && !accessClosed} animationType="fade" onRequestClose={closeHistory}>
+        <View style={styles.backdrop}>
+          <View style={styles.dialog} accessibilityViewIsModal>
+            <Text accessibilityRole="header" style={styles.dialogTitle}>{previewVersion ? '이전 버전 미리보기' : '이 기기의 편집 기록'}</Text>
+            {previewVersion ? (
+              <>
+                <ScrollView style={styles.parentList}>
+                  <Text style={styles.projOptText} selectable>{memoTitle(previewVersion)}</Text>
+                  {previewVersion.body ? <MemoBlockReader body={previewVersion.body} /> : <Text style={styles.edited}>본문 없음</Text>}
+                  {previewVersion.strokes.length > 0 && <Text style={styles.edited}>손글씨 포함</Text>}
+                </ScrollView>
+                {canEdit && <PillButton label="편집기에 불러오기" onPress={loadVersionIntoEditor} />}
+                <PillButton kind="ghost" label="기록 목록으로" onPress={() => setPreviewVersion(null)} />
+              </>
+            ) : (
+              <ScrollView style={styles.parentList}>
+                {versions?.length === 0 && <Text style={styles.edited}>아직 이전 버전이 없어요.</Text>}
+                {versions?.map((version) => (
+                  <Pressable key={version.revision} accessibilityRole="button" style={styles.projOpt} onPress={() => setPreviewVersion(version)}>
+                    <Text style={styles.projOptText} numberOfLines={1}>{memoTitle(version)}</Text>
+                    <Text style={styles.edited}>{dateLabel(version.updatedAt, new Date(), true)}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+            <PillButton kind="ghost" label="닫기" onPress={closeHistory} />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={canEdit && isParentPickerOpen} animationType="fade" onRequestClose={() => setParentPickerOpen(false)}>
+        <View style={styles.backdrop}>
+          <View style={styles.dialog} accessibilityViewIsModal>
+            <Text accessibilityRole="header" style={styles.dialogTitle}>상위 페이지 선택</Text>
+            <TextInput
+              accessibilityLabel="상위 페이지 검색"
+              placeholder="페이지 제목 검색"
+              placeholderTextColor={colors.muted}
+              value={parentQuery}
+              onChangeText={setParentQuery}
+              style={styles.parentSearch}
+            />
+            <ScrollView style={styles.parentList} keyboardShouldPersistTaps="handled">
+              {[{ id: null, title: '최상위' }, ...matchingParents].map((candidate) => (
+                <Pressable
+                  key={candidate.id ?? 'root'}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: parentId === candidate.id }}
+                  style={[styles.projOpt, parentId === candidate.id && styles.projOptOn]}
+                  onPress={() => moveToParent(candidate.id)}
+                >
+                  <Text style={[styles.projOptText, parentId === candidate.id && { color: colors.onPrimary }]} numberOfLines={1}>{candidate.title}</Text>
+                </Pressable>
+              ))}
+              {!!parentTerms.length && !matchingParents.length && <Text style={styles.edited}>일치하는 상위 페이지가 없어요.</Text>}
+            </ScrollView>
+            <PillButton kind="ghost" label="닫기" onPress={() => setParentPickerOpen(false)} />
+          </View>
+        </View>
+      </Modal>
 
       {/* ---------- AI 요약 카드 (스토리보드 64장: 요약을 보여주고 확인 후 메모에 추가) ---------- */}
       {summary !== null && (
@@ -512,9 +972,9 @@ export default function MemoEditScreen({ navigation, route }) {
                   <Text key={i} style={styles.summaryText} selectable>{`· ${ln}`}</Text>
                 ))}
               </ScrollView>
-              <Pressable accessibilityRole="button" onPress={addSummary} style={({ pressed }) => [styles.summaryAdd, pressed && { opacity: 0.8 }]}>
+              {canEdit && <Pressable accessibilityRole="button" onPress={addSummary} style={({ pressed }) => [styles.summaryAdd, pressed && { opacity: 0.8 }]}>
                 <Text style={styles.summaryAddText}>메모에 추가</Text>
-              </Pressable>
+              </Pressable>}
             </>
           )}
         </View>
@@ -577,26 +1037,28 @@ export default function MemoEditScreen({ navigation, route }) {
       )}
 
       {/* ---------- 도구 줄: 입력 방식 | 이전·다음 | 요약·변환 ---------- */}
-      <View style={[styles.tools, { paddingBottom: keyboardUp ? spacing.xs : insets.bottom + spacing.xs }]}>
+      {canEdit ? <View style={[styles.tools, { paddingBottom: keyboardUp ? spacing.xs : insets.bottom + spacing.xs }]}>
         {!!notice && <Text style={styles.notice}>{notice}</Text>}
-        <View style={styles.toolRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.toolRow}>
           <ToolBtn icon="keyboard" label="키보드" active={mode === 'keyboard'} onPress={() => chooseMode('keyboard')} />
           <ToolBtn icon="pencil" label="펜" active={mode === 'pen'} onPress={() => chooseMode('pen')} />
           <ToolBtn icon="eraser" label="지우개" active={mode === 'eraser'} onPress={() => chooseMode('eraser')} />
           <ToolBtn icon="hand" label="이동" active={mode === 'move'} onPress={() => chooseMode('move')} />
+          <View style={styles.toolDivider} />
           <ToolBtn icon="undo" label="이전" disabled={!canUndo} onPress={undo} />
           <ToolBtn icon="redo" label="다음" disabled={!canRedo} onPress={redo} />
+          <View style={styles.toolDivider} />
           <ToolBtn icon="sparkles" label="요약" active={summary !== null} onPress={requestSummary} />
           <ToolBtn icon="type" label="변환" active={mode === 'convert'} onPress={() => {
             if (mode === 'convert') chooseMode('keyboard');
             else if (strokes.length === 0) showNotice('변환할 손글씨가 없어요. 펜으로 먼저 써 보세요');
             else chooseMode('convert');
           }} />
-        </View>
-      </View>
+        </ScrollView>
+      </View> : <View style={{ height: insets.bottom }} />}
 
       {/* ---------- 프로젝트 고르기 창 ---------- */}
-      <Modal transparent visible={pickingProject} animationType="fade" onRequestClose={() => setPickingProject(false)}>
+      <Modal transparent visible={canEdit && pickingProject} animationType="fade" onRequestClose={() => setPickingProject(false)}>
         <View style={styles.backdrop}>
           <View style={styles.dialog} accessibilityViewIsModal>
             <Text style={styles.dialogTitle}>프로젝트 선택</Text>
@@ -614,7 +1076,7 @@ export default function MemoEditScreen({ navigation, route }) {
                     }}
                     style={[styles.projOpt, on && styles.projOptOn]}
                   >
-                    <Text style={[styles.projOptText, on && { color: colors.white, fontWeight: '800' }]} numberOfLines={1}>
+                    <Text style={[styles.projOptText, on && { color: colors.onPrimary, fontWeight: '800' }]} numberOfLines={1}>
                       {p.title}
                     </Text>
                   </Pressable>
@@ -639,7 +1101,7 @@ export default function MemoEditScreen({ navigation, route }) {
       />
 
       {/* ---------- 삭제 확인 창 ---------- */}
-      <Modal transparent visible={confirmDelete} animationType="fade" onRequestClose={() => setConfirmDelete(false)}>
+      <Modal transparent visible={canEdit && confirmDelete} animationType="fade" onRequestClose={() => setConfirmDelete(false)}>
         <View style={styles.backdrop}>
           <View style={styles.dialog} accessibilityViewIsModal>
             <Text style={styles.dialogTitle}>이 메모를 삭제할까요?</Text>
@@ -660,14 +1122,22 @@ export default function MemoEditScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  detailHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  detailTitle: { color: colors.ink, fontSize: 16, fontWeight: "600" },
+  detailActions: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingVertical: 12 },
   root: { flex: 1, backgroundColor: colors.cream },
 
-  editor: { flex: 1, paddingHorizontal: spacing.lg },
+  editor: { flex: 1, width: '100%', maxWidth: 760, alignSelf: 'center', paddingHorizontal: spacing.lg },
+  editorViewToggle: { alignItems: 'flex-start', paddingBottom: spacing.xs },
+  hierarchy: { flexGrow: 0, marginBottom: spacing.xs },
+  hierarchyRow: { gap: spacing.sm, padding: spacing.xs },
+  parentList: { maxHeight: 280 },
+  parentSearch: { minHeight: 44, paddingHorizontal: spacing.sm, borderWidth: 1, borderColor: colors.line, color: colors.ink },
   titleInput: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: 28,
+    fontWeight: '600',
     color: colors.ink,
-    paddingTop: spacing.xs,
+    paddingTop: 24,
     paddingBottom: spacing.sm,
   },
   // 제목 아래: 프로젝트 알약 + 수정 시각
@@ -677,6 +1147,8 @@ const styles = StyleSheet.create({
   edited: { flexShrink: 1, fontSize: font.caption, color: colors.muted },
   // 글자 입력창 + 필기 캔버스가 겹치는 스크롤 영역
   scroll: { flex: 1 },
+  webScrollbar: Platform.OS === 'web' ? { colorScheme: 'dark', scrollbarColor: '#777a7c transparent', scrollbarWidth: 'thin' } : {},
+  toolDivider: { alignSelf: 'center', width: 1, height: 18, backgroundColor: colors.line },
   bodyInput: {
     flex: 1, // 페이지(부모 View) 전체를 차지
     fontSize: font.bodyLg,
@@ -694,7 +1166,7 @@ const styles = StyleSheet.create({
   summarySub: { fontSize: font.body, color: colors.muted },
   summaryLoading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   summaryAdd: { alignSelf: 'flex-start', minHeight: 34, paddingHorizontal: spacing.lg, borderRadius: radius.pill, backgroundColor: colors.mintDark, justifyContent: 'center', marginTop: 2 },
-  summaryAddText: { fontSize: font.caption + 1, fontWeight: '800', color: colors.white },
+  summaryAddText: { fontSize: font.caption + 1, fontWeight: '800', color: colors.onPrimary },
 
   // 펜 옵션 줄: 색 동그라미(선택된 색은 바깥 고리) + 굵기
   penOptions: {
@@ -724,22 +1196,22 @@ const styles = StyleSheet.create({
   },
   convertHint: { flex: 1, fontSize: font.caption, color: colors.mintDark, fontWeight: '700' },
   convertAll: { paddingHorizontal: spacing.md, minHeight: 34, borderRadius: radius.pill, backgroundColor: colors.mintDark, justifyContent: 'center' },
-  convertAllText: { fontSize: font.body, fontWeight: '700', color: colors.white },
+  convertAllText: { fontSize: font.body, fontWeight: '700', color: colors.onPrimary },
 
   // 도구 줄 (흰 바탕 + 위쪽 얇은 선)
-  tools: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.white },
+  tools: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.card },
   notice: { textAlign: 'center', fontSize: font.caption, color: colors.mintDark, fontWeight: '700', paddingTop: spacing.sm },
   toolRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.xs, paddingTop: spacing.sm, gap: 2 },
-  tool: { flex: 1, minHeight: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  tool: { width: 44, minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 3 },
   toolOn: { backgroundColor: colors.mintSoft },
   toolLabel: { fontSize: 11, color: colors.muted, fontWeight: '600' },
   toolLabelOn: { color: colors.mintDark, fontWeight: '800' },
 
   // 프로젝트 고르기 창
-  projOpt: { minHeight: 44, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, paddingHorizontal: spacing.lg, justifyContent: 'center' },
+  projOpt: { minHeight: 44, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, paddingHorizontal: spacing.lg, justifyContent: 'center' },
   projOptOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
   projOptText: { fontSize: font.bodyLg, color: colors.ink },
-  projClose: { minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm },
+  projClose: { minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm },
   projCloseText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   toolSub: { fontSize: font.caption, color: colors.muted },
 
@@ -750,8 +1222,8 @@ const styles = StyleSheet.create({
   dialogSub: { fontSize: font.body, color: colors.muted },
   dialogButtons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   dialogBtn: { flex: 1, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  cancelBtn: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  cancelBtn: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   cancelText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   deleteBtn: { backgroundColor: colors.coral },
-  deleteText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.white },
+  deleteText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.onPrimary },
 });

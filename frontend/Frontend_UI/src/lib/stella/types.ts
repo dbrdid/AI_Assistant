@@ -38,6 +38,7 @@ export type Platform = 'ios' | 'android' | 'web';
 export interface Stroke { id: string; c: string; w: number; p: Array<[number, number]> }
 
 export interface NoteData {
+  parent_note_id?: string | null;
   title?: string | null;
   body?: string;
   strokes?: Stroke[];                 // 안 보내면 그대로, [] 보내면 모두 지움 (null은 거절)
@@ -76,6 +77,10 @@ export interface EventData {
   source_version_id?: string | null;  // *
 }
 export interface ProjectData {
+  table_properties?: {
+    fields: { key: string; label: string; type: 'text' | 'number' | 'checkbox' }[];
+    properties: Record<string, Record<string, string | number | boolean>>;
+  };
   name?: string;                      // 만들 때 필수
   description?: string | null;
   status?: ProjectStatus;             // 보관 상태 (기본 ACTIVE)

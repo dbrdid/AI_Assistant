@@ -34,7 +34,7 @@ export default function MonthCalendar({
   const [pickYear, setPickYear] = useState(year);
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.grid}>
         {/* ---------- 1) 맨 위: 2026년 11월 ·  ‹ › ---------- */}
         <View style={styles.head}>
@@ -114,7 +114,7 @@ export default function MonthCalendar({
                         styles.dayText,
                         (di === 0 || holiday) && { color: colors.coral }, // 일요일·공휴일은 코랄
                         isToday && !isSelected && { color: colors.mintDark },
-                        isSelected && { color: colors.white }, // 선택되면 흰 글씨
+                        isSelected && { color: colors.onPrimary }, // 선택되면 흰 글씨
                       ]}
                     >
                       {d.getDate()}
@@ -158,7 +158,7 @@ export default function MonthCalendar({
                     }}
                     style={[styles.monthBtn, on && styles.monthBtnOn]}
                   >
-                    <Text style={[styles.monthBtnText, on && { color: colors.white, fontWeight: '800' }]}>{m + 1}월</Text>
+                    <Text style={[styles.monthBtnText, on && { color: colors.onPrimary, fontWeight: '600' }]}>{m + 1}월</Text>
                   </Pressable>
                 );
               })}
@@ -181,14 +181,14 @@ const styles = StyleSheet.create({
   // 맨 위 줄: 왼쪽 달 이름, 오른쪽 ‹ › 버튼
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 40, marginBottom: spacing.md, paddingLeft: spacing.xs },
   monthBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  month: { fontSize: 23, fontWeight: '800', color: colors.ink },
+  month: { fontSize: 23, fontWeight: '600', color: colors.ink },
   monthNav: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   // 한 주(7칸)를 가로로 나란히
   weekRow: { flexDirection: 'row' },
   // flex: 1 → 7칸이 폭을 똑같이 나눠 가짐
   weekday: { flex: 1, textAlign: 'center', fontSize: 13, fontWeight: '700', color: colors.muted, paddingVertical: spacing.xs },
   cell: { flex: 1, height: 52, alignItems: 'center', justifyContent: 'center' },
-  dayCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  dayCircle: { width: 36, height: 36, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   hitCircle: { backgroundColor: colors.mintSoft },
   todayRing: { borderWidth: 1.5, borderColor: colors.mintDark },
   selectedCircle: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
@@ -201,14 +201,14 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.lg },
   yearRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  pickYear: { fontSize: font.title, fontWeight: '800', color: colors.ink },
+  pickYear: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   monthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   monthBtn: {
     width: '23%',
     flexGrow: 1,
     minHeight: 44,
     borderRadius: radius.md,
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.line,
     alignItems: 'center',
@@ -216,6 +216,6 @@ const styles = StyleSheet.create({
   },
   monthBtnOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
   monthBtnText: { fontSize: font.bodyLg, color: colors.ink, fontWeight: '600' },
-  closeBtn: { minHeight: 44, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { minHeight: 44, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   closeText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
 });

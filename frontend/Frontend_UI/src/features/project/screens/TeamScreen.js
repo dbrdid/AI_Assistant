@@ -63,7 +63,7 @@ export default function TeamScreen({ navigation, route }) {
         onBack={navigation.goBack}
         right={<CircleButton icon="userPlus" label="팀원 초대" onPress={() => navigation.navigate(ROUTES.ProjectInvite, { projectId })} />}
       />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.topRow}>
           <Text style={styles.count}>팀원 {members.length}명</Text>
           {!selecting && members.length > 0 && (
@@ -135,7 +135,7 @@ export default function TeamScreen({ navigation, route }) {
               onPress={() => (wouldRemoveAllLeaders() ? setNotice('팀장은 모두 삭제할 수 없어요') : setConfirmDel(true))}
               style={[styles.barBtn, styles.barDanger, picked.length === 0 && styles.off]}
             >
-              <Text style={[styles.barText, { color: colors.white }]}>삭제</Text>
+              <Text style={[styles.barText, { color: colors.onPrimary }]}>삭제</Text>
             </Pressable>
           </View>
         </View>
@@ -167,7 +167,7 @@ export default function TeamScreen({ navigation, route }) {
                 }}
                 style={[styles.dBtn, { backgroundColor: colors.mintDark }, (!name.trim() || !role.trim()) && styles.off]}
               >
-                <Text style={[styles.barText, { color: colors.white }]}>수정</Text>
+                <Text style={[styles.barText, { color: colors.onPrimary }]}>수정</Text>
               </Pressable>
             </View>
           </View>
@@ -211,19 +211,19 @@ const styles = StyleSheet.create({
   gone: { padding: spacing.xl, fontSize: font.bodyLg, color: colors.muted, textAlign: 'center' },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, gap: spacing.md, paddingBottom: 140 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  count: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  count: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   selectText: { fontSize: font.body, fontWeight: '700', color: colors.mintDark },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, minHeight: 56 },
   rowOn: { borderColor: colors.mint, backgroundColor: colors.mintSoft },
-  name: { flex: 1, fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  name: { flex: 1, fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   roleTag: { alignSelf: 'center' },
   sub: { fontSize: font.body, fontWeight: '700', color: colors.muted },
-  invite: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, borderStyle: 'dashed', backgroundColor: colors.white },
+  invite: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, borderStyle: 'dashed', backgroundColor: colors.card },
   inviteText: { flex: 1, fontSize: font.body, color: colors.ink },
   inviteMeta: { fontSize: font.caption, color: colors.muted },
   ok: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
-  okText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
-  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: colors.line, padding: spacing.md, gap: spacing.sm },
+  okText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
+  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.line, padding: spacing.md, gap: spacing.sm },
   barCount: { fontSize: font.body, fontWeight: '700', color: colors.ink, textAlign: 'center' },
   barRow: { flexDirection: 'row', gap: spacing.sm },
   barBtn: { flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.cream, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
@@ -232,11 +232,11 @@ const styles = StyleSheet.create({
   off: { opacity: 0.4 },
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.lg, gap: spacing.md },
-  dialogTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  dialogTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   label: { fontSize: font.body, fontWeight: '700', color: colors.ink },
-  input: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
+  input: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
   chipRow: { flexDirection: 'row', gap: spacing.sm },
   dialogRow: { flexDirection: 'row', gap: spacing.sm },
   dBtn: { flex: 1, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  ghost: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  ghost: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
 });

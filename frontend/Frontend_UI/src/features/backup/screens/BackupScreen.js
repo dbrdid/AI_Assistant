@@ -29,6 +29,8 @@ export default function BackupScreen({ navigation }) {
   const [confirm, setConfirm] = useState(null); // 'restore' | 'delete' | null
   const [delId, setDelId] = useState(null);
   const [notice, setNotice] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const activeAction = useRef(false);
   const timer = useRef(null);
   useEffect(() => () => clearTimeout(timer.current), []);
 
@@ -42,24 +44,38 @@ export default function BackupScreen({ navigation }) {
     if (selectedId && !list.some((b) => b.id === selectedId)) setSelectedId(null); // 삭제된 항목 선택 해제
   }, [list, selectedId]);
 
-  const doBackup = async () => {
-    if (busy) return;
+  const runAction = async (action) => {
+    if (activeAction.current) return;
+    activeAction.current = true;
+    clearTimeout(timer.current);
+    setNotice('');
+    setErrorMessage('');
     setBusy(true);
-    const r = await createBackup(false);
-    setBusy(false);
-    if (!r.ok) return showNotice(r.reason === 'not-personal' ? '개인 공간에서만 백업할 수 있어요' : r.message || '백업하지 못했어요. 저장 공간이 부족할 수 있어요. 오래된 백업을 지우고 다시 시도해 주세요.');
-    showNotice(r.dropped > 0 ? `백업했어요 · 가장 오래된 백업 ${r.dropped}개는 지워졌어요` : '백업했어요');
+    try {
+      await action();
+    } catch (error) {
+      console.warn('[backup] 작업 중 오류', error);
+      setErrorMessage('백업 작업을 완료하지 못했어요. 다시 시도해 주세요.');
+    } finally {
+      activeAction.current = false;
+      setBusy(false);
+    }
   };
+  const doBackup = () => runAction(async () => {
+    const r = await createBackup(false);
+    if (!r.ok) return setErrorMessage(r.reason === 'not-personal' ? '개인 공간에서만 백업할 수 있어요' : r.message || '백업하지 못했어요. 다시 시도해 주세요.');
+    showNotice(r.dropped > 0 ? `백업했어요 · 가장 오래된 백업 ${r.dropped}개는 지워졌어요` : '백업했어요');
+  });
 
-  const doRestore = async () => {
+  const doRestore = () => {
     setConfirm(null);
-    if (!selected || busy) return;
-    setBusy(true);
-    const r = await restoreBackup(selected.id);
-    setBusy(false);
-    if (!r.ok) return showNotice(r.reason === 'not-personal' ? '개인 공간에서만 복원할 수 있어요' : r.message || '복원하지 못했어요');
-    setSelectedId(null);
-    showNotice(r.safety ? '복원했어요 · 복원 전 상태는 "자동" 백업으로 남겨 뒀어요' : '복원했어요');
+    if (!selected) return;
+    return runAction(async () => {
+      const r = await restoreBackup(selected.id);
+      if (!r.ok) return setErrorMessage(r.reason === 'not-personal' ? '개인 공간에서만 복원할 수 있어요' : r.message || '복원하지 못했어요');
+      setSelectedId(null);
+      showNotice(r.safety ? '복원했어요 · 복원 전 상태는 "자동" 백업으로 남겨 뒀어요' : '복원했어요');
+    });
   };
 
   return (
@@ -101,7 +117,8 @@ export default function BackupScreen({ navigation }) {
             <Text style={styles.ghostText}>복원하기</Text>
           </Pressable>
         </View>
-        {!selected && list.length > 0 && <Text style={styles.hint}>복원할 백업을 아래에서 선택해 주세요</Text>}
+        {!!errorMessage && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.hint}>{errorMessage}</Text>}
+        {!errorMessage && !selected && list.length > 0 && <Text style={styles.hint}>복원할 백업을 아래에서 선택해 주세요</Text>}
 
         <View style={styles.listHead}>
           <Text style={styles.listTitle}>백업 목록 {list.length}/{MAX_BACKUPS}</Text>
@@ -122,7 +139,8 @@ export default function BackupScreen({ navigation }) {
               <Pressable
                 key={b.id}
                 accessibilityRole="radio"
-                accessibilityState={{ selected: on }}
+                accessibilityState={{ selected: on, disabled: busy }}
+                disabled={busy}
                 accessibilityLabel={`${fmt(b.createdAt)} 백업${b.auto ? ', 자동' : ''}`}
                 onPress={() => setSelectedId(on ? null : b.id)}
                 style={[styles.item, on && styles.itemOn]}
@@ -135,7 +153,7 @@ export default function BackupScreen({ navigation }) {
                   </View>
                   <Text style={styles.counts}>메모 {b.counts.memos} · 할 일 {b.counts.tasks} · 프로젝트 {b.counts.projects}</Text>
                 </View>
-                <Pressable accessibilityRole="button" accessibilityLabel="백업 삭제" onPress={() => setDelId(b.id)} hitSlop={10}>
+                <Pressable accessibilityRole="button" accessibilityLabel="백업 삭제" disabled={busy} onPress={() => setDelId(b.id)} hitSlop={10}>
                   <Icon name="trash" size={20} color={colors.muted} />
                 </Pressable>
               </Pressable>
@@ -147,7 +165,7 @@ export default function BackupScreen({ navigation }) {
 
       {!!notice && (
         <View pointerEvents="none" style={styles.notice}>
-          <Text style={styles.noticeText}>{notice}</Text>
+          <Text accessibilityLiveRegion="polite" style={styles.noticeText}>{notice}</Text>
         </View>
       )}
 
@@ -167,11 +185,14 @@ export default function BackupScreen({ navigation }) {
         confirmText="삭제"
         danger
         onCancel={() => setDelId(null)}
-        onConfirm={async () => {
+        onConfirm={() => {
           const id = delId;
           setDelId(null);
-          const ok = await deleteBackup(id);
-          showNotice(ok ? '백업을 삭제했어요' : '삭제하지 못했어요');
+          if (id === null) return;
+          return runAction(async () => {
+            if (await deleteBackup(id)) showNotice('백업을 삭제했어요');
+            else setErrorMessage('백업을 삭제하지 못했어요. 다시 시도해 주세요.');
+          });
         }}
       />
     </View>

@@ -1,11 +1,96 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { setup, rejects, rejectsUnchanged } from './helpers.mjs';
 
 const STROKES = [{ id: 's1', c: '#111111', w: 2.5, p: [[10, 20], [11, 21]] }];
 const ASSET = '11111111-1111-4111-8111-111111111111';
 const SERVER_WS = '22222222-2222-4222-8222-222222222222';
 const ACCOUNT = '33333333-3333-4333-8333-333333333333';
+
+test('opening a version-3 SQLite file preserves existing memos, history and pending changes', t => {
+  const path = join(tmpdir(), `stella-v3-${randomUUID()}.sqlite`);
+  t.after(() => rmSync(path, { force: true }));
+  const before = setup({ path });
+  let memo, history, shared, pending;
+  try {
+    memo = before.store.addMemo({ title: 'Personal', body: 'Original' });
+    before.store.updateMemo(memo.id, { body: 'Edited' });
+    history = before.store.listMemoVersions(memo.id);
+    assert.equal(history.length, 1);
+    before.store.switchWorkspace(before.store.upsertServerWorkspace({ id: SERVER_WS, name: 'Team', role: 'EDITOR' }));
+    shared = before.store.addMemo({ body: 'Waiting to send' });
+    pending = before.store.peekOutbox();
+    before.db.execSync('alter table memos drop column server_revision; pragma user_version = 3');
+  } finally {
+    before.db.closeSync();
+  }
+  const after = setup({ path });
+  try {
+    assert.equal(after.db.getFirstSync('pragma user_version').user_version, 4);
+    assert.equal(after.store.getMemo(shared.id).body, 'Waiting to send');
+    assert.deepEqual(after.store.peekOutbox(), pending);
+    after.store.switchWorkspace('personal');
+    assert.equal(after.store.getMemo(memo.id).body, 'Edited');
+    assert.deepEqual(after.store.listMemoVersions(memo.id), history);
+    assert.equal(after.store.exportAll().schemaVersion, 3);
+  } finally {
+    after.db.closeSync();
+  }
+});
+
+test('shared memo edits carry their visible server revision through the device outbox', () => {
+  const { store } = setup();
+  store.switchWorkspace(store.upsertServerWorkspace({ id: SERVER_WS, name: 'Team', role: 'EDITOR' }));
+  const id = '44444444-4444-4444-8444-444444444444';
+  const data = { id, title: 'Document', body: 'Before edit' };
+  store.applyServer(SERVER_WS, [{ entity: 'notes', data, serverRevision: 5 }]);
+  const revision = store.getMemo(id).revision;
+  store.applyServer(SERVER_WS, [{ entity: 'notes', data, serverRevision: 6 }]);
+  assert.equal(store.getMemo(id).revision, revision);
+  store.updateMemo(id, { body: 'Offline draft' }, { expectedRevision: revision });
+  assert.deepEqual(store.peekOutbox()[0].changes[0].noteBase, {
+    revision: 6, fields: { body: 'Before edit' },
+  });
+  store.applyServer(SERVER_WS, [{ entity: 'notes', data: { ...data, body: 'Remote edit' }, serverRevision: 7 }]);
+  assert.equal(store.getMemo(id).body, 'Offline draft');
+  assert.equal(store.peekOutbox()[0].changes[0].noteBase.revision, 6);
+});
+
+test('shared hierarchy applies a reversed parent relationship in one reconciliation', () => {
+  const t = setup();
+  t.store.upsertServerWorkspace({ id: SERVER_WS, name: '팀', role: 'OWNER' });
+  t.store.switchWorkspace(t.store.getWorkspaces().find(workspace => !workspace.personal).id);
+  const left = '44444444-4444-4444-8444-444444444444';
+  const right = '55555555-5555-4555-8555-555555555555';
+  t.store.applyServer(SERVER_WS, [left, right].map(id => ({ entity: 'notes', data: { id, title: '페이지' } })));
+  t.store.applyServerNoteParents(SERVER_WS, [[left, right]]);
+  t.store.applyServerNoteParents(SERVER_WS, [[right, left], [left, null]]);
+  assert.equal(t.store.getMemo(left).parentMemoId, null);
+  assert.equal(t.store.getMemo(right).parentMemoId, left);
+  t.store.applyServerNoteParents(SERVER_WS, [[left, right]]);
+  assert.equal(t.store.getMemo(left).parentMemoId, null);
+});
+
+test('a shared page move remembers its original parent and the server revision', () => {
+  const { store } = setup();
+  store.switchWorkspace(store.upsertServerWorkspace({ id: SERVER_WS, name: 'Team', role: 'EDITOR' }));
+  const parent = '44444444-4444-4444-8444-444444444444';
+  const child = '55555555-5555-4555-8555-555555555555';
+  store.applyServer(SERVER_WS, [
+    { entity: 'notes', data: { id: parent, title: 'Parent' }, serverRevision: 2 },
+    { entity: 'notes', data: { id: child, title: 'Child' }, serverRevision: 7 },
+  ]);
+  store.applyServerNoteParents(SERVER_WS, [[child, parent]]);
+  store.setMemoParent(child, null);
+  assert.deepEqual(store.peekOutbox()[0].changes[0], {
+    kind: 'update', entity: 'notes', id: child, data: { parent_note_id: null },
+    noteBase: { revision: 7, fields: { parent_note_id: parent } },
+  });
+});
 
 /** 공유 공간으로 전환한 저장소 */
 function shared(options) {
@@ -310,7 +395,7 @@ test('화면이 그대로 부르는 모양: switchWorkspace(\'personal\'), joinW
 });
 
 test('스키마 단계 올리기: 다음 단계가 생겨도 기존 기록은 남고, 실패한 단계는 없던 일이 된다', async () => {
-  const { migrate } = await import('../src/schema.js');
+  const { migrate, SCHEMA_VERSION } = await import('../src/schema.js');
   const { createLocalStore } = await import('../src/index.js');
   const t = setup();
   const memo = t.store.addMemo({ title: '올리기 전의 메모' });
@@ -318,11 +403,12 @@ test('스키마 단계 올리기: 다음 단계가 생겨도 기존 기록은 �
   const version = () => t.db.getFirstSync('pragma user_version').user_version;
   const columns = () => t.db.getAllSync('pragma table_info(memos)').map(c => c.name);
   const next = 'alter table memos add column pinned integer not null default 0';
-  assert.throws(() => migrate(t.db, opts, ['', `${next}; insert into 없는_표 values (1)`]));
-  assert.deepEqual([version(), columns().includes('pinned')], [1, false]);                 // 실패한 단계는 통째로 되돌려짐
-  migrate(t.db, opts, ['', next]);
-  migrate(t.db, opts, ['', next]);                                                         // 이미 올린 DB는 그대로
-  assert.deepEqual([version(), columns().includes('pinned'), t.db.getFirstSync('select title, pinned from memos where id=?', [memo.id])], [2, true, { title: '올리기 전의 메모', pinned: 0 }]);
+  const applied = Array(SCHEMA_VERSION).fill('');
+  assert.throws(() => migrate(t.db, opts, [...applied, `${next}; insert into 없는_표 values (1)`]));
+  assert.deepEqual([version(), columns().includes('pinned')], [SCHEMA_VERSION, false]);
+  migrate(t.db, opts, [...applied, next]);
+  migrate(t.db, opts, [...applied, next]);
+  assert.deepEqual([version(), columns().includes('pinned'), t.db.getFirstSync('select title, pinned from memos where id=?', [memo.id])], [SCHEMA_VERSION + 1, true, { title: '올리기 전의 메모', pinned: 0 }]);
   assert.equal(t.db.getAllSync('select id from workspaces').length, 1);                    // 개인 공간을 또 만들지 않음
-  assert.throws(() => createLocalStore({ db: t.db }), /Unsupported local database version 2/);   // 더 새 앱이 만든 DB를 예전 앱이 열면 알림
+  assert.throws(() => createLocalStore({ db: t.db }), new RegExp(`Unsupported local database version ${SCHEMA_VERSION + 1}`));
 });
