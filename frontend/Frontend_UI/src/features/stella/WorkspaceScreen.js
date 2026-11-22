@@ -1,6 +1,6 @@
 import { SheetModal } from "../../shared/components/Motion";
-import React, { useState, useEffect } from 'react';
-import { FlatList, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { Animated, Easing, Platform, FlatList, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import TabBar from '../../navigation/TabBar';
 import { useFiles } from '../../data/files/FileStore';
 import GraphCanvas from './GraphCanvas';
@@ -11,7 +11,7 @@ import { useMemos, memoTitle } from '../../data/memos/MemoStore';
 import { useProposals } from '../../data/proposals/ProposalStore';
 import { useWorkspaces, switchWorkspace } from '../../data/workspaces/WorkspaceStore';
 import { reviewReason, useProposalActions } from '../proposal/useProposalActions';
-import { ROUTES } from '../../navigation/routes';
+import { ROUTES, TABS } from '../../navigation/routes';
 import { filterDocuments } from './model.mjs';
 import { readMemoBlocks } from '../memo/utils/memoBlocks.mjs';
 import { readMemoReference } from '../memo/utils/memoReferences.mjs';
@@ -43,7 +43,7 @@ export function PrimaryButton({
     pressed
   }) => [s.primary, (pressed || disabled) && {
     opacity: .5
-  }]}><Icon name={icon} size={17} color={c.background} /><Text style={s.primaryText}>{label}</Text></Pressable>;
+  }]}><Icon name={icon} size={17} color={c.text} /><Text style={s.primaryText}>{label}</Text></Pressable>;
 }
 export function WorkspaceHeader({
   title,
@@ -60,45 +60,39 @@ export function WorkspaceHeader({
     <Pressable accessibilityRole="button" accessibilityLabel={`작업 공간 메뉴 열기: ${title}`} hitSlop={{ left: 6, right: 6 }} onPress={onMenu} style={s.workspaceAvatar}><Text style={s.workspaceInitial}>S</Text></Pressable>
     {tabs}
   </View>;
-  return <View style={[s.header, {
-    paddingTop: insets.top + 8
-  }]}>{left}{onBack ? <><IconButton name="chevronLeft" label="뒤로 가기" onPress={onBack} /><Text style={s.brandTitle}>{title}</Text></> : <Pressable accessibilityRole="button" accessibilityLabel="작업 공간 메뉴 열기" onPress={onMenu} style={s.brand}><Text style={s.brandMark}>S</Text><View style={{
+  const headerStyle = [s.header, { paddingTop: insets.top + 8 }];
+  if (onBack) return <View style={headerStyle}>
+    <View style={[s.actions, { flex: 1 }]}>{left}<IconButton name="chevronLeft" label="뒤로 가기" onPress={onBack} /></View>
+    <Text numberOfLines={1} style={[s.brandTitle, { flexShrink: 1, maxWidth: '32%', textAlign: 'center' }]}>{title}</Text>
+    <View style={[s.actions, { flex: 1, justifyContent: 'flex-end' }]}>{right || (onSearch && <IconButton name="search" label="문서 검색" onPress={onSearch} />)}</View>
+  </View>;
+  return <View style={headerStyle}>{left}<Pressable accessibilityRole="button" accessibilityLabel="작업 공간 메뉴 열기" onPress={onMenu} style={s.brand}><Text style={s.brandMark}>S</Text><View style={{
         flexShrink: 1
-      }}><Text style={s.brandTitle} numberOfLines={1}>{title}</Text><Text style={s.brandSub}>Stella{LOCAL_PREVIEW ? '  /  로컬 미리보기' : ''}</Text></View><Icon name="chevronDown" size={14} color={c.muted} /></Pressable>}<View style={s.actions}>{right || <>{onSearch && <IconButton name="search" label="문서 검색" onPress={onSearch} />}</>}</View></View>;
+      }}><Text style={s.brandTitle} numberOfLines={1}>{title}</Text><Text style={s.brandSub}>Stella{LOCAL_PREVIEW ? '  /  로컬 미리보기' : ''}</Text></View><Icon name="chevronDown" size={14} color={c.muted} /></Pressable><View style={s.actions}>{right || <>{onSearch && <IconButton name="search" label="문서 검색" onPress={onSearch} />}</>}</View></View>;
 }
-function DocumentRow({
-  memo,
-  onPress,
-  hasChildren = false,
-  collapsed = false,
-  onToggle,
-  compact = false,
-  showArrow = true
-}) {
-  return <View style={[s.row, {
-    paddingLeft: Math.min(memo.depth ?? 0, 5) * 16
-  }]}>
-    <View style={{
-      width: 24
-    }}>{hasChildren ? <Pressable accessibilityRole="button" accessibilityLabel={`${collapsed ? '펼치기' : '접기'}: ${memoTitle(memo)}`} onPress={onToggle} hitSlop={8} style={{
-        minWidth: 24,
-        minHeight: 36
-      }}><Icon name={collapsed ? 'chevronRight' : 'chevronDown'} size={18} color={c.muted} /></Pressable> : <Icon name="file" size={20} color={c.muted} />}</View>
-    <Pressable accessibilityRole="button" accessibilityLabel={memoTitle(memo)} onPress={onPress} style={({
-      pressed
-    }) => [{
-      flex: 1,
-      flexDirection: 'row',
-      gap: 10,
-      alignItems: 'flex-start'
-    }, pressed && {
-      opacity: .6
-    }]}>
-      <View style={{
-        flex: 1
-      }}><Text style={s.rowTitle} numberOfLines={1}>{memoTitle(memo)}</Text>{!compact && <><Text style={s.rowBody} numberOfLines={1}>{memo.body || '필기 / 첨부가 있는 문서'}</Text><Text style={s.meta}>{memo.favorite ? '즐겨찾기  /  ' : ''}{new Date(memo.updatedAt).toLocaleDateString('ko-KR')}  /  기기 저장</Text></>}</View>
-      {showArrow && <Icon name="chevronRight" size={15} color={c.subtle} />}
+function DocumentRow({ memo, onPress, hasChildren, collapsed, onToggle, compact = false }) {
+  const title = memoTitle(memo);
+  const [showEmpty, setShowEmpty] = useState(false);
+  const expanded = hasChildren ? !collapsed : showEmpty;
+  return <View style={{ paddingLeft: Math.min(memo.depth ?? 0, 5) * 12 }}>
+    <View style={[s.row, { alignItems: 'center', paddingVertical: 0, gap: 6 }]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress}
+      style={({ pressed }) => [{ flex: 1, minHeight: 44, flexDirection: 'row',
+        alignItems: 'center', gap: 8, paddingVertical: compact ? 0 : 6, opacity: pressed ? .6 : 1 }]}>
+      <Icon name="file" size={18} color={c.muted} />
+      <View style={{ flex: 1 }}>
+        <Text style={s.rowTitle} numberOfLines={1}>{title}</Text>
+        {!compact && <><Text style={s.rowBody} numberOfLines={1}>{memo.body || '필기 / 첨부가 있는 문서'}</Text>
+          <Text style={s.meta}>{memo.favorite ? '즐겨찾기  /  ' : ''}{new Date(memo.updatedAt).toLocaleDateString('ko-KR')}  /  기기 저장</Text></>}
+      </View>
     </Pressable>
+    {onToggle &&
+      <Pressable accessibilityRole="button" accessibilityLabel={`${expanded ? '접기' : '펼치기'}: ${title}`}
+          accessibilityState={{ expanded }} onPress={hasChildren ? onToggle : () => setShowEmpty(open => !open)} style={s.iconButton}>
+          <Icon name={expanded ? 'chevronDown' : 'chevronLeft'} size={18} color={c.muted} />
+        </Pressable>}
+    </View>
+    {onToggle && !hasChildren && expanded && <Text style={{ marginLeft: 38, marginBottom: 6, fontSize: 12, color: c.muted }}>하위 문서 없음</Text>}
   </View>;
 }
 function SectionHead({
@@ -129,11 +123,58 @@ function RecentDocument({ memo, photo, onPress }) {
     </View>
   </Pressable>;
 }
-const TOOLS = [[ROUTES.Backup, '백업 및 복원', 'file'], [ROUTES.LocalModel, '로컬 AI', 'sparkles'], [ROUTES.AdvancedMemos, '가져오기 / 내보내기', 'file'], [ROUTES.Today, '오늘 / 빠른 기록', 'home'], [ROUTES.Calendar, '캘린더', 'calendar'], [ROUTES.Tasks, '할 일 / 일정', 'checkSquare'], [ROUTES.Ai, 'AI 채팅', 'message'], [ROUTES.Files, '파일 보관함', 'paperclip'], [ROUTES.Spaces, '공유 공간', 'users'], [ROUTES.Projects, '프로젝트', 'grid'], [ROUTES.Favorites, '즐겨찾기', 'star'], [ROUTES.QuickInput, '사진 / 문서 가져오기', 'arrowUp'], [ROUTES.More, '모든 도구', 'grid'], [ROUTES.Trash, '휴지통', 'trash'], [ROUTES.Settings, '설정', 'settings']];
+const SPACE_TOOLS = [[ROUTES.Backup, '백업 및 복원', 'file'], [ROUTES.Settings, '설정', 'settings'], [ROUTES.More, '모든 도구', 'grid']];
+const DOCUMENT_MODES = { [ROUTES.Memos]: 'documents', [ROUTES.Relations]: 'relations', [ROUTES.Proposals]: 'review' };
+
+// Web overflow:hidden can scroll focused descendants in addition to the pager transform.
+const pagerOverflow = Platform.OS === 'web' ? 'clip' : 'hidden';
+
+function PageRail({ index, pages, header, renderPage, keepVisited = false }) {
+  const position = useRef(new Animated.Value(index)).current;
+  const lastPosition = useRef(index);
+  const [highlight, setHighlight] = useState(index);
+  const [width, setWidth] = useState(0);
+  const [visited, setVisited] = useState(() => new Set([0, index]));
+  useLayoutEffect(() => {
+    const start = lastPosition.current;
+    const distance = Math.abs(index - start);
+    if (!distance) return;
+    const low = Math.floor(Math.min(start, index));
+    const high = Math.ceil(Math.max(start, index));
+    setVisited(previous => new Set([...previous, ...pages.map((_, i) => i).filter(i => i >= low && i <= high)]));
+    const listener = position.addListener(({ value }) => {
+      lastPosition.current = value;
+      setHighlight(Math.round(value));
+    });
+    const motion = Animated.timing(position, {
+      toValue: index, duration: Math.min(430, 260 + 85 * Math.max(0, distance - 1)),
+      easing: Easing.inOut(Easing.quad), useNativeDriver: false
+    });
+    motion.start(({ finished }) => { if (finished && !keepVisited) setVisited(new Set([index])); });
+    return () => { motion.stop(); position.removeListener(listener); };
+  }, [index, position, pages, keepVisited]);
+  return <>
+    {header(pages[highlight])}
+    <View style={{ flex: 1, overflow: pagerOverflow }} onLayout={e => setWidth(e.nativeEvent.layout.width)}>
+      <Animated.View style={{ flex: 1, flexDirection: 'row', width: width ? width * pages.length : '100%',
+        transform: [{ translateX: Animated.multiply(position, -width) }] }}>
+        {pages.map((page, i) => <View key={page.route} aria-hidden={i !== index} importantForAccessibility={i === index ? 'auto' : 'no-hide-descendants'}
+          pointerEvents={i === index ? 'auto' : 'none'} style={{ width: width || '100%', overflow: pagerOverflow }}>
+          {(i === 0 || visited.has(i) || i === index) && renderPage(page, i)}
+        </View>)}
+      </Animated.View>
+    </View>
+  </>;
+}
+
 export default function WorkspaceScreen({
   navigation,
   route,
   mode = 'home',
+  pagerIndex,
+  screens,
+  calendar,
+  bodyOnly = false,
   favoritesOnly = false
 }) {
   const insets = useInsets();
@@ -145,8 +186,6 @@ export default function WorkspaceScreen({
   const memos = memoRows;
   const actions = useProposalActions(navigation);
   const [menu, setMenu] = useState(false);
-  const [expandedTools, setExpandedTools] = useState(false);
-  const primaryTools = [ROUTES.LocalModel, ROUTES.Backup, ROUTES.Trash, ROUTES.Settings];
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState(new Set());
   const [filter, setFilter] = useState(favoritesOnly ? 'favorites' : 'all');
@@ -180,10 +219,10 @@ export default function WorkspaceScreen({
   const title = mode === 'documents' ? '문서' : mode === 'relations' ? '문서 관계' : mode === 'review' ? '작업 검토' : '작업 공간';
   const requestSearch = route?.params?.search === true;
   const selectedTab = { home: ROUTES.Home, documents: ROUTES.Memos, relations: ROUTES.Relations, review: ROUTES.Proposals }[mode];
-  const header = <><WorkspaceHeader title={current?.name || '나의 작업 공간'} onMenu={() => setMenu(true)} tabs={!favoritesOnly && <TabBar current={selectedTab} onSelect={navigation.selectTab || navigation.navigate} />} onSearch={mode === "documents" ? undefined : () => go(ROUTES.Memos, {
+  const header = (highlight = selectedTab) => <><WorkspaceHeader title={current?.name || '나의 작업 공간'} onMenu={() => setMenu(true)} tabs={!favoritesOnly && <TabBar current={highlight} onSelect={navigation.selectTab || navigation.navigate} />} onSearch={mode === "documents" ? undefined : () => go(ROUTES.Memos, {
       search: true
     })} />{error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}</>;
-  const intro = <><View style={s.titleRow}><Text accessibilityRole="header" style={s.title}>{title}</Text>{mode === 'documents' ? <IconButton name="plus" label="새 문서 작성" onPress={() => go(ROUTES.MemoEdit)} /> : mode === 'review' ? <Text style={s.meta}>대기 {waiting.length}건</Text> : null}</View></>;
+  const intro = <><View style={s.titleRow}><Text accessibilityRole="header" style={s.title}>{title}</Text>{mode === 'documents' ? <IconButton name="plus" label="새 문서 작성" onPress={() => go(ROUTES.MemoEdit)} /> : null}</View></>;
   let content;
   if (mode === 'documents') {
     content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={list} keyExtractor={memo => memo.id} contentContainerStyle={s.page} keyboardShouldPersistTaps="handled" ListHeaderComponent={<>{intro}<View style={s.search}><Icon name="search" size={17} color={c.muted} /><TextInput autoFocus={requestSearch} accessibilityLabel="문서 검색" placeholder="제목이나 내용으로 검색" placeholderTextColor={c.subtle} value={query} onChangeText={setQuery} style={s.searchInput} />{query ? <IconButton name="x" label="검색어 지우기" onPress={() => setQuery('')} /> : null}</View><View style={s.filters}>{[['all', '모든 문서'], ['favorites', '즐겨찾기']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{
@@ -199,7 +238,7 @@ export default function WorkspaceScreen({
     })} />} ListEmptyComponent={<Text style={s.empty}>{query ? '검색 결과가 없습니다.' : filter === 'favorites' ? '즐겨찾기한 문서가 없습니다.' : '아직 문서가 없습니다.\n새 문서에서 첫 생각을 기록하세요.'}</Text>} />;
   } else if (mode === 'review') {
     const items = proposals.filter(p => p.status === reviewTab && !actions.hidden.has(p.id));
-    content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={items} keyExtractor={p => p.id} contentContainerStyle={s.page} ListHeaderComponent={<>{intro}<Text style={s.intro}>제안 내용을 확인한 뒤 반영하세요.{'\n'}승인하기 전에는 원문이 바뀌지 않습니다.</Text><View style={s.filters}>{[['pending', '확인 대기'], ['hold', '보류']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{
+    content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={items} keyExtractor={p => p.id} contentContainerStyle={s.page} ListHeaderComponent={<>{intro}<View style={s.filters}>{[['pending', '확인 대기'], ['hold', '보류']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{
           selected: reviewTab === key
         }} onPress={() => setReviewTab(key)} style={[s.filter, reviewTab === key && s.filterOn]}><Text style={[s.filterText, reviewTab === key && {
             color: c.text
@@ -214,7 +253,7 @@ export default function WorkspaceScreen({
       })} style={s.link}><Icon name="file" size={14} color={c.muted} /><Text style={s.linkText} numberOfLines={1}>출처: {p.sourceTitle || '원본 문서'}</Text></Pressable> : null}{reviewReason(p) ? <Text style={s.note}>{reviewReason(p)}</Text> : null}<View style={[s.actions, {
         marginTop: 14,
         gap: 8
-      }]}><Pressable accessibilityRole="button" onPress={() => actions.hold(p)} style={s.secondary}><Text style={s.secondaryText}>보류</Text></Pressable><Pressable accessibilityRole="button" onPress={() => actions.dismiss(p)} style={s.secondary}><Text style={s.secondaryText}>무시</Text></Pressable><PrimaryButton label={reviewReason(p) ? '내용 확인' : '확인 후 저장'} icon="check" onPress={() => actions.edit(p)} /></View></View>} ListEmptyComponent={<Text style={s.empty}>{reviewTab === 'hold' ? '보류한 작업이 없습니다.' : '승인을 기다리는 작업이 없습니다.\n문서의 AI 분석에서 생성한 제안이 여기에 표시됩니다.'}</Text>} />;
+      }]}><Pressable accessibilityRole="button" onPress={() => actions.hold(p)} style={s.secondary}><Text style={s.secondaryText}>보류</Text></Pressable><Pressable accessibilityRole="button" onPress={() => actions.dismiss(p)} style={s.secondary}><Text style={s.secondaryText}>무시</Text></Pressable><PrimaryButton label={reviewReason(p) ? '내용 확인' : '확인 후 저장'} icon="check" onPress={() => actions.edit(p)} /></View></View>} ListEmptyComponent={<Text style={s.empty}>{reviewTab === 'hold' ? '보류한 작업이 없습니다.' : '검토할 제안이 없습니다.'}</Text>} />;
   } else if (mode === 'relations') {
     content = <GraphCanvas key={current?.id} navigation={navigation} />;
   } else {
@@ -224,11 +263,11 @@ export default function WorkspaceScreen({
           {memos.slice(0, 6).map(memo => <RecentDocument key={memo.id} memo={memo} photo={files.find(file => file.id === memo.photos?.[0])} onPress={() => open(memo)} />)}
         </ScrollView></HomeSection>}
         {memos.some(memo => memo.favorite) && <HomeSection title="즐겨찾기">
-          {memos.filter(memo => memo.favorite).slice(0, 5).map(memo => <DocumentRow key={memo.id} memo={memo} compact showArrow={false} onPress={() => open(memo)} />)}
+          {memos.filter(memo => memo.favorite).slice(0, 5).map(memo => <DocumentRow key={memo.id} memo={memo} compact onPress={() => open(memo)} />)}
           {memos.filter(memo => memo.favorite).length > 5 && <Pressable accessibilityRole="button" style={s.link} onPress={() => go(ROUTES.Favorites)}><Text style={s.linkText}>모두 보기</Text></Pressable>}
         </HomeSection>}
         <HomeSection title={current?.personal ? '개인 문서' : '공간 문서'}>
-          {list.slice(0, 20).map(memo => <DocumentRow key={memo.id} memo={memo} compact showArrow={false} onPress={() => open(memo)} hasChildren={parentIds.has(memo.id)} collapsed={collapsed.has(memo.id)} onToggle={() => setCollapsed(previous => { const next = new Set(previous); if (next.has(memo.id)) next.delete(memo.id); else next.add(memo.id); return next; })} />)}
+          {list.slice(0, 20).map(memo => <DocumentRow key={memo.id} memo={memo} compact onPress={() => open(memo)} hasChildren={parentIds.has(memo.id)} collapsed={collapsed.has(memo.id)} onToggle={() => setCollapsed(previous => { const next = new Set(previous); if (next.has(memo.id)) next.delete(memo.id); else next.add(memo.id); return next; })} />)}
           {list.length > 20 && <Pressable accessibilityRole="button" style={s.link} onPress={() => go(ROUTES.Memos)}><Text style={s.linkText}>모든 문서 보기</Text></Pressable>}
           {!documents.length && <Text style={s.emptyInline}>아직 작성한 문서가 없습니다.</Text>}
         </HomeSection>
@@ -237,7 +276,33 @@ export default function WorkspaceScreen({
       <View style={[s.homeDock, { paddingBottom: Math.max(10, insets.bottom) }]}><Pressable accessibilityRole="button" onPress={() => go(ROUTES.Memos, { search: true })} style={s.homeSearch}><Icon name="search" size={19} color={c.muted} /><Text style={s.homeSearchText}>검색</Text></Pressable><IconButton name="pencil" label="새 문서 작성" onPress={() => go(ROUTES.MemoEdit)} /></View>
     </>;
   }
-  return <View style={s.root}>{header}{content}{actions.snack.view}<SheetModal visible={menu} onClose={() => setMenu(false)} label="작업 공간 메뉴"><View style={s.handle} /><View style={s.titleRow}><Text style={s.sectionTitle}>나의 작업 공간</Text><IconButton name="x" label="메뉴 닫기" onPress={() => setMenu(false)} /></View><ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>{spaces.list.map(space => <Pressable accessibilityRole="button" key={space.id} onPress={() => {
+  const renderTab = (tab, i) => {
+    const pages = tab.pages;
+    const subIndex = i === pagerIndex ? Math.max(0, pages.findIndex(p => p.route === route?.params?.subpage)) : 0;
+    const select = name => navigation.setParams({ subpage: name });
+    return <PageRail index={subIndex} pages={pages} header={active =>
+      <View><ScrollView horizontal showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 16, alignItems: 'center' }}>
+        {pages.map(page => {
+          const selected = page.route === active.route;
+          return <Pressable key={page.route} accessibilityRole="tab" accessibilityLabel={page.label}
+            aria-selected={selected} accessibilityState={{ selected }} onPress={() => select(page.route)}
+            style={{ minHeight: 44, justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: selected ? c.text : 'transparent' }}>
+            <Text style={{ color: selected ? c.text : c.muted, fontSize: 14 }}>{page.label}</Text>
+          </Pressable>;
+        })}
+      </ScrollView></View>}
+      renderPage={(page, j) => {
+        if (page.route === ROUTES.Home) return content;
+        const mode = DOCUMENT_MODES[page.route];
+        if (mode) return <WorkspaceScreen bodyOnly mode={mode} navigation={navigation} route={i === pagerIndex ? route : undefined} />;
+        const Tool = screens[page.route];
+        return <Tool bodyOnly calendar={calendar} navigation={j === 0 ? navigation : { ...navigation, goBack: () => select(pages[0].route) }}
+          route={{ name: page.route, params: i === pagerIndex ? route?.params ?? {} : {} }} />;
+      }} />;
+  };  return <View style={s.root}>{pagerIndex !== undefined
+    ? <PageRail index={pagerIndex} pages={TABS} keepVisited header={tab => header(tab.route)} renderPage={renderTab} />
+    : <>{!bodyOnly && header()}{content}</>}{actions.snack.view}<SheetModal visible={menu} onClose={() => setMenu(false)} label="작업 공간 메뉴"><View style={s.handle} /><View style={s.titleRow}><Text style={s.sectionTitle}>나의 작업 공간</Text><IconButton name="x" label="메뉴 닫기" onPress={() => setMenu(false)} /></View><ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>{spaces.list.map(space => <Pressable accessibilityRole="button" key={space.id} onPress={() => {
           try {
             switchWorkspace(space.id);
             setMenu(false);
@@ -248,5 +313,5 @@ export default function WorkspaceScreen({
           }
         }} style={s.menuRow}><Icon name={space.personal ? 'home' : 'users'} size={18} color={c.muted} /><Text style={s.menuLabel}>{space.name}</Text>{space.id === current?.id && <Icon name="check" size={17} color={c.accent} />}</Pressable>)}<Text style={[s.meta, {
           marginTop: 20
-        }]}>도구와 설정</Text>{TOOLS.filter(([name]) => expandedTools || primaryTools.includes(name)).map(([name, label, icon]) => <Pressable accessibilityRole="button" key={name} onPress={() => go(name)} style={s.menuRow}><Icon name={icon} size={18} color={c.muted} /><Text style={s.menuLabel}>{label}</Text><Icon name="chevronRight" size={14} color={c.subtle} /></Pressable>)}<Pressable accessibilityRole="button" accessibilityState={{expanded:expandedTools}} style={s.menuRow} onPress={()=>setExpandedTools(value=>!value)}><Text style={s.menuLabel}>{expandedTools ? "도구 접기" : "다른 도구 보기"}</Text><Icon name={expandedTools ? "chevronUp" : "chevronDown"} size={16} color={c.muted}/></Pressable></ScrollView></SheetModal></View>;
+        }]}>공통 설정</Text>{SPACE_TOOLS.map(([name, label, icon]) => <Pressable accessibilityRole="button" key={name} onPress={() => go(name)} style={s.menuRow}><Icon name={icon} size={18} color={c.muted} /><Text style={s.menuLabel}>{label}</Text><Icon name="chevronRight" size={14} color={c.subtle} /></Pressable>)}</ScrollView></SheetModal></View>;
 }

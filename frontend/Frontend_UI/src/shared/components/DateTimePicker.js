@@ -95,7 +95,7 @@ export function TimePickerModal({ visible, value, title, onPick, onClear, onClos
       <View style={styles.row}>
         <Pressable accessibilityRole="button" onPress={onClear} style={[styles.btn, styles.btnGhost]}><Text style={styles.closeText}>지우기</Text></Pressable>
         <Pressable accessibilityRole="button" onPress={onClose} style={[styles.btn, styles.btnGhost]}><Text style={styles.closeText}>취소</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => onPick(`${hh}:${mm}`)} style={[styles.btn, { backgroundColor: colors.mintDark }]}><Text style={[styles.closeText, { color: colors.onPrimary }]}>확인</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => onPick(`${hh}:${mm}`)} style={[styles.btn, { backgroundColor: colors.action }]}><Text style={[styles.closeText, { color: colors.onPrimary }]}>확인</Text></Pressable>
       </View>
     </Shell>
   );
@@ -111,14 +111,14 @@ const styles = StyleSheet.create({
   wd: { flex: 1, textAlign: 'center', fontSize: font.caption, fontWeight: '700', color: colors.muted },
   dayCell: { flex: 1, height: 40, alignItems: 'center', justifyContent: 'center' },
   day: { width: 34, height: 34, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
-  dayOn: { backgroundColor: colors.mintDark },
+  dayOn: { backgroundColor: colors.action },
   dayText: { fontSize: font.body, color: colors.ink },
   closeBtn: { minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   closeText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   cols: { flexDirection: 'row', gap: spacing.md, height: 240 },
   col: { flex: 1 },
   opt: { minHeight: 40, borderRadius: radius.sm, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  optOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
+  optOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
   optText: { fontSize: font.bodyLg, color: colors.ink },
   optTextOn: { color: colors.onPrimary, fontWeight: '600' },
   btn: { flex: 1, minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },

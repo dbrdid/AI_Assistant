@@ -58,6 +58,6 @@ const styles = StyleSheet.create({
   input: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
   note: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
-  save: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  save: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   saveText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
 });

@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   account: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  avatar: { width: 48, height: 48, borderRadius: 4, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 48, height: 48, borderRadius: 4, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 20, fontWeight: '600', color: colors.onPrimary },
   name: { fontSize: font.header, fontWeight: '600', color: colors.ink },
   email: { fontSize: 13, color: colors.muted },

@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   // 주간 브리핑 요일 칩 (Group 카드 안)
   chips: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   chip: { width: 42, height: 42, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  chipOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
+  chipOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
   chipText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   chipTextOn: { color: colors.onPrimary },
 });

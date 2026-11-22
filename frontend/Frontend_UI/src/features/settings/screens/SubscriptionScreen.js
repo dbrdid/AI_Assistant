@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   plan: { fontSize: 28, fontWeight: '600', color: colors.mintDark },
   date: { fontSize: font.bodyLg, color: colors.ink, fontWeight: '600' },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
-  primary: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  primary: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   ghost: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },

@@ -360,7 +360,7 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
-  me: { width: 40, height: 40, borderRadius: 4, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  me: { width: 40, height: 40, borderRadius: 4, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   meText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   date: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   scope: { fontSize: font.caption, color: colors.muted },
@@ -403,9 +403,9 @@ const styles = StyleSheet.create({
   spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 110, height: 30, paddingHorizontal: 8, borderRadius: 4, backgroundColor: colors.mintSoft },
   spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
   input: { flex: 1, minHeight: 40, maxHeight: 120, paddingHorizontal: spacing.md, paddingTop: 8, paddingBottom: 8, fontSize: font.bodyLg, lineHeight: 22, color: colors.ink },
-  round: { width: 42, height: 42, borderRadius: 4, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  round: { width: 42, height: 42, borderRadius: 4, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   ghost: { borderWidth: 0, backgroundColor: 'transparent', marginBottom: 2 },
-  stop: { backgroundColor: colors.coral },
+  stop: { backgroundColor: colors.coralSoft },
   recDot: { width: 10, height: 10, borderRadius: 2, backgroundColor: colors.coral, alignSelf: 'center' },
   recText: { flex: 1, alignSelf: 'center', fontSize: font.bodyLg, fontWeight: '600', color: colors.coral },
 

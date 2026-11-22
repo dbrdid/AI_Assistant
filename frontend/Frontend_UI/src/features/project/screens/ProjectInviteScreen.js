@@ -131,6 +131,6 @@ const styles = StyleSheet.create({
   warnText: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
   left: { fontSize: font.body, fontWeight: '600', color: colors.ink },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
-  send: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  send: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   sendText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
 });

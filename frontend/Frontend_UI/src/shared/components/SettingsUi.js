@@ -96,7 +96,7 @@ export function ToggleRow({ label, sub, value, onValueChange, disabled, icon }) 
 export function Radio({ on, size = 22 }) {
   return (
     <View style={[styles.radio, { width: size, height: size, borderRadius: size / 2 }, on && { borderColor: colors.mintDark }]}>
-      {on && <View style={{ width: size / 2, height: size / 2, borderRadius: size / 4, backgroundColor: colors.mintDark }} />}
+      {on && <View style={{ width: size / 2, height: size / 2, borderRadius: size / 4, backgroundColor: colors.ink }} />}
     </View>
   );
 }
@@ -147,8 +147,8 @@ const styles = StyleSheet.create({
   rowSub: { fontSize: font.caption, color: colors.muted, lineHeight: 17 },
   rowValue: { fontSize: font.body, color: colors.muted },
   radio: { borderWidth: 2, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  save: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
+  save: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
   saveText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
-  notice: { position: 'absolute', left: spacing.xl, right: spacing.xl, bottom: spacing.xl, backgroundColor: colors.ink, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
+  notice: { position: 'absolute', left: spacing.xl, right: spacing.xl, bottom: spacing.xl, backgroundColor: colors.action, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
   noticeText: { color: colors.onPrimary, fontSize: font.body, textAlign: 'center' },
 });

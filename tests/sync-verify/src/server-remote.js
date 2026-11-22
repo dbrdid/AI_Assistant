@@ -32,4 +32,19 @@ async function remoteUser(url, key, email, password) {
   };
 }
 
-module.exports = { remoteUser };
+async function checkCollaborationSchema(client) {
+  const requirements = [
+    ['notes', 'parent_note_id', '20261119090000_note_hierarchy.sql'],
+    ['projects', 'table_properties', '20261119100000_project_table_properties.sql'],
+  ];
+  const missing = [];
+  for (const [table, column, migration] of requirements) {
+    const { error } = await client.from(table).select(column).limit(0);
+    if (!error) continue;
+    if (error.code !== '42703') throw new Error(`협업 스키마를 확인하지 못했어요 (${table}.${column}, ${error.code ?? 'UNKNOWN'}).`);
+    missing.push(`${table}.${column} (${migration})`);
+  }
+  if (missing.length) throw new Error(`배포 서버의 협업 스키마가 누락됐어요: ${missing.join(', ')}`);
+}
+
+module.exports = { remoteUser, checkCollaborationSchema };

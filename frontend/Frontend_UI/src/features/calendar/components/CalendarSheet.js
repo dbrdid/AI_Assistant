@@ -467,7 +467,7 @@ const styles = StyleSheet.create({
   spaceChipsBar: { flexGrow: 0, flexShrink: 0, marginBottom: spacing.md },
   spaceChips: { gap: spacing.sm, alignItems: 'center' },
   spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
-  spaceChipAll: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
+  spaceChipAll: { backgroundColor: colors.action, borderColor: colors.actionBorder },
   spaceChipOff: { backgroundColor: colors.cream },
   spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.ink },
 
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   peekWeekday: { flex: 1, textAlign: 'center', fontSize: font.caption, fontWeight: '700', color: colors.muted, paddingVertical: 4 },
   peekCell: { flex: 1, alignItems: 'center' },
   peekCircle: { width: 36, height: 36, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
-  peekToday: { backgroundColor: colors.mintDark },
+  peekToday: { backgroundColor: colors.action },
   peekDay: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   peekDot: { width: 4, height: 4, borderRadius: 2, marginTop: 4, backgroundColor: 'transparent' },
 });

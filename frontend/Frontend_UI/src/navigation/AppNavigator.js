@@ -5,7 +5,7 @@ import LocalModelScreen from '../features/stella/LocalModelScreen';
 // ============================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, StyleSheet, View } from 'react-native';
+import { BackHandler, Platform, StyleSheet, View } from 'react-native';
 import StellaWorkspaceScreen from '../features/stella/WorkspaceScreen';
 import { ScreenMotion } from '../shared/components/Motion';
 import TodayScreen from '../features/home/screens/HomeScreen';
@@ -55,7 +55,7 @@ import WithdrawScreen from '../features/settings/screens/WithdrawScreen';
 import WorkspaceCreateScreen from '../features/workspace/screens/WorkspaceCreateScreen';
 import WorkspaceInviteScreen from '../features/workspace/screens/WorkspaceInviteScreen';
 import { colors, FILL } from '../shared/theme/theme';
-import { ROUTES } from './routes';
+import { ROUTES, TABS } from './routes';
 import { ScreenEntryProvider } from './ScreenEntry';
 
 // ------------------------------------------------------------
@@ -122,6 +122,7 @@ export default function AppNavigator() {
   const current = history[history.length - 1];
   const currentRoute = current.name;
 
+
   // ---------- 캘린더 상태 (홈의 시트 + 캘린더 화면이 공유) ----------
   const today = useMemo(() => new Date(), []); // 앱을 연 시점의 오늘 날짜
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() }); // 보고 있는 달
@@ -155,6 +156,10 @@ export default function AppNavigator() {
 
   // ---------- 화면 이동 ----------
   const navigate = useCallback((route, params, { push = false } = {}) => {
+    if (route === ROUTES.Relations) {
+      params = { ...params, subpage: route };
+      route = ROUTES.Memos;
+    }
     setHistory((prev) => {
       const top = prev[prev.length - 1];
 
@@ -178,15 +183,16 @@ export default function AppNavigator() {
   // 하단 탭 누름: 기록을 [홈, 그 탭] 으로 바꿈. 탭끼리는 쌓이지 않고, 탭에서 뒤로 가면 홈(오늘)으로 감.
   // 이미 그 탭의 첫 화면이면 그대로 둠 (key 가 같아 다시 만들어지지 않음)
   const selectTab = useCallback((route) => {
-    if (route === ROUTES.Home) return navigate(route);
-    setHistory((prev) => {
+    const destination = TABS.findIndex(tab => tab.route === route);
+    setHistory(prev => {
       const top = prev[prev.length - 1];
-      if (prev.length === 2 && top.name === route && top.tab) return prev;
-      keyRef.current += 1;
-      return [{ name: ROUTES.Home, key: 0 }, { name: route, key: keyRef.current, tab: true }];
-    });
-  }, [navigate]);
+      if (top.name === route || destination < 0) return prev;
 
+
+      const entry = { name: route, key: ++keyRef.current, tab: true };
+      return route === ROUTES.Home ? [entry] : [{ name: ROUTES.Home, key: 0 }, entry];
+    });
+  }, []);
   // 뒤로가기: 기록이 2개 이상일 때만 맨 끝을 제거
   const goBack = useCallback(() => {
     setHistory((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
@@ -241,6 +247,11 @@ export default function AppNavigator() {
   const tabRoot = onHome || !!current.tab || [ROUTES.Memos, ROUTES.Relations, ROUTES.Proposals].includes(currentRoute);
   const entry = useMemo(() => ({ tabRoot, goBack }), [tabRoot, goBack]);
   // 지금 화면에 맞는 컴포넌트 선택: 등록된 진짜 화면이 있으면 그것, 없으면 임시 화면
+  const tabIndex = TABS.findIndex(tab => tab.route === currentRoute);
+  const lastTab = [...history].reverse().find(item => TABS.some(tab => tab.route === item.name));
+  const pagerIndex = Math.max(0, TABS.findIndex(tab => tab.route === lastTab?.name));
+  const isDocumentEditor = currentRoute === ROUTES.MemoEdit;
+  const ScreenContainer = isDocumentEditor ? View : ScreenMotion;
   const Screen = REAL_SCREENS[currentRoute] || PlaceholderScreen;
 
   return (
@@ -248,17 +259,17 @@ export default function AppNavigator() {
       <View style={styles.stage}>
         {/* 홈 화면: 다른 화면으로 가도 "지우지 않고 숨기기만" 합니다(display: 'none').
             그래서 돌아왔을 때 쓰던 입력·스크롤 위치가 그대로 남아 있습니다. */}
-        <View style={[styles.fill, !onHome && styles.hidden]}>
-          <ScreenEntryProvider value={HOME_ENTRY}>
-            <HomeScreen navigation={navigation} />
+        <View style={[styles.fill, tabIndex < 0 && styles.hidden]}>
+          <ScreenEntryProvider value={onHome ? HOME_ENTRY : entry}>
+            <HomeScreen navigation={navigation} pagerIndex={pagerIndex} screens={REAL_SCREENS} calendar={calendar} route={lastTab} />
           </ScreenEntryProvider>
         </View>
 
         {/* 홈이 아닐 때만, 현재 화면을 홈 위에 보여줌.
             route 는 React Navigation 처럼 { name, params } 모양으로 넘깁니다.
             key 가 바뀌면(= 새로 이동하면) 화면이 새로 만들어집니다. */}
-        {!onHome && (
-          <ScreenMotion style={styles.fill} transitionKey={current.key}>
+        {tabIndex < 0 && (
+          <ScreenContainer style={styles.fill} {...(isDocumentEditor ? {} : { transitionKey: current.key })}>
             <ScreenEntryProvider value={entry}>
               <Screen
                 key={current.key}
@@ -267,7 +278,7 @@ export default function AppNavigator() {
                 route={{ name: current.name, params: current.params }}
               />
             </ScreenEntryProvider>
-          </ScreenMotion>
+          </ScreenContainer>
         )}
       </View>
 
@@ -280,7 +291,7 @@ const HOME_ENTRY = { tabRoot: true, goBack: null };
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
-  stage: { flex: 1 },
+  stage: { flex: 1, overflow: Platform.OS === 'web' ? 'clip' : 'hidden' },
   fill: { ...FILL }, // 부모 전체를 덮음 (화면들이 같은 자리에 겹쳐짐)
   hidden: { display: 'none' },                // 보이지 않게 숨김(메모리에는 유지)
 });

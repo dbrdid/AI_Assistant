@@ -21,7 +21,7 @@ export default function ConfirmDialog({ visible, title, sub, confirmText = 'í™•ì
             <Pressable
               accessibilityRole="button"
               onPress={onConfirm}
-              style={[styles.btn, { backgroundColor: danger ? colors.coral : colors.mintDark }]}
+              style={[styles.btn, { backgroundColor: danger ? colors.coralSoft : colors.action }]}
             >
               <Text style={styles.confirmText}>{confirmText}</Text>
             </Pressable>

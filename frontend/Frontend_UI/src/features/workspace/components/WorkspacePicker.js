@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.line },
   name: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   sub: { fontSize: font.caption, color: colors.muted },
-  badge: { paddingHorizontal: spacing.md, minHeight: 26, borderRadius: 4, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  badge: { paddingHorizontal: spacing.md, minHeight: 26, borderRadius: 4, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontSize: font.caption, fontWeight: '600', color: colors.onPrimary },
   links: { flexDirection: 'row', gap: spacing.sm },
   link: { flex: 1, flexDirection: 'row', gap: 4, minHeight: 46, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },

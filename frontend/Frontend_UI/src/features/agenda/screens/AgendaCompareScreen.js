@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   chips: { gap: spacing.sm, paddingVertical: spacing.xs },
   chip: { maxWidth: 220, paddingHorizontal: spacing.lg, minHeight: 40, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  chipOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
+  chipOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
   chipText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   dayRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   arrow: { width: 44, height: 44, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },

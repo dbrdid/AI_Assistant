@@ -207,6 +207,6 @@ const styles = StyleSheet.create({
   actionBtn: { flex: 1, minHeight: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   editBtn: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   editText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
-  delBtn: { backgroundColor: colors.coral },
+  delBtn: { backgroundColor: colors.coralSoft },
   delText: { fontSize: font.body, fontWeight: '700', color: colors.onPrimary },
 });

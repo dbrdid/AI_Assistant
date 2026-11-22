@@ -85,7 +85,7 @@ export default function LocalModelScreen({
     setBusy(false);
     setError('응답 표시를 중지했습니다. 이미 시작된 모델 처리는 즉시 종료되지 않을 수 있습니다.');
   }
-  return <View style={s.root}><WorkspaceHeader title="로컬 AI" onBack={navigation.goBack} right={<IconButton name="refresh" label="모델 목록 새로고침" onPress={loadModels} disabled={loading || busy} />} /><ScrollView showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.page}><Text accessibilityRole="header" style={s.title}>AI 작업 공간</Text><Text style={s.intro}>이 PC에 설치된 모델에 질문하세요.{'\n'}문서 원문은 자동으로 보내지 않습니다.</Text>{!available ? <><Text style={s.note}>데스크톱 로컬 미리보기에서 사용하는 기능입니다. 모바일 앱에서는 AI 설정에 연결한 서버를 사용하세요.</Text><PrimaryButton label="AI 채팅 열기" icon="message" onPress={() => navigation.navigate(ROUTES.Ai)} /></> : <><Pressable accessibilityRole="button" onPress={() => setPicker(true)} disabled={busy} style={[s.secondary, {
+  return <View style={s.root}><WorkspaceHeader title="로컬 AI" onBack={navigation.goBack} right={<IconButton name="refresh" label="모델 목록 새로고침" onPress={loadModels} disabled={loading || busy} />} /><ScrollView showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.page}><Text style={s.intro}>질문에 입력한 내용만 모델로 전송됩니다.</Text>{!available ? <><Text style={s.note}>데스크톱 로컬 미리보기에서 사용하는 기능입니다. 모바일 앱에서는 AI 설정에 연결한 서버를 사용하세요.</Text><PrimaryButton label="AI 채팅 열기" icon="message" onPress={() => navigation.navigate(ROUTES.Ai)} /></> : <><Pressable accessibilityRole="button" onPress={() => setPicker(true)} disabled={busy} style={[s.secondary, {
           marginTop: 22,
           flexDirection: 'row',
           gap: 10

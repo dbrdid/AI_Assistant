@@ -164,6 +164,13 @@ async function runScenarios(env, report) {
   check('끊긴 동안: A 화면에는 수정이 보임', (await note(devA, ws, N1))?.data.body === '오프라인에서 고침' && !!(await note(devA, ws, N2)));
   await S.pullWorkspace(ctxB);
   check('끊긴 동안: B에는 아직 안 보임', (await note(devB, ws, N1))?.data.body === '첫 메모' && !(await note(devB, ws, N2)));
+  const queuedIds = (await S.listOutbox(devA.db, ws)).map(row => row.operationId);
+  devA.close(); devA = openDevice(devA.file); ctxA.db = devA.db;
+  const reopenedIds = (await S.listOutbox(devA.db, ws)).map(row => row.operationId);
+  check('오프라인에서 기기 DB를 다시 열어도 수정과 전송 순서가 유지됨',
+    queuedIds.length === 2 && S.sameValue(queuedIds, reopenedIds) &&
+    (await note(devA, ws, N1))?.data.body === '오프라인에서 고침' &&
+    (await note(devA, ws, N2))?.data.body === '새로 씀', `대기 ${reopenedIds.length}건`);
   tA.mode = 'online';
   const f3 = await S.flushOutbox(ctxA);
   const pulledBefore = tB.pulled.length;
@@ -201,11 +208,18 @@ async function runScenarios(env, report) {
   await S.pullWorkspace(ctxB);
   await S.saveLocal(ctxA, [{ kind: 'update', entity: 'notes', id: N1, data: { body: 'A안: 금요일 마감' } }]);
   const f6 = await S.flushOutbox(ctxA);
+  const originalBody = (await note(devB, ws, N1))?.data.body;
   await S.saveLocal(ctxB, [{ kind: 'update', entity: 'notes', id: N1, data: { body: 'B안: 목요일 마감' } }]);
+  await S.pullWorkspace(ctxB);
   const f7 = await S.flushOutbox(ctxB);
   check('A가 먼저 저장 → 성공', f6.status === 'DONE');
   check('B가 같은 기록을 저장 → CONFLICT (REVISION_MISMATCH)', f7.status === 'CONFLICT' && f7.conflicts[0]?.reason === 'REVISION_MISMATCH',
     f7.conflicts?.[0]?.reason);
+  const issue = (await S.listConflicts(devB.db, ws)).find(item => item.outboxSeq === f7.outboxSeq);
+  const bodyConflict = issue?.items[0]?.fields.find(field => field.field === 'body');
+  check('B가 전송 전에 A의 수정을 받아도 두 본문과 편집 기준이 남음',
+    typeof originalBody === 'string' && bodyConflict?.base === originalBody &&
+    bodyConflict.mine === 'B안: 목요일 마감' && bodyConflict.server === 'A안: 금요일 마감');
   const n1Conf = await note(devB, ws, N1);
   check('B 화면: 내 수정은 그대로, 충돌 표시', n1Conf?.data.body === 'B안: 목요일 마감' && n1Conf.conflict === true);
   const f7b = await S.flushOutbox(ctxB);
@@ -705,15 +719,129 @@ async function runScenarios(env, report) {
 
   // -------------------------------------------------------------------
   group('12. 공간에서 빠지면 기기에서 닫힘');
+  if (env.collaborationOnly) {
+    const parentId = id();
+    const childId = id();
+    const projectId = id();
+    const field = { key: 'property:review', label: '검토', type: 'checkbox' };
+    const score = { key: 'property:score', label: '점수', type: 'number' };
+    const row = `memos:${childId}`;
+    const tableWith = (checked, value) => ({
+      fields: [field, score], properties: { [row]: { [field.key]: checked, [score.key]: value } },
+    });
+    const table = tableWith(false, 0);
+    await S.saveLocal(ctxA, [
+      { kind: 'create', entity: 'notes', id: parentId, data: { title: '상위 페이지' } },
+      { kind: 'create', entity: 'notes', id: childId, data: { title: '하위 페이지', parent_note_id: parentId } },
+      { kind: 'create', entity: 'projects', id: projectId, data: { name: '협업 표' } },
+    ]);
+    await S.flushOutbox(ctxA);
+    await S.pullWorkspace(ctxA);
+    await S.saveLocal(ctxA, [{ kind: 'update', entity: 'projects', id: projectId, data: { table_properties: table } }]);
+    const pushed = await S.flushOutbox(ctxA);
+    await S.pullWorkspace(ctxB);
+    const receivedChild = await note(devB, ws, childId);
+    const receivedProject = await S.getLocal(devB.db, ws, 'projects', projectId);
+    check('B: 공유 페이지 계층과 표의 false 값이 유지됨',
+      pushed.status === 'DONE' && receivedChild?.data.parent_note_id === parentId &&
+      receivedProject?.data.table_properties?.properties?.[row]?.[field.key] === false, pushed.status);
+
+    await S.saveLocal(ctxB, [{ kind: 'update', entity: 'notes', id: parentId, data: { parent_note_id: childId } }]);
+    const queuedBody = '이동 뒤 작성한 본문';
+    await S.saveLocal(ctxB, [{ kind: 'update', entity: 'notes', id: parentId, data: { body: queuedBody } }]);
+    const rejectedMove = await S.flushOutbox(ctxB);
+    if (rejectedMove.status !== 'BLOCKED') throw new Error(`Expected rejected cyclic move, got ${rejectedMove.status}`);
+    await S.discardOutbox(ctxB, rejectedMove.outboxSeq);
+    const recovered = await S.flushOutbox(ctxB);
+    await S.pullWorkspace(ctxA);
+    await S.pullWorkspace(ctxB);
+    const recoveredParents = await Promise.all([note(devA, ws, parentId), note(devB, ws, parentId)]);
+    const recoveredChildren = await Promise.all([note(devA, ws, childId), note(devB, ws, childId)]);
+    check('순환 이동을 취소한 뒤 대기하던 본문이 양쪽에 반영됨',
+      recovered.status === 'DONE' &&
+      recoveredParents.every(page => page?.data.parent_note_id === null && page.data.body === queuedBody) &&
+      recoveredChildren.every(page => page?.data.parent_note_id === parentId), recovered.status);
+
+    const editTable = async (ctx, checked, value) => {
+      const current = await S.getLocal(ctx.db, ws, 'projects', projectId);
+      return S.saveLocal(ctx, [{
+        kind: 'update', entity: 'projects', id: projectId, data: { table_properties: tableWith(checked, value) },
+        tableBase: { revision: current.serverRevision, properties: current.data.table_properties },
+      }]);
+    };
+    await S.pullWorkspace(ctxA);
+    await editTable(ctxA, true, 0);
+    await editTable(ctxB, false, 5);
+    await S.flushOutbox(ctxA);
+    const conflict = await S.flushOutbox(ctxB);
+    if (conflict.status !== 'CONFLICT') throw new Error(`Expected two-client table conflict, got ${conflict.status}`);
+    await S.resolveConflict(ctxB, conflict.outboxSeq, 'merge');
+    const merged = await S.flushOutbox(ctxB);
+    await S.pullWorkspace(ctxA);
+    await S.pullWorkspace(ctxB);
+    const getTable = async dev => (await S.getLocal(dev.db, ws, 'projects', projectId))?.data.table_properties;
+    check('두 사용자가 고친 서로 다른 셀을 병합하고 양쪽 SQLite에 반영',
+      merged.status === 'DONE' && S.sameValue(await getTable(devA), tableWith(true, 5)) &&
+      S.sameValue(await getTable(devB), tableWith(true, 5)), merged.status);
+
+    await editTable(ctxA, true, 6);
+    await editTable(ctxB, true, 7);
+    await S.flushOutbox(ctxA);
+    await S.pullWorkspace(ctxB);
+    const sameCell = await S.flushOutbox(ctxB);
+    let reason;
+    if (sameCell.status === 'CONFLICT') {
+      try { await S.resolveConflict(ctxB, sameCell.outboxSeq, 'merge'); }
+      catch (error) { reason = error.code; }
+    }
+    check('같은 셀의 다른 수정은 충돌로 남아 사용자 선택을 기다림', reason === 'CANNOT_MERGE', reason ?? sameCell.status);
+    if (reason === 'CANNOT_MERGE') {
+      devB.close();
+      devB = openDevice(devB.file);
+      ctxB.db = devB.db;
+      const reopened = (await S.listConflicts(devB.db, ws)).find(item => item.outboxSeq === sameCell.outboxSeq);
+      const values = reopened?.items[0]?.fields.find(field => field.field === 'table_properties');
+      check('B: 해결하지 않은 표 충돌은 다시 열어도 기준값·내 값·서버 값이 유지됨',
+        reopened?.canKeep && !reopened.mergeable && S.sameValue(values?.base, tableWith(true, 5)) &&
+        S.sameValue(values?.mine, tableWith(true, 7)) && S.sameValue(values?.server, tableWith(true, 6)));
+      tB.mode = 'offline';
+      await S.resolveConflict(ctxB, sameCell.outboxSeq, 'keep_both');
+      const offline = await S.flushOutbox(ctxB);
+      devB.close();
+      devB = openDevice(devB.file);
+      ctxB.db = devB.db;
+      const queued = (await S.listOutbox(devB.db, ws)).find(item => item.seq === sameCell.outboxSeq);
+      check('B: 오프라인에서 선택한 값은 기기를 다시 열어도 전송 대기 상태',
+        offline.status === 'OFFLINE' && queued?.status === 'PENDING' &&
+        S.sameValue(await getTable(devB), tableWith(true, 7)), offline.status);
+      tB.mode = 'online';
+      const sent = await S.flushOutbox(ctxB);
+      await S.pullWorkspace(ctxA);
+      check('B: 재연결 후 선택한 셀 값이 A에도 반영됨',
+        sent.status === 'DONE' && S.sameValue(await getTable(devA), tableWith(true, 7)), sent.status);
+    }
+  }
   await A.rpc('remove_member', { p_workspace_id: ws, p_account_id: B.accountId });
   const p11 = await S.pullWorkspace(ctxB);
   const st11 = await S.getSyncStatus(devB.db, ws);
   check('B: 내보내진 뒤 받기 → CLOSED', p11.status === 'CLOSED' && st11.state === 'CLOSED', p11.status);
+  check('B: 시작할 때 복원하는 접근 종료 목록에 공간이 포함됨', (await S.listClosedWorkspaces(devB.db)).includes(ws));
   await S.pullWorkspace(ctxA);
   const bAtA = await S.getLocal(devA.db, ws, 'workspace_members', B.accountId);
   check('A: 멤버 목록에 B가 REMOVED로 반영', bAtA?.data.status === 'REMOVED');
 
+  if (!A.client && !B.client) {
+    const invite = await A.rpc('create_invite', { p_workspace_id: ws, p_role: 'EDITOR', p_expires_in_hours: 1, p_max_uses: 1 });
+    await B.rpc('accept_invite', { p_code: invite.code });
+    const restored = await S.resyncWorkspace(ctxB);
+    const restoredStatus = await S.getSyncStatus(devB.db, ws);
+    check('B: 재초대 수락 뒤 새 스냅샷을 받아 동기화를 재개',
+      restored.status === 'RESYNCED' && restoredStatus.state === 'ACTIVE', restored.status);
+    await A.rpc('remove_member', { p_workspace_id: ws, p_account_id: B.accountId });
+  }
+
   // -------------------------------------------------------------------
+  if (env.collaborationOnly) return { workspaceId: ws };
   if (A.client && B.client) {
     group('13. 녹음 → 글자 (원격만: 올리기 → 변환 → 성공하면 삭제 / 실패하면 3일 보관)');
     const codeOf = async (p) => { try { await p; return 'OK'; } catch (e) { return e.code ?? e.message; } };

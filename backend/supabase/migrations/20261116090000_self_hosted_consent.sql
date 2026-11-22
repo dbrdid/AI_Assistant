@@ -7,7 +7,7 @@ alter table public.consents add constraint consents_consent_type_check
 do $migration$
 declare d text; old text := $fragment$c.consent_type = 'EXTERNAL_AI'$fragment$;
 begin
-  d := pg_get_functiondef('public.ai_begin_request(uuid,uuid,text,uuid,text,text,text)'::regprocedure);
+  d := pg_get_functiondef('public.ai_begin_request(uuid,uuid,text,uuid,text,text,text,integer)'::regprocedure);
   if (length(d) - length(replace(d, old, ''))) / length(old) <> 1 then
     raise exception 'Self-hosted consent migration: unexpected ai_begin_request definition';
   end if;

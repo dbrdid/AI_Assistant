@@ -20,7 +20,6 @@ export function AuthFrame({ title, subtitle, onBack, children }) {
         </View>
       ) : null}
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]} keyboardShouldPersistTaps="handled">
-        {!onBack && <Text style={styles.brand}>Stella</Text>}
         <Text style={styles.title} accessibilityRole="header">{title}</Text>
         {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
         {children}
@@ -80,10 +79,10 @@ export function AuthButton({ label, onPress, kind = 'primary', disabled, busy, i
 }
 
 const BUTTON_TONES = {
-  primary: { box: { backgroundColor: colors.mintDark }, text: colors.onPrimary },
+  primary: { box: { backgroundColor: colors.action }, text: colors.onPrimary },
   ghost: { box: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line }, text: colors.ink },
   outline: { box: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.line }, text: colors.mintDark },
-  kakao: { box: { backgroundColor: colors.kakao }, text: '#191600' },
+  kakao: { box: { backgroundColor: colors.card }, text: colors.ink },
 };
 
 // dialog: { icon, title, message } 또는 null
@@ -111,7 +110,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   back: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, alignItems: 'flex-start' },
   content: {width:'100%',maxWidth:420,alignSelf:'center',paddingHorizontal:28,paddingTop:28,gap:18},
-  brand:{fontSize:14,color:colors.muted,marginTop:12},
   title: { fontSize: 24, lineHeight: 32, fontWeight: '600', color: colors.ink },
   subtitle: { fontSize: font.body, color: colors.muted, lineHeight: 21, marginTop: -spacing.sm },
   label: { fontSize: 13, fontWeight: '500', color: colors.ink },
@@ -119,7 +117,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: font.bodyLg, color: colors.ink, paddingVertical: 10, outlineStyle: 'none' },
   hint: { fontSize: font.caption, color: colors.muted },
   btn: { flexDirection: 'row', gap: spacing.sm, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
-  btnPrimary: { backgroundColor: colors.mintDark },
+  btnPrimary: { backgroundColor: colors.action },
   btnText: { fontSize: font.bodyLg, fontWeight: '500' },
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.md },

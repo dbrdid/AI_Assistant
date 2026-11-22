@@ -109,8 +109,7 @@ function cleanCounts(c) {
             out[k] = Math.max(0, Math.round(v));
     return out;
 }
-/** 백업하기. 반환: 새 백업 + 보관 개수를 넘어서 지운 오래된 백업 수 */
-async function createBackup(client, p) {
+async function registerBackup(client, p) {
     const { deps } = p;
     const counts = cleanCounts(p.counts);
     const payload = { format: exports.BACKUP_FORMAT, created_at: (deps.now?.() ?? new Date()).toISOString(), counts, data: p.data };
@@ -131,18 +130,29 @@ async function createBackup(client, p) {
     });
     if (error)
         throw (0, errors_1.toSyncError)(error);
-    const r = data;
+    return data;
+}
+async function pruneBackups(client, registration, preserveBackupId) {
     // 보관 개수를 넘은 오래된 백업 지우기 (실패해도 백업 자체는 성공: 다음 백업 때 다시 지움)
+    let removed = 0;
     const removeFailed = [];
-    for (const id of r.remove_asset_ids ?? []) {
+    for (const id of registration.remove_asset_ids ?? []) {
+        if (id === registration.backup.id || id === preserveBackupId)
+            continue;
         try {
             await (0, attachments_1.deleteAttachment)(client, id);
+            removed++;
         }
         catch {
             removeFailed.push(id);
         }
     }
-    return { backup: r.backup, removed: (r.remove_asset_ids ?? []).length - removeFailed.length, removeFailed };
+    return { removed, removeFailed };
+}
+/** 백업하기. 반환: 새 백업 + 보관 개수를 넘어서 지운 오래된 백업 수 */
+async function createBackup(client, p) {
+    const registration = await registerBackup(client, p);
+    return { backup: registration.backup, ...await pruneBackups(client, registration) };
 }
 /** 내 백업 목록 ('new' 최신순 / 'old' 오래된순) */
 async function listBackups(client, order = 'new') {
@@ -179,15 +189,20 @@ async function restoreBackup(client, p) {
     let safety = null;
     if (!p.skipSafety) {
         try {
-            // 자동 백업이 고른 백업을 지우지 않게 보관 개수를 하나 늘려서 계산
-            safety = (await createBackup(client, { data: p.currentData, counts: p.currentCounts, kind: 'AUTO', keep: Math.min(50, (p.keep ?? exports.BACKUP_DEFAULT_KEEP) + 1), deps: p.deps })).backup;
+            // Reserve room for the safety backup and keep the selected source even if it falls outside retention.
+            safety = await registerBackup(client, {
+                data: p.currentData, counts: p.currentCounts, kind: 'AUTO',
+                keep: Math.min(50, (p.keep ?? exports.BACKUP_DEFAULT_KEEP) + 1), deps: p.deps,
+            });
         }
         catch (e) {
             throw new BackupError('SAFETY_BACKUP_FAILED', '복원 전에 지금 상태를 저장하지 못해서 복원하지 않았어요', e);
         }
     }
     await p.apply(restored.data, restored);
-    return { restored, safety };
+    if (safety)
+        await pruneBackups(client, safety, p.backup.id);
+    return { restored, safety: safety?.backup ?? null };
 }
 /** 백업 삭제 (본인 것만) */
 async function deleteBackup(client, backupId) {
@@ -202,6 +217,8 @@ function backupErrorMessage(err) {
         BACKUP_CORRUPT: '백업 파일을 풀 수 없어요 (손상됐거나 다른 계정의 백업)',
         BACKUP_TOO_NEW: '더 새 버전 앱에서 만든 백업이에요. 앱을 업데이트해 주세요',
         SAFETY_BACKUP_FAILED: '복원 전에 지금 상태를 저장하지 못해서 복원하지 않았어요. 저장 공간을 확인해 주세요',
+        RESTORE_CONTEXT_CHANGED: '복원 중 계정이나 공간이 바뀌었어요. 개인 공간에서 다시 시도해 주세요',
+        RESTORE_DATA_CHANGED: '복원 중 새로 저장된 기록을 보존했어요. 백업을 다시 선택해 복원해 주세요',
         NOT_FOUND: '백업을 찾을 수 없어요',
         NETWORK: '인터넷 연결을 확인해 주세요',
         UPLOAD_FAILED: '백업 파일을 올리지 못했어요. 잠시 후 다시 시도해 주세요',

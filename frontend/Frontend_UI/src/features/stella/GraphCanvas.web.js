@@ -552,7 +552,7 @@ export default function GraphCanvas({
     '--border-hit': `${6 / view.zoom}px`
   }}>
     <style>{CSS}</style>
-    <header className="graph-heading"><h1>문서 관계</h1><span>{nodes.length}개 기록  /  {scene.edges.length}개 연결</span></header>
+    <header className="graph-heading"><h1>문서 관계</h1></header>
     <div className="graph-tools" role="toolbar" aria-label="캔버스 도구">
       <button aria-label="선택 도구" aria-pressed={mode === 'select'} onClick={() => setMode('select')}>↖ 선택</button>
       <button aria-label="화면 이동 도구" aria-pressed={mode === 'pan'} onClick={() => setMode('pan')}>✥ 이동</button>

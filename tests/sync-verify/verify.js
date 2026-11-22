@@ -7,6 +7,7 @@ const path = require('node:path');
 const { runScenarios } = require('./src/scenarios');
 
 const LOCAL = process.argv.includes('--local');
+const COLLABORATION_ONLY = process.argv.includes('--collaboration-only');
 const ROOT = __dirname;
 
 function loadEnv(file) {
@@ -34,7 +35,7 @@ function makeReport() {
 
 async function main() {
   const report = makeReport();
-  const env = { dataDir: path.join(ROOT, 'device-data'), cleanup: [], users: {} };
+  const env = { dataDir: path.join(ROOT, 'device-data'), cleanup: [], users: {}, collaborationOnly: COLLABORATION_ONLY };
   const closers = [];
   const startedAt = new Date();
 
@@ -79,6 +80,10 @@ async function main() {
   let info = null;
   let crash = null;
   try {
+    if (COLLABORATION_ONLY && !LOCAL) {
+      const { checkCollaborationSchema } = require('./src/server-remote');
+      await checkCollaborationSchema(env.users.A.client);
+    }
     info = await runScenarios(env, report);
   } catch (e) {
     crash = e;
@@ -94,6 +99,7 @@ async function main() {
   console.log(`\n결과: ${pass}개 통과 / ${fail}개 실패${crash ? ' / 도중에 중단됨' : ''}`);
   const out = {
     target: LOCAL ? 'local' : 'remote',
+    scope: COLLABORATION_ONLY ? 'collaboration' : 'full',
     startedAt: startedAt.toISOString(),
     node: process.version,
     passed: pass,
@@ -102,8 +108,9 @@ async function main() {
     workspaceId: info?.workspaceId ?? null,
     checks: report.rows,
   };
-  fs.writeFileSync(path.join(ROOT, `result-${out.target}.json`), JSON.stringify(out, null, 2));
-  console.log(`자세한 결과: result-${out.target}.json\n`);
+  const reportName = `result-${out.target}${COLLABORATION_ONLY ? '-collaboration' : ''}.json`;
+  fs.writeFileSync(path.join(ROOT, reportName), JSON.stringify(out, null, 2));
+  console.log(`자세한 결과: ${reportName}\n`);
   process.exit(fail === 0 && !crash ? 0 : 1);
 }
 

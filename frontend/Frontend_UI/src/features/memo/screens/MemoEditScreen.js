@@ -1165,7 +1165,7 @@ const styles = StyleSheet.create({
   summaryText: { fontSize: font.body, color: colors.ink, lineHeight: 22 },
   summarySub: { fontSize: font.body, color: colors.muted },
   summaryLoading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  summaryAdd: { alignSelf: 'flex-start', minHeight: 34, paddingHorizontal: spacing.lg, borderRadius: radius.pill, backgroundColor: colors.mintDark, justifyContent: 'center', marginTop: 2 },
+  summaryAdd: { alignSelf: 'flex-start', minHeight: 34, paddingHorizontal: spacing.lg, borderRadius: radius.pill, backgroundColor: colors.action, justifyContent: 'center', marginTop: 2 },
   summaryAddText: { fontSize: font.caption + 1, fontWeight: '800', color: colors.onPrimary },
 
   // 펜 옵션 줄: 색 동그라미(선택된 색은 바깥 고리) + 굵기
@@ -1195,7 +1195,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.mintSoft,
   },
   convertHint: { flex: 1, fontSize: font.caption, color: colors.mintDark, fontWeight: '700' },
-  convertAll: { paddingHorizontal: spacing.md, minHeight: 34, borderRadius: radius.pill, backgroundColor: colors.mintDark, justifyContent: 'center' },
+  convertAll: { paddingHorizontal: spacing.md, minHeight: 34, borderRadius: radius.pill, backgroundColor: colors.action, justifyContent: 'center' },
   convertAllText: { fontSize: font.body, fontWeight: '700', color: colors.onPrimary },
 
   // 도구 줄 (흰 바탕 + 위쪽 얇은 선)
@@ -1209,7 +1209,7 @@ const styles = StyleSheet.create({
 
   // 프로젝트 고르기 창
   projOpt: { minHeight: 44, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, paddingHorizontal: spacing.lg, justifyContent: 'center' },
-  projOptOn: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
+  projOptOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
   projOptText: { fontSize: font.bodyLg, color: colors.ink },
   projClose: { minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm },
   projCloseText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
@@ -1224,6 +1224,6 @@ const styles = StyleSheet.create({
   dialogBtn: { flex: 1, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   cancelBtn: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   cancelText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
-  deleteBtn: { backgroundColor: colors.coral },
+  deleteBtn: { backgroundColor: colors.coralSoft },
   deleteText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.onPrimary },
 });

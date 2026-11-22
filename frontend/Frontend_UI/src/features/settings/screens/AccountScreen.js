@@ -69,7 +69,7 @@ export default function AccountScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
-  avatar: { alignSelf: 'center', width: 72, height: 72, borderRadius: 4, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  avatar: { alignSelf: 'center', width: 72, height: 72, borderRadius: 4, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 30, fontWeight: '600', color: colors.onPrimary },
   email: { textAlign: 'center', fontSize: font.body, color: colors.muted, marginBottom: spacing.sm },
   field: { gap: spacing.xs },

@@ -384,7 +384,7 @@ export default function TaskEditScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({headerSaveText:{fontSize:13,fontWeight:'600',color:colors.onPrimary},headerSave:{minHeight:36,minWidth:54,paddingHorizontal:12,borderRadius:4,backgroundColor:colors.ink,alignItems:'center',justifyContent:'center'},
+const styles = StyleSheet.create({headerSaveText:{fontSize:13,fontWeight:'600',color:colors.onPrimary},headerSave:{minHeight:36,minWidth:54,paddingHorizontal:12,borderRadius:4,backgroundColor:colors.action,alignItems:'center',justifyContent:'center'},
   root: { flex: 1, backgroundColor: colors.cream },
   content: {paddingHorizontal:20,paddingBottom:32,gap:10},
   seg: {flexDirection:'row',backgroundColor:'transparent',borderRadius:0,borderWidth:0,borderColor:colors.line,padding:0,borderBottomWidth:1},
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({headerSaveText:{fontSize:13,fontWeight:'600',c
   moreText: {flex:1,fontSize:13,fontWeight:'400',color:colors.muted},
   flip: { transform: [{ rotate: '180deg' }] },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
-  save: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  save: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   saveText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   del: {minHeight:48,borderRadius:radius.card,backgroundColor:'transparent',borderWidth:0,borderColor:colors.coral,alignItems:'flex-start',justifyContent:'center'},
   delText: {fontSize:14,fontWeight:'400',color:colors.coral},

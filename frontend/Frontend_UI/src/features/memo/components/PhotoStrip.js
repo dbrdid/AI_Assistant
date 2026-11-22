@@ -57,8 +57,8 @@ const styles = StyleSheet.create({
   big: { width: '100%', height: '75%' },
   btns: { flexDirection: 'row', gap: spacing.sm, width: '100%', maxWidth: 360 },
   btn: { flex: 1, minHeight: 48, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  ghost: { backgroundColor: colors.white },
+  ghost: { backgroundColor: colors.card },
   ghostText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.coral },
-  main: { backgroundColor: colors.mintDark },
+  main: { backgroundColor: colors.action },
   mainText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
 });

@@ -42,7 +42,7 @@ function Root() {
       </View>
     );
   }
-  if (status === 'storage-error') return <View style={{flex:1,justifyContent:'center',padding:28,backgroundColor:colors.cream,gap:18}}><Text accessibilityRole="header" style={{fontSize:22,fontWeight:'600',color:colors.ink}}>작업 공간을 열지 못했습니다</Text><Text style={{fontSize:15,lineHeight:24,color:colors.muted}}>기기 저장소를 여는 중 문제가 생겼습니다. 다시 시도해 주세요.</Text><Pressable accessibilityRole="button" accessibilityLabel="다시 시도" onPress={()=>{void retrySession();}} style={{minHeight:44,paddingHorizontal:20,alignSelf:'flex-start',backgroundColor:colors.ink,borderRadius:6,justifyContent:'center'}}><Text style={{fontSize:14,color:colors.onPrimary}}>다시 시도</Text></Pressable></View>;
+  if (status === 'storage-error') return <View style={{flex:1,justifyContent:'center',padding:28,backgroundColor:colors.cream,gap:18}}><Text accessibilityRole="header" style={{fontSize:22,fontWeight:'600',color:colors.ink}}>작업 공간을 열지 못했습니다</Text><Text style={{fontSize:15,lineHeight:24,color:colors.muted}}>기기 저장소를 여는 중 문제가 생겼습니다. 다시 시도해 주세요.</Text><Pressable accessibilityRole="button" accessibilityLabel="다시 시도" onPress={()=>{void retrySession();}} style={{minHeight:44,paddingHorizontal:20,alignSelf:'flex-start',backgroundColor:colors.action,borderRadius:6,justifyContent:'center'}}><Text style={{fontSize:14,color:colors.onPrimary}}>다시 시도</Text></Pressable></View>;
   if (status !== 'in') return <AuthFlow />;
   if (setup === 'needed') return <SetupFlow user={user} onDone={() => setSetup('done')} />;
   return <View style={{ flex: 1, backgroundColor: '#0e0e0f' }}><View style={{ flex: 1, width: '100%', maxWidth: 412, alignSelf: 'center' }}><AppNavigator /></View></View>;
@@ -52,7 +52,7 @@ export default function App() {
   useEffect(() => {
     if (Platform.OS !== 'web') return undefined;
     const style = document.createElement('style');
-    style.textContent = `@font-face{font-family:Stella Sans;src:url('/fonts/PretendardVariable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}*{font-family:'Stella Sans','Malgun Gothic',sans-serif!important;font-synthesis:none}html,body,#root{height:100%;margin:0;background:#191a1b}*{scrollbar-width:none}*::-webkit-scrollbar{display:none;width:0;height:0}input,textarea{caret-color:#f0f0ee}div[dir=auto],span[dir=auto]{word-break:keep-all;overflow-wrap:anywhere}button{transition:background-color 120ms ease,color 120ms ease,opacity 120ms ease}button:active{opacity:.72}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #aebcab;outline-offset:2px}@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}`;
+    style.textContent = `@font-face{font-family:Stella Sans;src:url('/fonts/PretendardVariable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}*{font-family:'Stella Sans','Malgun Gothic',sans-serif!important;font-synthesis:none}html,body,#root{height:100%;margin:0;background:#191a1b}*{scrollbar-width:none}*::-webkit-scrollbar{display:none;width:0;height:0}input,textarea{caret-color:#f0f0ee}div[dir=auto],span[dir=auto]{word-break:keep-all;overflow-wrap:anywhere}button{transition:background-color 120ms ease,color 120ms ease,opacity 120ms ease}button:active{opacity:.72}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #aebcab;outline-offset:2px}`;
     document.head.appendChild(style);
     return () => style.remove();
   }, []);

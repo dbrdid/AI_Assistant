@@ -311,5 +311,5 @@ export default function GraphCanvas({
           zoom: .75
         })], ['확대', 'plus', () => changeZoom(.1)]].map(([label, icon, onPress]) => <Pressable key={label} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={s.iconButton}>{label === '보기 초기화' ? <Text style={s.meta}>{Math.round(view.zoom * 100)}%</Text> : <Icon name={icon} size={18} color={c.text} />}</Pressable>)}</View></View><View style={{
       padding: 15
-    }}><Text style={s.meta}>{nodes.length}개 기록  /  {uniqueEdges.length}개 연결</Text><Text style={s.note}>빈 공간은 화면 이동  /  문서는 위치 이동  /  누르면 열기</Text></View></View>;
+    }}><Text style={s.note}>빈 공간은 화면 이동  /  문서는 위치 이동  /  누르면 열기</Text></View></View>;
 }

@@ -165,7 +165,7 @@ export default function TeamScreen({ navigation, route }) {
                   setEditId(null);
                   exit();
                 }}
-                style={[styles.dBtn, { backgroundColor: colors.mintDark }, (!name.trim() || !role.trim()) && styles.off]}
+                style={[styles.dBtn, { backgroundColor: colors.action }, (!name.trim() || !role.trim()) && styles.off]}
               >
                 <Text style={[styles.barText, { color: colors.onPrimary }]}>수정</Text>
               </Pressable>
@@ -221,13 +221,13 @@ const styles = StyleSheet.create({
   invite: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, borderStyle: 'dashed', backgroundColor: colors.card },
   inviteText: { flex: 1, fontSize: font.body, color: colors.ink },
   inviteMeta: { fontSize: font.caption, color: colors.muted },
-  ok: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
+  ok: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
   okText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.line, padding: spacing.md, gap: spacing.sm },
   barCount: { fontSize: font.body, fontWeight: '700', color: colors.ink, textAlign: 'center' },
   barRow: { flexDirection: 'row', gap: spacing.sm },
   barBtn: { flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.cream, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  barDanger: { backgroundColor: colors.coral, borderColor: colors.coral },
+  barDanger: { backgroundColor: colors.coralSoft, borderColor: colors.coral },
   barText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   off: { opacity: 0.4 },
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },

@@ -19,7 +19,9 @@ export const colors = {
   card: '#222325',      // 카드 배경 (Figma 시안: 흰 카드 + 얇은 테두리)
   kakao: '#FEE500',     // 카카오 로그인 버튼 노랑
   white: '#FFFFFF',
-  onPrimary: '#191a1b',
+  action: '#36383b',
+  actionBorder: '#55585c',
+  onPrimary: '#f0f0ee',
   raised: '#2b2c2e',     // 흰색
   black: '#000000'      // 검정색
 };

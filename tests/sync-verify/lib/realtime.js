@@ -9,6 +9,7 @@ function workspaceTopic(workspaceId) {
     return `workspace:${workspaceId.toLowerCase()}`;
 }
 const DENIED = /unauthori[sz]ed|permission|not allowed|denied/i;
+const closingChannels = new WeakMap();
 /**
  * 공간 신호 구독. 반환값을 부르면 구독 해제.
  * 신호만 받고 싶을 때 쓰고, 보통은 watchWorkspace를 쓰세요.
@@ -17,9 +18,17 @@ function subscribeWorkspace(client, workspaceId, h) {
     const topic = workspaceTopic(workspaceId);
     let stopped = false;
     let channel = null;
+    const closing = closingChannels.get(client) ?? new Map();
+    closingChannels.set(client, closing);
     const start = async () => {
+        // The SDK removes channels by topic, so wait for the old unsubscribe before rejoining.
+        await closing.get(topic);
+        if (stopped)
+            return;
         // 비공개 채널은 로그인 토큰이 있어야 구독됨
         const { data } = await client.auth.getSession();
+        if (stopped)
+            return;
         const token = data.session?.access_token;
         if (!token) {
             h.onStatus?.('denied', 'AUTH_REQUIRED: 로그인이 필요합니다');
@@ -31,6 +40,8 @@ function subscribeWorkspace(client, workspaceId, h) {
         channel = client.channel(topic, { config: { private: true } });
         channel
             .on('broadcast', { event: 'changed' }, (msg) => {
+            if (stopped)
+                return;
             const p = (msg.payload ?? {});
             const lastSeq = Number(p.last_seq);
             if (!Number.isFinite(lastSeq))
@@ -38,6 +49,8 @@ function subscribeWorkspace(client, workspaceId, h) {
             h.onSignal({ type: 'changed', workspaceId: p.workspace_id ?? workspaceId, lastSeq });
         })
             .on('broadcast', { event: 'closed' }, (msg) => {
+            if (stopped)
+                return;
             const p = (msg.payload ?? {});
             h.onSignal({ type: 'closed', workspaceId: p.workspace_id ?? workspaceId });
         })
@@ -61,9 +74,17 @@ function subscribeWorkspace(client, workspaceId, h) {
             h.onStatus?.('error', e instanceof Error ? e.message : String(e));
     });
     return () => {
+        if (stopped)
+            return;
         stopped = true;
-        if (channel)
-            void client.removeChannel(channel);
+        if (!channel)
+            return;
+        const operation = client.removeChannel(channel)
+            .then(() => undefined)
+            .catch((error) => console.warn('[realtime] 구독을 해제하지 못했습니다', error))
+            .finally(() => { if (closing.get(topic) === operation)
+            closing.delete(topic); });
+        closing.set(topic, operation);
     };
 }
 /**

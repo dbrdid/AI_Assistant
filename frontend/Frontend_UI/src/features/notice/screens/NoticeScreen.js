@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   cardNew: { borderColor: colors.mint, backgroundColor: colors.mintSoft },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.mintDark },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.mint },
   title: { flex: 1, fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   body: { fontSize: font.body, color: colors.ink, lineHeight: 20 },
   time: { fontSize: font.caption, color: colors.muted },

@@ -81,6 +81,6 @@ const styles = StyleSheet.create({
   reasonText: { flex: 1, fontSize: 13, fontWeight: '700', color: colors.coral },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: 4 },
   btn: { minHeight: 36, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  btnPrimary: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
+  btnPrimary: { backgroundColor: colors.action, borderColor: colors.actionBorder },
   btnText: { fontSize: font.body, fontWeight: '600', color: colors.ink },
 });

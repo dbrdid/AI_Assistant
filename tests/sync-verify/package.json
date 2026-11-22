@@ -6,6 +6,7 @@
   "main": "verify.js",
   "scripts": {
     "verify": "node --no-warnings verify.js",
+    "verify:collaboration": "node --no-warnings verify.js --collaboration-only",
     "verify:local": "node --no-warnings verify.js --local",
     "auth-test": "node auth-test.js"
   },

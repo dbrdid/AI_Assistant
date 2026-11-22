@@ -50,7 +50,7 @@ const SORTS = [
   { id: 'title', label: '제목순' },
 ];
 
-export default function MemosScreen({ navigation, route, favoritesOnly = false }) {
+export default function MemosScreen({ navigation, route, favoritesOnly = false, bodyOnly = false }) {
   const insets = useSafeAreaInsets();
   // 모든 공간의 메모 (휴지통 제외). 공간 칩으로 한 공간만 볼 수 있음
   const memoAll = useAllMemos();
@@ -294,7 +294,7 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false }
 
   return (
     <View style={styles.root}>
-      {!favoritesOnly && <WorkspaceHeader title={spaceList.find(item => item.id === space)?.name || "나의 문서"} onMenu={() => navigation.navigate(ROUTES.Workspace)} tabs={<TabBar current={ROUTES.Memos} onSelect={navigation.selectTab || navigation.navigate} />} />}
+      {!bodyOnly && !favoritesOnly && <WorkspaceHeader title={spaceList.find(item => item.id === space)?.name || "나의 문서"} onMenu={() => navigation.navigate(ROUTES.Workspace)} tabs={<TabBar current={ROUTES.Memos} onSelect={navigation.selectTab || navigation.navigate} />} />}
       <ScreenHeader
         title={selecting ? `${ids.length}개 선택` : title}
         onBack={selecting ? exitSelect : navigation.goBack}
@@ -712,7 +712,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.ink,
+    backgroundColor: colors.action,
     borderRadius: radius.md,
     paddingHorizontal: spacing.lg,
     minHeight: 48,
@@ -727,7 +727,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.mintDark,
+    backgroundColor: colors.action,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadow.float,

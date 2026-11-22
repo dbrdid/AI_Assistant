@@ -5,25 +5,34 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import Icon from '../shared/components/Icon';
-import { useReducedMotion } from '../shared/components/Motion';
+
 import { TABS } from './routes';
 import { palette } from '../features/stella/theme';
 
 function NavigationTab({ item, selected, onSelect }) {
   const width = useRef(new Animated.Value(selected ? 2.6 : 1)).current;
-  const reduced = useReducedMotion();
+
   useEffect(() => {
-    const motion = Animated.timing(width, { toValue: selected ? 2.6 : 1, duration: reduced ? 0 : 220, useNativeDriver: false });
+    const motion = Animated.timing(width, { toValue: selected ? 2.6 : 1, duration: 220, useNativeDriver: false });
     motion.start();
     return () => motion.stop();
-  }, [selected, reduced, width]);
-  const color = selected ? palette.text : palette.subtle;
+  }, [selected, width]);
+  const labelOpacity = width.interpolate({
+    inputRange: [1, 1.85, 2.6], outputRange: [0, 0, 1], extrapolate: 'clamp',
+  });
+  const iconOpacity = Animated.subtract(1, labelOpacity);
   return <Animated.View style={{ flex: width, minWidth: 44 }}><Pressable
     accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{ selected }} aria-selected={selected}
     onPress={() => onSelect(item.route)}
     style={({ pressed }) => [styles.tab, selected && styles.selected, pressed && { opacity: .6 }]}>
-    <Icon name={item.icon} size={18} color={color} strokeWidth={selected ? 2.1 : 1.6} />
-    {selected && <Text numberOfLines={1} style={styles.label}>{item.label}</Text>}
+    <Animated.View pointerEvents="none" style={{ opacity: iconOpacity }}>
+      <Icon name={item.icon} size={18} color={palette.subtle} strokeWidth={1.6} />
+    </Animated.View>
+    <Animated.View pointerEvents="none" aria-hidden importantForAccessibility="no-hide-descendants"
+      style={[styles.expandedContent, { opacity: labelOpacity }]}>
+      <Icon name={item.icon} size={18} color={palette.text} strokeWidth={2.1} />
+      <Text style={styles.label}>{item.label}</Text>
+    </Animated.View>
   </Pressable></Animated.View>;
 }
 export default function TabBar({ current, onSelect }) {
@@ -34,7 +43,8 @@ export default function TabBar({ current, onSelect }) {
 
 const styles = StyleSheet.create({
   bar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  tab: { minHeight: 44, borderRadius: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 6, backgroundColor: palette.surface },
+  tab: { minHeight: 44, borderRadius: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 6, backgroundColor: 'transparent' },
   selected: { backgroundColor: palette.raised },
-  label: { color: palette.text, fontSize: 13, fontWeight: '600' },
+  expandedContent: { position: 'absolute', alignSelf: 'center', width: 180, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  label: { flexShrink: 0, color: palette.text, fontSize: 13, fontWeight: '600' },
 });

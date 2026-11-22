@@ -8,7 +8,7 @@ import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import Icon from '../../../shared/components/Icon';
-import { CircleButton, DashedButton, StatBox, Tag } from '../../../shared/components/Ui';
+import { CircleButton, Tag } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
@@ -30,8 +30,6 @@ export default function ProjectsScreen({ navigation }) {
     setSelected([]);
   };
   const allSelected = projects.length > 0 && ids.length === projects.length;
-  const done = projects.filter((p) => p.status === '완료').length;
-  const doing = projects.length - done;
 
   return (
     <View style={styles.root}>
@@ -41,16 +39,11 @@ export default function ProjectsScreen({ navigation }) {
         right={!selecting && <CircleButton icon="plus" label="프로젝트 생성" onPress={() => navigation.navigate(ROUTES.ProjectEdit)} />}
       />
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.list, selecting && { paddingBottom: 110 }]}>
-        <View style={styles.summary}>
-          <StatBox icon="clock" label="진행 중" value={doing} style={styles.stat} />
-          <StatBox icon="checkCircle" label="완료" value={done} style={styles.stat} />
-        </View>
         {!selecting && projects.length > 0 && <Text style={styles.hint}>꾹 누르면 여러 개를 선택해 삭제할 수 있어요</Text>}
 
         {projects.length === 0 && (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>아직 프로젝트가 없어요</Text>
-            <Text style={styles.emptySub}>프로젝트를 만들면 메모, 할 일, 파일을 한곳에 모아 둘 수 있어요.</Text>
           </View>
         )}
 
@@ -97,7 +90,6 @@ export default function ProjectsScreen({ navigation }) {
           );
         })}
 
-        {!selecting && <DashedButton label="프로젝트 생성" onPress={() => navigation.navigate(ROUTES.ProjectEdit)} style={{ marginTop: 2 }} />}
       </ScrollView>
 
       {/* 선택 모드 아래 줄: 취소 · 전체/해제 · 삭제 */}
@@ -135,11 +127,8 @@ export default function ProjectsScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   list: {paddingHorizontal:20,paddingTop:spacing.xs,gap:12,paddingBottom:spacing.xxl},
-  summary: { flexDirection: 'row', gap: spacing.sm },
-  stat: { backgroundColor: colors.card },
   empty: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: spacing.xl, gap: spacing.sm },
   emptyTitle: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
-  emptySub: { fontSize: font.body, color: colors.muted, textAlign: 'center', lineHeight: 20 },
   hint: { fontSize: font.caption, color: colors.muted },
   card: {flexDirection:'row',alignItems:'center',gap:spacing.md,padding:spacing.lg,borderRadius:0,backgroundColor:colors.cream,borderWidth:0,borderColor:colors.line,borderBottomWidth:1,paddingHorizontal:0,paddingVertical:20},
   cardOn: { borderColor: colors.mint, backgroundColor: colors.mintSoft },

@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   note: { fontSize: font.caption, color: colors.muted, marginTop: -spacing.sm },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
-  save: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  save: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   saveText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   del: { minHeight: 48, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.coral, alignItems: 'center', justifyContent: 'center' },
   delText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.coral },

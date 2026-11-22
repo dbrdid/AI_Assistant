@@ -121,9 +121,9 @@ const styles = StyleSheet.create({
   name: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   sub: { fontSize: font.body, color: colors.muted },
   desc: { fontSize: font.caption, color: colors.muted },
-  badge: { paddingHorizontal: spacing.md, minHeight: 26, borderRadius: radius.pill, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  badge: { paddingHorizontal: spacing.md, minHeight: 26, borderRadius: radius.pill, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontSize: font.caption, fontWeight: '600', color: colors.onPrimary },
   hint: { fontSize: font.caption, color: colors.muted, lineHeight: 18, marginTop: spacing.sm },
-  notice: { position: 'absolute', left: spacing.xl, right: spacing.xl, bottom: spacing.xl, backgroundColor: colors.ink, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
+  notice: { position: 'absolute', left: spacing.xl, right: spacing.xl, bottom: spacing.xl, backgroundColor: colors.action, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
   noticeText: { color: colors.onPrimary, fontSize: font.body },
 });

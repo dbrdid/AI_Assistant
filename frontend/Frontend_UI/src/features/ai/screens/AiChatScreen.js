@@ -759,7 +759,7 @@ const styles = StyleSheet.create({
   renameBtn: { flex: 1, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   renameCancel: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   renameCancelText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
-  renameSave: { backgroundColor: colors.mintDark },
+  renameSave: { backgroundColor: colors.action },
   renameSaveText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   pinTag: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, backgroundColor: colors.mintSoft },
   pinTagText: { fontSize: 11, fontWeight: '600', color: colors.mintDark },
@@ -786,7 +786,7 @@ const styles = StyleSheet.create({
   newChatText: {fontSize:13,fontWeight:'500',color:colors.mintDark},
   notice: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.lg, marginBottom: spacing.sm, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.coralSoft, borderWidth: 1, borderColor: colors.coral },
   noticeText: { flex: 1, fontSize: font.caption + 1, color: colors.ink, lineHeight: 19 },
-  noticeBtn: { paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.mintDark },
+  noticeBtn: { paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.action },
   noticeBtnText: { fontSize: font.caption, fontWeight: '600', color: colors.onPrimary },
   banner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.lg, marginBottom: spacing.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.mintSoft },
   bannerText: { flex: 1, fontSize: font.caption + 1, color: colors.ink },
@@ -841,8 +841,8 @@ const styles = StyleSheet.create({
   attachBtn: {width:44,height:44,borderRadius:4,alignItems:'center',justifyContent:'center',backgroundColor:'transparent',borderWidth:0,borderColor:colors.line},
   input: {flex:1,minHeight:46,maxHeight:120,paddingHorizontal:12,paddingTop:12,paddingBottom:12,fontSize:16,color:colors.ink,backgroundColor:colors.card,borderRadius:4,borderWidth:0,borderColor:colors.line},
   sendBtn: {width:44,height:44,borderRadius:4,alignItems:'center',justifyContent:'center',marginBottom:1},
-  sendOn: { backgroundColor: colors.mintDark },
-  sendOff: { backgroundColor: colors.mintDark, opacity: 0.35 },
+  sendOn: { backgroundColor: colors.action },
+  sendOff: { backgroundColor: colors.action, opacity: 0.35 },
 
   // ----- 창 -----
   backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },

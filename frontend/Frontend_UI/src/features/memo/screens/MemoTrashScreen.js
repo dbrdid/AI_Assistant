@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
 
   notice: { position: 'absolute', left: spacing.lg, right: spacing.lg, alignItems: 'center' },
   noticeText: {
-    backgroundColor: colors.ink,
+    backgroundColor: colors.action,
     color: colors.onPrimary,
     fontSize: font.body,
     paddingHorizontal: spacing.lg,

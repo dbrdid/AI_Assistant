@@ -23,8 +23,8 @@ export const styles = StyleSheet.create({
   homeSectionToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
   homeSectionLabel: { color: c.subtle, fontSize: 12, fontWeight: '400' },
   recentRail: { marginRight: -20 },
-  recentRailContent: { gap: 14, paddingRight: 20, paddingBottom: 2 },
-  recentCard: { width: 132, minHeight: 108, backgroundColor: c.surface, borderRadius: 8, borderWidth: 1, borderColor: c.line, overflow: 'hidden' },
+  recentRailContent: { gap: 10, paddingRight: 20, paddingBottom: 2 },
+  recentCard: { width: 146, minHeight: 96, backgroundColor: c.surface, borderRadius: 6, overflow: 'hidden' },
   recentCover: { height: 58, backgroundColor: c.raised, overflow: 'hidden' },
   recentImage: { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' },
   recentCardContent: { padding: 10, gap: 8 },
@@ -148,7 +148,7 @@ export const styles = StyleSheet.create({
     fontSize: 12
   },
   primary: {
-    backgroundColor: c.text,
+    backgroundColor: c.raised,
     borderRadius: 4,
     minHeight: 44,
     paddingHorizontal: 14,
@@ -160,7 +160,7 @@ export const styles = StyleSheet.create({
     alignSelf: 'flex-start'
   },
   primaryText: {
-    color: c.background,
+    color: c.text,
     fontSize: 13,
     fontWeight: '600'
   },
@@ -331,8 +331,8 @@ export const styles = StyleSheet.create({
     letterSpacing: -.8,
     lineHeight: 40,
     padding: 0,
-    paddingTop: 22,
-    paddingBottom: 20
+    paddingTop: 10,
+    paddingBottom: 8
   },
   editorBody: {
     color: c.text,
