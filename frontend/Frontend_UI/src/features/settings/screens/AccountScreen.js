@@ -3,11 +3,12 @@
 // ============================================================
 
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { changePassword, getSettings, saveProfile } from '../../../data/settings/SettingsStore';
 import { Row, SaveButton, SectionTitle, same, useNotice } from '../../../shared/components/SettingsUi';
+import { checkPasswordRule, PASSWORD_RULE_MESSAGE } from '../../../lib/stella/login-rules';
 
 export default function AccountScreen({ navigation }) {
   const saved = getSettings();
@@ -15,6 +16,11 @@ export default function AccountScreen({ navigation }) {
   const [aff, setAff] = useState(saved.profile.affiliation);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [passwordDialog, setPasswordDialog] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordBusy, setPasswordBusy] = useState(false);
   const notice = useNotice();
   const dirty = !same({ name: name.trim(), affiliation: aff.trim() }, { name: saved.profile.name, affiliation: saved.profile.affiliation });
 
@@ -28,6 +34,38 @@ export default function AccountScreen({ navigation }) {
     finally { setBusy(false); }
     notice.show('저장했어요');
     setTimeout(() => navigation.goBack(), 600);
+  };
+
+  const closePasswordDialog = () => {
+    if (passwordBusy) return;
+    setPasswordDialog(false);
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordError('');
+  };
+
+  const savePassword = async () => {
+    setPasswordError('');
+    if (!checkPasswordRule(newPassword)) {
+      setPasswordError(PASSWORD_RULE_MESSAGE);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('비밀번호 확인이 일치하지 않아요.');
+      return;
+    }
+    setPasswordBusy(true);
+    try {
+      await changePassword(newPassword);
+      setPasswordDialog(false);
+      setNewPassword('');
+      setConfirmPassword('');
+      notice.show('비밀번호를 변경했어요.');
+    } catch (e) {
+      setPasswordError(e?.message || '비밀번호를 변경하지 못했어요. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setPasswordBusy(false);
+    }
   };
 
   return (
@@ -53,15 +91,53 @@ export default function AccountScreen({ navigation }) {
         <Row
           icon="lock"
           label="비밀번호 변경"
-          onPress={async () => {
-            const r = await changePassword();
-            if (!r.ok) notice.show('로그인 기능이 연결되면 사용할 수 있어요');
-          }}
+          onPress={() => setPasswordDialog(true)}
         />
 
         <SaveButton onPress={save} disabled={!dirty || busy} />
       </ScrollView>
       {notice.view}
+      <Modal transparent visible={passwordDialog} animationType="fade" onRequestClose={closePasswordDialog}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
+          <View style={styles.dialog} accessibilityViewIsModal>
+            <Text style={styles.dialogTitle}>비밀번호 변경</Text>
+            <Text style={styles.dialogSub}>영문·숫자·특수문자를 포함해 8자 이상 입력해 주세요.</Text>
+            <TextInput
+              style={styles.passwordInput}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              placeholder="새 비밀번호"
+              placeholderTextColor={colors.muted}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={128}
+              accessibilityLabel="새 비밀번호"
+            />
+            <TextInput
+              style={styles.passwordInput}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="새 비밀번호 확인"
+              placeholderTextColor={colors.muted}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={128}
+              accessibilityLabel="새 비밀번호 확인"
+            />
+            {!!passwordError && <Text style={styles.passwordError}>{passwordError}</Text>}
+            <View style={styles.dialogActions}>
+              <Pressable accessibilityRole="button" disabled={passwordBusy} onPress={closePasswordDialog} style={styles.dialogButton}>
+                <Text style={styles.dialogButtonText}>취소</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" disabled={passwordBusy} onPress={savePassword} style={[styles.dialogButton, styles.dialogPrimary, passwordBusy && styles.disabled]}>
+                <Text style={styles.dialogPrimaryText}>{passwordBusy ? '변경 중…' : '변경하기'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -75,5 +151,17 @@ const styles = StyleSheet.create({
   field: { gap: spacing.xs },
   label: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   input: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
+  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.md },
+  dialogTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
+  dialogSub: { fontSize: font.caption, color: colors.muted },
+  passwordInput: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, paddingHorizontal: spacing.md, fontSize: font.bodyLg, color: colors.ink },
+  passwordError: { fontSize: font.caption, color: colors.coral },
+  dialogActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  dialogButton: { flex: 1, minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  dialogPrimary: { backgroundColor: colors.mintDark, borderColor: colors.mintDark },
+  disabled: { opacity: 0.6 },
+  dialogButtonText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
+  dialogPrimaryText: { fontSize: font.body, fontWeight: '800', color: colors.white },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
 });

@@ -2,7 +2,7 @@
 // CalendarScreen.js — 캘린더 화면
 // ============================================================
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import CalendarSheet from '../components/CalendarSheet';
 import { useLeadAction } from '../../../navigation/ScreenEntry';
@@ -10,8 +10,16 @@ import { CircleButton } from '../../../shared/components/Ui';
 import { colors } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { enterSpace } from '../../../data/workspaces/WorkspaceStore';
+import { fromKey } from '../utils/DateUtils';
 
-export default function CalendarScreen({ navigation, calendar }) {
+export default function CalendarScreen({ navigation, calendar, route }) {
+  const focusDate = route.params?.focusDate;
+  const workspaceId = route.params?.workspaceId;
+  useEffect(() => {
+    if (workspaceId) enterSpace(workspaceId);
+    if (focusDate) calendar.goToDate(fromKey(focusDate));
+  }, [calendar.goToDate, focusDate, workspaceId]);
+
   // 스택에서 들어온 캘린더 화면은 이전 화면으로 돌아갈 수 있습니다.
   const lead = useLeadAction(navigation.goBack);
 
@@ -24,7 +32,7 @@ export default function CalendarScreen({ navigation, calendar }) {
         onAddTask={(date) => navigation.navigate(ROUTES.TaskEdit, { date, kind: 'event' })}
         onEditTask={(t) => {
           enterSpace(t.workspaceId); // 그 항목의 공간에서 편집 (프로젝트 등이 그 공간 것)
-          navigation.navigate(ROUTES.TaskEdit, { taskId: t.id });
+          navigation.navigate(ROUTES.TaskEdit, { taskId: t.id, fromCalendar: true });
         }}
         // 아래로 밀면 캘린더 화면을 닫고 이전 화면으로 돌아갑니다.
         onClose={lead.hidden ? undefined : navigation.goBack}

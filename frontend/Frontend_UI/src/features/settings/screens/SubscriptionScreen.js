@@ -4,7 +4,7 @@
 
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
@@ -13,7 +13,7 @@ import { PLANS, setServerPlan } from '../../../data/settings/SettingsStore';
 import { PaymentFailedDialog } from '../../error/components/ErrorViews';
 import { useNotice } from '../../../shared/components/SettingsUi';
 import { supabase } from '../../../lib/stella/supabase';
-import { billingErrorMessage, cancelSubscription, changePlan, getSubscription, nextPaymentText, planId, planOptionText } from '../../../lib/stella/billing';
+import { billingErrorMessage, cancelSubscription, changePlan, getSubscription, nextPaymentText, planId, serverPlan, storageText } from '../../../lib/stella/billing';
 
 const DONE = {
   SUBSCRIBED: '요금제를 시작했어요',
@@ -24,11 +24,26 @@ const DONE = {
   ALREADY_FREE: '이미 무료 요금제예요',
 };
 
+const PLAN_IDS = ['free', 'pro', 'team'];
+
+const BENEFITS = [
+  { label: '녹음 변환', value: p => `${p.ai.stt_minutes}분/월` },
+  { label: 'AI 요약·추출', value: p => `${p.ai.analyze}회/월` },
+  { label: 'AI 질문', value: p => `${p.ai.query}회/월` },
+  { label: '메모 정리', value: p => `${p.ai.organize}회/월` },
+  { label: '사진 글자 인식', value: p => `${p.ai.ocr}회/월` },
+  { label: '안건 비교', value: p => `${p.ai.agenda}회/월` },
+  { label: '프로젝트 초대', value: p => `${p.project_invites_per_month}회/월` },
+  { label: '클라우드 저장', value: p => storageText(p.workspace_storage_bytes) },
+  { label: '백업 저장', value: p => storageText(p.backup_storage_bytes) },
+];
+
+const won = value => `${String(Math.round(Number(value))).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}원`;
+
 export default function SubscriptionScreen({ navigation, route }) {
   const [sub, setSub] = useState(null);      // 서버 구독 (get_my_subscription)
   const [loadError, setLoadError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [choosing, setChoosing] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [payFailed, setPayFailed] = useState(!!(route && route.params && route.params.paymentFailed));
   const notice = useNotice();
@@ -52,9 +67,9 @@ export default function SubscriptionScreen({ navigation, route }) {
 
   const current = sub ? planId(sub) : null;
   const paid = sub ? sub.state === 'ACTIVE' : false;
+  const hasPlanCatalog = !!sub && PLAN_IDS.every(id => sub.plans?.[serverPlan(id)]);
 
   const choose = async (id) => {
-    setChoosing(false);
     if (busy || id === current) return;
     requestIds.current[id] ??= randomUUID();
     setBusy(true);
@@ -111,9 +126,6 @@ export default function SubscriptionScreen({ navigation, route }) {
           </Pressable>
         )}
 
-        <Pressable accessibilityRole="button" disabled={!sub || busy} onPress={() => setChoosing(true)} style={[styles.primary, (!sub || busy) && { opacity: 0.5 }]}>
-          <Text style={styles.primaryText}>{busy ? '처리 중…' : '요금제 변경'}</Text>
-        </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ disabled: !paid || busy }}
@@ -126,39 +138,72 @@ export default function SubscriptionScreen({ navigation, route }) {
         {sub && !paid && (
           <Text style={styles.note}>{sub.state === 'CANCELING' ? '해지 예약 중이에요. 같은 요금제를 다시 고르면 해지가 취소돼요.' : '이용 중인 유료 요금제가 없어요.'}</Text>
         )}
+        <View style={styles.comparisonHeading}>
+          <Text style={styles.sectionTitle}>요금제 비교</Text>
+          <Text style={styles.note}>무료·PRO·TEAM 혜택과 월 제공량을 비교해 보세요.</Text>
+        </View>
+        {hasPlanCatalog ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.tableScroll}>
+            <View style={styles.table}>
+              <View style={[styles.tableRow, styles.tableHeader]}>
+                <View style={[styles.featureCell, styles.headerCell]}>
+                  <Text style={styles.headerLabel}>기능</Text>
+                </View>
+                {PLAN_IDS.map(id => {
+                  const plan = sub.plans[serverPlan(id)];
+                  return (
+                    <View key={id} style={[styles.planCell, styles.headerCell]}>
+                      <Text style={styles.planName}>{PLANS[id].name}</Text>
+                      <Text style={styles.planPrice}>{plan.price_krw === 0 ? '무료' : `월 ${won(plan.price_krw)}`}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+              {BENEFITS.map((benefit, index) => (
+                <View key={benefit.label} style={[styles.tableRow, index % 2 === 1 && styles.alternateRow]}>
+                  <View style={styles.featureCell}>
+                    <Text style={styles.featureLabel}>{benefit.label}</Text>
+                  </View>
+                  {PLAN_IDS.map(id => (
+                    <View key={id} style={styles.planCell}>
+                      <Text style={styles.benefitValue}>{benefit.value(sub.plans[serverPlan(id)])}</Text>
+                    </View>
+                  ))}
+                </View>
+              ))}
+              <View style={[styles.tableRow, styles.tableFooter]}>
+                <View style={styles.featureCell} />
+                {PLAN_IDS.map(id => {
+                  const on = id === current;
+                  return (
+                    <View key={id} style={styles.planCell}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ disabled: busy || on, selected: on }}
+                        disabled={!sub || busy || on}
+                        onPress={() => choose(id)}
+                        style={[styles.selectButton, on && styles.selectedButton, busy && !on && styles.disabledButton]}
+                      >
+                        <Text style={[styles.selectText, on && styles.selectedText]}>
+                          {busy && !on ? '처리 중…' : on ? '이용 중' : '선택'}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          </ScrollView>
+        ) : loadError ? (
+          <Text style={styles.error}>요금제 혜택을 불러오지 못했어요. 다시 불러와 주세요.</Text>
+        ) : (
+          <ActivityIndicator color={colors.mintDark} style={styles.loader} />
+        )}
+        <Text style={styles.note}>기본 AI 모델: 텍스트·이미지 작업은 OpenAI GPT-6.1 Terra, 녹음 변환은 GPT-transcribe예요. 서버 설정에 따라 모델은 달라질 수 있어요.</Text>
         <Text style={styles.note}>시연용 결제예요. 실제로 돈이 결제되지 않아요.</Text>
       </ScrollView>
       {notice.view}
       <PaymentFailedDialog visible={payFailed} onConfirm={() => setPayFailed(false)} />
-
-      <Modal transparent visible={choosing} animationType="fade" onRequestClose={() => setChoosing(false)}>
-        <View style={styles.backdrop}>
-          <View style={styles.dialog} accessibilityViewIsModal>
-            <Text style={styles.dialogTitle}>요금제 선택</Text>
-            {Object.keys(PLANS).map((id) => {
-              const on = id === current;
-              return (
-                <Pressable
-                  key={id}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
-                  onPress={() => choose(id)}
-                  style={[styles.option, on && styles.optionOn]}
-                >
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={styles.optionName}>{PLANS[id].name}</Text>
-                    <Text style={styles.optionSub}>{sub ? planOptionText(sub, id) : ''}</Text>
-                  </View>
-                  {on && <Text style={styles.current}>현재</Text>}
-                </Pressable>
-              );
-            })}
-            <Pressable accessibilityRole="button" onPress={() => setChoosing(false)} style={styles.ghost}>
-              <Text style={styles.ghostText}>닫기</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
 
       <ConfirmDialog
         visible={confirmCancel}
@@ -181,17 +226,29 @@ const styles = StyleSheet.create({
   plan: { fontSize: 28, fontWeight: '800', color: colors.mintDark },
   date: { fontSize: font.bodyLg, color: colors.ink, fontWeight: '600' },
   error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
-  primary: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
   ghost: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   note: { fontSize: font.caption, color: colors.muted },
-  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.sm },
-  dialogTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink, marginBottom: spacing.sm },
-  option: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
-  optionOn: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
-  optionName: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
-  optionSub: { fontSize: font.caption, color: colors.muted },
-  current: { fontSize: font.caption, fontWeight: '800', color: colors.mintDark, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, backgroundColor: colors.white, overflow: 'hidden' },
+  sectionTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
+  comparisonHeading: { gap: spacing.xs, marginTop: spacing.sm },
+  tableScroll: { paddingBottom: spacing.xs },
+  table: { width: 378, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  tableRow: { flexDirection: 'row', minHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.line },
+  tableHeader: { minHeight: 68, backgroundColor: colors.mintSoft },
+  headerCell: { justifyContent: 'center' },
+  featureCell: { width: 102, justifyContent: 'center', paddingHorizontal: spacing.sm },
+  planCell: { width: 92, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 2 },
+  headerLabel: { fontSize: font.caption, fontWeight: '700', color: colors.ink },
+  planName: { fontSize: font.body, fontWeight: '800', color: colors.ink },
+  planPrice: { fontSize: 11, fontWeight: '700', color: colors.mintDark, marginTop: 2 },
+  alternateRow: { backgroundColor: colors.cream },
+  featureLabel: { fontSize: 11, fontWeight: '600', color: colors.ink },
+  benefitValue: { fontSize: 11, color: colors.ink, textAlign: 'center' },
+  tableFooter: { minHeight: 56, borderBottomWidth: 0 },
+  selectButton: { minWidth: 74, minHeight: 34, borderRadius: radius.sm, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  selectedButton: { backgroundColor: colors.mintSoft, borderWidth: 1, borderColor: colors.mint },
+  disabledButton: { opacity: 0.6 },
+  selectText: { fontSize: 11, fontWeight: '800', color: colors.white },
+  selectedText: { color: colors.mintDark },
+  loader: { paddingVertical: spacing.xl },
 });

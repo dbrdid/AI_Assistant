@@ -17,7 +17,7 @@
 //     'free' 선택 = 구독 해지와 같음 (다음 결제일부터 무료)
 //   [구독 해지] await cancelSubscription(supabase)  → 다음 결제일까지 지금 요금제 유지
 //   [결제 실패 시연] changePlan(supabase, 'pro', { requestId, simulateDecline: true })
-//   [요금제 선택 목록] planOptionText(sub, 'team') → "월 9,900원 · 초대 월 200회 · 공간 첨부 10GB"
+//   [요금제 선택 목록] planOptionText(sub, 'team') → "월 9,900원 · 초대 월 200회 · 클라우드 저장 10GB"
 //   요금제가 바뀌면 AI 한도·초대 횟수·첨부 용량도 바로 바뀜 (서버가 subscriptions를 읽음). 이용량 화면을 다시 불러오세요
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { SyncError, toSyncError } from './errors';
@@ -165,12 +165,12 @@ export function storageText(bytes: number): string {
   return bytes % GB === 0 ? `${bytes / GB}GB` : `${Math.round(bytes / 1048576)}MB`;
 }
 
-/** 요금제 선택 목록의 한 줄: "월 9,900원 · 초대 월 200회 · 공간 첨부 10GB" (무료는 "무료 · …") */
+/** 요금제 선택 목록의 한 줄: "월 9,900원 · 초대 월 200회 · 클라우드 저장 10GB" (무료는 "무료 · …") */
 export function planOptionText(s: Pick<Subscription, 'plans'>, id: AppPlanId): string {
   const p = s.plans?.[serverPlan(id)];
   if (!p) return '';
   const price = p.price_krw > 0 ? `월 ${won(p.price_krw)}` : '무료';
-  return `${price} · 초대 월 ${p.project_invites_per_month}회 · 공간 첨부 ${storageText(p.workspace_storage_bytes)}`;
+  return `${price} · 초대 월 ${p.project_invites_per_month}회 · 클라우드 저장 ${storageText(p.workspace_storage_bytes)}`;
 }
 
 /** 결제·구독 오류 → 화면 문구 */

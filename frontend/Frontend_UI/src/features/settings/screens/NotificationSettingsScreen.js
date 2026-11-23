@@ -3,7 +3,7 @@
 // ============================================================
 
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { colors, font, spacing } from '../../../shared/theme/theme';
 import { getSettings, updateSettings } from '../../../data/settings/SettingsStore';
@@ -38,6 +38,17 @@ export default function NotificationSettingsScreen({ navigation }) {
   const setServer = (patch) => setN((p) => ({ ...p, server: { ...p.server, ...patch } }));
   const unavailable = pushUnavailableReason();
   const pushStatus = unavailable || (!n.server.on ? '꺼져 있어요' : push.ready ? '이 휴대폰으로 서버 알림을 받고 있어요' : push.reason || '저장하면 이 휴대폰을 등록해요');
+  const retryPush = async () => {
+    setSaving(true);
+    try {
+      const result = await registerPush({ ask: true });
+      notice.show(result.ok ? '이 휴대폰에 서버 알림을 연결했어요' : result.reason);
+    } catch (error) {
+      notice.show(error?.message || '서버 알림을 등록하지 못했어요');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -57,7 +68,7 @@ export default function NotificationSettingsScreen({ navigation }) {
           {n.dndOn && <Row label="끝" value={n.dndEnd} onPress={() => setPicker('dndEnd')} />}
         </Group>
         {n.dndOn && <Text style={styles.note}>시작이 끝보다 늦으면 다음 날 아침까지로 계산해요 (예: 22:00 ~ 06:30)</Text>}
-        <Text style={styles.note}>저장하면 이 설정대로 일정·할 일 마감·브리핑 알림이 예약돼요. 알림 시각은 일정/할 일의 [알림] 설정을 따라요.</Text>
+        <Text style={styles.note}>일정·할 일의 [알림] 시각을 선택하면 휴대폰 알림이 예약돼요. 알림을 설정하지 않은 일정은 일간 브리핑 시간(없으면 1시간 전)에 앱 알림함에 표시돼요.</Text>
 
         <SectionTitle>서버 알림 (공유 공간)</SectionTitle>
         <Group>
@@ -67,6 +78,11 @@ export default function NotificationSettingsScreen({ navigation }) {
           ))}
         </Group>
         <Text style={styles.note}>앱을 열지 않아도 공유 공간 소식을 서버가 이 휴대폰으로 보내 줘요. 서버 알림이 켜져 있으면 공유 공간의 마감 알림은 서버가 보내고, 같은 알림이 두 번 오지 않아요.</Text>
+        {n.server.on && !unavailable && !push.ready && (
+          <Pressable accessibilityRole="button" disabled={saving} onPress={retryPush} style={[styles.retry, saving && { opacity: 0.5 }]}>
+            <Text style={styles.retryText}>{saving ? '연결 중…' : '서버 알림 다시 연결'}</Text>
+          </Pressable>
+        )}
 
         <SaveButton
           disabled={saving || same(n, saved)}
@@ -101,4 +117,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   note: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
+  retry: { alignSelf: 'flex-start', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 18, backgroundColor: colors.mintSoft },
+  retryText: { fontSize: font.caption, fontWeight: '700', color: colors.mintDark },
 });

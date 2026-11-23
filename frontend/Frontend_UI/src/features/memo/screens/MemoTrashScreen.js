@@ -4,21 +4,23 @@
 
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { deleteMemosForever, formatMD, memoTitle, restoreMemos, useTrashedMemos } from '../../../data/memos/MemoStore';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
-import { projectOf } from '../../../data/projects/ProjectStore';
+import { linkItems, projectOf, useProjects } from '../../../data/projects/ProjectStore';
 
 export default function TrashScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const memos = useTrashedMemos();
+  const projects = useProjects();
 
   const [selecting, setSelecting] = useState(false); // 선택 모드인가
   const [selected, setSelected] = useState([]);      // 선택한 메모 번호들
   const [confirm, setConfirm] = useState(null);      // 'restore' | 'delete' | null (확인 창)
+  const [moving, setMoving] = useState(false);
   const [notice, setNotice] = useState('');
   const noticeTimer = useRef(null);
   useEffect(() => () => clearTimeout(noticeTimer.current), []);
@@ -48,6 +50,18 @@ export default function TrashScreen({ navigation }) {
       showNotice(`메모 ${ids.length}개를 삭제했어요`);
     }
     setConfirm(null);
+    exitSelect();
+  };
+
+  const openMove = () => {
+    if (!ids.length) return;
+    setMoving(true);
+  };
+
+  const moveToProject = projectId => {
+    if (!linkItems(projectId, 'memos', ids)) return;
+    setMoving(false);
+    showNotice(`메모 ${ids.length}개를 프로젝트로 이동했어요`);
     exitSelect();
   };
 
@@ -115,6 +129,30 @@ export default function TrashScreen({ navigation }) {
         )}
       </ScrollView>
 
+      <Modal transparent visible={moving} animationType="fade" onRequestClose={() => setMoving(false)}>
+        <View style={styles.backdrop}>
+          <View style={styles.dialog} accessibilityViewIsModal>
+            <Text style={styles.dialogTitle}>이동할 프로젝트 선택</Text>
+            <ScrollView style={styles.projectList}>
+              {projects.length === 0 && <Text style={styles.emptyProjects}>프로젝트가 없거나 불러오는 중이에요.</Text>}
+              {projects.map(project => (
+                <Pressable
+                  key={project.id}
+                  accessibilityRole="button"
+                  onPress={() => moveToProject(project.id)}
+                  style={styles.projectOption}
+                >
+                  <Text style={styles.projectName} numberOfLines={1}>{project.title}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <Pressable accessibilityRole="button" onPress={() => setMoving(false)} style={styles.closeButton}>
+              <Text style={styles.closeText}>취소</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       {!!notice && (
         <View pointerEvents="none" style={[styles.notice, { bottom: insets.bottom + (selecting ? 84 : spacing.xl) }]}>
           <Text style={styles.noticeText}>{notice}</Text>
@@ -133,7 +171,7 @@ export default function TrashScreen({ navigation }) {
           <Pressable
             accessibilityRole="button"
             disabled={none}
-            onPress={() => showNotice('프로젝트로 이동은 준비 중이에요')}
+            onPress={openMove}
             style={[styles.barBtn, none && styles.off]}
           >
             <Text style={styles.barText}>이동</Text>
@@ -221,4 +259,13 @@ const styles = StyleSheet.create({
   barBtn: { flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   barText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   off: { opacity: 0.35 },
+  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  dialog: { width: '100%', maxWidth: 360, maxHeight: '75%', backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.md },
+  dialogTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
+  projectList: { maxHeight: 320 },
+  emptyProjects: { fontSize: font.body, color: colors.muted, paddingVertical: spacing.md },
+  projectOption: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, marginBottom: spacing.sm },
+  projectName: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  closeButton: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  closeText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
 });

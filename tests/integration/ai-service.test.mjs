@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createAIService } from '../../frontend/Frontend_UI/src/integration/ai-service.js';
+import { selectChatSources } from '../../frontend/Frontend_UI/src/integration/ChatSourceScope.mjs';
 import { setup } from '../../backend/local/tests/helpers.mjs';
 import { requireTransmission, requireRoute } from '../../shared/contracts/ai-policy.js';
 
@@ -15,6 +16,18 @@ function world() {
     getPolicy: () => policy, gateway: async (...args) => { calls.push(args); return response(...args); } });
   return { ...t, source, service, calls, policy: value => { policy = value; }, session: value => { session = value; }, response: value => { response = value; } };
 }
+
+test('file-vault chat scope uses only selected vault attachments and skips planner records', () => {
+  const vaultFile = { id: 'vault-file', sourceScope: 'vault' };
+  const pickedFile = { id: 'picked-file' };
+  const memo = { id: 'memo', type: 'memo' };
+  assert.deepEqual(selectChatSources({
+    attachments: [vaultFile, pickedFile], records: [memo], fileVaultOnly: true,
+  }), { attachments: [vaultFile], records: [] });
+  assert.deepEqual(selectChatSources({
+    attachments: [pickedFile], records: [memo], fileVaultOnly: false,
+  }), { attachments: [pickedFile], records: [memo] });
+});
 
 test('manual summary preview calls the same policy boundary without saving proposals or editing the source', async () => {
   const t = world();

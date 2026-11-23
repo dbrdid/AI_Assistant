@@ -15,7 +15,7 @@ export const ROUTES = {
   Memos: 'Memos',         // 메모
   MemoEdit: 'MemoEdit',   // 메모 작성/편집 (메모 화면에서 이동. 사이드 메뉴에는 없음)
   Tasks: 'Tasks',         // 할 일 목록
-  TaskEdit: 'TaskEdit',   // 일정/할 일 추가·편집 (캘린더·할 일 목록에서 이동)
+  TaskEdit: 'TaskEdit',   // 일정/할 일 추가. 기존 항목 편집은 캘린더에서만
   Briefing: 'Briefing',   // 오늘의 브리핑 (홈의 일정 개수 줄에서 이동)
   Favorites: 'Favorites', // 즐겨찾기
   WorkspaceCreate: 'WorkspaceCreate', // 새 워크스페이스 만들기

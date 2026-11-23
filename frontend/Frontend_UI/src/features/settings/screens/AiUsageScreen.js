@@ -2,23 +2,24 @@
 // AiUsageScreen.js — AI 이용량
 // ============================================================
 
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
-import { useInviteQuota } from '../../../data/projects/ProjectStore';
-import { PLANS, USAGE_LABELS, getUsage, limitOf, useSettings } from '../../../data/settings/SettingsStore';
+import { getProjectInviteQuota } from '../../../lib/stella/project-team';
+import { supabase } from '../../../lib/stella/supabase';
+import { loadAiUsage, PLANS } from '../../../data/settings/SettingsStore';
 
-function Bar({ label, used, limit }) {
+function Bar({ label, used, limit, unit = '회' }) {
   const ratio = limit > 0 ? Math.min(1, used / limit) : 0;
   const known = Number.isFinite(limit) && limit > 0;
   const full = known && used >= limit;
   return (
-    <View style={styles.item} accessibilityLabel={`${label} ${used}회 사용, 한도 ${limit}회`}>
+    <View style={styles.item} accessibilityLabel={`${label} ${used}${unit} 사용, 한도 ${limit}${unit}`}>
       <View style={styles.itemHead}>
         <Text style={styles.itemLabel}>{label}</Text>
-        <Text style={[styles.itemCount, full && { color: colors.coral }]}>{known ? `${used}/${limit}` : '서버 한도 확인 필요'}</Text>
+        <Text style={[styles.itemCount, full && { color: colors.coral }]}>{known ? `${used}/${limit}${unit}` : '한도 확인 필요'}</Text>
       </View>
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${ratio * 100}%` }, full && { backgroundColor: colors.coral }]} />
@@ -28,25 +29,56 @@ function Bar({ label, used, limit }) {
 }
 
 export default function AiUsageScreen({ navigation }) {
-  const s = useSettings(); // 이용량이 바뀌면 다시 그리기
-  const u = getUsage();
-  const quota = useInviteQuota(); // 서버 기준 이번 달 초대 횟수 (불러오는 중이면 null)
+  const [usage, setUsage] = useState(null);
+  const [inviteQuota, setInviteQuota] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [nextUsage, nextInviteQuota] = await Promise.all([
+        loadAiUsage(),
+        getProjectInviteQuota(supabase),
+      ]);
+      setUsage(nextUsage);
+      setInviteQuota(nextInviteQuota);
+    } catch (e) {
+      setError(e?.message || '이용량을 불러오지 못했어요.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   return (
     <View style={styles.root}>
       <ScreenHeader title="AI 이용량" onBack={navigation.goBack} />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.heading}>이번 달 사용량</Text>
-        <Text style={styles.plan}>현재 요금제 · {PLANS[s.plan].name}</Text>
-        {Object.keys(USAGE_LABELS).map((k) => (
-          <Bar key={k} label={USAGE_LABELS[k]} used={u[k]} limit={limitOf(k)} />
+        <Text style={styles.plan}>현재 요금제 · {usage ? PLANS[usage.plan].name : '불러오는 중'}</Text>
+        {loading && !usage ? <ActivityIndicator color={colors.mintDark} style={styles.loader} /> : null}
+        {!!error && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+            <Pressable accessibilityRole="button" onPress={load}>
+              <Text style={styles.retry}>다시 불러오기</Text>
+            </Pressable>
+          </View>
+        )}
+        {usage?.items.map(item => (
+          <Bar key={item.key} label={item.label} used={item.used} limit={item.limit} unit={item.unit} />
         ))}
-        <Bar label="팀원 초대 횟수" used={quota ? quota.used : 0} limit={quota ? quota.limit : null} />
+        {inviteQuota && (
+          <Bar label="프로젝트 초대" used={inviteQuota.used} limit={inviteQuota.limit} unit="회" />
+        )}
 
         <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.Subscription)} style={styles.btn}>
           <Text style={styles.btnText}>요금제 변경</Text>
         </Pressable>
-        <Text style={styles.note}>녹음 사용량은 녹음 기능이 연결되면 집계돼요.</Text>
+        <Text style={styles.note}>AI 사용량은 서버 기준이며, 매달 1일에 초기화돼요. 프로젝트 초대는 계정 기준 월간 횟수예요.</Text>
       </ScrollView>
     </View>
   );
@@ -66,4 +98,8 @@ const styles = StyleSheet.create({
   btn: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.mintDark, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
   btnText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.white },
   note: { fontSize: font.caption, color: colors.muted },
+  loader: { paddingVertical: spacing.xl },
+  errorBox: { padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.coralSoft, gap: spacing.sm },
+  errorText: { fontSize: font.body, color: colors.coral },
+  retry: { fontSize: font.body, fontWeight: '800', color: colors.mintDark },
 });

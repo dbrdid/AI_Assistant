@@ -25,6 +25,7 @@ import { toKey } from '../../calendar/utils/DateUtils';
 import { useProposals } from '../../../data/proposals/ProposalStore';
 import Icon from '../../../shared/components/Icon';
 import { SpaceDot } from '../../../shared/components/SpaceTag';
+import { selectHomeScheduleEvents } from '../utils/HomeSchedule.mjs';
 
 // ------------------------------------------------------------
 // 오늘의 개수 (지금은 데이터 저장 기능이 없어서 0 으로 고정)
@@ -83,6 +84,7 @@ export default function HomeScreen({ navigation, calendar }) {
 
   // 화면(홈)의 실제 크기. 항목 위치 계산에 사용. 처음엔 창 크기로, 그린 뒤 정확한 값으로 갱신(onLayout)
   const [size, setSize] = useState({ w: window.width, h: window.height });
+  const [now, setNow] = useState(() => new Date());
 
   // ---------- 상태들 ----------
   const [recording, setRecording] = useState(false); // 녹음 중인가
@@ -90,6 +92,11 @@ export default function HomeScreen({ navigation, calendar }) {
   const [menuOpen, setMenuOpen] = useState(false);   // 구슬 주변 3개 항목이 펼쳐져 있나
   const [hover, setHover] = useState(-1);            // 손가락이 올라가 있는 항목 번호 (-1 = 없음)
   const [sliding, setSliding] = useState(false);     // 지금 손가락으로 구슬을 밀고 있나 (구슬이 따라다니는 중)
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // ---------- 녹음 타이머 ----------
   // recording 이 true 인 동안만 1초마다 seconds 를 1씩 올립니다.
@@ -311,7 +318,6 @@ export default function HomeScreen({ navigation, calendar }) {
   );
 
   // ---------- 화면에 보여줄 값 계산 ----------
-  const now = new Date();
   // 공간 빠른 전환: 날짜 줄 오른쪽의 공간 이름을 누르면 아래에서 선택 창이 올라옴
   const { list: spacesList, current: workspace } = useWorkspaces();
   const spaces = useSpaceInfo();
@@ -377,19 +383,19 @@ export default function HomeScreen({ navigation, calendar }) {
   const nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const pending = allTasks.filter((t) => t.status !== '완료' && t.status !== '취소');
   const todayPending = pending.filter((t) => occursOn(t, nowKey));
-  const nextTimed = todayPending
-    .filter((t) => t.kind === 'event' && t.start && (t.end || t.start) >= nowHM)
-    .sort((a, b) => a.start.localeCompare(b.start))[0];
+  const scheduleHighlights = selectHomeScheduleEvents(todayPending, nowHM).map(({ event, state }) => ({
+    id: event.id,
+    text: `${state === 'ongoing' ? '진행 중' : '다음 일정'} · ${event.start}${event.end ? `–${event.end}` : ''} ${event.title}`,
+    onPress: () => openTask(event),
+  }));
   const untimed = todayPending.find((t) => t.kind !== 'event' && !t.start);
   const overdueList = pending.filter((t) => t.kind !== 'event' && classify(t, nowKey) === 'overdue');
   let highlight = { text: '잠깐 기록하고, 필요할 때 다시 찾아보세요.', onPress: null };
-  if (nextTimed) {
-    highlight = { text: `다음 일정 · ${nextTimed.start} ${nextTimed.title}`, onPress: () => openTask(nextTimed) };
-  } else if (untimed) {
+  if (!scheduleHighlights.length && untimed) {
     highlight = { text: `오늘 할 일 · ${untimed.title}`, onPress: () => openTask(untimed) };
-  } else if (overdueList.length > 0) {
+  } else if (!scheduleHighlights.length && overdueList.length > 0) {
     highlight = { text: `기한이 지난 할 일이 ${overdueList.length}개 있어요`, onPress: () => go(ROUTES.Tasks) };
-  } else if (memos.length > 0) {
+  } else if (!scheduleHighlights.length && memos.length > 0) {
     const recent = memos.slice().sort((a, b) => b.updatedAt - a.updatedAt)[0];
     highlight = { text: `최근 메모 · ${memoTitle(recent)}`, onPress: () => go(ROUTES.MemoEdit, { memoId: recent.id }) };
   }
@@ -442,14 +448,30 @@ export default function HomeScreen({ navigation, calendar }) {
             </Pressable>
           </View>
           <Text style={styles.heading} accessibilityRole="header">오늘의 주요 내용</Text>
-          <Pressable
-            accessibilityRole={highlight.onPress ? 'button' : 'text'}
-            disabled={!highlight.onPress}
-            onPress={highlight.onPress}
-            hitSlop={8}
-          >
-            <Text style={styles.desc} numberOfLines={2}>{highlight.text}</Text>
-          </Pressable>
+          {scheduleHighlights.length ? (
+            <View style={styles.scheduleHighlights}>
+              {scheduleHighlights.map((item) => (
+                <Pressable
+                  key={item.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.text}
+                  onPress={item.onPress}
+                  hitSlop={6}
+                >
+                  <Text style={styles.desc} numberOfLines={1}>{item.text}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <Pressable
+              accessibilityRole={highlight.onPress ? 'button' : 'text'}
+              disabled={!highlight.onPress}
+              onPress={highlight.onPress}
+              hitSlop={8}
+            >
+              <Text style={styles.desc} numberOfLines={2}>{highlight.text}</Text>
+            </Pressable>
+          )}
           {/* ↗ 는 디자인 시안의 화살표 표시입니다(지금은 누르는 기능 없음) */}
           <Pressable
             accessibilityRole="button"
@@ -675,6 +697,7 @@ const styles = StyleSheet.create({
   date: { fontSize: font.body, color: colors.muted },
   heading: { fontSize: font.headline, fontWeight: '500', color: colors.ink, marginTop: spacing.xs },
   desc: { fontSize: font.bodyLg, color: colors.muted, lineHeight: 24 },
+  scheduleHighlights: { gap: 2 },
   counts: { fontSize: font.body, color: colors.ink, marginTop: spacing.xs },
   aiChip: { alignSelf: 'flex-start', marginTop: spacing.sm, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: colors.mintDark },
   aiChipText: { color: colors.white, fontSize: font.body, fontWeight: '800' },

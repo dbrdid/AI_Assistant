@@ -3,7 +3,7 @@
 // ============================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, PanResponder, StyleSheet, View } from 'react-native';
+import { BackHandler, Keyboard, PanResponder, StyleSheet, View } from 'react-native';
 import HomeScreen from '../features/home/screens/HomeScreen';
 import MoreScreen from '../features/more/screens/MoreScreen';
 import SpacesScreen from '../features/spaces/screens/SpacesScreen';
@@ -30,7 +30,7 @@ import AgendaCompareScreen from '../features/agenda/screens/AgendaCompareScreen'
 import CameraScreen from '../features/camera/screens/CameraScreen';
 import NoticeScreen from '../features/notice/screens/NoticeScreen';
 import { onNotificationTap } from '../services/notify/Notify';
-import { getTask } from '../data/tasks/TaskStore';
+import { getAllTasks, getTask } from '../data/tasks/TaskStore';
 import { getProject } from '../data/projects/ProjectStore';
 import ProposalListScreen from '../features/proposal/screens/ProposalListScreen';
 import ProposalConfirmScreen from '../features/proposal/screens/ProposalConfirmScreen';
@@ -142,29 +142,46 @@ export default function AppNavigator() {
 
   // ---------- 화면 이동 ----------
   const navigate = useCallback((route, params) => {
+    let targetRoute = route;
+    let targetParams = params;
+    if (route === ROUTES.TaskEdit && params?.taskId && params.fromCalendar !== true) {
+      const task = getAllTasks().find(item => item.id === params.taskId);
+      if (task) {
+        targetRoute = ROUTES.Calendar;
+        targetParams = { focusDate: task.date, workspaceId: task.workspaceId };
+      }
+    }
+
     setHistory((prev) => {
       const top = prev[prev.length - 1];
 
       // 홈으로: 기록을 비우고 처음으로
-      if (route === ROUTES.Home) return top.name === ROUTES.Home ? prev : [{ name: ROUTES.Home, key: 0 }];
+      if (targetRoute === ROUTES.Home) return top.name === ROUTES.Home ? prev : [{ name: ROUTES.Home, key: 0 }];
 
       // 지금 보고 있는 화면으로 다시 이동하는 경우
-      if (top.name === route) {
-        if (params === undefined) return prev; // 전달값도 없으면 아무것도 안 함 (메뉴에서 같은 항목 누름)
+      if (top.name === targetRoute) {
+        if (targetParams === undefined) return prev; // 전달값도 없으면 아무것도 안 함 (메뉴에서 같은 항목 누름)
         // 전달값이 새로 왔다면 지금 화면을 새 전달값으로 "교체" (예: 메모 화면에서 다른 메모로 이동)
         keyRef.current += 1;
-        return [...prev.slice(0, -1), { name: route, params, key: keyRef.current }];
+        return [...prev.slice(0, -1), { name: targetRoute, params: targetParams, key: keyRef.current }];
       }
 
       // 그 외: 기록 끝에 추가(= 위에 쌓기)
       keyRef.current += 1;
-      return [...prev, { name: route, params, key: keyRef.current }];
+      return [...prev, { name: targetRoute, params: targetParams, key: keyRef.current }];
     });
   }, []);
 
   // 뒤로가기: 기록이 2개 이상일 때만 맨 끝을 제거
   const goBack = useCallback(() => {
     setHistory((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
+  }, []);
+  const setParams = useCallback((patch) => {
+    setHistory((prev) => {
+      const top = prev[prev.length - 1];
+      if (!top) return prev;
+      return [...prev.slice(0, -1), { ...top, params: { ...(top.params || {}), ...patch } }];
+    });
   }, []);
   const openMenu = useCallback(() => setMenuVisible(true), []);
   const closeMenu = useCallback(() => setMenuVisible(false), []);
@@ -183,6 +200,10 @@ export default function AppNavigator() {
   // 안드로이드 하드웨어 뒤로가기 버튼: 홈이 아니면 앱을 끄지 않고 이전 화면으로
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (currentRoute === ROUTES.Search && Keyboard.isVisible()) {
+        Keyboard.dismiss();
+        return true;
+      }
       if (history.length > 1) {
         goBack();
         return true; // true = 내가 처리했음(앱 종료 안 함)
@@ -190,7 +211,7 @@ export default function AppNavigator() {
       return false; // false = 홈에서는 기본 동작(앱 종료/백그라운드)
     });
     return () => sub.remove();
-  }, [history, goBack]);
+  }, [history, currentRoute, goBack]);
 
   // 폰 알림을 누르면 그 알림의 화면으로 이동 (없는 화면 이름이면 무시)
   useEffect(
@@ -210,7 +231,7 @@ export default function AppNavigator() {
   );
 
   // 각 화면에 넘겨줄 navigation 도구 (값이 바뀔 때만 새로 만듦)
-  const navigation = useMemo(() => ({ navigate, goBack, openMenu }), [navigate, goBack, openMenu]);
+  const navigation = useMemo(() => ({ navigate, goBack, setParams, openMenu }), [navigate, goBack, setParams, openMenu]);
   const onHome = currentRoute === ROUTES.Home;
   // 지금 화면에 맞는 컴포넌트 선택: 등록된 진짜 화면이 있으면 그것, 없으면 임시 화면
   const Screen = REAL_SCREENS[currentRoute] || PlaceholderScreen;

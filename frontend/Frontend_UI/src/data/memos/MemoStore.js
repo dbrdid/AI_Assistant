@@ -1,5 +1,6 @@
 import { runtime, useValue, readPreference, writePreference } from '../hooks';
 import { ROUTES } from '../../navigation/routes';
+import { searchFilesByName } from './SearchFiles.mjs';
 export const TYPE_INFO = { memo: { label: '메모', icon: '📝', route: ROUTES.MemoEdit }, task: { label: '일정', icon: '✓', route: ROUTES.TaskEdit }, event: { label: '일정', icon: '◷', route: ROUTES.TaskEdit }, project: { label: '프로젝트', icon: '▣', route: ROUTES.ProjectDetail }, file: { label: '파일', icon: '📄', route: ROUTES.Files } };
 export const STORAGE_INFO = { local: { icon: '▣', label: '기기', desc: '이 기기에 저장된 파일' }, cloud: { icon: '☁', label: '클라우드', desc: '공유 공간 멤버가 함께 보는 파일' } };
 export const getMemos = () => runtime().store.getMemos();
@@ -28,11 +29,12 @@ export function highlightParts(text, terms) {
   const pattern = new RegExp(`(${terms.map(x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
   return s.split(pattern).filter(Boolean).map(part => ({ text: part, hit: terms.some(t => part.toLowerCase() === t.toLowerCase()) }));
 }
-export function searchApp(query) {
+export function searchApp(query, files = []) {
   const terms = searchTerms(query); if (!terms.length) return [];
   const s = runtime().store;
   const rows = [...s.getMemos().map(m => ({ ...m, type: 'memo', title: memoTitle(m), text: m.body })),
-    ...s.getTasks().map(t => ({ ...t, type: 'task', text: t.desc }))];
+    ...s.getTasks().map(t => ({ ...t, type: 'task', text: t.desc })),
+    ...searchFilesByName(files, terms)];
   return rows.filter(r => terms.every(t => `${r.title}\n${r.text}`.toLowerCase().includes(t.toLowerCase())));
 }
 export const openParams = (type, id) => type === 'file' ? { focusId: id } : type === 'task' || type === 'event' ? { id, taskId: id } : { id, memoId: id };

@@ -39,6 +39,12 @@
       ],
       "expo-notifications",
       "expo-sqlite",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Face ID를 사용해 앱 잠금을 해제해요."
+        }
+      ],
       "expo-status-bar",
       "expo-asset",
       "expo-web-browser",

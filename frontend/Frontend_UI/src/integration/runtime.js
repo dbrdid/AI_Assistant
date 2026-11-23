@@ -11,6 +11,7 @@ import { listNoteFavorites, setNoteFavorites } from '../lib/stella/favorites';
 import { createAIService } from './ai-service';
 import { CHAT_LIMITS, answerQuery, askAssistant, excerptFor, planQuery, rankRecords, toSources, todayIn } from '../lib/stella/ai-chat';
 import { requireTransmission } from '../../../../shared/contracts/ai-policy.js';
+import { selectChatSources } from './ChatSourceScope.mjs';
 import { retryPlan, transcribeErrorMessage, transcribeUploaded, uploadRecording } from '../lib/stella/transcribe';
 import { agendaJudgeErrorMessage, judgeAgendaDiscussion } from '../lib/stella/agenda-judge';
 import { File } from 'expo-file-system';
@@ -312,20 +313,26 @@ function mergeSources(attached, ranked, keywords) {
   return out;
 }
 
-export async function askFromDevice(question, signal, { history = [], attachments = [] } = {}) {
+export async function askFromDevice(question, signal, { history = [], attachments = [], fileVaultOnly = false } = {}) {
   const own = runtime(); const generation = own.session.generation;
   const ws = own.store.getCurrentWorkspace().id;
   const policy = aiPolicy();
   requireTransmission(policy.route, [policy], policy.consent);
-  const records = [
+  const records = fileVaultOnly ? [] : [
     ...own.store.getMemos().map(m => ({ id: m.id, type: 'memo', title: m.title, text: m.body, revision: m.revision, date: new Date(m.updatedAt).toISOString() })),
     ...own.store.getTasks().map(t => ({ id: t.id, type: t.kind, title: t.title, text: t.desc, revision: t.revision, date: t.date, status: t.status === '완료' ? 'done' : 'open' })),
   ].filter(r => !aiPolicy(r).excluded).map(r => ({ ...r, workspaceId: policy.workspaceId }));
+  const attachmentSources = attachments.filter(a => a.text).map(a => ({
+    id: a.id, title: a.name, text: a.text, workspaceId: policy.workspaceId, sourceScope: a.sourceScope,
+  }));
+  const { attachments: attached, records: contextRecords } = selectChatSources({
+    attachments: attachmentSources, records, fileVaultOnly,
+  });
   const checkSnapshot = () => {
     if (signal?.aborted || current !== own || own.session.generation !== generation) throw new Error('요청이 취소됐습니다');
     if (own.store.getCurrentWorkspace().id !== ws) throw new Error('작업 공간이 바뀌었습니다');
     requireTransmission(policy.route, [aiPolicy()], aiPolicy().consent);
-    for (const record of records) {
+    for (const record of contextRecords) {
       const now = record.type === 'memo' ? own.store.getMemo(record.id) : own.store.getTask(record.id);
       if (!now || now.deletedAt || now.revision !== record.revision) throw new Error('검색 대상 기록이 바뀌었습니다. 다시 질문해 주세요');
       requireTransmission(policy.route, [aiPolicy(now)], aiPolicy().consent);
@@ -337,14 +344,13 @@ export async function askFromDevice(question, signal, { history = [], attachment
     return { data: await gateway(name.replace(/^ai-gateway\//, ''), options.body, { route: policy.route, signal }), error: null };
   } } };
   const turns = history.filter(t => t.text && (t.role === 'user' || t.role === 'assistant'));
-  const attached = attachments.filter(a => a.text).map(a => ({ id: a.id, title: a.name, text: a.text, workspaceId: policy.workspaceId }));
   let answer;
   if (!attached.length) {
-    answer = await askAssistant(client, { question, history: turns, newId: randomUUID, timezone: policy.timezone, findRecords: async () => records });
+    answer = await askAssistant(client, { question, history: turns, newId: randomUUID, timezone: policy.timezone, findRecords: async () => contextRecords });
   } else {
     // 사용자가 자료를 제공했으므로 질문에서 기록 검색이 필요하지 않다고 판단되더라도 해당 자료를 바탕으로 답변합니다.
     const plan = await planQuery(client, { clientRequestId: randomUUID(), question, history: turns, timezone: policy.timezone });
-    const ranked = plan.intent === 'search' ? rankRecords(records, plan, { today: todayIn(policy.timezone) }) : [];
+    const ranked = !fileVaultOnly && plan.intent === 'search' ? rankRecords(contextRecords, plan, { today: todayIn(policy.timezone) }) : [];
     const sources = mergeSources(attached, ranked, plan.keywords ?? []);
     const { answer: a } = await answerQuery(client, { clientRequestId: randomUUID(), question, history: turns, timezone: policy.timezone, sources });
     const byId = new Map(sources.map(s => [s.id, s]));
@@ -356,7 +362,7 @@ export async function askFromDevice(question, signal, { history = [], attachment
   const attachedIds = new Set(attached.map(a => a.id));
   for (const ref of answer.sources) {
     if (attachedIds.has(ref.id)) continue; // 첨부 파일은 기기 기록이 아닙니다.
-    const before = records.find(r => r.id === ref.id); const after = before?.type === 'memo' ? own.store.getMemo(ref.id) : own.store.getTask(ref.id);
+    const before = contextRecords.find(r => r.id === ref.id); const after = before?.type === 'memo' ? own.store.getMemo(ref.id) : own.store.getTask(ref.id);
     if (!after || after.revision !== before.revision || aiPolicy(after).excluded) throw new Error('답변에 사용한 원본이 바뀌었습니다. 다시 질문해 주세요');
   }
   requireTransmission(policy.route, [aiPolicy()], aiPolicy().consent);

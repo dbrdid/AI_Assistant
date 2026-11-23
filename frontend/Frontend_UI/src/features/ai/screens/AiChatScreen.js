@@ -33,6 +33,7 @@ import { ROUTES } from '../../../navigation/routes';
 import { TITLE_MAX, deleteChat, getChat, saveChat, setChatTitle, setPinned, sortChats, useChats } from '../../../data/ai/ChatStore';
 import UpSheet from '../components/UpSheet';
 import { MAX_ATTACHMENTS, describe, extract, pickAttachments } from '../../../services/ai/ChatAttachments';
+import { canRecognize, recognizeFile, useCloudFiles, useFiles } from '../../../data/files/FileStore';
 import { chatErrorMessage } from '../../../lib/stella/ai-chat';
 import { colors, font, radius, shadow, spacing } from '../../../shared/theme/theme';
 
@@ -175,6 +176,12 @@ export default function AiChatScreen({ navigation }) {
   const routeReady = route === 'external' || LOCAL_AI_AVAILABLE;
   const allowed = !ai.transmissionDisabled && ai.consent?.[route] === true;
   const chats = useChats();
+  const localVaultFiles = useFiles();
+  const cloudVaultFiles = useCloudFiles();
+  const vaultFiles = [
+    ...localVaultFiles.filter((file) => !file.storage || file.storage === 'local'),
+    ...cloudVaultFiles,
+  ].filter(canRecognize);
 
   // ---------- 상태 ----------
   const [chatId, setChatId] = useState(() => randomUUID()); // 지금 대화의 기록 id
@@ -185,7 +192,7 @@ export default function AiChatScreen({ navigation }) {
   const [attachments, setAttachments] = useState([]);        // 보내기 전 첨부 { id, name, kind, status, text, error }
   // 이 대화에서 이미 보낸 첨부의 글자: 뒤이은 질문("예산은?")에도 같이 보냄. 기기 기록에는 저장하지 않음
   const chatFiles = useRef([]);
-  const [panel, setPanel] = useState(null);                  // 'history' | 'route' | 'attach' | null
+  const [panel, setPanel] = useState(null);                  // 'history' | 'route' | 'attach' | 'archive' | null
   const [consentBusy, setConsentBusy] = useState(false);
   const [banner, setBanner] = useState('');
   const [usage, setUsage] = useState({ data: null, error: '' }); // 서버 기준 이번 달 사용량
@@ -272,6 +279,30 @@ export default function AiChatScreen({ navigation }) {
       setAttachments((prev) => prev.map((a) => (a.id === item.id ? done : a)));
     }
   };
+  const addVaultFile = async (file) => {
+    if (status !== 'idle') return;
+    const storage = file.storage || 'local';
+    if (attachments.some((a) => a.archiveFileId === file.id && a.archiveStorage === storage)) {
+      return setBanner('이미 첨부한 파일이에요');
+    }
+    const room = MAX_ATTACHMENTS - attachments.length;
+    if (room <= 0) return setBanner(`첨부는 한 번에 ${MAX_ATTACHMENTS}개까지예요`);
+
+    const item = { ...describe({ name: file.name, mimeType: file.mimeType }), archiveFileId: file.id, archiveStorage: storage, sourceScope: 'vault' };
+    setPanel(null);
+    setAttachments((prev) => [...prev, item]);
+    extractAbort.current ??= new AbortController();
+    const signal = extractAbort.current.signal;
+    try {
+      const text = (file.text?.trim() || await recognizeFile(file.id)).trim();
+      if (signal.aborted) return;
+      if (!text) throw new Error('파일에서 읽을 글자를 찾지 못했어요');
+      setAttachments((prev) => prev.map((a) => (a.id === item.id ? { ...a, status: 'ready', text, error: '' } : a)));
+    } catch (error) {
+      if (signal.aborted) return;
+      setAttachments((prev) => prev.map((a) => (a.id === item.id ? { ...a, status: 'error', error: error?.message || '파일을 읽지 못했어요' } : a)));
+    }
+  };
   const removeAttachment = (id) => setAttachments((prev) => prev.filter((a) => a.id !== id));
   const reading = attachments.some((a) => a.status === 'reading');
   const ready = attachments.filter((a) => a.status === 'ready');
@@ -286,7 +317,7 @@ export default function AiChatScreen({ navigation }) {
       if (!routeReady) return setBanner('로컬 AI는 아직 연결 전이에요. 클라우드 AI로 바꿔 주세요');
 
       const aiId = nextId();
-      const sentFiles = ready.map(({ id, name, kind, text: body }) => ({ id, name, kind, text: body }));
+      const sentFiles = ready.map(({ id, name, kind, text: body, sourceScope }) => ({ id, name, kind, text: body, sourceScope }));
       const history = messages.filter((m) => !m.error && m.text).map((m) => ({ role: m.role === 'user' ? 'user' : 'assistant', text: m.text }));
       dirty.current = true;
       if (!messages.length) setStartedAt(Date.now());
@@ -301,7 +332,13 @@ export default function AiChatScreen({ navigation }) {
       let answer;
       // 새 첨부가 앞, 앞서 보낸 첨부가 뒤 (서버에 한 번에 보내는 첨부는 최대 3개)
       chatFiles.current = [...sentFiles, ...chatFiles.current.filter((f) => !sentFiles.some((s) => s.id === f.id))].slice(0, MAX_ATTACHMENTS);
-      try { answer = await askFromDevice(text, controller.signal, { history, attachments: chatFiles.current }); }
+      try {
+        answer = await askFromDevice(text, controller.signal, {
+          history,
+          attachments: chatFiles.current,
+          fileVaultOnly: chatFiles.current.some((file) => file.sourceScope === 'vault'),
+        });
+      }
       catch (error) {
         if (!controller.signal.aborted) setMessages((prev) => [...prev, { id: aiId, role: 'ai', text: errorText(error), done: true, sources: [], error: true }]);
         if (requestRef.current === controller) setStatus('idle');
@@ -569,6 +606,10 @@ export default function AiChatScreen({ navigation }) {
               <Text style={styles.optionName}>파일</Text>
               <Text style={styles.optionSub}>PDF·Word·PowerPoint·텍스트의 글자를 꺼내서 함께 보내요</Text>
             </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => setPanel('archive')} style={styles.option}>
+              <Text style={styles.optionName}>파일 보관함에서 선택</Text>
+              <Text style={styles.optionSub}>기기 또는 현재 공유 공간에 저장된 파일을 첨부해요</Text>
+            </Pressable>
             <Text style={styles.sheetNote}>파일은 저장되지 않고, 꺼낸 글자만 질문과 함께 보내요. 한 번에 {MAX_ATTACHMENTS}개까지.</Text>
           </View>
         </Pressable>
@@ -717,6 +758,43 @@ export default function AiChatScreen({ navigation }) {
           </ScrollView>
         )}
         <Text style={styles.sheetNote}>파일은 저장하지 않고, 꺼낸 글자만 이 대화 동안 질문과 함께 보내요. 누르면 그 파일을 올린 질문으로 이동해요.</Text>
+      </UpSheet>
+
+      <UpSheet visible={panel === 'archive'} top={headerBottom} title="파일 보관함에서 선택" onClose={() => setPanel(null)}>
+        {vaultFiles.length === 0 ? (
+          <Text style={styles.historyEmpty}>AI가 읽을 수 있는 파일이 없어요. 먼저 파일 보관함에 파일을 추가해 주세요.</Text>
+        ) : (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: spacing.sm }}>
+            {vaultFiles.map((file) => {
+              const storage = file.storage || 'local';
+              const selected = attachments.some((a) => a.archiveFileId === file.id && a.archiveStorage === storage);
+              const disabled = status !== 'idle' || attachments.length >= MAX_ATTACHMENTS || selected;
+              return (
+                <Pressable
+                  key={`${storage}:${file.id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${file.name}${selected ? ', 이미 첨부됨' : ', AI 채팅에 첨부'}`}
+                  accessibilityState={{ disabled, selected }}
+                  disabled={disabled}
+                  onPress={() => addVaultFile(file)}
+                  style={({ pressed }) => [styles.fileItem, disabled && { opacity: 0.55 }, pressed && !disabled && styles.pressed]}
+                >
+                  <View style={styles.fileBadge}>
+                    <Icon name="file" size={18} color={colors.mintDark} />
+                    <Text style={styles.fileBadgeText}>{storage === 'cloud' ? '공유' : '기기'}</Text>
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={styles.optionName} numberOfLines={1}>{file.name}</Text>
+                    <Text style={styles.optionSub} numberOfLines={1}>
+                      {selected ? '이미 첨부됨' : file.text ? '내용 인식 완료 · 선택해 첨부' : '선택하면 파일 내용을 읽어요'}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        )}
+        <Text style={styles.sheetNote}>선택한 파일을 기준으로 답하고 앱의 메모·일정·할 일은 함께 검색하지 않아요. AI 전송 동의가 필요합니다.</Text>
       </UpSheet>
 
       {/* ---------- 이전 대화 (오른쪽에서 밀려 나오는 창) ---------- */}

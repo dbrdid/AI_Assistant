@@ -5,9 +5,11 @@
 
 import React, { useState } from 'react';
 import { Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as LocalAuthentication from 'expo-local-authentication';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { Group, Row, SectionTitle, ToggleRow, useNotice } from '../../../shared/components/SettingsUi';
+import { updateSettings, useSettings } from '../../../data/settings/SettingsStore';
 
 const PERMS = [
   { id: 'mic', icon: 'mic', label: '마이크 권한', why: '녹음에 사용' },
@@ -18,7 +20,54 @@ const PERMS = [
 
 export default function SecurityScreen({ navigation }) {
   const [policy, setPolicy] = useState(false);
+  const [lockBusy, setLockBusy] = useState(false);
   const notice = useNotice();
+  const settings = useSettings();
+  const lockEnabled = Platform.OS !== 'web' && Boolean(settings.security?.lock);
+
+  const setAppLock = async enabled => {
+    if (lockBusy) return;
+    if (Platform.OS === 'web') {
+      notice.show('앱 잠금은 Android·iOS 앱에서 설정할 수 있어요');
+      return;
+    }
+    setLockBusy(true);
+    try {
+      if (enabled) {
+        const [supported, enrolled] = await Promise.all([
+          LocalAuthentication.hasHardwareAsync(),
+          LocalAuthentication.isEnrolledAsync(),
+        ]);
+        if (!supported) {
+          notice.show('이 기기는 생체 인증을 지원하지 않아요');
+          return;
+        }
+        if (!enrolled) {
+          notice.show('기기 설정에서 Face ID 또는 지문을 먼저 등록해 주세요');
+          return;
+        }
+      }
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: enabled ? '앱 잠금 설정을 인증해 주세요' : '앱 잠금 해제를 인증해 주세요',
+        cancelLabel: '취소',
+        disableDeviceFallback: false,
+      });
+      if (!result.success) {
+        if (result.error !== 'user_cancel' && result.error !== 'app_cancel') {
+          notice.show('생체 인증에 실패했어요. 다시 시도해 주세요');
+        }
+        return;
+      }
+
+      updateSettings('security', { lock: enabled, biometric: enabled });
+      notice.show(enabled ? '앱 잠금을 켰어요' : '앱 잠금을 껐어요');
+    } catch (e) {
+      notice.show(e?.message || '앱 잠금 설정을 변경하지 못했어요');
+    } finally {
+      setLockBusy(false);
+    }
+  };
 
   const openSystem = async () => {
     if (Platform.OS === 'web') return notice.show('웹에서는 브라우저 주소창 왼쪽의 사이트 설정에서 권한을 바꿀 수 있어요');
@@ -33,8 +82,14 @@ export default function SecurityScreen({ navigation }) {
     <View style={styles.root}>
       <ScreenHeader title="보안 및 권한 설정" onBack={navigation.goBack} />
       <ScrollView contentContainerStyle={styles.content}>
-        {/* 기기 인증(생체·PIN) 모듈이 아직 없어서, 켜도 잠기지 않는 설정은 저장하지 않음 */}
-        <ToggleRow icon="lock" label="앱 화면 잠금" sub="준비 중 · 기기 인증(지문·얼굴·PIN) 연결 후 켤 수 있어요" value={false} disabled />
+        <ToggleRow
+          icon="lock"
+          label="앱 화면 잠금"
+          sub={Platform.OS === 'web' ? 'Android·iOS 앱에서 설정할 수 있어요' : '앱을 나갔다 돌아오면 Face ID·지문으로 잠금을 해제해요'}
+          value={lockEnabled}
+          disabled={lockBusy || Platform.OS === 'web'}
+          onValueChange={setAppLock}
+        />
 
         <SectionTitle>기기 권한</SectionTitle>
         <Group>

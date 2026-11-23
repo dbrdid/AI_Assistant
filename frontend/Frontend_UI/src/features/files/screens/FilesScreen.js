@@ -143,7 +143,7 @@ export default function FilesScreen({ navigation, route }) {
                     {reading[f.id] ? <ActivityIndicator size="small" color={colors.mintDark} /> : null}
                     <Text style={styles.smallBtnText}>{reading[f.id] ? '읽는 중…' : '내용 인식'}</Text>
                   </Pressable>
-                  <Text style={styles.note}>{readError[f.id] || '내용을 읽어 두면 글자로도 검색돼요'}</Text>
+                  <Text style={styles.note}>{readError[f.id] || '읽은 내용은 파일 카드에서 미리 볼 수 있어요'}</Text>
                 </View>
               ) : (
                 <Text style={styles.note}>파일 이름으로 검색돼요</Text>

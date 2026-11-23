@@ -9,6 +9,7 @@ import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { dateLabel } from '../../memo/components/MemoCard';
 import { clearNotices, markAllRead, markRead, removeNotice, useNotices } from '../../../data/notices/NoticeStore';
+import { ROUTES } from '../../../navigation/routes';
 
 const KIND = {
   schedule: { label: '일정', icon: '🗓️' },
@@ -55,7 +56,7 @@ export default function NoticeScreen({ navigation }) {
         {list.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>{all.length === 0 ? '새 알림이 없어요' : '이 종류의 알림이 없어요'}</Text>
-            <Text style={styles.emptySub}>일정이나 할 일에 알림을 설정하면 여기에 모여요.{'\n'}알림 종류와 방해 금지 시간은 설정 &gt; 알림 설정에서 바꿀 수 있어요.</Text>
+            <Text style={styles.emptySub}>일정 알림은 일간 브리핑 시간(없으면 1시간 전)에 여기에 표시돼요.{'\n'}휴대폰 알림을 받으려면 일정이나 할 일에 알림 시각을 설정하고 알림 권한을 허용해 주세요.</Text>
           </View>
         ) : (
           list.map((n) => {
@@ -67,7 +68,7 @@ export default function NoticeScreen({ navigation }) {
                 accessibilityLabel={`${k.label} 알림 ${n.title}. ${n.body}`}
                 onPress={() => {
                   markRead(n.id);
-                  if (n.route) navigation.navigate(n.route, n.params);
+                  if (n.route && n.route !== ROUTES.TaskEdit) navigation.navigate(n.route, n.params);
                 }}
                 style={({ pressed }) => [styles.card, !n.read && styles.cardNew, pressed && { opacity: 0.75 }]}
               >

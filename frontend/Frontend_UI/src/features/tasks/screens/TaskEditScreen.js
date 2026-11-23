@@ -239,7 +239,7 @@ export default function TaskEditScreen({ navigation, route }) {
           style={styles.titleInput}
           value={f.title}
           onChangeText={set('title')}
-          placeholder={isEvent ? '어떤 일정인가요?' : '무엇을 할까요?'}
+          placeholder={isEvent ? '일정 제목을 입력하세요' : '할 일 제목을 입력하세요'}
           placeholderTextColor={colors.muted}
           maxLength={100}
           autoFocus={!existing}
@@ -259,7 +259,11 @@ export default function TaskEditScreen({ navigation, route }) {
         </View>
 
         <Chips label="알림" options={ALARMS} value={f.alarm} onChange={set('alarm')} />
-        <Text style={styles.note}>알림 설정은 저장만 되고, 실제 알림은 추후 지원돼요.</Text>
+        <Text style={styles.note}>
+          {isEvent
+            ? "휴대폰 알림 권한을 허용하면 지정한 시각에 알림이 와요. '없음'이면 일간 브리핑 시간(없으면 1시간 전)에 앱 알림함에 표시돼요."
+            : '휴대폰 알림 권한을 허용하면 지정한 시각에 알림이 와요.'}
+        </Text>
         {isEvent && <Input label="장소" value={f.place} onChangeText={set('place')} placeholder="장소" />}
 
         {/* ---------- 더보기 ---------- */}

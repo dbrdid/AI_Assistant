@@ -1,6 +1,7 @@
 import { runtime, runtimeSubscribe, useValue, readPreference, writePreference } from '../hooks';
 import { grantConsent, hasConsent, revokeConsent, updateMyProfile } from '../../lib/stella/account';
 import { getSubscription } from '../../lib/stella/billing';
+import { updatePassword } from '../../lib/stella/auth';
 import { supabase } from '../../lib/stella/supabase';
 export const WEEKDAY_NAMES = ['월요일','화요일','수요일','목요일','금요일','토요일','일요일'];
 export const PLANS = { free: { name: 'Free', price: 0 }, pro: { name: 'Pro', price: 4900 }, team: { name: 'Team', price: 9900 } };
@@ -41,10 +42,12 @@ export async function setAiTransmission(route, enabled) {
 // 이번 달 AI 사용량입니다. 한도는 요금제 카탈로그(FREE/PRO/TEAM)에서, 횟수는 usage_counters(사용량 + 진행 중 요청 예약량)에서 가져옵니다.
 // 기기 카운터(getUsage)는 표시 전용입니다.
 const USAGE_ITEMS = [
-  { key: 'query', metric: 'AI_QUERY', label: 'AI 채팅 질문' },
-  { key: 'ocr', metric: 'AI_OCR', label: '사진 글자 인식' },
-  { key: 'analyze', metric: 'AI_ANALYZE', label: '일정·할 일 추출' },
-  { key: 'organize', metric: 'AI_ORGANIZE', label: '메모 정리' },
+  { key: 'query', metric: 'AI_QUERY', label: 'AI 채팅 질문', unit: '회' },
+  { key: 'ocr', metric: 'AI_OCR', label: '사진 글자 인식', unit: '회' },
+  { key: 'analyze', metric: 'AI_ANALYZE', label: '일정·할 일 추출', unit: '회' },
+  { key: 'organize', metric: 'AI_ORGANIZE', label: '메모 정리', unit: '회' },
+  { key: 'agenda', metric: 'AI_AGENDA', label: '안건 비교', unit: '회' },
+  { key: 'stt_minutes', metric: 'AI_STT', label: '녹음 변환', unit: '분' },
 ];
 export async function loadAiUsage() {
   const own = runtime();
@@ -57,11 +60,11 @@ export async function loadAiUsage() {
   const limits = sub.plans?.[sub.plan]?.ai ?? {};
   return {
     plan: sub.plan === 'TEAM' ? 'team' : sub.plan === 'PRO' ? 'pro' : 'free',
-    items: USAGE_ITEMS.map(({ key, metric, label }) => {
+    items: USAGE_ITEMS.map(({ key, metric, label, unit }) => {
       const row = data.find(r => r.metric === metric);
       const used = Number(row?.used ?? 0) + Number(row?.reserved ?? 0);
       const limit = Number(limits[key] ?? 0);
-      return { key, label, used, limit, remaining: Math.max(0, limit - used) };
+      return { key, label, unit, used, limit, remaining: Math.max(0, limit - used) };
     }),
   };
 }
@@ -79,7 +82,7 @@ export const getUsage =() => readPreference('usage-display', { question: 0, summ
 // 표시용 카운터는 실제 할당량의 기준이 아닙니다. 실제 사용량은 게이트웨이와 DB에서 제한합니다.
 export const addUsage = key => writePreference('usage-display', { ...getUsage(), [key]: (getUsage()[key] ?? 0) + 1 });
 export const limitOf = () => null;
-export const changePassword = async () => ({ ok: false, reason: 'reset-flow-required' });
+export const changePassword = newPassword => updatePassword(newPassword);
 export async function saveProfile(patch) {
   const own = runtime();
   const profile = await updateMyProfile({ display_name: patch.name, affiliation: patch.affiliation || null });
