@@ -23,7 +23,7 @@
 | 경로 | 내용 |
 |---|---|
 | `migrations/` | DB 마이그레이션 37개 (서버에 적용 완료, 파일명 = 서버 버전, 내용도 서버 기록과 바이트 단위로 같음 — 11/15 md5 확인) |
-| `functions/ai-gateway/` | AI Gateway (배포 완료, 서버 버전 14: 11/15 질문 한도 1,000 → 2,000자). `index.ts`가 정리·추출·사진 글자(/ocr)와 진입점, `transcribe.ts`가 짧은 녹음 올리기·변환, `assist.ts`가 AI 채팅(/query/plan·/query/answer)·안건 판단(/agenda/judge)의 요청 검사·지시문·출력 검사 |
+| `functions/ai-gateway/` | AI Gateway (배포 완료, 서버 버전 14: 11/15 질문 한도 1,000 → 2,000자). `index.ts`가 정리·추출·사진 글자(/ocr)·손글씨(/handwriting)와 진입점, `handwriting.ts`가 획 검증·변환, `transcribe.ts`가 녹음 변환, `assist.ts`가 채팅·안건 판단을 담당. 새 `/handwriting` 경로는 소스 구현 상태이며 배포 필요 |
 | `functions/stt-worker/` | 긴 녹음 구간 전사 워커 (배포 완료, v1, `verify_jwt=false`). 업로드 확인·매분 cron이 깨움, 동시 2개 |
 | `functions/stt-cleanup/` | 녹음 임시 보관함 정리 (배포 완료, v2, `verify_jwt=false`). 매시간 cron·녹음 취소 때 Vault 비밀값을 붙여 부름. 버킷 `stt-uploads`·`stt-recordings` |
 | `functions/assets/` | 첨부·백업 업로드 API: 준비·확인·삭제 (배포 완료, v1). `handler.ts`가 로직, `index.ts`가 Supabase 연결 |
@@ -110,6 +110,7 @@
 - [x] `/ocr` 사진 → 글자 (11/14): **Terra가 사진을 직접 읽음**(이미지 입력, OCR 전용 모델 없음). 한 번에 1~5장(장 순서 = 쪽 순서), 한 장 5MB·합계 10MB, JPEG·PNG·WebP·GIF(형식은 파일 앞부분으로 다시 확인, HEIC는 JPEG로 바꿔서)
   - 결과 초안: 제목, 사진 속 글 그대로(`text`, 여러 장이면 `--- 2쪽 ---`), 요약, 종류(문서·필기·판서·슬라이드·화면·영수증), 흐린 부분(`unclear_parts`). 읽을 수 없는 곳은 `[읽을 수 없음]`
   - 사진·글은 DB에도 OpenAI에도 남기지 않음. 할 일·일정은 사용자가 글을 확인한 뒤 `/analyze`로. 한도는 횟수(FREE 30 / PRO 300)
+- [ ] `/handwriting` 손글씨 획 인식: 인증된 게이트웨이가 외부 AI 동의·공간 권한·OCR 월 한도를 확인한 뒤 Google Input Tools에 중계. 요청 본문은 앱 DB에 저장하지 않음. 소스·테스트 준비됨, Edge Function 배포 및 실기기 확인 필요
 - [x] 외부 AI 동의 확인, 월 사용 한도, 같은 요청 중복 처리 방지, 모델·토큰·비용 기록
 - [x] 프롬프트와 응답 본문은 DB에도 OpenAI에도 저장하지 않음
 - [x] 10분마다 결과를 받지 못한 요청을 자동 정리 (pg_cron)
@@ -318,6 +319,7 @@ AI를 호출하기 전에 사용자의 외부 AI 동의(`consents`)가 있어야
 - [x] 긴 녹음(최대 3시간): 구간 업로드 → 서버 구간별 전사 → 전사문 → 녹음 삭제 (11/14 배포)
 - [x] `/transcribe` 녹음 → 글자 (`gpt-transcribe`, 한도는 녹음 분 단위, 올리고 → 변환 후 삭제 · 실패하면 3일 보관) — 11/14 배포, 실제 호출은 키 등록 후 확인
 - [x] `/ocr` 사진 → 글자 (Terra 이미지 입력) — 11/14 배포, 검증 15번 묶음으로 실제 확인
+- [ ] `/handwriting` 손글씨 변환 — 소스 구현, Edge Function 배포 및 실기기 검증 대기
 - [x] ~~AI 모드 선택 + 모델별 차감~~ → 모델을 Terra 하나로 줄여서 필요 없음 (11/14)
 - [x] migration #22·#23(11/15 원격 직접 적용분)을 파일·로컬 테스트·앱 모듈에 반영 (11/15)
 - [x] 가짜 결제 FREE ↔ PRO (11/15 배포, migration #24)

@@ -14,20 +14,16 @@ import Icon from '../../../shared/components/Icon';
 import { runtime, maybeRuntime } from '../../../integration/runtime';
 
 const MODES = [
-  { id: 'confirm', title: '확인 후 저장', sub: '생성된 결과물을 사용자가 직접 확인하고 승인한 뒤에만 저장합니다' },
+  { id: 'confirm', title: '확인 후 저장', sub: '생성된 결과물을 직접 확인하고 승인한 뒤 저장합니다' },
+  { id: 'auto', title: '자동 저장', sub: '날짜 누락·중복·시간 충돌이 없는 결과만 저장합니다. 나머지는 확인 목록에 남고, 공유 공간은 서버 동기화·개인 공간은 기기에 저장됩니다.' },
 ];
-const SCREEN_MODES = [
-  ...MODES,
-  { id: 'auto', title: '자동 저장', sub: '확인 과정 없이 모든 결과물을 자동 저장합니다. 현재 서버 버전에서는 지원하지 않아요.' },
-];
+const SCREEN_MODES = MODES;
 
 // compact: AI 채팅의 오른쪽 창용. 사용 목적·시간대·브리핑·이용량은 빼고 AI 처리·확인 방식만
 export default function AiSettingsForm({ onOpenUsage, contentStyle, compact = false, screenLayout = false }) {
   const saved = getSettings();
   const [ai, setAi] = useState(() => {
-    const draft = JSON.parse(JSON.stringify(saved.ai));
-    if (screenLayout && draft.confirmMode === 'auto') draft.confirmMode = 'confirm';
-    return draft;
+    return JSON.parse(JSON.stringify(saved.ai));
   });
   const [picker, setPicker] = useState(null); // 'weekly' | 'daily' | null
   const [setup, setSetup] = useState(() => ({ ...saved.setup })); // 첫 실행 때 고른 사용 목적·시간대
@@ -72,15 +68,13 @@ export default function AiSettingsForm({ onOpenUsage, contentStyle, compact = fa
             <SectionTitle>AI 확인 방식</SectionTitle>
             {SCREEN_MODES.map((m) => {
               const on = ai.confirmMode === m.id;
-              const disabled = m.id === 'auto';
               return (
                 <Pressable
                   key={m.id}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected: on, disabled }}
-                  disabled={disabled}
+                  accessibilityState={{ selected: on }}
                   onPress={() => set({ confirmMode: m.id })}
-                  style={[styles.screenMode, on && styles.screenModeOn, disabled && styles.screenModeDisabled]}
+                  style={[styles.screenMode, on && styles.screenModeOn]}
                 >
                   <Text style={[styles.screenRadio, on && { color: colors.mintDark }]}>{on ? '◉' : '○'}</Text>
                   <View style={{ flex: 1, gap: 2 }}>

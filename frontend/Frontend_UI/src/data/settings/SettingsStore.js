@@ -18,7 +18,6 @@ export const useSettings = () => useValue(getSettings);
 export const subscribeSettings = runtimeSubscribe;
 export function updateSettings(section, patch) {
   if (section === 'plan') throw new Error('요금제는 서버 구독 API에서만 변경할 수 있습니다');
-  if (section === 'ai' && patch.confirmMode === 'auto') throw new Error('통합 버전은 사용자 확인 후 저장만 지원합니다');
   const s = getSettings();
   return writePreference('settings', { ...s, [section]: { ...s[section], ...patch } });
 }
@@ -43,7 +42,7 @@ export async function setAiTransmission(route, enabled) {
 // 기기 카운터(getUsage)는 표시 전용입니다.
 const USAGE_ITEMS = [
   { key: 'query', metric: 'AI_QUERY', label: 'AI 채팅 질문', unit: '회' },
-  { key: 'ocr', metric: 'AI_OCR', label: '사진 글자 인식', unit: '회' },
+  { key: 'ocr', metric: 'AI_OCR', label: '사진·손글씨 인식', unit: '회' },
   { key: 'analyze', metric: 'AI_ANALYZE', label: '일정·할 일 추출', unit: '회' },
   { key: 'organize', metric: 'AI_ORGANIZE', label: '메모 정리', unit: '회' },
   { key: 'agenda', metric: 'AI_AGENDA', label: '안건 비교', unit: '회' },

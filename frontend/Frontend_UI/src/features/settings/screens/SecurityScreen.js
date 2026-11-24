@@ -10,6 +10,7 @@ import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { Group, Row, SectionTitle, ToggleRow, useNotice } from '../../../shared/components/SettingsUi';
 import { updateSettings, useSettings } from '../../../data/settings/SettingsStore';
+import { authenticateFingerprint, supportsFingerprintOnly } from '../../../services/device/FingerprintAuth';
 
 const PERMS = [
   { id: 'mic', icon: 'mic', label: '마이크 권한', why: '녹음에 사용' },
@@ -35,27 +36,25 @@ export default function SecurityScreen({ navigation }) {
     try {
       if (enabled) {
         const [supported, enrolled] = await Promise.all([
-          LocalAuthentication.hasHardwareAsync(),
+          supportsFingerprintOnly(),
           LocalAuthentication.isEnrolledAsync(),
         ]);
         if (!supported) {
-          notice.show('이 기기는 생체 인증을 지원하지 않아요');
+          notice.show('지문 센서가 있는 기기에서 사용할 수 있어요. Face ID만 지원하는 기기에서는 사용할 수 없어요.');
           return;
         }
         if (!enrolled) {
-          notice.show('기기 설정에서 Face ID 또는 지문을 먼저 등록해 주세요');
+          notice.show('기기 설정에서 지문을 먼저 등록해 주세요');
           return;
         }
       }
 
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: enabled ? '앱 잠금 설정을 인증해 주세요' : '앱 잠금 해제를 인증해 주세요',
-        cancelLabel: '취소',
-        disableDeviceFallback: false,
-      });
+      const result = await authenticateFingerprint(enabled ? '지문으로 앱 잠금 설정' : '지문으로 앱 잠금 해제');
       if (!result.success) {
         if (result.error !== 'user_cancel' && result.error !== 'app_cancel') {
-          notice.show('생체 인증에 실패했어요. 다시 시도해 주세요');
+          notice.show(result.error === 'fingerprint_only_unavailable'
+            ? '지문 인증만 지원하는 기기에서 사용할 수 있어요.'
+            : '지문 인증에 실패했어요. 다시 시도해 주세요');
         }
         return;
       }
@@ -85,7 +84,7 @@ export default function SecurityScreen({ navigation }) {
         <ToggleRow
           icon="lock"
           label="앱 화면 잠금"
-          sub={Platform.OS === 'web' ? 'Android·iOS 앱에서 설정할 수 있어요' : '앱을 나갔다 돌아오면 Face ID·지문으로 잠금을 해제해요'}
+          sub={Platform.OS === 'web' ? 'Android·iOS 앱에서 설정할 수 있어요' : '지문 센서가 필요해요. Face ID 전용 기기는 지원하지 않아요.'}
           value={lockEnabled}
           disabled={lockBusy || Platform.OS === 'web'}
           onValueChange={setAppLock}

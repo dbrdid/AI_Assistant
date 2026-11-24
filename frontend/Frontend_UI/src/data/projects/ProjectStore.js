@@ -11,11 +11,12 @@ import {
 import * as engine from '../../lib/stella/local-sync';
 import { supabase } from '../../lib/stella/supabase';
 import {
-  LEADER_ROLE, canManageProject, createProjectInvite, getProjectInviteQuota, isLeaderConflict, newProjectChanges,
+  LEADER_ROLE, isProjectLeader, createProjectInvite, getProjectInviteQuota, isLeaderConflict, newProjectChanges,
   pendingInvites, projectFileChanges, projectFilesOf, projectOfFile, projectInviteShareText, teamChanges, teamErrorMessage, wouldRemoveAllLeaders,
 } from '../../lib/stella/project-team';
 import { inviteMailErrorMessage, sendInviteMail } from '../../lib/stella/invite-mail';
 import { alertUser } from '../alert';
+import { applyPendingMemoLinks, isReferenceNoteProjectFailure } from '../../features/project/projectConnectionText';
 
 export const PROJECT_STATUSES = ['진행 전', '진행 중', '완료', '보류'];
 export const isEmail = value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -82,7 +83,10 @@ runtimeSubscribe(() => {
     refreshTimer = null;
     const rt = maybeRuntime();
     const ws = rt?.store.getCurrentWorkspace();
-    if (ws && !ws.personal && ws.serverId && sharedSession === rt.session.id && shared.has(ws.serverId)) void refreshShared(ws.serverId);
+    if (ws && !ws.personal && ws.serverId && sharedSession === rt.session.id && shared.has(ws.serverId)) {
+      void refreshShared(ws.serverId);
+      void syncPendingMemoLinks(rt, ws);
+    }
   }, 150);
 });
 
@@ -93,6 +97,9 @@ runtimeSubscribe(() => {
 const readLinks = () => readPreference(scoped('project-links'), EMPTY_LINKS) ?? EMPTY_LINKS;
 const writeLinks = links => writePreference(scoped('project-links'), links);
 const keysFor = (map, projectId) => Object.keys(map).filter(id => map[id] === projectId);
+const pendingMemoLinksKey = serverId => `pending-memo-project-links:${serverId}`;
+const readPendingMemoLinks = serverId => readPreference(scoped(pendingMemoLinksKey(serverId)), {}) ?? {};
+const writePendingMemoLinks = (serverId, pending) => writePreference(scoped(pendingMemoLinksKey(serverId)), pending);
 
 function taskIndex(tasks) {
   const out = {};
@@ -112,6 +119,9 @@ const METHOD_LABEL = { EMAIL: '메일', LINK: '링크' };
 function buildShared(rt, entry, tasks, links) {
   const map = rt.store.serverMap;
   const byTask = taskIndex(tasks);
+  const ws = rt.store.getCurrentWorkspace();
+  const pending = ws?.serverId ? readPendingMemoLinks(ws.serverId) : {};
+  const memoLinks = applyPendingMemoLinks(entry.noteLinks, pending);
   return entry.projects
     .slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
     .map(row => ({
@@ -124,7 +134,7 @@ function buildShared(rt, entry, tasks, links) {
       invites: pendingInvites(entry.invites.map(data => ({ data })), row.id)
         .map(i => ({ id: i.id, email: i.email ?? '', method: METHOD_LABEL[i.method] ?? i.method, expiresAt: i.expires_at })),
       links: {
-        memos: entry.noteLinks.filter(l => l.project_id === row.id).map(l => l.note_id),
+        memos: memoLinks.filter(l => l.project_id === row.id).map(l => l.note_id),
         tasks: byTask[row.id] ?? EMPTY,
         files: [...new Set([
           ...projectFilesOf(entry.projectFiles.map(data => ({ data })), row.id).map(file => file.asset_id),
@@ -175,10 +185,17 @@ function guardShared(ws) {
   if (!ws.serverId) throw new Error('이 공간은 아직 서버에 연결되지 않았어요. 동기화된 뒤 다시 시도해 주세요');
   if (ws.roleCode === 'VIEWER') throw new Error('보기 전용 멤버는 할 수 없어요');
 }
+function guardLink(rt, ws) {
+  guardShared(ws);
+  if (ws.roleCode !== 'OWNER' && ws.roleCode !== 'EDITOR') {
+    throw new Error('연결 권한이 있는 워크스페이스 멤버만 할 수 있어요');
+  }
+}
 function guardManage(rt, ws, projectId) {
   guardShared(ws);
+  if (ws.roleCode === 'OWNER') return;
   const members = sharedEntry(rt, ws.serverId).members.filter(m => m.project_id === projectId);
-  if (!canManageProject({ me: rt.session.id, myRole: ws.roleCode, members })) throw new Error('프로젝트 팀장만 할 수 있어요');
+  if (!isProjectLeader(members, rt.session.id)) throw new Error('워크스페이스 관리자 또는 프로젝트 팀장만 할 수 있어요');
 }
 const myName = () => {
   const s = readPreference('settings', {});
@@ -204,6 +221,50 @@ async function pushShared(rt, ws, changes, { before = false, localSaved = false 
   if (flush?.status === 'BLOCKED') throw new Error(flush.error || '서버가 저장을 거절했어요');
 }
 
+async function clearStaleNoteProjectFailures(rt, ws) {
+  const rows = await engine.listOutbox(rt.syncDb, ws.serverId);
+  let cleared = 0;
+  for (const row of rows) {
+    if (!isReferenceNoteProjectFailure(row)) continue;
+    await engine.discardOutbox(syncContext(ws.serverId), row.seq);
+    cleared += 1;
+  }
+  return cleared;
+}
+
+export async function syncPendingMemoLinks(rt, ws) {
+  await clearStaleNoteProjectFailures(rt, ws);
+  const pending = readPendingMemoLinks(ws.serverId);
+  if (!Object.keys(pending).length) return;
+
+  await rt.bridge.syncWorkspace(ws.id);
+  await clearStaleNoteProjectFailures(rt, ws);
+  await rt.bridge.syncWorkspace(ws.id);
+  const ready = [];
+  for (const [noteId, projectId] of Object.entries(pending)) {
+    if (projectId) {
+      const note = await engine.getLocal(rt.syncDb, ws.serverId, 'notes', noteId);
+      const project = await engine.getLocal(rt.syncDb, ws.serverId, 'projects', projectId);
+      if (!note || note.pending || !project || project.pending) continue;
+      ready.push({ kind: 'link', entity: 'note_projects', data: { note_id: noteId, project_id: projectId } });
+    } else {
+      const note = await engine.getLocal(rt.syncDb, ws.serverId, 'notes', noteId);
+      if (!note || note.pending) continue;
+      const existing = sharedEntry(rt, ws.serverId).noteLinks.filter(l => l.note_id === noteId);
+      ready.push(...existing.map(l => ({ kind: 'unlink', entity: 'note_projects', data: { note_id: noteId, project_id: l.project_id } })));
+    }
+  }
+  if (!ready.length) return;
+
+  await pushShared(rt, ws, ready);
+  const current = readPendingMemoLinks(ws.serverId);
+  for (const change of ready) {
+    const noteId = change.data.note_id;
+    if (pending[noteId] === (change.kind === 'link' ? change.data.project_id : null)) delete current[noteId];
+  }
+  writePendingMemoLinks(ws.serverId, current);
+}
+
 // ---------------------------------------------------------------------
 // 프로젝트
 // ---------------------------------------------------------------------
@@ -222,12 +283,12 @@ export async function addProject(fields) {
   const data = rt.store.serverMap.projectData(values);
   const changes = newProjectChanges(id, data, me);
   sharedEntry(rt, ws.serverId);
+  await clearStaleNoteProjectFailures(rt, ws);
   await engine.saveLocal(syncContext(ws.serverId), changes);
   await refreshShared(ws.serverId);
-  background(
-    pushShared(rt, ws, changes, { localSaved: true }),
-    error => alertUser('프로젝트는 기기에 저장됐어요', `서버 동기화에 실패했습니다. 연결이 복구되면 다시 시도해 주세요.\n${messageOf(error)}`),
-  );
+  await pushShared(rt, ws, changes, { localSaved: true });
+  await clearStaleNoteProjectFailures(rt, ws);
+  await syncPendingMemoLinks(rt, ws);
   return { id, ...values };
 }
 
@@ -268,38 +329,76 @@ function setLinks(projectId, kind, ids) {
   const { rt, ws } = current();
   const k = kindOf(kind);
   if (k === 'tasks') {
+    for (const id of ids) {
+      const source = getProjects().find(p => p.links.tasks.includes(id));
+      if (projectId) guardLink(rt, ws);
+      if (!projectId && source) guardManage(rt, ws, source.id);
+    }
     for (const id of ids) if ((rt.store.getTask(id)?.projectId ?? null) !== projectId) rt.store.updateTask(id, { projectId });
+    if (!ws.personal) void rt.bridge.syncWorkspace(ws.id);
     return true;
   }
   if (k === 'files' || ws.personal) {
+    if (!ws.personal) {
+      for (const id of ids) {
+        const source = getProjects().find(p => p.links.files.includes(id));
+        if (projectId) guardLink(rt, ws);
+        if (!projectId && source) guardManage(rt, ws, source.id);
+      }
+    }
     const links = readLinks();
     const map = { ...links[k] };
     for (const id of ids) { if (projectId) map[id] = projectId; else delete map[id]; }
     writeLinks({ ...links, [k]: map });
+    if (!ws.personal) void rt.bridge.syncWorkspace(ws.id);
     return true;
   }
   guardShared(ws);
-  const noteLinks = sharedEntry(rt, ws.serverId).noteLinks;
-  const changes = [];
   for (const id of ids) {
-    for (const l of noteLinks) {
-      if (l.note_id === id && l.project_id !== projectId) changes.push({ kind: 'unlink', entity: 'note_projects', data: { note_id: id, project_id: l.project_id } });
-    }
-    if (projectId && !noteLinks.some(l => l.note_id === id && l.project_id === projectId)) {
-      changes.push({ kind: 'link', entity: 'note_projects', data: { note_id: id, project_id: projectId } });
-    }
+    const source = getProjects().find(p => p.links.memos.includes(id));
+    if (projectId) guardLink(rt, ws);
+    if (!projectId && source) guardManage(rt, ws, source.id);
   }
-  background(pushShared(rt, ws, changes, { before: true }));
+  void rt.bridge.syncWorkspace(ws.id);
   return true;
 }
 export const linkItems = (projectId, kind, ids) => safely(() => setLinks(projectId, kind, ids), false);
 export const unlinkItems = (kind, ids) => safely(() => setLinks(null, kind, ids), false);
 export const setItemProject = (kind, id, projectId) => safely(() => setLinks(projectId || null, kind, [id]), false);
 
+export async function linkItemsNow(projectId, kind, ids) {
+  if (!linkItems(projectId, kind, ids)) throw new Error('항목을 기기에 연결하지 못했어요');
+  const { rt, ws } = current();
+  if (ws.personal) return true;
+  if (kindOf(kind) === 'memos') {
+    await rt.bridge.syncWorkspace(ws.id);
+    await syncPendingMemoLinks(rt, ws);
+  } else {
+    await rt.bridge.syncWorkspace(ws.id);
+  }
+  const result = await rt.bridge.syncWorkspace(ws.id);
+  if (result?.status === 'ERROR') throw new Error(result.error || '서버에 동기화하지 못했어요');
+  if (result?.flush?.status === 'BLOCKED') throw new Error(result.flush.error || '서버가 연결 변경을 거절했어요');
+  if (result?.flush?.status === 'CONFLICT') throw new Error('다른 기기와 충돌했어요. 동기화 상태를 확인해 주세요');
+  return true;
+}
+
+export async function unlinkItemsNow(kind, ids) {
+  if (!unlinkItems(kind, ids)) throw new Error('항목 연결을 기기에서 해제하지 못했어요');
+  const { rt, ws } = current();
+  if (ws.personal) return true;
+  const result = await rt.bridge.syncWorkspace(ws.id);
+  if (kindOf(kind) === 'memos') await syncPendingMemoLinks(rt, ws);
+  if (result?.status === 'ERROR') throw new Error(result.error || '서버에 동기화하지 못했어요');
+  if (result?.flush?.status === 'BLOCKED') throw new Error(result.flush.error || '서버가 연결 해제를 거절했어요');
+  if (result?.flush?.status === 'CONFLICT') throw new Error('다른 기기와 충돌했어요. 동기화 상태를 확인해 주세요');
+  return true;
+}
+
 export async function linkProjectFiles(projectId, assetIds) {
   const { rt, ws } = current();
   if (ws.personal) throw new Error('공유 프로젝트에서만 클라우드 파일을 연결할 수 있어요');
-  guardShared(ws);
+  guardLink(rt, ws);
   const rows = await engine.listLocal(rt.syncDb, ws.serverId, 'project_files');
   const changes = [...new Set(assetIds)].flatMap(id => projectFileChanges.move(id, projectOfFile(rows, id), projectId));
   await pushShared(rt, ws, changes, { before: true });
@@ -308,7 +407,7 @@ export async function linkProjectFiles(projectId, assetIds) {
 export async function unlinkProjectFiles(projectId, assetIds) {
   const { rt, ws } = current();
   if (ws.personal) throw new Error('공유 프로젝트에서만 클라우드 파일 연결을 해제할 수 있어요');
-  guardShared(ws);
+  guardManage(rt, ws, projectId);
   const rows = await engine.listLocal(rt.syncDb, ws.serverId, 'project_files');
   const linked = new Set(projectFilesOf(rows, projectId).map(file => file.asset_id));
   const changes = [...new Set(assetIds)].filter(id => linked.has(id)).flatMap(id => projectFileChanges.unlink(projectId, id));

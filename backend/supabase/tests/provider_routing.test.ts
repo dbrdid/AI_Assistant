@@ -1,7 +1,22 @@
 import assert from 'node:assert/strict';
 import { selectRoute, callSelfHosted, readUsage } from '../functions/ai-gateway/providers.ts';
+import { parseHandwritingLines, parseInputToolsResponse, toInputToolsBody } from '../functions/ai-gateway/handwriting.ts';
 import { buildApp } from '../../cloud/src/app.js';
 import { loadConfig } from '../../cloud/src/config.js';
+
+Deno.test('handwriting input is bounded and translated into Input Tools stroke format', () => {
+  const lines = parseHandwritingLines([{ width: 20, height: 30, language: 'ko', strokes: [{ p: [[1.4, 2.2], [4.1, 5.8]] }] }]);
+  assert.ok(lines);
+  assert.deepEqual(toInputToolsBody(lines), {
+    options: 'enable_pre_space',
+    requests: [{ writing_guide: { writing_area_width: 20, writing_area_height: 30 }, ink: [[[1, 4], [2, 6], [0, 12]]], language: 'ko' }],
+  });
+  assert.deepEqual(parseInputToolsResponse(['SUCCESS', [['0', ['한글']]]], 1), ['한글']);
+  assert.equal(parseInputToolsResponse(['SUCCESS', []], 1), null);
+  assert.equal(parseHandwritingLines([{ width: 0, height: 30, language: 'ko', strokes: [{ p: [[0, 0]] }] }]), null);
+  assert.equal(parseHandwritingLines([{ width: 20, height: 30, language: 'xx', strokes: [{ p: [[0, 0]] }] }]), null);
+  assert.equal(parseHandwritingLines([{ width: 20, height: 30, language: 'ko', strokes: [{ p: [[-1, 0]] }] }]), null);
+});
 
 Deno.test('actual Gateway handler preserves consent, routing and unknown settlement with mock Auth/RPC', async t => {
   const configured: Record<string, string> = { SUPABASE_URL: 'https://supabase.fixture.invalid', SUPABASE_SERVICE_ROLE_KEY: 'synthetic-service-key',
@@ -10,7 +25,8 @@ Deno.test('actual Gateway handler preserves consent, routing and unknown settlem
   const before = new Map(Object.keys(configured).map(k => [k, Deno.env.get(k)]));
   const fetchBefore = globalThis.fetch; const serveBefore = Deno.serve;
   let handler: ((req: Request) => Promise<Response>) | undefined;
-  let consent = true; let externalCalls = 0; let hostCalls = 0; const finishes: Record<string, unknown>[] = [];
+  let consent = true; let externalCalls = 0; let hostCalls = 0; let handwritingCalls = 0;
+  const begins: Record<string, unknown>[] = []; const finishes: Record<string, unknown>[] = [];
   const draft = { summary: '합성 요약', topics: [], key_concepts: [], tasks: [], events: [], decisions: [], open_questions: [] };
   try {
     for (const [k, value] of Object.entries(configured)) Deno.env.set(k, value);
@@ -19,8 +35,15 @@ Deno.test('actual Gateway handler preserves consent, routing and unknown settlem
       const url = String(input instanceof Request ? input.url : input);
       if (url.includes('/auth/v1/user')) return Response.json({ id: '00000000-0000-4000-8000-000000000001', aud: 'authenticated' });
       if (url.includes('/rest/v1/consents')) return Response.json(consent ? [{ id: 'consent-fixture' }] : []);
-      if (url.endsWith('/rpc/ai_begin_request')) return Response.json({ ok: true, request_id: '00000000-0000-4000-8000-000000000002', remaining: 9 });
+      if (url.endsWith('/rpc/ai_begin_request')) {
+        begins.push(JSON.parse(String(options?.body)));
+        return Response.json({ ok: true, request_id: '00000000-0000-4000-8000-000000000002', remaining: 9 });
+      }
       if (url.endsWith('/rpc/ai_finish_request')) { finishes.push(JSON.parse(String(options?.body))); return Response.json({ ok: true }); }
+      if (url.startsWith('https://inputtools.google.com/request')) {
+        handwritingCalls++;
+        return Response.json(['SUCCESS', [['0', ['손글씨 결과']]]]);
+      }
       if (url === 'https://host.fixture.invalid/internal/generate') {
         hostCalls++; return Response.json({ done: true, model: 'fixture-model', output: draft, usage: { input: 10, output: 5 } });
       }
@@ -33,6 +56,13 @@ Deno.test('actual Gateway handler preserves consent, routing and unknown settlem
       return handler(new Request('https://gateway.fixture.invalid/functions/v1/ai-gateway/analyze', {
         method: 'POST', headers: { authorization: 'Bearer synthetic-session', 'content-type': 'application/json', 'x-ai-route': route },
         body: JSON.stringify({ client_request_id: crypto.randomUUID(), text: '합성 원문', timezone: 'Asia/Seoul', kind: 'MEMO' }),
+      }));
+    };
+    const callHandwriting = (route: string, lines = [{ width: 20, height: 20, language: 'ko', strokes: [{ p: [[0, 0], [10, 10]] }] }]) => {
+      assert.ok(handler);
+      return handler(new Request('https://gateway.fixture.invalid/functions/v1/ai-gateway/handwriting', {
+        method: 'POST', headers: { authorization: 'Bearer synthetic-session', 'content-type': 'application/json', 'x-ai-route': route },
+        body: JSON.stringify({ client_request_id: crypto.randomUUID(), lines }),
       }));
     };
     await t.step('self-hosted request traverses actual handler validation and settlement without external calls', async () => {
@@ -50,6 +80,23 @@ Deno.test('actual Gateway handler preserves consent, routing and unknown settlem
       assert.equal(externalCalls, 1); assert.equal(finishes.at(-1)?.p_status, 'UNKNOWN');
       assert.equal(finishes.at(-1)?.p_input_tokens, null); assert.equal(finishes.at(-1)?.p_output_tokens, null);
       assert.equal(finishes.at(-1)?.p_cost_usd_micros, null);
+    });
+    await t.step('handwriting uses the authenticated OCR quota and settles its Google request', async () => {
+      consent = true;
+      const response = await callHandwriting('external');
+      assert.equal(response.status, 200);
+      assert.deepEqual((await response.json()).texts, ['손글씨 결과']);
+      assert.equal(handwritingCalls, 1);
+      assert.equal(begins.at(-1)?.p_endpoint, 'ocr');
+      assert.equal(begins.at(-1)?.p_provider, 'google');
+      assert.equal(finishes.at(-1)?.p_status, 'SUCCEEDED');
+    });
+    await t.step('invalid strokes and self-hosted routing never reach Google', async () => {
+      const invalid = await callHandwriting('external', [{ width: 0, height: 20, language: 'ko', strokes: [{ p: [[0, 0]] }] }]);
+      assert.equal(invalid.status, 400);
+      const unsupported = await callHandwriting('self_hosted');
+      assert.equal(unsupported.status, 422);
+      assert.equal(handwritingCalls, 1);
     });
   } finally {
     globalThis.fetch = fetchBefore;

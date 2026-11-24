@@ -42,7 +42,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Face ID를 사용해 앱 잠금을 해제해요."
+          "faceIDPermission": false
         }
       ],
       "expo-status-bar",

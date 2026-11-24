@@ -12,23 +12,11 @@ import { ROUTES } from '../../navigation/routes';
 import { approveProposal, findDuplicate, setProposalStatus } from '../../data/proposals/ProposalStore';
 import { findOverlap } from '../../data/tasks/TaskStore';
 import { useSnackbar } from '../../shared/components/Snackbar';
+import { reviewReason } from './proposalRules';
+
+export { reviewReason } from './proposalRules';
 
 const UNDO_MS = 4000;
-
-// 바로 추가하지 않고 확인 화면을 거쳐야 하는 이유 (없으면 null)
-export function reviewReason(p) {
-  if (p.kind === 'memo') return null;
-  if (!p.date) return '날짜를 정해 주세요';
-  try {
-    const dup = findDuplicate(p);
-    if (dup) return `이미 있는 “${dup.title}”와 같아요`;
-    const clash = p.start ? findOverlap(p) : null;
-    if (clash) return `“${clash.title}”와 시간이 겹쳐요`;
-  } catch {
-    return '내용을 확인해 주세요';
-  }
-  return null;
-}
 
 const failText = (e) => (e && e.code === 'source_changed' ? '원본 메모가 바뀌었어요. 메모를 다시 분석해 주세요' : '추가하지 못했어요. 확인 화면에서 다시 시도해 주세요');
 
@@ -52,7 +40,7 @@ export function useProposalActions(navigation, snackOptions) {
   const edit = useCallback((p) => navigation.navigate(ROUTES.ProposalConfirm, { id: p.id }), [navigation]);
 
   const add = (p) => {
-    if (reviewReason(p)) return edit(p);
+    if (reviewReason(p, { findDuplicate, findOverlap })) return edit(p);
     try {
       const saved = approveProposal(p.id, {});
       snack.show(saved.kind === 'memo' ? `“${p.title}” 메모로 저장했어요` : `“${p.title}”을(를) 추가했어요`, { label: '보기', onPress: () => openSaved(saved) });
@@ -87,7 +75,7 @@ export function useProposalActions(navigation, snackOptions) {
     let added = 0;
     let left = 0;
     for (const p of list) {
-      if (reviewReason(p)) { left += 1; continue; }
+      if (reviewReason(p, { findDuplicate, findOverlap })) { left += 1; continue; }
       try { approveProposal(p.id, {}); added += 1; } catch { left += 1; }
     }
     if (!added) snack.show('바로 추가할 수 있는 제안이 없어요. 하나씩 확인해 주세요');

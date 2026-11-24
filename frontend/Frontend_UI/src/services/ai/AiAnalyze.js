@@ -7,6 +7,17 @@ export async function analyzeText({ sourceType, sourceId, explicit = false }) {
   const own = runtime();
   if (!explicit && !getSettings().ai.autoAnalyze) return { added: 0, saved: 0, skipped: true };
   if (sourceType !== 'memo') return { added: 0, saved: 0, error: '확인한 메모로 저장한 후 분석해 주세요' };
-  try { return await own.ai.analyzeMemo(sourceId); }
+  try {
+    const result = await own.ai.analyzeMemo(sourceId);
+    if (result.saved > 0 && maybeRuntime() === own) {
+      addNotice({
+        kind: 'ai',
+        title: 'AI 결과를 자동 저장했어요',
+        body: result.pending ? `${result.saved}건 저장 · ${result.pending}건 확인 필요` : `${result.saved}건 저장`,
+        at: Date.now(),
+      });
+    }
+    return result;
+  }
   catch (error) { if (maybeRuntime() === own) addNotice({ kind: 'ai', title: 'AI 분석을 완료하지 못했습니다', body: error.message, at: Date.now() }); return { added: 0, saved: 0, error: error.message }; }
 }

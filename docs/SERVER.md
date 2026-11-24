@@ -52,11 +52,11 @@ flowchart LR
 
 근거는 `{id, revision, text}`이며 text는 각 1,200 UTF-16 단위 이하입니다. 중복 ID를 거절합니다. conditions의 결과로 앱이 허용된 로컬 조회를 수행하고, 재검사한 발췌만 answer에 보냅니다. 조건 해석 첫 버전은 키워드·기록 유형만 지원하며 날짜 범위·정렬·자연어 조건 전부를 구현하지 않았습니다.
 
-후보는 `{kind, title, dueDate, sourceQuote}`입니다. kind는 task/event, dueDate는 유효한 YYYY-MM-DD 또는 null, sourceQuote는 원문의 정확한 일부여야 합니다. 시간 단위 일정·반복·자동 저장은 지원하지 않습니다.
+후보는 `{kind, title, dueDate, sourceQuote}`입니다. kind는 task/event, dueDate는 유효한 YYYY-MM-DD 또는 null, sourceQuote는 원문의 정확한 일부여야 합니다. 이 API는 후보를 직접 저장하거나 자동 승인하지 않습니다. 앱의 자동 저장 설정은 날짜가 있고 중복·시간 충돌이 없는 후보만 승인해 저장하며, 불확실한 후보는 확인 목록에 남깁니다. 공유 공간의 저장 결과는 기존 동기화 API로 서버에 반영되고 개인 공간은 기기에 남습니다.
 
 인용은 `{id, revision, quote}`입니다. 제공한 근거 ID·revision·정확한 발췌만 허용합니다. 근거 없음은 모델을 호출하지 않고 부족 응답을 반환합니다. 일반 답변은 인용이 최소 하나 필요하고 부족 응답은 인용을 비웁니다. 이 검증은 인용의 존재를 검사하며 답변의 의미적 정확성·프롬프트 주입 완전 방어를 보장하지 않습니다.
 
-성공 응답은 `{requestId, clientRequestId, inputRevision, task, result}`입니다. requestId는 서버가 새로 발급합니다. 앱은 자체 입력 revision·취소 여부를 다시 확인하고 사용자 승인 후 저장해야 합니다. 서버는 현재 앱 revision을 알 수 없으므로 오래된 결과 반영을 대신 차단하지 않습니다.
+성공 응답은 `{requestId, clientRequestId, inputRevision, task, result}`입니다. requestId는 서버가 새로 발급합니다. 앱은 자체 입력 revision·취소 여부를 다시 확인하고, 설정에 따라 사용자 확인 또는 자동 저장을 수행합니다. 서버는 현재 앱 revision을 알 수 없으므로 오래된 결과 반영을 대신 차단하지 않습니다.
 
 오류는 `{requestId, error: {code}}`입니다.
 

@@ -96,7 +96,13 @@ export default function QuickInputScreen({ navigation, route }) {
     setTaskIds([]);
     setProjectId(null);
     AsyncStorage.removeItem(scopedKey(DRAFT_KEY)).catch(() => {});
-    analyzeText({ sourceType: 'memo', sourceId: memo.id, sourceTitle: text.slice(0, 20), text }).then((r) => { if (r && r.added) notice.show(`메모를 저장했어요 · AI 제안 ${r.added}건`); });
+    analyzeText({ sourceType: 'memo', sourceId: memo.id, sourceTitle: text.slice(0, 20), text }).then((r) => {
+      if (!r?.added) return;
+      const detail = r.saved > 0
+        ? `${r.saved}건 자동 저장${r.pending ? ` · ${r.pending}건 확인 필요` : ''}`
+        : `AI 제안 ${r.pending ?? r.added}건`;
+      notice.show(`메모를 저장했어요 · ${detail}`);
+    });
     notice.show('메모를 저장했어요');
     leaving.current = setTimeout(navigation.goBack, 700);
   };

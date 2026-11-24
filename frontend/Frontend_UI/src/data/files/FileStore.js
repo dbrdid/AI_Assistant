@@ -2,6 +2,7 @@ import { CryptoDigestAlgorithm, digest, randomUUID } from 'expo-crypto';
 import * as DocumentPicker from 'expo-document-picker';
 import { Directory, File, Paths } from 'expo-file-system';
 import { Linking, Platform } from 'react-native';
+import * as Sharing from 'expo-sharing';
 import { list, saveList, scoped, useValue, runtime, maybeRuntime, runtimeSubscribe, readPreference, writePreference, emitRuntime } from '../hooks';
 import * as engine from '../../lib/stella/local-sync';
 import { supabase } from '../../lib/stella/supabase';
@@ -148,6 +149,8 @@ export async function uploadProjectFile(asset) {
   } catch (error) {
     throw new Error(attachmentErrorMessage(error));
   }
+  await rt.bridge.syncWorkspace(rt.store.getCurrentWorkspace().id).catch(() => {});
+  await refreshCloud();
   return uploaded;
 }
 export async function uploadLocalProjectFile(id) {
@@ -300,7 +303,7 @@ export async function downloadFileToDevice(id) {
     directory = await Directory.pickDirectoryAsync();
   } catch (error) {
     if (error?.name === 'PickerCancelled' || /cancel/i.test(error?.message || '')) return null;
-    throw error;
+    throw new Error(`폴더를 열 수 없어요: ${error?.message || '폴더 권한을 확인해 주세요'}`);
   }
   const existingNames = new Set(directory.list().map(file => file.name));
   let fileName = exportedName(row.name);
@@ -310,13 +313,23 @@ export async function downloadFileToDevice(id) {
   let temporary = null;
   try {
     if (row.storage === 'cloud') {
-      const bytes = await downloadAttachment(supabase, row.asset);
+      let bytes;
+      try {
+        bytes = await downloadAttachment(supabase, row.asset);
+      } catch (error) {
+        throw new Error(`서버 파일을 다운로드하지 못했어요: ${attachmentErrorMessage(error)}`);
+      }
       temporary = new File(Paths.cache, `${randomUUID()}-${(row.name || 'file').replace(/[^\w.-]/g, '_')}`);
+      if (typeof temporary.write !== 'function') throw new Error('이 Expo 버전에서 임시 파일 저장을 지원하지 않아요');
       await temporary.write(bytes);
       source = temporary.uri;
     }
-    const destination = directory.createFile(fileName, mimeType || null);
-    await new File(source).copy(destination, { overwrite: true });
+    try {
+      const destination = directory.createFile(fileName, mimeType || null);
+      await new File(source).copy(destination, { overwrite: true });
+    } catch (error) {
+      throw new Error(`선택한 폴더에 저장하지 못했어요: ${error?.message || '폴더 쓰기 권한을 확인해 주세요'}`);
+    }
   } finally {
     if (temporary?.exists) temporary.delete();
   }

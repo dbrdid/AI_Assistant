@@ -522,6 +522,30 @@ export async function discardOutbox(ctx: SyncContext, outboxSeq: number): Promis
   }));
 }
 
+/** 오래된 메모-프로젝트 링크 거절 묶음만 정리합니다.
+ * REFERENCE_NOT_FOUND는 대상 메모가 먼저 동기화되기 전에 링크가 보내졌던 잘못된 순서가 원인인 경우가 많습니다.
+ * 대기 중인 링크는 앱의 pending 메모 링크 목록이 다시 만들어 서버에 올립니다.
+ */
+export async function clearFailedMemoProjectLinks(db: SqlDb, workspaceId: string): Promise<number> {
+  const rows = await db.all<OutboxRow>(
+    'select * from stella_outbox where workspace_id = ? order by seq',
+    [workspaceId],
+  );
+  let cleared = 0;
+  await tx(db, async () => {
+    for (const row of rows) {
+      if (row.status !== 'FAILED' || !String(row.last_error ?? '').includes('REFERENCE_NOT_FOUND')) continue;
+      let changes: LocalChange[] = [];
+      try { changes = JSON.parse(row.intent) as LocalChange[]; } catch { continue; }
+      if (!changes.some(change => change.entity === 'note_projects')) continue;
+      await db.run('delete from stella_outbox where seq = ? and workspace_id = ?', [row.seq, workspaceId]);
+      await rebuildAll(db, workspaceId, touched([row]).values());
+      cleared += 1;
+    }
+  });
+  return cleared;
+}
+
 // ---------------------------------------------------------------------
 // 3. 받기 · 전체 재동기화
 // ---------------------------------------------------------------------

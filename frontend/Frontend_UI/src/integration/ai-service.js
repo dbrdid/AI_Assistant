@@ -1,4 +1,5 @@
 import { requireTransmission } from '../../../../shared/contracts/ai-policy.js';
+import { reviewReason } from '../features/proposal/proposalRules.js';
 
 /** 유료 호출 없이 모바일 정책과 오래된 결과 처리 경로를 그대로 검증할 수 있도록 I/O를 주입합니다. */
 export function createAIService({ store, gateway, getSession, getPolicy, newId }) {
@@ -34,13 +35,29 @@ export function createAIService({ store, gateway, getSession, getPolicy, newId }
       const proposals = store.addProposals(store.serverMap.proposalsFromAnalyze(response.draft, {
         sourceType: 'memo', sourceId: snapshot.id, sourceTitle: snapshot.title, sourceRevision: snapshot.revision,
       }));
-      // 요약은 별도의 대기 중인 메모 제안으로 저장하며 원본에 자동으로 기록하지 않습니다.
+      // 요약은 원본을 덮어쓰지 않는 별도 메모 결과이며 자동 저장 모드의 안전 검사도 동일하게 거칩니다.
       if (typeof response.draft.summary === 'string' && response.draft.summary.trim()) {
         proposals.push(...store.addProposals([{ kind: 'memo', title: `${snapshot.title || '메모'} 요약`.slice(0, 200),
           body: response.draft.summary, sourceType: 'memo', sourceId: snapshot.id,
           sourceTitle: snapshot.title, sourceRevision: snapshot.revision }]));
       }
-      return { added: proposals.length, saved: 0, requestId: response.request_id };
+      let saved = 0;
+      let pending = proposals.length;
+      if (latest.confirmMode === 'auto') {
+        pending = 0;
+        for (const proposal of proposals) {
+          if (reviewReason(proposal, {
+            findDuplicate: fields => store.findDuplicate(fields),
+            findOverlap: fields => store.findOverlap(fields),
+          })) {
+            pending += 1;
+            continue;
+          }
+          store.approveProposal(proposal.id, {});
+          saved += 1;
+        }
+      }
+      return { added: proposals.length, saved, pending, requestId: response.request_id };
     } finally { signal?.removeEventListener('abort', abort); active.delete(controller); }
   }
   function cancel() { for (const c of active) c.abort(); }

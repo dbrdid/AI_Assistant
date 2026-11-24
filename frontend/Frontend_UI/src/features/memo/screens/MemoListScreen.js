@@ -18,6 +18,7 @@ import { linkItems, projectOf, unlinkItems, useProjects } from '../../../data/pr
 import Icon from '../../../shared/components/Icon';
 import { Chip, CircleButton } from '../../../shared/components/Ui';
 import { colors, font, radius, shadow, spacing } from '../../../shared/theme/theme';
+import { memoCreationWorkspaceId } from '../memoCreationWorkspace';
 
 // 목록 보기 아이콘 (Icon.js 에 없어서 여기서 그림: 왼쪽 점 + 가로줄 3개)
 function ListIcon({ size = 20, color = colors.ink }) {
@@ -393,8 +394,12 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false }
           accessibilityRole="button"
           accessibilityLabel="새 메모 쓰기"
           onPress={() => {
-            // 새 메모는 고른 공간에 (모든 공간 보기에서는 개인 공간에)
-            enterSpace(space !== 'all' ? space : personalId);
+            // 모든 공간 보기에서는 현재 활성 워크스페이스에 만들고, 특정 공간을 보고 있으면 그 공간에 만듦
+            const targetWorkspaceId = memoCreationWorkspaceId({
+              selectedSpace: space,
+              currentWorkspaceId: currentSpace?.id ?? personalId,
+            });
+            if (targetWorkspaceId) enterSpace(targetWorkspaceId);
             navigation.navigate(ROUTES.MemoEdit);
           }}
           style={({ pressed }) => [styles.fab, { bottom: insets.bottom + spacing.xl }, pressed && { opacity: 0.85 }]}

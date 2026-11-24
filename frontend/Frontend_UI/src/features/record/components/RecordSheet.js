@@ -87,7 +87,7 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
     if (!memoId) { setPhase('done'); return; }
     setPhase('analyze');
     const a = await analyzeText({ sourceType: 'memo', sourceId: memoId, explicit: true });
-    setResult({ text, memoId, added: a.added ?? 0, analyzeError: a.error ?? null });
+    setResult({ text, memoId, added: a.added ?? 0, saved: a.saved ?? 0, pending: a.pending ?? a.added ?? 0, analyzeError: a.error ?? null });
     setPhase('done');
   };
   // 외부 AI 보내기 동의 후 바로 다시 변환
@@ -118,9 +118,11 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
                   </ScrollView>
                   <Text style={styles.note}>
                     {result.memoId ? '메모로 저장했어요. ' : '메모로 저장하지 못했어요. 글을 길게 눌러 복사해 주세요. '}
-                    {result.memoId && (result.analyzeError ? '일정·할 일은 찾지 못했어요.' : result.added > 0 ? `AI 제안 ${result.added}건을 만들었어요.` : '찾은 일정이나 할 일은 없어요.')}
+                    {result.memoId && (result.analyzeError ? '일정·할 일은 찾지 못했어요.' : result.saved > 0
+                      ? `${result.saved}건 자동 저장${result.pending ? ` · ${result.pending}건 확인 필요` : ''}.`
+                      : result.pending > 0 ? `AI 제안 ${result.pending}건을 만들었어요.` : '찾은 일정이나 할 일은 없어요.')}
                   </Text>
-                  {result.added > 0 && onOpenProposals && (
+                  {result.pending > 0 && onOpenProposals && (
                     <Pressable accessibilityRole="button" onPress={onOpenProposals} style={styles.primary}><Text style={styles.primaryText}>AI 제안 확인하기</Text></Pressable>
                   )}
                   {!!result.memoId && onOpenMemo && (

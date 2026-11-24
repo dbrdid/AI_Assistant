@@ -4,6 +4,12 @@ import { createAIService } from '../../frontend/Frontend_UI/src/integration/ai-s
 import { selectChatSources } from '../../frontend/Frontend_UI/src/integration/ChatSourceScope.mjs';
 import { setup } from '../../backend/local/tests/helpers.mjs';
 import { requireTransmission, requireRoute } from '../../shared/contracts/ai-policy.js';
+import { noConnectionText } from '../../frontend/Frontend_UI/src/features/project/projectConnectionText.js';
+import { applyPendingMemoLinks } from '../../frontend/Frontend_UI/src/features/project/projectConnectionText.js';
+import { memoCreationWorkspaceId } from '../../frontend/Frontend_UI/src/features/memo/memoCreationWorkspace.js';
+import { projectTaskSection } from '../../frontend/Frontend_UI/src/features/project/projectTaskKind.js';
+import { canLinkProjectItems, canManageProjectItems, isWorkspaceOwner } from '../../frontend/Frontend_UI/src/features/project/projectPermissions.js';
+import { isReferenceNoteProjectFailure } from '../../frontend/Frontend_UI/src/features/project/projectConnectionText.js';
 
 function world() {
   const t = setup();
@@ -27,6 +33,71 @@ test('file-vault chat scope uses only selected vault attachments and skips plann
   assert.deepEqual(selectChatSources({
     attachments: [pickedFile], records: [memo], fileVaultOnly: false,
   }), { attachments: [pickedFile], records: [memo] });
+});
+
+test('project connection empty states distinguish missing memos from fully linked memos', () => {
+  assert.equal(noConnectionText({ kind: 'memos', allCount: 0, candidateCount: 0, linkedCount: 0 }), '현재 공간에 메모가 없어요');
+  assert.equal(noConnectionText({ kind: 'memos', allCount: 3, candidateCount: 0, linkedCount: 3 }), '모든 메모가 이미 프로젝트에 연결되어 있어요');
+  assert.equal(noConnectionText({ kind: 'tasks', allCount: 0, candidateCount: 0, linkedCount: 0 }), '연결할 수 있는 항목이 없어요');
+});
+
+test('pending shared memo links override server links until synchronization succeeds', () => {
+  const server = [{ note_id: 'memo-a', project_id: 'project-old' }];
+  assert.deepEqual(applyPendingMemoLinks(server, { 'memo-a': 'project-new' }), [{ note_id: 'memo-a', project_id: 'project-new' }]);
+  assert.deepEqual(applyPendingMemoLinks(server, { 'memo-a': null }), []);
+  assert.deepEqual(applyPendingMemoLinks(server, { 'memo-b': 'project-new' }), [
+    { note_id: 'memo-a', project_id: 'project-old' },
+    { note_id: 'memo-b', project_id: 'project-new' },
+  ]);
+});
+
+test('new memos follow the selected workspace or the active workspace in all-spaces view', () => {
+  assert.equal(memoCreationWorkspaceId({ selectedSpace: 'shared-a', currentWorkspaceId: 'personal' }), 'shared-a');
+  assert.equal(memoCreationWorkspaceId({ selectedSpace: 'all', currentWorkspaceId: 'shared-b' }), 'shared-b');
+  assert.equal(memoCreationWorkspaceId({ selectedSpace: 'all', currentWorkspaceId: 'personal' }), 'personal');
+});
+
+test('project task classification uses item kind instead of whether a start time exists', () => {
+  assert.equal(projectTaskSection({ kind: 'task', start: '09:00' }), 'todos');
+  assert.equal(projectTaskSection({ kind: 'task', start: '' }), 'todos');
+  assert.equal(projectTaskSection({ kind: 'event', start: '' }), 'events');
+  assert.equal(projectTaskSection({ kind: 'event', start: '09:00' }), 'events');
+  assert.equal(projectTaskSection({ start: '09:00' }), 'events');
+  assert.equal(projectTaskSection({ start: '' }), 'todos');
+});
+
+test('only workspace owners and project leaders can manage project connections', () => {
+  assert.equal(isWorkspaceOwner({ personal: false, roleCode: 'OWNER' }), true);
+  assert.equal(isWorkspaceOwner({ personal: false, role: '관리자' }), true);
+  assert.equal(canManageProjectItems({ workspace: { personal: false, roleCode: 'EDITOR' }, projectLeader: true }), true);
+  assert.equal(canManageProjectItems({ workspace: { personal: false, roleCode: 'EDITOR' }, projectLeader: false }), false);
+  assert.equal(canManageProjectItems({ workspace: { personal: true, roleCode: 'OWNER' }, projectLeader: false }), true);
+});
+
+test('workspace members can link items while only owners or project leaders can unlink', () => {
+  assert.equal(canLinkProjectItems({ personal: false, roleCode: 'EDITOR' }), true);
+  assert.equal(canLinkProjectItems({ personal: false, role: '멤버' }), true);
+  assert.equal(canLinkProjectItems({ personal: false, roleCode: 'VIEWER' }), false);
+  assert.equal(canManageProjectItems({ workspace: { personal: false, roleCode: 'EDITOR' }, projectLeader: false }), false);
+  assert.equal(canManageProjectItems({ workspace: { personal: false, roleCode: 'EDITOR' }, projectLeader: true }), true);
+});
+
+test('failed note-project foreign-key batches are identified for stale-batch cleanup', () => {
+  assert.equal(isReferenceNoteProjectFailure({
+    status: 'FAILED',
+    lastError: 'REFERENCE_NOT_FOUND: insert or update on table note_projects',
+    changes: [{ kind: 'link', entity: 'note_projects', data: { note_id: 'memo', project_id: 'project' } }],
+  }), true);
+  assert.equal(isReferenceNoteProjectFailure({
+    status: 'FAILED',
+    lastError: 'NETWORK: timed out',
+    changes: [{ kind: 'link', entity: 'note_projects', data: {} }],
+  }), false);
+  assert.equal(isReferenceNoteProjectFailure({
+    status: 'PENDING',
+    lastError: 'REFERENCE_NOT_FOUND',
+    changes: [{ kind: 'link', entity: 'note_projects', data: {} }],
+  }), false);
 });
 
 test('manual summary preview calls the same policy boundary without saving proposals or editing the source', async () => {
@@ -77,6 +148,34 @@ test('real local store + cloud-shaped response yields only pending proposals and
   assert.equal(proposal.status, 'pending');
   t.store.approveProposal(proposal.id);
   assert.equal(t.store.getMemos().length, 2);
+});
+
+test('auto-save commits safe results and leaves missing-date, duplicate, and overlapping items pending', async () => {
+  const t = world();
+  const date = '2026-11-30';
+  t.store.addTask({ kind: 'task', title: '기존 항목', date });
+  t.store.addTask({ kind: 'event', title: '기존 일정', date, start: '10:00', end: '11:00' });
+  t.policy({ route: 'self_hosted', allowedProviders: ['self_hosted'], consent: { self_hosted: true }, confirmMode: 'auto' });
+  t.response(async () => ({
+    ok: true,
+    request_id: 'fixture',
+    draft: {
+      summary: '자동 저장 요약',
+      tasks: [
+        { title: '날짜 없는 일', due_date: '', due_time: '', description: '' },
+        { title: '기존 항목', due_date: date, due_time: '', description: '' },
+        { title: '시간 충돌', due_date: date, due_time: '10:30', description: '' },
+        { title: '새 할 일', due_date: date, due_time: '', description: '' },
+      ],
+      events: [],
+    },
+  }));
+
+  const result = await t.service.analyzeMemo(t.source.id);
+  assert.deepEqual({ added: result.added, saved: result.saved, pending: result.pending }, { added: 5, saved: 2, pending: 3 });
+  assert.equal(t.store.getMemos().length, 2);
+  assert.equal(t.store.getTasks().some(task => task.title === '새 할 일'), true);
+  assert.deepEqual(new Set(t.store.getProposals().map(proposal => proposal.title)), new Set(['날짜 없는 일', '기존 항목', '시간 충돌']));
 });
 
 test('source edit while awaiting provider rejects even an otherwise valid response', async () => {

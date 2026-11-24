@@ -2,7 +2,7 @@
 // DayAgenda.js — 캘린더에서 선택한 날짜의 정보와 일정 목록
 // ============================================================
 // Figma 시안: '15일 일요일' + '오늘 · 일정 1 · 할 일 2' + 오른쪽 '+ 추가' 알약
-// 항목 카드: 왼쪽 시간(시작/끝) · 색 막대(일정 = 민트, 할 일 = 진녹색, 완료 = 흐린 선) · 제목 · 아이콘 설명 · 할 일은 오른쪽 체크박스
+// 항목 카드: 왼쪽 시간(시작/끝) · 색 막대 · 제목 · 설명 · 오른쪽 완료 버튼
 
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -12,6 +12,7 @@ import { Card } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { WEEKDAYS_LONG, toKey } from '../utils/DateUtils';
 import { classify, deleteTask, occursOn, shortDate, taskIn, toggleDone } from '../../../data/tasks/TaskStore';
+import { alertUser } from '../../../data/alert';
 
 // spaces: 여러 공간을 합쳐 볼 때 { 공간 id: { name, color } } (색 막대·공간 이름에 씀). 한 공간뿐이면 null
 export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarText, onAdd, onEdit }) {
@@ -74,11 +75,18 @@ export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarT
           const span = t.endDate ? `${shortDate(t.date)}~${shortDate(t.endDate)}` : null; // 여러 날 일정
           const space = spaces ? spaces[t.workspaceId] : null;
           const subText = isEvent
-            ? [space?.name, span, t.place || (span || space ? null : '일정'), t.project].filter(Boolean).join(' · ')
+            ? [space?.name, span, t.place || (span || space ? null : '일정'), done ? '완료' : null, t.project].filter(Boolean).join(' · ')
             : [space?.name ?? '할 일', done ? '완료' : t.project, c === 'overdue' ? '초과' : null].filter(Boolean).join(' · ');
           // 색 막대: 여러 공간이면 공간 색, 아니면 일정 = 민트 · 할 일 = 진녹색
           const barColor = done ? colors.line : space ? space.color : isEvent ? colors.mint : colors.mintDark;
-          const toggle = () => (t.workspaceId ? taskIn(t, 'toggleDone', t.id) : toggleDone(t.id)); // 합쳐 볼 때는 그 항목의 공간에서
+          const toggle = () => {
+            try {
+              if (t.workspaceId) taskIn(t, 'toggleDone', t.id);
+              else toggleDone(t.id);
+            } catch (error) {
+              alertUser('완료 상태를 바꾸지 못했어요', error?.message || '다시 시도해 주세요.');
+            }
+          };
           return (
             <Card key={t.id} style={[styles.item, open && styles.itemOpen]}>
               <View style={styles.itemMain}>
@@ -105,19 +113,17 @@ export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarT
                     </View>
                   </View>
                 </Pressable>
-                {/* 완료 체크박스 (할 일만) */}
-                {!isEvent && (
-                  <Pressable
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: done }}
-                    accessibilityLabel={`${t.title} 완료 표시`}
-                    onPress={toggle}
-                    hitSlop={10}
-                    style={styles.check}
-                  >
-                    <Icon name={done ? 'checkSquare' : 'square'} size={24} color={done ? colors.mintDark : colors.muted} />
-                  </Pressable>
-                )}
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: done }}
+                  accessibilityLabel={`${t.title} ${done ? '완료 취소' : '완료 처리'}`}
+                  onPress={toggle}
+                  hitSlop={6}
+                  style={[styles.completeButton, done && styles.completeButtonDone]}
+                >
+                  <Icon name={done ? 'checkSquare' : 'square'} size={18} color={done ? colors.mintDark : colors.muted} />
+                  <Text style={[styles.completeText, done && styles.completeTextDone]}>완료</Text>
+                </Pressable>
               </View>
 
               {open && (
@@ -201,7 +207,10 @@ const styles = StyleSheet.create({
   itemTitleDone: { color: colors.muted, textDecorationLine: 'line-through' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   itemMeta: { flex: 1, fontSize: 13, color: colors.muted },
-  check: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  completeButton: { minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  completeButtonDone: { backgroundColor: colors.mintSoft, borderColor: colors.mint },
+  completeText: { fontSize: font.caption, fontWeight: '700', color: colors.muted },
+  completeTextDone: { color: colors.mintDark },
 
   actions: { flexDirection: 'row', gap: spacing.sm },
   actionBtn: { flex: 1, minHeight: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },

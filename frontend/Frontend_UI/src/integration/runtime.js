@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { deleteDatabaseAsync, openDatabaseAsync, openDatabaseSync } from 'expo-sqlite';
 import { randomUUID } from 'expo-crypto';
 import { createLocalStore, createBridge } from '../../../../backend/local/src/index.js';
@@ -39,6 +39,7 @@ export function aiPolicy(source) {
   const s = readPreference('settings', {}); const ws = runtime().store.getCurrentWorkspace();
   return { route: s.ai?.route ?? 'external', allowedProviders: s.ai?.allowedProviders ?? [],
     consent: s.ai?.consent ?? {}, timezone: s.setup?.timezone ?? 'Asia/Seoul',
+    confirmMode: s.ai?.confirmMode ?? 'confirm',
     workspaceId: ws.personal ? null : ws.serverId,
     excluded: s.ai?.transmissionDisabled !== false || Boolean(source && readPreference(`ai-excluded:${source.id}`, false)) };
 }
@@ -193,19 +194,100 @@ async function initSession(user, db, syncNative) {
   await engine.setupLocalSync(syncDb);
   // 두 파일 모두 계정별로 관리합니다. 로그인할 때 다른 계정의 대기 중인 DB를 재사용하거나 삭제하지 않습니다.
   await engine.bindSyncAccount(syncDb, user.id);
+  // 휴대폰에서는 로컬 워크스페이스가 서버 워크스페이스로 링크되지 않은 채 남는 경우가 있다.
+  // 서버 소속 목록을 가져와 이름이 같은 미연결 공유 워크스페이스에 serverId를 복구한다.
+  let myWorkspaces = [];
+  try {
+    myWorkspaces = await listMyWorkspaces();
+  } catch (error) {
+    console.warn('[workspace] 시작 때 서버 워크스페이스 목록을 가져오지 못했습니다', error);
+  }
   const bridge = createBridge({ store, engine, db: syncDb, transport: supabaseTransport, accountId: user.id,
     favorites: { set: (ws, ids, on) => setNoteFavorites(supabase, ws, ids, on), list: ws => listNoteFavorites(supabase, ws) },
     workspaces: { list: async () => (await listMyWorkspaces()).map(m => ({ id: m.workspace.id, name: m.workspace.name,
-      description: m.workspace.description, role: m.role })) },
+      description: m.workspace.description, role: m.role, members: 1 })) },
   });
-  current = { db, syncNative, syncDb, store, bridge, session, stop: null, ai: null };
+  current = { db, syncNative, syncDb, store, bridge, session, stop: null, appStateSubscription: null, ai: null };
   preferenceCache.clear();
   const own = current;
+  for (const membership of myWorkspaces) {
+    const serverId = membership.workspace.id;
+    const serverName = membership.workspace.name;
+    const existing = store.getWorkspaces().find(ws =>
+      ws.serverId === serverId ||
+      (!ws.personal && !ws.serverId && ws.name === serverName)
+    );
+    if (existing && !existing.serverId) {
+      store.linkWorkspace(existing.id, serverId);
+    } else if (!existing) {
+      store.upsertServerWorkspace({
+        id: serverId,
+        name: serverName,
+        description: membership.workspace.description ?? '',
+        role: membership.role,
+        members: 1,
+      });
+    } else if (existing.serverId === serverId) {
+      store.upsertServerWorkspace({
+        id: serverId,
+        name: serverName,
+        description: membership.workspace.description ?? '',
+        role: membership.role,
+        members: 1,
+      });
+    }
+  }
+  for (const ws of store.getWorkspaces()) {
+    if (!ws.personal && ws.serverId) {
+      await engine.clearFailedMemoProjectLinks(syncDb, ws.serverId).catch(() => {});
+    }
+  }
   current.ai = createAIService({ store, gateway, newId: randomUUID,
     getSession: () => current?.session,
     getPolicy: aiPolicy,
   });
   current.stop = bridge.start({ onResult: () => { if (current === own) emit(); } });
+  void own.bridge.syncAll();
+  void (async () => {
+    await own.bridge.syncAll();
+    for (const ws of store.getWorkspaces()) {
+      if (!ws.personal && ws.serverId) await engine.clearFailedMemoProjectLinks(syncDb, ws.serverId).catch(() => {});
+    }
+  })();
+  const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+    if (nextState !== 'active' || current !== own) return;
+    void (async () => {
+      try {
+        const memberships = await listMyWorkspaces();
+        for (const membership of memberships) {
+          const serverId = membership.workspace.id;
+          const serverName = membership.workspace.name;
+          const existing = store.getWorkspaces().find(ws =>
+            ws.serverId === serverId ||
+            (!ws.personal && !ws.serverId && ws.name === serverName)
+          );
+          if (existing && !existing.serverId) store.linkWorkspace(existing.id, serverId);
+          else if (!existing) store.upsertServerWorkspace({
+            id: serverId,
+            name: serverName,
+            description: membership.workspace.description ?? '',
+            role: membership.role,
+            members: 1,
+          });
+        }
+        for (const ws of store.getWorkspaces()) {
+          if (!ws.personal && ws.serverId) await engine.clearFailedMemoProjectLinks(syncDb, ws.serverId).catch(() => {});
+        }
+        await own.bridge.syncAll();
+        for (const ws of store.getWorkspaces()) {
+          if (!ws.personal && ws.serverId) await engine.clearFailedMemoProjectLinks(syncDb, ws.serverId).catch(() => {});
+        }
+      } catch (error) {
+        console.warn('[sync] 앱 활성화 시 동기화를 시작하지 못했습니다', error);
+      }
+    })();
+  });
+  current.appStateSubscription = appStateSubscription;
   store.subscribe(emit); emit();
   return current;
 }
@@ -220,6 +302,33 @@ export async function ocrForChat(base64, signal) {
     { route: policy.route, signal });
   if (current !== own || signal?.aborted) throw new Error('요청이 취소됐습니다');
   return r.draft;
+}
+
+// Handwriting strokes are sent only through the authenticated gateway, with the same external-AI consent and workspace checks.
+export async function handwritingForMemo(lines, sourceId, signal) {
+  const own = runtime();
+  const source = sourceId ? own.store.getMemo(sourceId) : null;
+  const policy = aiPolicy(source);
+  const sourceRevision = source?.revision ?? null;
+  if (policy.route !== 'external') throw Object.assign(new Error('손글씨 변환은 클라우드 AI에서만 쓸 수 있어요'), { code: 'ROUTE_UNSUPPORTED' });
+  requireTransmission(policy.route, [policy], policy.consent);
+  const response = await gateway('handwriting', {
+    client_request_id: randomUUID(),
+    lines,
+    workspace_id: policy.workspaceId,
+  }, { route: policy.route, signal });
+  if (current !== own || signal?.aborted) throw Object.assign(new Error('요청이 취소됐습니다'), { code: 'CANCELLED' });
+  const currentSource = sourceId ? own.store.getMemo(sourceId) : null;
+  if (sourceRevision !== null && currentSource?.revision !== sourceRevision) {
+    throw Object.assign(new Error('메모가 바뀌었습니다. 다시 변환해 주세요'), { code: 'SOURCE_CHANGED' });
+  }
+  const latest = aiPolicy(currentSource);
+  requireTransmission(policy.route, [latest], latest.consent);
+  if (!Array.isArray(response?.texts) || response.texts.length !== lines.length
+    || !response.texts.every(text => typeof text === 'string')) {
+    throw Object.assign(new Error('손글씨 변환 결과를 읽지 못했습니다'), { code: 'INVALID_MODEL_OUTPUT' });
+  }
+  return response.texts;
 }
 
 // 녹음을 텍스트로 변환합니다(게이트웨이 /transcribe, 클라우드 AI 전용). 채팅과 동일한 동의 절차를 거칩니다.
@@ -395,6 +504,8 @@ export async function closeSession(requireSynced = true) {
     if (status.unsent > 0 || status.state === 'attention') throw new Error('미전송 변경이나 충돌이 있습니다. 동기화 후 로그아웃해 주세요');
   }
   own.session.generation = ++generation;
+  own.appStateSubscription?.remove?.();
+  own.appStateSubscription = null;
   own.ai.cancel(); own.stop?.();
   // DB를 닫기 전에 브리지의 직렬화 작업을 마칩니다. 늦게 도착한 결과가 새 세션에 적용되지 않도록 합니다.
   await own.bridge.refresh('__none__');

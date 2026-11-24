@@ -4,7 +4,7 @@
 
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
@@ -41,6 +41,7 @@ const BENEFITS = [
 const won = value => `${String(Math.round(Number(value))).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}원`;
 
 export default function SubscriptionScreen({ navigation, route }) {
+  const { width: windowWidth } = useWindowDimensions();
   const [sub, setSub] = useState(null);      // 서버 구독 (get_my_subscription)
   const [loadError, setLoadError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -68,6 +69,9 @@ export default function SubscriptionScreen({ navigation, route }) {
   const current = sub ? planId(sub) : null;
   const paid = sub ? sub.state === 'ACTIVE' : false;
   const hasPlanCatalog = !!sub && PLAN_IDS.every(id => sub.plans?.[serverPlan(id)]);
+  const tableWidth = Math.min(378, windowWidth - spacing.lg * 2);
+  const featureWidth = tableWidth * 0.27;
+  const planWidth = (tableWidth - featureWidth) / PLAN_IDS.length;
 
   const choose = async (id) => {
     if (busy || id === current) return;
@@ -144,15 +148,15 @@ export default function SubscriptionScreen({ navigation, route }) {
         </View>
         {hasPlanCatalog ? (
           <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={styles.tableScroll}>
-            <View style={styles.table}>
+            <View style={[styles.table, { width: tableWidth }]}>
               <View style={[styles.tableRow, styles.tableHeader]}>
-                <View style={[styles.featureCell, styles.headerCell]}>
+                <View style={[styles.featureCell, styles.headerCell, { width: featureWidth }]}>
                   <Text style={styles.headerLabel}>기능</Text>
                 </View>
                 {PLAN_IDS.map(id => {
                   const plan = sub.plans[serverPlan(id)];
                   return (
-                    <View key={id} style={[styles.planCell, styles.headerCell]}>
+                    <View key={id} style={[styles.planCell, styles.headerCell, { width: planWidth }]}>
                       <Text style={styles.planName}>{PLANS[id].name}</Text>
                       <Text style={styles.planPrice}>{plan.price_krw === 0 ? '무료' : `월 ${won(plan.price_krw)}`}</Text>
                     </View>
@@ -161,22 +165,22 @@ export default function SubscriptionScreen({ navigation, route }) {
               </View>
               {BENEFITS.map((benefit, index) => (
                 <View key={benefit.label} style={[styles.tableRow, index % 2 === 1 && styles.alternateRow]}>
-                  <View style={styles.featureCell}>
+                  <View style={[styles.featureCell, { width: featureWidth }]}>
                     <Text style={styles.featureLabel}>{benefit.label}</Text>
                   </View>
                   {PLAN_IDS.map(id => (
-                    <View key={id} style={styles.planCell}>
+                    <View key={id} style={[styles.planCell, { width: planWidth }]}>
                       <Text style={styles.benefitValue}>{benefit.value(sub.plans[serverPlan(id)])}</Text>
                     </View>
                   ))}
                 </View>
               ))}
               <View style={[styles.tableRow, styles.tableFooter]}>
-                <View style={styles.featureCell} />
+                <View style={[styles.featureCell, { width: featureWidth }]} />
                 {PLAN_IDS.map(id => {
                   const on = id === current;
                   return (
-                    <View key={id} style={styles.planCell}>
+                    <View key={id} style={[styles.planCell, { width: planWidth }]}>
                       <Pressable
                         accessibilityRole="button"
                         accessibilityState={{ disabled: busy || on, selected: on }}
@@ -199,7 +203,6 @@ export default function SubscriptionScreen({ navigation, route }) {
         ) : (
           <ActivityIndicator color={colors.mintDark} style={styles.loader} />
         )}
-        <Text style={styles.note}>기본 AI 모델: 텍스트·이미지 작업은 OpenAI GPT-6.1 Terra, 녹음 변환은 GPT-transcribe예요. 서버 설정에 따라 모델은 달라질 수 있어요.</Text>
         <Text style={styles.note}>시연용 결제예요. 실제로 돈이 결제되지 않아요.</Text>
       </ScrollView>
       {notice.view}
@@ -229,15 +232,15 @@ const styles = StyleSheet.create({
   ghost: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   note: { fontSize: font.caption, color: colors.muted },
-  sectionTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
-  comparisonHeading: { gap: spacing.xs, marginTop: spacing.sm },
-  tableScroll: { paddingBottom: spacing.xs },
-  table: { width: 378, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
+  sectionTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink, textAlign: 'center' },
+  comparisonHeading: { alignItems: 'center', gap: spacing.xs, marginTop: spacing.sm },
+  tableScroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: spacing.xs },
+  table: { alignSelf: 'center', borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line },
   tableRow: { flexDirection: 'row', minHeight: 44, borderBottomWidth: 1, borderBottomColor: colors.line },
   tableHeader: { minHeight: 68, backgroundColor: colors.mintSoft },
   headerCell: { justifyContent: 'center' },
-  featureCell: { width: 102, justifyContent: 'center', paddingHorizontal: spacing.sm },
-  planCell: { width: 92, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 2 },
+  featureCell: { justifyContent: 'center', paddingHorizontal: spacing.sm },
+  planCell: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 2 },
   headerLabel: { fontSize: font.caption, fontWeight: '700', color: colors.ink },
   planName: { fontSize: font.body, fontWeight: '800', color: colors.ink },
   planPrice: { fontSize: 11, fontWeight: '700', color: colors.mintDark, marginTop: 2 },

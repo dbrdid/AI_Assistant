@@ -110,7 +110,9 @@ export default function TaskEditScreen({ navigation, route }) {
   const [allDay, setAllDay] = useState(() => !!existing && existing.kind === 'event' && !existing.start);
   // 프로젝트: 이 항목이 들어갈 프로젝트 (한 프로젝트에만 속함). 없으면 null
   const projects = useProjects();
-  const [projectId, setProjectId] = useState(() => (existing ? projectOf('tasks', existing.id)?.id ?? null : null));
+  const [projectId, setProjectId] = useState(() =>
+    existing ? projectOf('tasks', existing.id)?.id ?? null : params.projectId ?? null,
+  );
   // 더보기: 편집할 때 이미 채운 칸이 있으면 펼친 채로 시작
   const [more, setMore] = useState(
     () => !!existing && (existing.priority !== '보통' || existing.status !== '진행 전' || !!existing.assignee || !!existing.desc || !!projectId || (existing.kind !== 'event' && !!existing.place)),

@@ -3,7 +3,7 @@
 // ============================================================
 
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
@@ -13,8 +13,15 @@ import { ROUTES } from '../../../navigation/routes';
 import { memoTitle, trashMemos, useMemos } from '../../../data/memos/MemoStore';
 import { deleteTask, useTasks } from '../../../data/tasks/TaskStore';
 import { addAsset, checkAsset, checkCloudAsset, cloudAvailable, deleteFile, downloadFileToDevice, pickAssets, uploadLocalProjectFile, uploadProjectFile, useCloudFiles, useFiles } from '../../../data/files/FileStore';
-import { getProject, linkItems, linkProjectFiles, unlinkItems, unlinkProjectFiles, useProjects } from '../../../data/projects/ProjectStore';
+import { getProject, linkItems, linkItemsNow, linkProjectFiles, syncPendingMemoLinks, unlinkItems, unlinkItemsNow, unlinkProjectFiles, useProjects } from '../../../data/projects/ProjectStore';
 import { alertUser } from '../../../data/alert';
+import { syncServerWorkspaceConnections, testSharedWorkspaceSync, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
+import { runtime } from '../../../integration/runtime';
+import { isProjectLeader } from '../../../lib/stella/project-team';
+import { listOutbox } from '../../../lib/stella/local-sync';
+import { projectTaskSection } from '../projectTaskKind';
+import { noConnectionText } from '../projectConnectionText';
+import { canManageProjectItems, isWorkspaceOwner } from '../projectPermissions';
 
 export default function ProjectDetailScreen({ navigation, route }) {
   const projectId = route?.params?.projectId;
@@ -25,6 +32,97 @@ export default function ProjectDetailScreen({ navigation, route }) {
   const files = useFiles();
   const cloudFiles = useCloudFiles();
   const isSharedWorkspace = cloudAvailable();
+  const { current: currentWorkspace } = useWorkspaces();
+  const projectLeader = !!project && isProjectLeader(
+    (project.members || []).map((member) => ({
+      account_id: member.accountId ?? null,
+      role: member.role,
+      deleted_at: null,
+    })),
+    runtime().session.id,
+  );
+  const canManageItems = canManageProjectItems({
+    workspace: currentWorkspace,
+    projectLeader,
+  });
+  const [syncInfo, setSyncInfo] = useState({ loading: true, message: '' });
+
+  const refreshSyncInfo = async () => {
+    if (!currentWorkspace || currentWorkspace.personal) {
+      setSyncInfo({ loading: false, message: '' });
+      return;
+    }
+    if (!currentWorkspace.serverId) {
+      setSyncInfo({ loading: false, message: '이 워크스페이스는 아직 서버와 연결되지 않았어요.' });
+      return;
+    }
+    setSyncInfo((prev) => ({ ...prev, loading: true }));
+    try {
+      const own = runtime();
+      await syncPendingMemoLinks(own, currentWorkspace);
+      const status = await own.bridge.status();
+      const workspaceStatus = status.workspaces?.[currentWorkspace.id];
+      const outbox = await listOutbox(own.syncDb, currentWorkspace.serverId);
+      const head = outbox[0];
+      const entities = [...new Set((head?.changes ?? []).map((change) => change.entity))];
+      const detail = head
+        ? `대기 열: ${head.status}${entities.length ? ` · ${entities.join(', ')}` : ''}${head.lastError ? ` · ${head.lastError}` : ''}`
+        : '';
+      if (workspaceStatus?.conflicts) {
+        setSyncInfo({ loading: false, message: `다른 기기와 충돌한 변경이 있어요. 동기화 상태를 확인해 주세요.${detail ? `\n${detail}` : ''}` });
+      } else if (workspaceStatus?.failed || workspaceStatus?.lastError) {
+        setSyncInfo({
+          loading: false,
+          message: workspaceStatus.lastError
+            ? `서버 동기화 오류: ${workspaceStatus.lastError}${detail ? `\n${detail}` : ''}`
+            : `서버 동기화에 실패한 변경이 있어요.${detail ? `\n${detail}` : ''}`,
+        });
+      } else if ((workspaceStatus?.pending ?? 0) > 0 || (workspaceStatus?.waiting ?? 0) > 0) {
+        setSyncInfo({ loading: false, message: `연결 변경을 서버에 전송 대기 중이에요.${detail ? `\n${detail}` : ''}` });
+      } else if (status.state === 'needs_login') {
+        setSyncInfo({ loading: false, message: '로그인이 만료됐어요. 다시 로그인해 주세요.' });
+      } else {
+        setSyncInfo({ loading: false, message: '서버와 동기화되어 있어요.' });
+      }
+    } catch (error) {
+      setSyncInfo({ loading: false, message: error.message || '동기화 상태를 확인하지 못했어요.' });
+    }
+  };
+
+  useEffect(() => {
+    refreshSyncInfo();
+  }, [currentWorkspace?.id, projectId]);
+
+  const retrySync = async () => {
+    setSyncInfo({ loading: true, message: '' });
+    try {
+      await syncServerWorkspaceConnections();
+      const diagnostic = await testSharedWorkspaceSync();
+      const diagnosticText = diagnostic.syncs.length
+        ? diagnostic.syncs.map(s => `${s.status}/${s.flush || '-'}${s.lastError ? ` ${s.lastError}` : ''}`).join(' | ')
+        : '기기 워크스페이스에 serverId가 없습니다';
+      const membershipText = diagnostic.memberships.length
+        ? diagnostic.memberships.map(m => `${m.name}:${m.role}`).join(', ')
+        : '내 워크스페이스 멤버십 없음';
+      if (!currentWorkspace || currentWorkspace.personal) {
+        await refreshSyncInfo();
+        setSyncInfo((prev) => ({
+          ...prev,
+          message: `${prev.message || '동기화 확인 결과'}\n계정: ${diagnostic.email}\n멤버십: ${membershipText}\n${diagnosticText}`,
+        }));
+        return;
+      }
+      await runtime().bridge.syncWorkspace(currentWorkspace.id);
+      await syncPendingMemoLinks(runtime(), currentWorkspace);
+      await refreshSyncInfo();
+      setSyncInfo((prev) => ({
+        ...prev,
+        message: `${prev.message || '동기화 확인 결과'}\n계정: ${diagnostic.email}\n멤버십: ${membershipText}\n${diagnosticText}`,
+      }));
+    } catch (error) {
+      setSyncInfo({ loading: false, message: error.message || '다시 동기화하지 못했어요.' });
+    }
+  };
 
   const [open, setOpen] = useState({ memos: true, todos: false, files: false, events: false });
   const [editing, setEditing] = useState(false);
@@ -44,7 +142,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
     if (!project) return [];
     const L = project.links;
     const inL = (kind, id) => L[kind].includes(id);
-    const taskKind = (t) => (t.start ? 'events' : 'todos');
+    const taskKind = (t) => projectTaskSection(t);
     return [
       { key: 'memos', kind: 'memos', label: '메모', unit: '개', all: memos.map((m) => ({ id: m.id, title: memoTitle(m), sub: `수정 ${new Date(m.updatedAt).getMonth() + 1}/${new Date(m.updatedAt).getDate()}` })) },
       { key: 'todos', kind: 'tasks', label: '할 일', unit: '개', all: tasks.filter((t) => taskKind(t) === 'todos').map((t) => ({ id: t.id, title: t.title, sub: `${t.date.slice(5).replace('-', '/')} · ${t.status}` })) },
@@ -163,7 +261,9 @@ export default function ProjectDetailScreen({ navigation, route }) {
     if (!section) return;
     try {
       if (section.kind !== 'files') {
-        linkItems(project.id, section.kind, addPicked);
+        await linkItemsNow(project.id, section.kind, addPicked);
+        setAdding(null);
+        setAddPicked([]);
       } else if (isSharedWorkspace) {
         const cloudIds = addPicked.filter((id) => section.candidates.find((item) => item.id === id)?.isCloud);
         const localIds = addPicked.filter((id) => !cloudIds.includes(id));
@@ -179,6 +279,20 @@ export default function ProjectDetailScreen({ navigation, route }) {
       }
     } catch (error) {
       alertUser('파일을 연결하지 못했어요', error.message || '다시 시도해 주세요.');
+    }
+  };
+  const createForProject = (key) => {
+    setAdding(null);
+    if (key === 'memos') {
+      navigation.navigate(ROUTES.MemoEdit, { projectId });
+      return;
+    }
+    if (key === 'todos') {
+      navigation.navigate(ROUTES.TaskEdit, { kind: 'task', projectId });
+      return;
+    }
+    if (key === 'events') {
+      navigation.navigate(ROUTES.TaskEdit, { kind: 'event', projectId });
     }
   };
   const movePicked = async (targetProjectId) => {
@@ -210,7 +324,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
     try {
       for (const { section, ids } of selectedBySection()) {
         if (section.kind !== 'files') {
-          unlinkItems(section.kind, ids);
+          await unlinkItemsNow(section.kind, ids);
           continue;
         }
         const cloudIds = ids.filter((id) => section.items.find((item) => item.id === id)?.isCloud);
@@ -241,9 +355,9 @@ export default function ProjectDetailScreen({ navigation, route }) {
         title={project.title}
         onBack={navigation.goBack}
         right={
-          <Pressable accessibilityRole="button" accessibilityLabel="팀원 초대" onPress={() => navigation.navigate(ROUTES.ProjectInvite, { projectId })} hitSlop={10}>
+          canManageItems ? <Pressable accessibilityRole="button" accessibilityLabel="팀원 초대" onPress={() => navigation.navigate(ROUTES.ProjectInvite, { projectId })} hitSlop={10}>
             <Text style={styles.headIcon}>👥＋</Text>
-          </Pressable>
+          </Pressable> : null
         }
       />
       <ScrollView contentContainerStyle={styles.content}>
@@ -253,6 +367,16 @@ export default function ProjectDetailScreen({ navigation, route }) {
           </Text>
           {!!project.desc && <Text style={styles.desc}>{project.desc}</Text>}
         </View>
+        {!!syncInfo.message && (
+          <View style={styles.syncNotice}>
+            <Text style={styles.syncText}>{syncInfo.loading ? '동기화 상태 확인 중…' : syncInfo.message}</Text>
+            {!syncInfo.loading && (
+              <Pressable accessibilityRole="button" onPress={retrySync} style={styles.syncRetry}>
+                <Text style={styles.syncRetryText}>다시 동기화</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
 
         <Text style={styles.heading}>연결된 항목</Text>
 
@@ -337,20 +461,26 @@ export default function ProjectDetailScreen({ navigation, route }) {
           );
         })}
 
-        {/* 팀원: 누르면 팀원 관리 화면 */}
-        <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.ProjectTeam, { projectId })} style={[styles.section, styles.sectionHead]}>
-          <Text style={styles.sectionTitle}>팀원 {project.members.length}명</Text>
-          <Text style={styles.chev}>›</Text>
-        </Pressable>
+        {/* 팀원 관리: 워크스페이스 관리자 또는 프로젝트 팀장만 */}
+        {canManageItems && (
+          <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.ProjectTeam, { projectId })} style={[styles.section, styles.sectionHead]}>
+            <Text style={styles.sectionTitle}>팀원 {project.members.length}명</Text>
+            <Text style={styles.chev}>›</Text>
+          </Pressable>
+        )}
 
         {!editing && (
           <View style={styles.bottomRow}>
-            <Pressable accessibilityRole="button" onPress={() => setEditing(true)} style={[styles.bigBtn, styles.primary]}>
-              <Text style={styles.primaryText}>프로젝트 편집</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.ProjectEdit, { projectId })} style={[styles.bigBtn, styles.ghost]}>
-              <Text style={styles.ghostText}>정보 수정</Text>
-            </Pressable>
+            {canManageItems && (
+              <Pressable accessibilityRole="button" onPress={() => setEditing(true)} style={[styles.bigBtn, styles.primary]}>
+                <Text style={styles.primaryText}>프로젝트 편집</Text>
+              </Pressable>
+            )}
+            {canManageItems && (
+              <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.ProjectEdit, { projectId })} style={[styles.bigBtn, styles.ghost]}>
+                <Text style={styles.ghostText}>정보 수정</Text>
+              </Pressable>
+            )}
           </View>
         )}
       </ScrollView>
@@ -372,7 +502,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
             </Pressable>
           </View>
           <View style={styles.barRow}>
-            <Pressable accessibilityRole="button" disabled={picked.length === 0} onPress={() => setConfirmUnlink(true)} style={[styles.barBtn, picked.length === 0 && styles.off]}>
+            <Pressable accessibilityRole="button" disabled={!canManageItems || picked.length === 0} onPress={() => setConfirmUnlink(true)} style={[styles.barBtn, (!canManageItems || picked.length === 0) && styles.off]}>
               <Text style={styles.barText}>연결 해제</Text>
             </Pressable>
             <Pressable accessibilityRole="button" disabled={picked.length === 0 || hasCloudPicked} onPress={() => setConfirmDelete(true)} style={[styles.barBtn, styles.barDanger, (picked.length === 0 || hasCloudPicked) && styles.off]}>
@@ -407,7 +537,33 @@ export default function ProjectDetailScreen({ navigation, route }) {
               </>
             )}
             <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ gap: spacing.sm }}>
-              {(sections.find((s) => s.key === adding)?.candidates || []).length === 0 && <Text style={styles.none}>연결할 수 있는 항목이 없어요</Text>}
+              {(() => {
+                const section = sections.find((s) => s.key === adding);
+                if (!section || section.candidates.length > 0) return null;
+                return (
+                  <View style={{ gap: spacing.sm }}>
+                    <Text style={styles.none}>
+                      {noConnectionText({
+                        kind: section.kind,
+                        allCount: section.all.length,
+                        candidateCount: section.candidates.length,
+                        linkedCount: section.items.length,
+                      })}
+                    </Text>
+                    {(adding === 'memos' || adding === 'todos' || adding === 'events') && (
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => createForProject(adding)}
+                        style={styles.linkBtn}
+                      >
+                        <Text style={styles.linkText}>
+                          ＋ 새 {adding === 'memos' ? '메모' : adding === 'todos' ? '할 일' : '일정'} 만들기
+                        </Text>
+                      </Pressable>
+                    )}
+                  </View>
+                );
+              })()}
               {(sections.find((s) => s.key === adding)?.candidates || []).map((x) => {
                 const on = addPicked.includes(x.id);
                 const s = sections.find((q) => q.key === adding);
@@ -499,6 +655,10 @@ const styles = StyleSheet.create({
   info: { gap: 4 },
   infoLine: { fontSize: font.body, color: colors.muted },
   desc: { fontSize: font.body, color: colors.ink, lineHeight: 20 },
+  syncNotice: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 10, borderRadius: radius.md, backgroundColor: colors.mintSoft },
+  syncText: { flex: 1, fontSize: font.caption, color: colors.ink },
+  syncRetry: { minHeight: 32, paddingHorizontal: 10, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.mintDark, alignItems: 'center', justifyContent: 'center' },
+  syncRetryText: { fontSize: font.caption, fontWeight: '800', color: colors.mintDark },
   heading: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink, marginTop: spacing.sm },
   section: { backgroundColor: colors.white, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.line, padding: spacing.lg, gap: spacing.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 32 },
