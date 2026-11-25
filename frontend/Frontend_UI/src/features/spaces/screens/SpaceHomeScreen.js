@@ -157,10 +157,12 @@ export default function SpaceHomeScreen({ navigation, route }) {
             ) : members.error ? (
               <Text style={styles.muted}>{members.error}</Text>
             ) : (
-              <View style={styles.avatars} accessibilityLabel={`멤버 ${members.list.map((m) => m.display_name || '이름 없음').join(', ')}`}>
+              <Pressable accessibilityRole="button" onPress={() => go(ROUTES.SpaceMembers, { workspaceId: id })} hitSlop={8}
+                style={[styles.avatars, { minHeight: 44 }]} accessibilityLabel={`멤버 ${members.list.map((m) => m.display_name || '이름 없음').join(', ')}. 멤버 관리 열기`}>
                 {members.list.slice(0, 5).map((m, i) => <Avatar key={m.account_id} name={m.display_name} i={i} />)}
                 {members.list.length > 5 && <Text style={styles.more}>+{members.list.length - 5}</Text>}
-              </View>
+                <Icon name="chevronRight" size={16} color={colors.muted} />
+              </Pressable>
             )}
             <View style={{ flex: 1 }} />
             {canInvite && (

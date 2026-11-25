@@ -15,6 +15,20 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          detail: Json
+          id: number
+          target_id: string | null
+          workspace_id: string
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
       accounts: {
         Row: {
           created_at: string
@@ -1946,6 +1960,7 @@ export type Database = {
         Row: {
           account_id: string
           ended_at: string | null
+          expires_at: string | null
           invite_id: string | null
           invited_by: string | null
           joined_at: string
@@ -1957,6 +1972,7 @@ export type Database = {
         Insert: {
           account_id: string
           ended_at?: string | null
+          expires_at?: string | null
           invite_id?: string | null
           invited_by?: string | null
           joined_at?: string
@@ -1968,6 +1984,7 @@ export type Database = {
         Update: {
           account_id?: string
           ended_at?: string | null
+          expires_at?: string | null
           invite_id?: string | null
           invited_by?: string | null
           joined_at?: string
@@ -2039,6 +2056,7 @@ export type Database = {
       workspaces: {
         Row: {
           auth_epoch: number
+          billing_account_id: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -2050,6 +2068,7 @@ export type Database = {
         }
         Insert: {
           auth_epoch?: number
+          billing_account_id?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -2061,6 +2080,7 @@ export type Database = {
         }
         Update: {
           auth_epoch?: number
+          billing_account_id?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -2160,6 +2180,12 @@ export type Database = {
       }
       change_member_role: {
         Args: { p_account_id: string; p_role: string; p_workspace_id: string }
+        Returns: Json
+      }
+      claim_workspace_billing: { Args: { p_workspace_id: string }; Returns: Json }
+      get_workspace_billing: { Args: { p_workspace_id: string }; Returns: Json }
+      set_member_expiry: {
+        Args: { p_account_id: string; p_expires_at: string | null; p_workspace_id: string }
         Returns: Json
       }
       create_invite: {

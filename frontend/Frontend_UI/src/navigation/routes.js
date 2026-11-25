@@ -36,6 +36,7 @@ export const ROUTES = {
   More: 'More',           // '나' (홈 왼쪽 위 프로필): AI · 도구 · 설정 모음
   Spaces: 'Spaces',       // 하단 탭 '공간': 공간(팀) 목록
   SpaceHome: 'SpaceHome', // 공간 하나의 홈 (멤버 · 초대 · 프로젝트 · 일정 · 메모)
+  SpaceMembers: 'SpaceMembers', // 공유 공간 멤버 · 역할 · 만료 · 결제 주체 · 관리 기록
   Settings: 'Settings',   // 설정
   Account: 'Account',                 // 설정 > 계정(프로필 수정)
   Security: 'Security',               // 설정 > 보안 및 권한

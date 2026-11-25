@@ -49,6 +49,7 @@ export interface Member {
   status: MemberStatus;
   display_name: string | null;
   avatar_path: string | null;
+  expires_at: string | null;   // EDITOR·VIEWER 멤버 만료 시각 (지나면 서버가 REMOVED로)
 }
 
 /**
@@ -57,7 +58,7 @@ export interface Member {
  *   멤버 화면·담당자 선택에는 { activeOnly: true }
  */
 export async function listMembers(workspaceId: string, opts: { activeOnly?: boolean } = {}): Promise<Member[]> {
-  let q = supabase.from('workspace_members').select('account_id, role, status').eq('workspace_id', workspaceId);
+  let q = supabase.from('workspace_members').select('account_id, role, status, expires_at').eq('workspace_id', workspaceId);
   if (opts.activeOnly) q = q.eq('status', 'ACTIVE');
   const { data: members, error } = await q;
   if (error) throw toSyncError(error);
@@ -76,8 +77,61 @@ export async function listMembers(workspaceId: string, opts: { activeOnly?: bool
       status: m.status as MemberStatus,
       display_name: p?.display_name ?? null,
       avatar_path: p?.avatar_path ?? null,
+      expires_at: m.expires_at ?? null,
     };
   });
+}
+
+// ---------------------------------------------------------------------
+// 결제 주체 · 멤버 만료 · 관리 기록 (11/25)
+// ---------------------------------------------------------------------
+export interface WorkspaceBilling {
+  workspace_id: string;
+  billing_account_id: string | null;   // null이면 결제 주체 없음 → 공간 FREE
+  billing_name: string | null;
+  plan: 'FREE' | 'PRO' | 'TEAM';
+  is_me: boolean;
+}
+
+/** 공간 결제 주체와 공간 요금제 (멤버 누구나) */
+export async function getWorkspaceBilling(workspaceId: string): Promise<WorkspaceBilling> {
+  const { data, error } = await supabase.rpc('get_workspace_billing', { p_workspace_id: workspaceId });
+  if (error) throw toSyncError(error);
+  return data as unknown as WorkspaceBilling;
+}
+
+/** OWNER가 자기 자신을 결제 주체로 (공간 요금제 = 내 요금제). 남에게 넘기는 기능은 없음 */
+export async function claimWorkspaceBilling(workspaceId: string): Promise<{ workspace_id: string; billing_account_id: string; plan: string; unchanged: boolean }> {
+  const { data, error } = await supabase.rpc('claim_workspace_billing', { p_workspace_id: workspaceId });
+  if (error) throw toSyncError(error);
+  return data as unknown as { workspace_id: string; billing_account_id: string; plan: string; unchanged: boolean };
+}
+
+/** OWNER가 EDITOR·VIEWER 멤버의 만료 시각을 정함 (null = 만료 없음) */
+export async function setMemberExpiry(workspaceId: string, accountId: string, expiresAt: Date | null): Promise<{ expires_at: string | null }> {
+  const { data, error } = await supabase.rpc('set_member_expiry', {
+    p_workspace_id: workspaceId, p_account_id: accountId, p_expires_at: expiresAt ? expiresAt.toISOString() : null,
+  });
+  if (error) throw toSyncError(error);
+  return data as unknown as { expires_at: string | null };
+}
+
+export interface AuditEntry {
+  id: number;
+  action: 'BILLING_ASSIGNED' | 'BILLING_CLEARED' | 'MEMBER_EXPIRY_SET' | 'MEMBER_EXPIRED';
+  actor_id: string | null;
+  target_id: string | null;
+  detail: Record<string, unknown>;
+  created_at: string;
+}
+
+/** 공간 관리 기록 (OWNER만 읽힘. 다른 역할은 빈 목록) */
+export async function listAuditLogs(workspaceId: string, limit = 20): Promise<AuditEntry[]> {
+  const { data, error } = await supabase.from('audit_logs')
+    .select('id, action, actor_id, target_id, detail, created_at')
+    .eq('workspace_id', workspaceId).order('id', { ascending: false }).limit(limit);
+  if (error) throw toSyncError(error);
+  return data as unknown as AuditEntry[];
 }
 
 /** 수정 가능한 역할인지 (VIEWER는 sync_push가 FORBIDDEN) */

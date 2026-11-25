@@ -16,6 +16,7 @@ const ReviewScreen = props => <StellaWorkspaceScreen {...props} mode="review" />
 import MoreScreen from '../features/more/screens/MoreScreen';
 import SpacesScreen from '../features/spaces/screens/SpacesScreen';
 import SpaceHomeScreen from '../features/spaces/screens/SpaceHomeScreen';
+import SpaceMembersScreen from '../features/stella/SpaceMembersScreen';
 import { enterSpace } from '../data/workspaces/WorkspaceStore';
 import PlaceholderScreen from '../shared/components/PlaceholderScreen';
 import CalendarScreen from '../features/calendar/screens/CalendarScreen';
@@ -73,6 +74,7 @@ const REAL_SCREENS = {
   [ROUTES.More]: MoreScreen,                               // '나' (홈 왼쪽 위 프로필)
   [ROUTES.Spaces]: SpacesScreen,                           // 하단 탭 '공간'
   [ROUTES.SpaceHome]: SpaceHomeScreen,                     // 공간 하나의 홈
+  [ROUTES.SpaceMembers]: SpaceMembersScreen,               // 공간 멤버 · 결제 주체 · 만료
   [ROUTES.QuickInput]: QuickInputScreen,                   // 더보기 > 사진 · 문서 올리기
   [ROUTES.NetworkError]: NetworkErrorScreen,               // 오류 안내 화면들
   [ROUTES.ServerError]: ServerErrorScreen,

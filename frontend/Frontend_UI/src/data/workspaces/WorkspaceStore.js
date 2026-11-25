@@ -28,6 +28,20 @@ export function enterSpace(workspaceId) {
   if (workspaceId && own.getCurrentWorkspace().id !== workspaceId) own.switchWorkspace(workspaceId);
 }
 export const listMembers = (serverId) => api.listMembers(serverId, { activeOnly: true });
+
+// 멤버 관리 (공유 공간): 바꾼 뒤 기기 기록도 곧 맞추도록 동기화를 요청
+async function memberChange(call) {
+  const own = runtime();
+  const result = await call();
+  if (runtime() === own) own.bridge?.requestSync?.(0);
+  return result;
+}
+export const getWorkspaceBilling = serverId => api.getWorkspaceBilling(serverId);
+export const listAuditLogs = serverId => api.listAuditLogs(serverId);
+export const claimWorkspaceBilling = serverId => memberChange(() => api.claimWorkspaceBilling(serverId));
+export const changeMemberRole = (serverId, accountId, role) => memberChange(() => api.changeMemberRole(serverId, accountId, role));
+export const setMemberExpiry = (serverId, accountId, expiresAt) => memberChange(() => api.setMemberExpiry(serverId, accountId, expiresAt));
+export const removeMember = (serverId, accountId) => memberChange(() => api.removeMember(serverId, accountId));
 export const scopedKey = key => `${runtime().session.id}:${runtime().store.getCurrentWorkspace().id}:${key}`;
 export async function createWorkspace(fields) {
   const own = runtime();
