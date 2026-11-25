@@ -27,6 +27,8 @@ import Icon from '../../../shared/components/Icon';
 import SpaceTag, { SpaceDot } from '../../../shared/components/SpaceTag';
 import { CircleButton } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import { selectHomeScheduleEvents } from '../utils/HomeSchedule.mjs';
+import { MAX_RECORDING_SECONDS } from '../../../lib/stella/recordings';
 
 const MAX_LEN = 2000;
 const CAPTURE_HEIGHT = 64; // 입력줄 높이 (안내 띠를 그 위에 띄우는 데 씀)
@@ -85,6 +87,9 @@ export default function HomeScreen({ navigation }) {
     .filter((t) => t.kind !== 'event' && (occursOn(t, todayKey) || classify(t, todayKey) === 'overdue'))
     .sort((a, b) => (a.status === '완료') - (b.status === '완료') || a.date.localeCompare(b.date));
   const left = todos.filter((t) => t.status !== '완료').length;
+  // 지금 진행 중인 일정과 바로 다음 일정 (완료한 일정 제외)
+  const nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const scheduleHighlights = selectHomeScheduleEvents(events.filter((t) => t.status !== '완료'), nowHM);
 
   const toggle = (t) => {
     try {
@@ -142,6 +147,11 @@ export default function HomeScreen({ navigation }) {
     const id = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(id);
   }, [recording]);
+  // 서버가 받는 최대 길이(3시간)가 되면 녹음을 끝내고 정리 창을 띄움
+  const toggleRef = useRef(null);
+  useEffect(() => {
+    if (recording && seconds >= MAX_RECORDING_SECONDS) void toggleRef.current?.();
+  }, [recording, seconds]);
   const toggleRecording = async () => {
     if (recBusy.current) return;
     recBusy.current = true;
@@ -150,10 +160,13 @@ export default function HomeScreen({ navigation }) {
         setRecording(false);
         const uri = await rec.stop();
         if (!uri) return setRecSheet({ state: 'error' });
-        // 웹 등 기기 파일로 저장할 수 없는 환경이면 보관 없이 진행 (녹음 듣기·변환은 그대로 됨)
-        const saved = await addRecording(uri, seconds).catch(() => null);
+        // 저장하지 못해도 녹음 듣기와 변환은 그대로 됨. 실패 이유를 보여 주고 다시 저장할 수 있게 함
+        let saved = null;
+        let saveError = '';
+        try { saved = await addRecording(uri, seconds); }
+        catch (error) { saveError = error?.message || '녹음 파일을 저장하지 못했어요.'; }
         addUsage('voice', Math.max(1, Math.ceil(seconds / 60))); // 녹음 이용량은 분 단위
-        setRecSheet({ state: 'saved', uri, seconds, fileId: saved?.id ?? null });
+        setRecSheet({ state: saved ? 'saved' : 'save_error', uri: saved?.uri || uri, seconds, fileId: saved?.id ?? null, saveError });
       } else {
         const r = await rec.start();
         if (!r.ok) return setRecSheet({ state: r.reason === 'denied' ? 'denied' : 'error' });
@@ -162,6 +175,19 @@ export default function HomeScreen({ navigation }) {
       }
     } finally {
       recBusy.current = false;
+    }
+  };
+
+  toggleRef.current = toggleRecording;
+  const retrySaveRecording = async () => {
+    const current = recSheet;
+    if (current?.state !== 'save_error' || current.saving) return;
+    setRecSheet({ ...current, saving: true, saveError: '' });
+    try {
+      const saved = await addRecording(current.uri, current.seconds);
+      setRecSheet({ ...current, state: 'saved', uri: saved.uri || current.uri, fileId: saved.id, saving: false, saveError: '' });
+    } catch (error) {
+      setRecSheet({ ...current, saving: false, saveError: error?.message || '녹음 파일을 저장하지 못했어요.' });
     }
   };
 
@@ -216,6 +242,11 @@ export default function HomeScreen({ navigation }) {
 
         {/* ---------- 오늘 일정 ---------- */}
         <SectionHead title="오늘 일정" addLabel="오늘 일정 추가" onAdd={() => go(ROUTES.TaskEdit, { date: todayKey, kind: 'event' })} />
+        {scheduleHighlights.map(({ event, state }) => (
+          <Text key={'now:' + event.id} accessibilityLiveRegion="polite" style={styles.highlight} numberOfLines={1}>
+            {`${state === 'ongoing' ? '진행 중' : '다음 일정'}, ${event.start}${event.end ? `~${event.end}` : ''} ${event.title}`}
+          </Text>
+        ))}
         {events.length === 0 ? (
           <Text style={styles.empty}>오늘은 일정이 없어요</Text>
         ) : (
@@ -352,6 +383,7 @@ export default function HomeScreen({ navigation }) {
         onOpenFiles={() => { setRecSheet(null); go(ROUTES.Files); }}
         onOpenMemo={(memoId) => { setRecSheet(null); go(ROUTES.MemoEdit, { memoId }); }}
         onOpenProposals={() => { setRecSheet(null); go(ROUTES.Proposals); }}
+        onRetrySave={retrySaveRecording}
       />
       {snack.view}
     </KeyboardAvoidingView>
@@ -391,6 +423,7 @@ const styles = StyleSheet.create({
   subRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   itemTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   itemSub: { flexShrink: 1, fontSize: font.caption, color: colors.muted },
+  highlight: { fontSize: font.body, color: colors.ink, lineHeight: 20, marginBottom: spacing.xs },
 
   todoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md, minHeight: 50, backgroundColor: colors.card, borderRadius: radius.lg },
   todoBody: { flex: 1, minHeight: 46, justifyContent: 'center', gap: 2 },
