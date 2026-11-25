@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   count: { fontSize: font.caption, color: colors.muted },
 
   empty: { alignItems: 'center', paddingTop: 80, gap: spacing.sm },
-  emptyTitle: { fontSize: font.title, fontWeight: '500', color: colors.ink },
+  emptyTitle: { fontSize: 13, fontWeight: '400', color: colors.subtle },
   emptySub: { fontSize: font.body, color: colors.muted },
 
   card: {

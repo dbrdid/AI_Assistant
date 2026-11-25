@@ -1,15 +1,7 @@
 import { StyleSheet } from 'react-native';
-export const palette = {
-  background: '#191a1b',
-  surface: '#222325',
-  raised: '#2b2c2e',
-  text: '#f0f0ee',
-  muted: '#aaa',
-  subtle: '#969a9c',
-  line: '#2d3032',
-  accent: '#d9d9d6', // 강조색은 무채색으로 통일(녹색 사용 안 함)
-  danger: '#f0abab'
-};
+// 색 기준은 공용 테마의 palette 하나 (shared/theme/theme.js)
+import { palette } from '../../shared/theme/theme';
+export { palette };
 const c = palette;
 export const styles = StyleSheet.create({
   blockTypeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 12 },

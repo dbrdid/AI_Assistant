@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   // 파일이 없을 때 안내
   // 빈 상태는 큰 제목 대신 Stella 문서 목록처럼 낮은 대비의 안내 두 줄
   empty: {alignItems:'flex-start',paddingTop:24,paddingHorizontal:4,gap:4},
-  emptyTitle: {fontSize:15,fontWeight:'500',color:colors.ink,textAlign:'left'},
+  emptyTitle: { fontSize: 13, fontWeight: '400', color: colors.subtle },
   emptySub: {fontSize:13,color:colors.muted,textAlign:'left',lineHeight:21},
   card: {flexDirection:'row',gap:spacing.md,backgroundColor:colors.cream,borderRadius:0,borderWidth:0,borderColor:colors.line,padding:spacing.lg,borderBottomWidth:1,paddingHorizontal:0,paddingVertical:18},
   cardFocus: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },

@@ -19,11 +19,11 @@ import { diffExcerpt, longDateKey, shortDateKey } from '../utils/AgendaUtils';
 const STATUS = {
   added: { label: '추가됨', color: '#e6e6e3', bg: '#2f3134' },
   changed: { label: '내용 바뀜', color: '#e8cc84', bg: '#3b3523' },
-  removed: { label: '삭제됨', color: '#f0abab', bg: '#38282a' },
+  removed: { label: '삭제됨', color: colors.coral, bg: colors.coralSoft },
 };
 const JUDGE = {
   discussed: { label: '논의됨', color: '#e6e6e3', bg: '#2f3134' },
-  open: { label: '미논의', color: '#f0abab', bg: '#38282a' },
+  open: { label: '미논의', color: colors.coral, bg: colors.coralSoft },
 };
 const KIND = { memo: '메모', task: '일정/할 일', file: '파일' };
 
@@ -221,7 +221,7 @@ function Diff({ label, before, after }) {
   return (
     <View style={styles.diff}>
       <Text style={styles.diffLabel}>{label}</Text>
-      <View style={[styles.diffBox, { backgroundColor: '#38282a' }]}><Text style={styles.diffText}>이전  {before || '(비어 있음)'}</Text></View>
+      <View style={[styles.diffBox, { backgroundColor: colors.coralSoft }]}><Text style={styles.diffText}>이전  {before || '(비어 있음)'}</Text></View>
       <View style={[styles.diffBox, { backgroundColor: '#2f3134' }]}><Text style={styles.diffText}>이후  {after || '(비어 있음)'}</Text></View>
     </View>
   );
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   summarySub: { fontSize: font.body, fontWeight: '500', color: colors.mintDark },
   hint: { fontSize: font.body, color: colors.muted, textAlign: 'center', paddingVertical: spacing.lg },
   empty: { padding: spacing.xl, borderRadius: radius.lg, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, gap: spacing.sm, alignItems: 'center' },
-  emptyTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
+  emptyTitle: { fontSize: 13, fontWeight: '400', color: colors.subtle },
   emptySub: { fontSize: font.body, color: colors.muted, textAlign: 'center', lineHeight: 20 },
   card: { borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, minHeight: 60 },

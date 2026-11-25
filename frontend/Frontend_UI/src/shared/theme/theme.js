@@ -5,26 +5,41 @@
 // 다른 파일에서는 `colors.mint` 처럼 가져다 씁니다.
 // 나중에 디자인을 바꾸고 싶으면 이 파일의 숫자/색만 고치면 앱 전체가 바뀝니다.
 
-// 색상표 (스토리보드의 Mint · Ink · Cream · Coral 디자인 시스템)
+// 앱의 색 기준은 이 palette 하나 (홈 개요의 Stella 화면과 예전 화면이 같은 값을 씀).
+// 새 코드는 palette의 이름(background, surface, raised, text, muted, subtle, line, accent, danger)을 쓴다.
+export const palette = {
+  background: '#191a1b',
+  surface: '#222325',
+  raised: '#2b2c2e',
+  text: '#f0f0ee',
+  muted: '#aaa',
+  subtle: '#969a9c',
+  line: '#2d3032',
+  accent: '#d9d9d6', // 강조색은 무채색으로 통일 (녹색 사용 안 함)
+  danger: '#f0abab',
+};
+
+// 예전 화면이 쓰던 이름. 값은 모두 palette에서 온다 (mint, coral 같은 이름은 과거 시안의 흔적일 뿐 색은 무채색).
 export const colors = {
-  mint: '#d9d9d6',      // 강조색: 녹색 없이 밝은 무채색 (강조선 등)
-  mintDark: '#f0f0ee',  // 진한 녹색 (주요 버튼, 선택된 날짜)
-  mintSoft: '#2b2c2e',  // 아주 연한 민트 (메뉴에서 선택된 항목 배경)
-  ink: '#f0f0ee',       // 글자 기본색 (거의 검정에 가까운 짙은 녹색)
-  muted: '#aaa',     // 흐린 글자색 (보조 설명)
-  cream: '#191a1b',     // 화면 배경색 (따뜻한 흰색)
-  line: '#2d3032',      // 얇은 구분선 색
-  hairline: '#2a2c2e',  // 카드 테두리처럼 거의 보이지 않아야 하는 선
-  coral: '#f0abab',     // 포인트 색 (일요일 글자 등)
-  coralSoft: '#38282a', // 아주 연한 코랄 (회원탈퇴 아이콘 배경 등)
-  card: '#222325',      // 카드 배경 (Figma 시안: 흰 카드 + 얇은 테두리)
-  kakao: '#FEE500',     // 카카오 로그인 버튼 노랑
+  mint: palette.accent,
+  mintDark: palette.text,
+  mintSoft: palette.raised,
+  ink: palette.text,
+  muted: palette.muted,
+  subtle: palette.subtle,
+  cream: palette.background,
+  line: palette.line,
+  hairline: '#2a2c2e', // 카드 테두리처럼 거의 보이지 않아야 하는 선
+  coral: palette.danger,
+  coralSoft: '#38282a',
+  card: palette.surface,
+  raised: palette.raised,
+  kakao: '#FEE500', // 카카오 로그인 버튼 노랑 (브랜드 규정 색)
   white: '#FFFFFF',
+  black: '#000000',
   action: '#36383b',
   actionBorder: '#55585c',
-  onPrimary: '#f0f0ee',
-  raised: '#2b2c2e',     // 흰색
-  black: '#000000'      // 검정색
+  onPrimary: palette.text,
 };
 
 // 간격(여백) 크기. 숫자의 단위는 px 과 비슷한 "논리 픽셀"입니다.

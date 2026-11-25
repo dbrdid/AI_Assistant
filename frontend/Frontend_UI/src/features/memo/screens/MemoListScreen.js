@@ -351,9 +351,9 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
             {[{ id: 'all', name: '모든 공간' }, ...spaceList.map((w) => ({ id: w.id, name: spaces[w.id]?.name, color: spaces[w.id]?.color }))].map((s) => {
               const on = space === s.id;
               return (
-                <Pressable key={s.id} accessibilityRole="button" accessibilityState={{ selected: on }} onPress={() => pickSpace(s.id)} style={[styles.spaceChip, on && styles.spaceChipOn]}>
+                <Pressable key={s.id} accessibilityRole="button" accessibilityState={{ selected: on }} onPress={() => pickSpace(s.id)} style={styles.spaceChip}>
                   {!!s.color && <SpaceDot color={s.color} />}
-                  <Text style={[styles.spaceChipText, on && { color: colors.mintDark }]} numberOfLines={1}>{s.name}</Text>
+                  <Text style={[styles.spaceChipText, !on && { color: colors.muted }]} numberOfLines={1}>{s.name}</Text>
                 </Pressable>
               );
             })}
@@ -660,9 +660,9 @@ const styles = StyleSheet.create({
   searchBar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md + 2, minHeight: 48, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   searchInput: { flex: 1, fontSize: font.bodyLg, color: colors.ink, paddingVertical: 8 },
   chips: { gap: spacing.sm, paddingVertical: 2 },
-  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, maxWidth: 160, paddingHorizontal: 4 },
   spaceChipOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
-  spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.ink },
+  spaceChipText: { flexShrink: 1, fontSize: 12, color: colors.ink },
   chip: { maxWidth: 180 },
   tools: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44 },
@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
   emptyBtnText: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },
 
   empty: { alignItems: 'center', paddingTop: 80, gap: spacing.sm },
-  emptyTitle: { fontSize: font.title, fontWeight: '500', color: colors.ink },
+  emptyTitle: { fontSize: 13, fontWeight: '400', color: colors.subtle },
   emptySub: { fontSize: font.body, color: colors.muted, textAlign: 'center' },
 
   card: {

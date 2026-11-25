@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
+import { useScreenEntry } from '../../../navigation/ScreenEntry';
 import Icon from '../../../shared/components/Icon';
 import { BottomCreate, Tag } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
@@ -18,6 +19,7 @@ import { deleteProject, useProjects } from '../../../data/projects/ProjectStore'
 const toneOf = (status) => (status === '진행 중' ? 'mint' : status === '완료' ? 'muted' : 'outline');
 
 export default function ProjectsScreen({ navigation }) {
+  const { embedded } = useScreenEntry();
   const insets = useSafeAreaInsets();
   const projects = useProjects();
   const [selecting, setSelecting] = useState(false);
@@ -36,6 +38,12 @@ export default function ProjectsScreen({ navigation }) {
       <ScreenHeader
         title={selecting ? `${ids.length}개 선택` : '프로젝트'}
         onBack={selecting ? exitSelect : navigation.goBack}
+        // 탭 안에서는 큰 제목 대신 오른쪽 동작만: 추가 (선택 중이면 선택 개수). 아래 '+' 줄은 두지 않음
+        right={embedded ? (selecting
+          ? <Text style={styles.hint}>{ids.length}개 선택</Text>
+          : <Pressable accessibilityRole="button" accessibilityLabel="프로젝트 생성" onPress={() => navigation.navigate(ROUTES.ProjectEdit)} hitSlop={6} style={styles.addRow}>
+              <Icon name="plus" size={14} color={colors.muted} /><Text style={styles.addText}>추가</Text>
+            </Pressable>) : undefined}
       />
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.list, selecting && { paddingBottom: 110 }]}>
         {!selecting && projects.length > 0 && <Text style={styles.hint}>꾹 누르면 여러 개를 선택해 삭제할 수 있어요</Text>}
@@ -119,7 +127,7 @@ export default function ProjectsScreen({ navigation }) {
           exitSelect();
         }}
       />
-      {!selecting && <BottomCreate label="프로젝트 생성" onPress={() => navigation.navigate(ROUTES.ProjectEdit)} />}
+      {!selecting && !embedded && <BottomCreate label="프로젝트 생성" onPress={() => navigation.navigate(ROUTES.ProjectEdit)} />}
     </View>
   );
 }
@@ -127,8 +135,10 @@ export default function ProjectsScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   list: {paddingHorizontal:20,paddingTop:spacing.xs,gap:12,paddingBottom:spacing.xxl},
-  empty: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: spacing.xl, gap: spacing.sm },
-  emptyTitle: { fontSize: 15, fontWeight: '500', color: colors.ink },
+  empty: { paddingVertical: spacing.sm, gap: spacing.sm },
+  addRow: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 44 },
+  addText: { fontSize: 12, color: colors.muted },
+  emptyTitle: { fontSize: 13, fontWeight: '400', color: colors.subtle },
   hint: { fontSize: font.caption, color: colors.muted },
   card: {flexDirection:'row',alignItems:'center',gap:spacing.md,padding:spacing.lg,borderRadius:0,backgroundColor:colors.cream,borderWidth:0,borderColor:colors.line,borderBottomWidth:1,paddingHorizontal:0,paddingVertical:20},
   cardOn: { borderColor: colors.mint, backgroundColor: colors.mintSoft },
