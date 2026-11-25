@@ -37,6 +37,8 @@ Thumbs.db
 
 # Container env and temporary test output
 backend/cloud/.env
+# Supabase CLI link cache (project ref, pooler URL)
+backend/supabase/.temp/
 .next/
 .integration-build/
 

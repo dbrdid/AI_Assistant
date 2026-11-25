@@ -114,8 +114,12 @@ select decrypted_secret as sec from vault.decrypted_secrets where name = 'stt_cl
 select t.ok(public.stt_cleanup_check(:'sec') and length(:'sec') = 64, '4.4 Vault에 64자 비밀값이 만들어지고 맞으면 통과');
 select t.ok(not public.stt_cleanup_check('wrong') and not public.stt_cleanup_check(null) and not public.stt_cleanup_check(''), '4.5 틀리거나 비면 거절');
 :as_admin
-select t.ok((select schedule = '23 * * * *' and command like '%functions/v1/stt-cleanup%' and command like '%x-cleanup-secret%'
-             from cron.job where jobname = 'stt-uploads-cleanup'), '4.6 매시간 정리 cron 등록');
+-- 11/25: 주소는 private.function_url (Vault project_url, 없으면 첫 프로젝트)
+select private.stt_call_function('stt-cleanup');
+select t.ok((select schedule = '23 * * * *' and command = 'select private.stt_call_function(''stt-cleanup'')'
+             from cron.job where jobname = 'stt-uploads-cleanup')
+        and (select url like '%/functions/v1/stt-cleanup' and headers ? 'x-cleanup-secret' from net.calls order by id desc limit 1),
+        '4.6 매시간 정리 cron 등록 (프로젝트 주소로 비밀값을 붙여 호출)');
 select t.ok((select not public and file_size_limit = 26214400 from storage.buckets where id = 'stt-uploads'), '4.7 버킷: 비공개, 25MB');
 select t.ok(not exists (select 1 from pg_policies where tablename = 'objects' and (qual like '%stt-uploads%' or with_check like '%stt-uploads%')), '4.8 앱용 Storage 정책 없음 (서명 URL로만 올림)');
 
