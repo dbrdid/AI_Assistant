@@ -2,7 +2,8 @@ import { useSyncExternalStore } from 'react';
 import { supabase } from '../../lib/stella/supabase';
 import { openSession, closeSession, maybeRuntime, wipeSessionData } from '../../integration/runtime';
 import { getWithdrawPreview, withdrawAccount, withdrawErrorMessage } from '../../lib/stella/withdraw';
-import { completeWebSignIn } from '../../lib/stella/auth';
+import { Linking, Platform } from 'react-native';
+import { completeSignInFromUrl, completeWebSignIn } from '../../lib/stella/auth';
 import { initializeProfile } from '../settings/SettingsStore';
 import { unregisterPush } from '../../services/notify/PushRegister';
 import { LOCAL_PREVIEW, PREVIEW_USER } from '../../integration/mode';
@@ -35,6 +36,17 @@ else completeWebSignIn()
     if (r?.failed) return publish({ status: 'out', user: null, error: r.failed });
     return error ? publish({ status: 'out', user: null, error: error.message }) : enqueue(data.session?.user ?? null);
   }));
+// 휴대폰: 가입 인증 메일의 링크를 누르면 앱이 auth/callback 주소로 열림 → 그 주소로 로그인 마무리.
+// (무료 요금제 기본 메일은 템플릿을 바꿀 수 없어 코드 대신 링크만 옴)
+if (!LOCAL_PREVIEW && Platform.OS !== 'web') {
+  const handle = url => {
+    if (!url || !url.includes('auth/callback')) return;
+    // 이미 로그인한 상태면 잘못된 링크라도 화면을 바꾸지 않는다
+    completeSignInFromUrl(url).catch(error => { if (state.status !== 'in') publish({ status: 'out', user: null, error: error?.message || '인증 링크로 로그인하지 못했어요. 이메일과 비밀번호로 로그인해 주세요' }); });
+  };
+  Linking.getInitialURL().then(handle).catch(() => undefined);
+  Linking.addEventListener('url', ({ url }) => handle(url));
+}
 export const useAuth = () => useSyncExternalStore(fn => { listeners.add(fn); return () => listeners.delete(fn); }, () => state);
 export const retrySession = () => enqueue(state.user);
 export async function startSession() {

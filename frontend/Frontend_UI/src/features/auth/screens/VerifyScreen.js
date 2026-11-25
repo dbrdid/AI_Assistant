@@ -58,7 +58,7 @@ export default function VerifyScreen({ email, initial, onVerified, onBack, onExp
   };
 
   return (
-    <AuthFrame title="이메일 인증" subtitle={`${email}(으)로 인증번호가 발송됩니다.`} onBack={onBack}>
+    <AuthFrame title="이메일 인증" subtitle={`${email}(으)로 보낸 메일의 링크를 휴대폰에서 누르면 바로 로그인돼요.`} onBack={onBack}>
       {!!devCode && (
         <View style={styles.dev}>
           <Text style={styles.devTitle}>테스트 모드</Text>
