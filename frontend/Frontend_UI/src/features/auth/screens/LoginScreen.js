@@ -2,8 +2,9 @@
 // LoginScreen.js — 로그인
 // ============================================================
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { enabledProviders } from '../../../lib/stella/auth';
 import { colors, font, spacing } from '../../../shared/theme/theme';
 import { startSession } from '../../../data/auth/AuthStore';
 import { login, socialLogin } from '../../../services/auth/AuthApi';
@@ -14,6 +15,12 @@ export default function LoginScreen({ prefillEmail = '', notice = '', onSignup, 
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [dialog, setDialog] = useState(null);
+  const [providers, setProviders] = useState({ google: false, kakao: false });
+  useEffect(() => {
+    let alive = true;
+    enabledProviders().then(p => { if (alive) setProviders(p); });
+    return () => { alive = false; };
+  }, []);
 
   const submit = async () => {
     if (busy) return;
@@ -47,13 +54,16 @@ export default function LoginScreen({ prefillEmail = '', notice = '', onSignup, 
       </View>
       <AuthButton label="로그인" onPress={submit} busy={busy} disabled={!email.trim() || !password} />
 
-      <View style={styles.orRow}>
-        <View style={styles.line} /><Text style={styles.or}>또는</Text><View style={styles.line} />
-      </View>
-      <View style={styles.socials}>
-        <AuthButton kind="ghost" label="Google로 계속하기" onPress={() => social('Google')} />
-        <AuthButton kind="ghost" label="카카오로 계속하기" onPress={() => social('카카오')} />
-      </View>
+      {/* 서버에서 켜진 소셜 로그인만 보여 준다 (꺼진 것을 누르면 "provider is not enabled" 오류) */}
+      {(providers.google || providers.kakao) && <>
+        <View style={styles.orRow}>
+          <View style={styles.line} /><Text style={styles.or}>또는</Text><View style={styles.line} />
+        </View>
+        <View style={styles.socials}>
+          {providers.google && <AuthButton kind="ghost" label="Google로 계속하기" onPress={() => social('Google')} />}
+          {providers.kakao && <AuthButton kind="ghost" label="카카오로 계속하기" onPress={() => social('카카오')} />}
+        </View>
+      </>}
       <View style={styles.signup}>
         <Text style={styles.signupHint}>계정이 없으신가요?</Text><Pressable accessibilityRole="button" accessibilityLabel="계정 만들기" onPress={onSignup} style={{minHeight:44,justifyContent:"center"}}><Text style={styles.signupLink}>계정 만들기</Text></Pressable>
       </View>

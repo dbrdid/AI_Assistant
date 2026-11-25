@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
+import { SUPABASE_KEY, SUPABASE_URL } from './config';
 import { PASSWORD_RULE_MESSAGE, checkPasswordRule, createLoginGuard, loginLockedError, normEmail } from './login-rules';
 
 /** 비밀번호 5회 실패 잠금 (이 기기 안에서만, 프론트 결정 2026-11-15) */
@@ -24,6 +25,19 @@ WebBrowser.maybeCompleteAuthSession();
 export const redirectTo = makeRedirectUri({ path: 'auth/callback' });
 
 export type OAuthProvider = 'google' | 'kakao';
+
+/**
+ * 서버(Supabase Auth)에서 켜 둔 소셜 로그인. 꺼진 제공자의 버튼을 누르면 "provider is not enabled" 오류가 나므로
+ * 로그인 화면은 켜진 것만 보여 준다. 공개 설정(/auth/v1/settings)이라 로그인 전에도 읽을 수 있다.
+ */
+let providersCache: Promise<Record<OAuthProvider, boolean>> | null = null;
+export function enabledProviders(): Promise<Record<OAuthProvider, boolean>> {
+  providersCache ??= fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SUPABASE_KEY } })
+    .then(r => (r.ok ? r.json() : {}))
+    .then((s: any) => ({ google: s?.external?.google === true, kakao: s?.external?.kakao === true }))
+    .catch(() => { providersCache = null; return { google: false, kakao: false }; });
+  return providersCache;
+}
 
 /**
  * Google·Kakao 로그인. 사용자가 취소하면 null
