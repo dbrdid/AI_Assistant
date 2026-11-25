@@ -1,12 +1,12 @@
-﻿# Atria 브리지 0.2.0
+﻿# Atria 브리지 0.0.1
 
-브리지는 내 컴퓨터의 로컬 모델, API 제공자, 로그인된 CLI, 플러그인을 Atria 앱의 **내 서버** 연결로 사용할 수 있게 한다. 모델이나 CLI를 실행할 컴퓨터에 앱과 별도로 설치한다.
+브리지는 내 컴퓨터의 로컬 모델, ChatGPT 플랜, API 제공자, 로그인된 CLI, 플러그인을 Atria 앱의 **내 서버** 연결로 사용할 수 있게 한다. 모델이나 CLI를 실행할 컴퓨터에 앱과 별도로 설치한다.
 
-0.1.0(Stella 브리지)에서 이름이 바뀌었다. 기존 설정 `~/.stella-bridge/config.json`은 그대로 읽으므로 앱에 넣어 둔 연결 문자열을 다시 넣지 않아도 된다. 설정을 처음 저장할 때 `~/.atria-bridge/config.json`에 쓴다.
+Stella 브리지 0.1.0에서 이름을 바꾸고 Atria 버전 번호(0.0.x)를 따른다. 기존 설정 `~/.stella-bridge/config.json`은 그대로 읽으므로 앱에 넣어 둔 연결 문자열을 다시 넣지 않아도 된다. 설정을 처음 저장할 때 `~/.atria-bridge/config.json`에 쓴다.
 
 ## 설치
 
-**Windows**에서는 릴리스의 `atria-bridge.exe`와 `SHA256SUMS.txt`를 같은 폴더에 내려받는다. PowerShell에서 아래 해시를 구해 `SHA256SUMS.txt`의 실행 파일 항목과 일치하는지 확인한다. 실행 파일에 코드 서명이 없어 SmartScreen 경고가 나타날 수 있다.
+**Windows**에서는 AI_Assistant 저장소 릴리스(https://github.com/dbrdid/AI_Assistant/releases)의 `atria-bridge.exe`와 `SHA256SUMS.txt`를 같은 폴더에 내려받는다. PowerShell에서 아래 해시를 구해 `SHA256SUMS.txt`의 실행 파일 항목과 일치하는지 확인한다. 실행 파일에 코드 서명이 없어 SmartScreen 경고가 나타날 수 있다.
 
 ```powershell
 Get-FileHash .\atria-bridge.exe -Algorithm SHA256
@@ -35,6 +35,8 @@ Ollama를 쓰려면 PC에서 Ollama를 실행하고 모델을 하나 받아 둔�
 | `init` | 최초 설정을 만들고 연결 문자열을 출력한다. |
 | `serve [--host 0.0.0.0] [--port 8787]` | 지정한 호스트와 포트에서 브리지를 실행한다. |
 | `list` | 공급원별 상태와 사용 가능한 모델 ID를 표시한다. |
+| `login-chatgpt` / `logout-chatgpt` | 이 PC 브라우저로 ChatGPT 계정을 연결하거나 해제한다. |
+| `update` | 새 버전이 있으면 프로그램만 교체한다. 설정, 연결 키, ChatGPT 로그인, 플러그인은 그대로 둔다. |
 | `add-key <openai\|anthropic\|gemini> [모델...]` | 제공자의 API 키를 입력하고 사용할 모델을 지정한다. |
 | `add-key openai-compatible <이름> <주소>` | OpenAI 호환 서버를 등록한다. 키가 필요 없으면 입력창에서 Enter를 누른다. |
 | `enable-cli <claude\|codex>` | 이 PC에 설치하고 로그인한 CLI를 켠다. |
@@ -43,6 +45,20 @@ Ollama를 쓰려면 PC에서 Ollama를 실행하고 모델을 하나 받아 둔�
 | `enable-plugin <id>` / `disable-plugin <id>` | 플러그인을 켜거나 끈다. 서버를 다시 시작하면 적용된다. |
 | `rotate-key` | 연결 키를 교체한다. 서버를 다시 시작하고 새 연결 문자열을 앱에 붙여 넣는다. |
 | `--version` | 브리지 버전을 표시한다. |
+
+## ChatGPT 플랜 쓰기 (Sign in with ChatGPT)
+
+1. 브리지 PC에서 `login-chatgpt`를 실행하면 브라우저가 열린다. **ChatGPT로 계속하기**를 진행하고 플랜 사용을 허락한다.
+2. 브라우저가 `127.0.0.1`로 돌아오면 연결이 끝난다. 처음 한 번 이 PC가 Atria 브리지로 등록되고, 이후에는 같은 등록을 쓴다.
+3. `serve`를 다시 시작하면 앱 모델 목록에 `chatgpt/<모델>`이 나타난다. 이 모델의 요청은 ChatGPT 플랜(Go, Plus, Pro, Business) 사용량을 쓴다. 사용량 관리: https://chatgpt.com/settings/usage
+
+- 토큰은 이 PC의 설정 파일에만 저장되고 앱(휴대폰)으로 보내지 않는다. 브리지는 계정 주인 본인만 쓴다. 다른 기기를 거친 사용이 허용되는지는 OpenAI 문서에 명시되어 있지 않다.
+- 액세스 토큰은 1시간마다 자동으로 갱신된다. 갱신이 거부되면 `login-chatgpt`를 다시 실행한다.
+- 연결 해제: `logout-chatgpt` 또는 ChatGPT 설정의 연결된 앱.
+
+## 업데이트
+
+다른 앱처럼 설치된 버전 위에 바뀐 프로그램만 덮어쓴다. `serve`는 시작할 때 새 버전을 알려 준다. 서버를 끄고 `update`를 실행한다. 내려받은 파일은 같은 릴리스의 `SHA256SUMS.txt`와 해시가 맞을 때만 설치된다. 설정 폴더(`~/.atria-bridge`)는 건드리지 않는다. npm 설치본은 확인한 패키지 경로와 `npm i -g` 명령을 알려 준다.
 
 ## 플러그인
 

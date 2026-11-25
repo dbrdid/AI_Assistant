@@ -2,7 +2,7 @@
 // Atria bridge: node atria-bridge.mjs <init|serve|list|add-key|enable-cli|disable-cli|plugins|enable-plugin|disable-plugin|rotate-key>
 import { networkInterfaces } from 'node:os';
 import { createInterface } from 'node:readline';
-import { PROVIDER_DEFAULTS, VERSION, configPath, createBridge, loadConfig, loadPlugins, newKey, pluginDir, resolveCli, saveConfig, sources } from './bridge.mjs';
+import { CHATGPT_USAGE_URL, PROVIDER_DEFAULTS, VERSION, chatgptLogin, chatgptLogout, cleanupOldExecutable, configPath, createBridge, downloadVerified, installUpdate, latestBridgeRelease, loadConfig, loadPlugins, newKey, pluginDir, resolveCli, saveConfig, sources } from './bridge.mjs';
 
 const lanAddresses = () => Object.values(networkInterfaces()).flat().filter(a => a && a.family === 'IPv4' && !a.internal).map(a => a.address);
 const link = config => `http://${lanAddresses()[0] ?? '127.0.0.1'}:${config.port}#key=${config.key}`;
@@ -18,6 +18,7 @@ function done(message, code = 0) { (code ? console.error : console.log)(message)
 
 const [command, ...args] = process.argv.slice(2);
 if (command === '--version' || command === '-v') done(VERSION);
+cleanupOldExecutable();
 const config = loadConfig();
 const file = configPath();
 const plugins = ['serve', 'list', 'plugins', 'enable-plugin', 'disable-plugin'].includes(command) ? await loadPlugins(config, pluginDir(file)) : [];
@@ -38,7 +39,27 @@ if (command === 'init' || command === 'rotate-key') {
     const on = plugins.filter(p => p.plugin && config.plugins[p.id]?.enabled).map(p => p.id);
     if (on.length) console.log(`  켜진 플러그인: ${on.join(', ')}`);
     console.log('외부에서 접속하려면 HTTPS 역방향 프록시나 Tailscale을 사용하세요. 포트를 인터넷에 그대로 열지 마세요.');
+    latestBridgeRelease().then(r => r && console.log(`새 버전 ${r.version}이 있습니다. 서버를 끄고 update를 실행하세요. 설정과 연결 키는 그대로 유지됩니다.`)).catch(() => {});
   });
+} else if (command === 'login-chatgpt') {
+  try {
+    const s = await chatgptLogin(config, c => saveConfig(c));
+    console.log(`ChatGPT 계정(${s.email || s.sub})을 연결했습니다.`);
+    if (!s.planUsage) done('로그인은 됐지만 ChatGPT 플랜 사용 권한이 허락되지 않았습니다. 다시 실행해 플랜 사용을 허락하세요.', 1);
+    done(`이제 앱의 모델 목록에 chatgpt/ 모델이 보입니다. 이 모델의 요청은 ChatGPT 플랜 사용량을 씁니다.\n사용량 관리: ${CHATGPT_USAGE_URL}\n토큰은 이 PC의 설정 파일에만 저장됩니다. 이 브리지는 계정 주인 본인만 쓰세요.`);
+  } catch (error) { done(error?.message ?? String(error), 1); }
+} else if (command === 'logout-chatgpt') {
+  await chatgptLogout(config, c => saveConfig(c));
+  done('ChatGPT 연결을 해제했습니다. ChatGPT 설정 > 연결된 앱에서도 해제할 수 있습니다.');
+} else if (command === 'update') {
+  try {
+    const release = await latestBridgeRelease();
+    if (!release) done(`최신 버전입니다 (${VERSION}).`);
+    console.log(`${VERSION} → ${release.version} 내려받는 중...`);
+    const result = installUpdate(release, await downloadVerified(release));
+    done(result.replaced ? `${release.version}으로 업데이트했습니다. 설정, 연결 키, ChatGPT 로그인, 플러그인은 그대로입니다.`
+      : `확인한 패키지를 내려받았습니다. 아래 명령으로 설치하세요. 설정은 그대로 유지됩니다.\n  npm i -g "${result.file}"`);
+  } catch (error) { done(error?.message ?? String(error), 1); }
 } else if (command === 'list') {
   const { models, status } = await sources(config, undefined, plugins);
   for (const s of status) console.log(`${s.source.padEnd(12)} ${s.state}`);
@@ -82,5 +103,5 @@ if (command === 'init' || command === 'rotate-key') {
   saveConfig(config);
   done(on ? `${id} 플러그인을 켰습니다. 플러그인은 이 PC의 권한으로 실행되니 믿을 수 있는 파일만 켜세요. 서버를 다시 시작하면 적용됩니다.` : `${id} 플러그인을 껐습니다. 서버를 다시 시작하면 적용됩니다.`);
 } else {
-  done('사용법: atria-bridge <init | serve [--host 0.0.0.0] [--port 8787] | list | add-key ... | enable-cli <claude|codex> | disable-cli [이름] | plugins | enable-plugin <id> | disable-plugin <id> | rotate-key>', command ? 1 : 0);
+  done('사용법: atria-bridge <init | serve [--host 0.0.0.0] [--port 8787] | list | login-chatgpt | logout-chatgpt | add-key ... | enable-cli <claude|codex> | disable-cli [이름] | plugins | enable-plugin <id> | disable-plugin <id> | update | rotate-key>', command ? 1 : 0);
 }

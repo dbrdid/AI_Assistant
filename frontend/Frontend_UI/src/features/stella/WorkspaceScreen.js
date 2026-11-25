@@ -1,6 +1,7 @@
 import { SheetModal } from "../../shared/components/Motion";
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
-import { Animated, Easing, Platform, FlatList, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Animated, Easing, Platform, FlatList, Image, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useAppUpdate } from '../../services/update/AppUpdate';
 import TabBar from '../../navigation/TabBar';
 import { ScreenEntryProvider } from '../../navigation/ScreenEntry';
 import { useFiles } from '../../data/files/FileStore';
@@ -191,6 +192,7 @@ export default function WorkspaceScreen({
   const spaces = useWorkspaces();
   const memos = memoRows;
   const actions = useProposalActions(navigation);
+  const appUpdate = useAppUpdate();
   const [menu, setMenu] = useState(false);
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState(new Set());
@@ -287,6 +289,7 @@ export default function WorkspaceScreen({
           {!documents.length && <Text style={s.emptyInline}>아직 작성한 문서가 없습니다.</Text>}
         </HomeSection>
         {waiting.length > 0 && <Pressable accessibilityRole="button" onPress={() => go(ROUTES.Proposals)} style={s.homeReview}><Icon name="checkSquare" size={18} color={c.muted} /><Text style={s.rowTitle}>검토할 작업</Text><Text style={s.linkText}>{waiting.length}</Text></Pressable>}
+        {appUpdate && <Pressable accessibilityRole="button" accessibilityLabel={`새 버전 ${appUpdate.version} 받기`} onPress={() => Linking.openURL(appUpdate.url)} style={s.homeReview}><Icon name="arrowUp" size={18} color={c.muted} /><Text style={s.rowTitle}>새 버전 {appUpdate.version}</Text><Text style={s.linkText}>받기</Text></Pressable>}
       </ScrollView>
       <View style={[s.homeDock, { paddingBottom: Math.max(10, insets.bottom) }]}><Pressable accessibilityRole="button" onPress={() => go(ROUTES.Search)} style={s.homeSearch}><Icon name="search" size={19} color={c.muted} /><Text style={s.homeSearchText}>검색</Text></Pressable><IconButton name="pencil" label="새 문서 작성" onPress={() => go(ROUTES.MemoEdit)} /></View>
     </>;

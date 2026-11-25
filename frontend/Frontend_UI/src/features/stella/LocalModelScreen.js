@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Linking, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 import { runtime, maybeRuntime, gateway, readPreference, writePreference, aiPolicy } from '../../integration/runtime';
 import { askMobileModel, cancelMobileModelDownload, installMobileModel, listMobileModels, pendingMobileModelDownload } from '../../integration/mobileModel';
@@ -194,6 +194,8 @@ export default function LocalModelScreen({ navigation, route }) {
         update({ serverUrl: bridge ? bridge.url : serverUrl });
       }} editable={!busy} autoCapitalize="none" autoCorrect={false} placeholder="서버 주소 또는 Atria 브리지 연결 문자열" placeholderTextColor={c.subtle} style={s.connInput} />
       {detailRow('모델', connection.serverModel || '서버에서 불러오기', () => (serverList.length ? setPicker('server') : loadServer()))}
+      {/* Sign in with ChatGPT 안내: chatgpt/ 모델은 브리지 주인의 ChatGPT 플랜 사용량을 씀 */}
+      {connection.serverModel?.startsWith('chatgpt/') && detailRow('ChatGPT 플랜 사용 중', '사용량 관리', () => Linking.openURL('https://chatgpt.com/settings/usage'))}
       {!!connection.serverUrl && serverList.length > 0 && <View style={s.aiActions}>{ghost('모델 목록 새로고침', 'refresh', loadServer)}</View>}
     </>}
     {(id === 'openai' || id === 'anthropic') && <TextInput accessibilityLabel="모델 이름" value={connection[id + 'Model']} onChangeText={value => update({ [id + 'Model']: value })}

@@ -1,6 +1,6 @@
 {
   "name": "atria-bridge",
-  "version": "0.2.0",
+  "version": "0.0.1",
   "description": "Atria 앱에서 이 PC나 서버의 AI를 OpenAI 호환 API 하나로 쓰게 하는 브리지",
   "type": "module",
   "bin": { "atria-bridge": "atria-bridge.mjs" },
