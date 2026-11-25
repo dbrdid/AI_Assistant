@@ -187,8 +187,8 @@ const styles = StyleSheet.create({
   hint: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
   textBox: { maxHeight: 200, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   text: { fontSize: font.body, color: colors.ink, lineHeight: 21 },
-  primary: { minHeight: 52, borderRadius: radius.pill, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.sm },
+  primary: { minHeight: 52, borderRadius: radius.sm, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.sm },
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
-  ghost: { minHeight: 48, borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  ghost: { minHeight: 48, borderRadius: radius.sm, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
 });

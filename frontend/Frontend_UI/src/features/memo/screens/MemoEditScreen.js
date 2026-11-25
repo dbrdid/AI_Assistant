@@ -1165,7 +1165,7 @@ const styles = StyleSheet.create({
   summaryText: { fontSize: font.body, color: colors.ink, lineHeight: 22 },
   summarySub: { fontSize: font.body, color: colors.muted },
   summaryLoading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  summaryAdd: { alignSelf: 'flex-start', minHeight: 34, paddingHorizontal: spacing.lg, borderRadius: radius.pill, backgroundColor: colors.action, justifyContent: 'center', marginTop: 2 },
+  summaryAdd: { alignSelf: 'flex-start', minHeight: 34, paddingHorizontal: spacing.lg, borderRadius: radius.sm, backgroundColor: colors.action, justifyContent: 'center', marginTop: 2 },
   summaryAddText: { fontSize: font.caption + 1, fontWeight: '600', color: colors.onPrimary },
 
   // 펜 옵션 줄: 색 동그라미(선택된 색은 바깥 고리) + 굵기
@@ -1195,7 +1195,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.mintSoft,
   },
   convertHint: { flex: 1, fontSize: font.caption, color: colors.mintDark, fontWeight: '500' },
-  convertAll: { paddingHorizontal: spacing.md, minHeight: 34, borderRadius: radius.pill, backgroundColor: colors.action, justifyContent: 'center' },
+  convertAll: { paddingHorizontal: spacing.md, minHeight: 34, borderRadius: radius.sm, backgroundColor: colors.action, justifyContent: 'center' },
   convertAllText: { fontSize: font.body, fontWeight: '500', color: colors.onPrimary },
 
   // 도구 줄 (흰 바탕 + 위쪽 얇은 선)

@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   check: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
 
   actions: { flexDirection: 'row', gap: spacing.sm },
-  actionBtn: { flex: 1, minHeight: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  actionBtn: { flex: 1, minHeight: 40, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   editBtn: { backgroundColor: 'transparent', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.actionBorder },
   editText: { fontSize: 14, fontWeight: '500', color: colors.ink },
   delBtn: { backgroundColor: colors.coralSoft },

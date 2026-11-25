@@ -128,7 +128,8 @@ export const uiStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   circle: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.line },
   badgeDot: { position: 'absolute', top: 7, right: 8, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.coral, borderWidth: 1, borderColor: colors.white },
-  pill: { minHeight: 44, paddingHorizontal: 18, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  // Stella 주요 버튼(features/stella/theme.js primary·secondary)과 같은 4px 모서리
+  pill: { minHeight: 44, paddingHorizontal: 18, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   pillPrimary: { backgroundColor: colors.action },
   pillGhost: { backgroundColor: 'transparent', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.actionBorder },
   pillText: { fontSize: 14, fontWeight: '600' },

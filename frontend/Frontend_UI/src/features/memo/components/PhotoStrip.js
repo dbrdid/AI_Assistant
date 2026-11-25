@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', alignItems: 'center', justifyContent: 'center', padding: spacing.lg, gap: spacing.lg },
   big: { width: '100%', height: '75%' },
   btns: { flexDirection: 'row', gap: spacing.sm, width: '100%', maxWidth: 360 },
-  btn: { flex: 1, minHeight: 48, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  btn: { flex: 1, minHeight: 48, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   ghost: { backgroundColor: colors.card },
   ghostText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.coral },
   main: { backgroundColor: colors.action },

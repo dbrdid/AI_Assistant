@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
   sub: { fontSize: font.caption, color: colors.muted },
   stats: { fontSize: font.caption, fontWeight: '500', color: colors.mint },
   actions: { flexDirection: 'row', gap: spacing.sm },
-  action: { flex: 1, flexDirection: 'row', gap: 6, minHeight: 44, borderRadius: radius.pill, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.actionBorder, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
+  action: { flex: 1, flexDirection: 'row', gap: 6, minHeight: 44, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.actionBorder, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
   actionNew: { backgroundColor: colors.action, borderColor: colors.action },
   actionNewText: { fontSize: 14, fontWeight: '600', color: colors.ink },
   actionText: { fontSize: 14, fontWeight: '500', color: colors.ink },
