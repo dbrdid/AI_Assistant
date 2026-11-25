@@ -17,6 +17,27 @@ function InsertBoundary({label, open, drop}) {
     <View style={{height:2,backgroundColor:hover || focus ? c.accent : 'transparent'}}/>
   </Pressable>;
 }
+// Block bodies by type. To add a type, add it to TYPES and register a marker, text style or body here.
+// Defined at module level so re-renders keep each TextInput mounted (and focused).
+function TableBody({block,index,ctx}) {
+  const {disabled,askAI,setActive,setTable}=ctx;
+  return <ScrollView horizontal showsHorizontalScrollIndicator={false}><View>{block.rows.map((row,r)=><View key={r} style={{flexDirection:'row'}}>{row.map((cell,col)=><Pressable key={col} accessibilityRole="button" accessibilityLabel={`표 ${index+1}, ${r+1}행 ${col+1}열: ${cell||'빈 셀'}`} disabled={disabled} onLongPress={askAI&&(()=>askAI(index))} delayLongPress={450} onPress={()=>{setActive(block.id);setTable({block:{...block,rows:tableRows(block.rows)},new:false});}} style={{width:140,minHeight:44,borderWidth:1,borderColor:c.line,padding:10}}><Text style={{color:c.text,fontSize:14}}>{cell||' '}</Text></Pressable>)}</View>)}</View></ScrollView>;
+}
+const MARKERS = {
+  task: ({block,index,ctx}) => <Pressable accessibilityRole="checkbox" accessibilityLabel={`블록 ${index+1} 할 일 완료`} accessibilityState={{checked:block.checked}} aria-checked={block.checked} disabled={ctx.disabled} onPress={()=>ctx.update(block.id,{checked:!block.checked})} style={{minWidth:28,minHeight:44,justifyContent:'center'}}><Icon name={block.checked?'checkSquare':'square'} size={19} color={c.muted}/></Pressable>,
+  bullet: () => <Text style={{color:c.muted,lineHeight:30}}>•</Text>,
+};
+const TEXT_STYLES = { heading: {fontSize:24,fontWeight:'600',lineHeight:34,paddingVertical:5} };
+const BODY_TEXT = {fontSize:16,fontWeight:'400',lineHeight:28,paddingVertical:8};
+function TextBody({block,index,ctx}) {
+  const {disabled,inputs,holdStart,holdEnd,setActive,changeText,skipSplit,closePicker}=ctx;
+  const Marker=MARKERS[block.type];
+  return <View style={{flexDirection:'row',gap:8,alignItems:'center'}}>
+    {Marker?<Marker block={block} index={index} ctx={ctx}/>:null}
+    <TextInput numberOfLines={1} rows={1} onContentSizeChange={event=>{const height=event.nativeEvent.contentSize?.height;if(height && Platform.OS!=='web')inputs.current.get(block.id)?.setNativeProps?.({style:{height:Math.max(44,height)}});}} ref={input=>{if(input)inputs.current.set(block.id,input);else inputs.current.delete(block.id);}} accessibilityLabel={`블록 ${index+1} 내용`} editable={!disabled} onPressIn={()=>holdStart(index)} onPressOut={holdEnd} onFocus={()=>setActive(block.id)} value={block.text} onChangeText={text=>changeText(block,text)} onKeyPress={event=>{if(event.nativeEvent.key==='Enter')skipSplit.current=!!(event.shiftKey||event.nativeEvent.shiftKey);if(event.nativeEvent.key==='Escape')closePicker();}} multiline scrollEnabled={false} placeholder={index===0?'내용을 입력하세요...':''} placeholderTextColor={c.subtle} style={{flex:1,padding:0,...(Platform.OS==='web'?{fieldSizing:'content'}:{}),minHeight:44,color:block.checked?c.muted:c.text,textDecorationLine:block.checked?'line-through':'none',...(TEXT_STYLES[block.type]??BODY_TEXT),textAlignVertical:'center'}}/>
+  </View>;
+}
+const BODIES = { table: TableBody };
 const NO_PENDING = new Set();
 const BlockEditor = forwardRef(function BlockEditor({ blocks, onChange, disabled, onAskAI, pending = NO_PENDING, replacing = NO_PENDING, onDecide }, ref) {
   const [picker,setPicker] = useState(null), [active,setActive] = useState(null), [table,setTable] = useState(null), [error,setError] = useState(''), [drop,setDrop] = useState(null);
@@ -65,6 +86,7 @@ const BlockEditor = forwardRef(function BlockEditor({ blocks, onChange, disabled
   function dropBlock(before){if(disabled||!dragging.current)return;const id=dragging.current;dragging.current=null;setDrop(null);commit(moveBlock(blocks,id,before));}
   function resizeTable(rows){try{setTable({...table,block:{...table.block,rows:tableRows(rows)}});setError('');}catch(e){setError(e.message);}}
   function saveTable(){try{const block={...table.block,rows:tableRows(table.block.rows)};commit(table.new?insertBlock(blocks,table.after,block,table.first):blocks.map(item=>item.id===block.id?block:item));setActive(block.id);setTable(null);}catch(e){setError(e.message);}}
+  const ctx={disabled,askAI,setActive,setTable,update,inputs,holdStart,holdEnd,changeText,skipSplit,closePicker};
   const action=(label,icon,onPress,inactive=false)=><Pressable key={label} accessibilityRole="button" accessibilityLabel={label} disabled={disabled||inactive} onPress={onPress} style={[s.menuRow,(disabled||inactive)&&{opacity:.35}]}><Icon name={icon} size={18} color={c.muted}/><Text style={s.menuLabel}>{label}</Text></Pressable>;
   return <View style={{paddingTop:4,minHeight:280}} onPointerCancel={()=>{dragging.current=null;setDrop(null);}}>
     {error?<Text accessibilityRole="alert" style={s.error}>{error}</Text>:null}
@@ -73,10 +95,7 @@ const BlockEditor = forwardRef(function BlockEditor({ blocks, onChange, disabled
       <View style={{flexDirection:'row',gap:6,alignItems:'center'}}>
         {!disabled&&<Pressable accessibilityRole="button" accessibilityLabel={`블록 ${index+1} 메뉴 / 드래그 이동`} accessibilityHint={askAI?'길게 누르면 이 블록으로 AI에게 요청합니다':undefined} onLongPress={askAI&&(()=>askAI(index))} delayLongPress={450} onPress={()=>{if(dragMoved.current){dragMoved.current=false;return;}setActive(block.id);setPicker({id:block.id});}} onPointerDown={event=>{if(Platform.OS==='web'&&event.nativeEvent?.button!==2){dragMoved.current=false;dragging.current=block.id;setActive(block.id);}}} onKeyDown={event=>{if(event.altKey&&['ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();move(event.key==='ArrowUp'?-1:1,block.id);}}} style={{width:32,minHeight:44,alignItems:'center',justifyContent:'center'}}><Text style={{color:c.muted,fontSize:22}}>⠿</Text></Pressable>}
         <View style={{flex:1,minWidth:0}}>
-          {block.type==='table'?<ScrollView horizontal showsHorizontalScrollIndicator={false}><View>{block.rows.map((row,r)=><View key={r} style={{flexDirection:'row'}}>{row.map((cell,col)=><Pressable key={col} accessibilityRole="button" accessibilityLabel={`표 ${index+1}, ${r+1}행 ${col+1}열: ${cell||'빈 셀'}`} disabled={disabled} onLongPress={askAI&&(()=>askAI(index))} delayLongPress={450} onPress={()=>{setActive(block.id);setTable({block:{...block,rows:tableRows(block.rows)},new:false});}} style={{width:140,minHeight:44,borderWidth:1,borderColor:c.line,padding:10}}><Text style={{color:c.text,fontSize:14}}>{cell||' '}</Text></Pressable>)}</View>)}</View></ScrollView>:<View style={{flexDirection:'row',gap:8,alignItems:'center'}}>
-            {block.type==='task'?<Pressable accessibilityRole="checkbox" accessibilityLabel={`블록 ${index+1} 할 일 완료`} accessibilityState={{checked:block.checked}} aria-checked={block.checked} disabled={disabled} onPress={()=>update(block.id,{checked:!block.checked})} style={{minWidth:28,minHeight:44,justifyContent:'center'}}><Icon name={block.checked?'checkSquare':'square'} size={19} color={c.muted}/></Pressable>:block.type==='bullet'?<Text style={{color:c.muted,lineHeight:30}}>•</Text>:null}
-            <TextInput numberOfLines={1} rows={1} onContentSizeChange={event=>{const height=event.nativeEvent.contentSize?.height;if(height && Platform.OS!=='web')inputs.current.get(block.id)?.setNativeProps?.({style:{height:Math.max(44,height)}});}} ref={input=>{if(input)inputs.current.set(block.id,input);else inputs.current.delete(block.id);}} accessibilityLabel={`블록 ${index+1} 내용`} editable={!disabled} onPressIn={()=>holdStart(index)} onPressOut={holdEnd} onFocus={()=>setActive(block.id)} value={block.text} onChangeText={text=>changeText(block,text)} onKeyPress={event=>{if(event.nativeEvent.key==='Enter')skipSplit.current=!!(event.shiftKey||event.nativeEvent.shiftKey);if(event.nativeEvent.key==='Escape')closePicker();}} multiline scrollEnabled={false} placeholder={index===0?'내용을 입력하세요...':''} placeholderTextColor={c.subtle} style={{flex:1,padding:0,...(Platform.OS==='web'?{fieldSizing:'content'}:{}),minHeight:44,color:block.checked?c.muted:c.text,textDecorationLine:block.checked?'line-through':'none',fontSize:block.type==='heading'?24:16,fontWeight:block.type==='heading'?'600':'400',lineHeight:block.type==='heading'?34:28,textAlignVertical:'center',paddingVertical:block.type==='heading'?5:8}}/>
-          </View>}
+          {React.createElement(BODIES[block.type]??TextBody,{block,index,ctx})}
         </View>
       </View>
       {pending.has(block.id)&&<View style={{flexDirection:'row',alignItems:'center',gap:4,marginLeft:38}}><Text style={[s.meta,{color:c.accent,flex:1}]}>{replacing?.has(block.id)?'AI 제안: 수용하면 원래 블록을 대체':'AI 제안'}</Text>{[['수용',true],['거절',false]].map(([label,accept])=><Pressable key={label} accessibilityRole="button" accessibilityLabel={`블록 ${index+1} AI 제안 ${label}`} disabled={disabled} onPress={()=>onDecide?.([block.id],accept)} style={{minHeight:44,minWidth:44,justifyContent:'center',paddingHorizontal:8,opacity:disabled?.4:1}}><Text style={s.linkText}>{label}</Text></Pressable>)}</View>}
