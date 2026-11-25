@@ -2,7 +2,10 @@ import { runtime, useValue, readPreference, writePreference } from '../hooks';
 import { ROUTES } from '../../navigation/routes';
 import { searchFilesByName } from './SearchFiles.mjs';
 export const TYPE_INFO = { memo: { label: '메모', icon: '📝', route: ROUTES.MemoEdit }, task: { label: '일정', icon: '✓', route: ROUTES.TaskEdit }, event: { label: '일정', icon: '◷', route: ROUTES.TaskEdit }, project: { label: '프로젝트', icon: '▣', route: ROUTES.ProjectDetail }, file: { label: '파일', icon: '📄', route: ROUTES.Files } };
-export const STORAGE_INFO = { local: { icon: '▣', label: '기기', desc: '이 기기에 저장된 파일' }, cloud: { icon: '☁', label: '클라우드', desc: '공유 공간 멤버가 함께 보는 파일' } };
+export const STORAGE_INFO = {
+  local: { icon: '▣', label: '내 기기', desc: '기기에서 연결한 파일 · 앱에서 만든 미디어' },
+  cloud: { icon: '☁', label: '공유 클라우드', desc: '공유 공간 · 멤버와 함께 사용' },
+};
 export const getMemos = () => runtime().store.getMemos();
 export const useMemos = () => useValue(getMemos);
 // 모든 공간의 메모 (항목마다 workspaceId) + 지정한 공간에 쓰기

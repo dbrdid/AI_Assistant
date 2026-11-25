@@ -6,6 +6,8 @@ import { setup } from '../../backend/local/tests/helpers.mjs';
 import { requireTransmission, requireRoute } from '../../shared/contracts/ai-policy.js';
 import { noConnectionText } from '../../frontend/Frontend_UI/src/features/project/projectConnectionText.js';
 import { applyPendingMemoLinks } from '../../frontend/Frontend_UI/src/features/project/projectConnectionText.js';
+import { queuePendingMemoLinks } from '../../frontend/Frontend_UI/src/features/project/projectConnectionText.js';
+import { unresolvedPendingMemoLinkIds } from '../../frontend/Frontend_UI/src/features/project/projectConnectionText.js';
 import { memoCreationWorkspaceId } from '../../frontend/Frontend_UI/src/features/memo/memoCreationWorkspace.js';
 import { projectTaskSection } from '../../frontend/Frontend_UI/src/features/project/projectTaskKind.js';
 import { canLinkProjectItems, canManageProjectItems, isWorkspaceOwner } from '../../frontend/Frontend_UI/src/features/project/projectPermissions.js';
@@ -23,13 +25,13 @@ function world() {
   return { ...t, source, service, calls, policy: value => { policy = value; }, session: value => { session = value; }, response: value => { response = value; } };
 }
 
-test('file-vault chat scope uses only selected vault attachments and skips planner records', () => {
+test('file-vault chat scope keeps every explicitly attached file and skips planner records', () => {
   const vaultFile = { id: 'vault-file', sourceScope: 'vault' };
   const pickedFile = { id: 'picked-file' };
   const memo = { id: 'memo', type: 'memo' };
   assert.deepEqual(selectChatSources({
     attachments: [vaultFile, pickedFile], records: [memo], fileVaultOnly: true,
-  }), { attachments: [vaultFile], records: [] });
+  }), { attachments: [vaultFile, pickedFile], records: [] });
   assert.deepEqual(selectChatSources({
     attachments: [pickedFile], records: [memo], fileVaultOnly: false,
   }), { attachments: [pickedFile], records: [memo] });
@@ -49,6 +51,25 @@ test('pending shared memo links override server links until synchronization succ
     { note_id: 'memo-a', project_id: 'project-old' },
     { note_id: 'memo-b', project_id: 'project-new' },
   ]);
+});
+
+test('shared memo link actions are queued for synchronization', () => {
+  assert.deepEqual(queuePendingMemoLinks({ 'memo-a': 'project-old' }, ['memo-a', 'memo-b'], 'project-new'), {
+    'memo-a': 'project-new',
+    'memo-b': 'project-new',
+  });
+  assert.deepEqual(queuePendingMemoLinks({ 'memo-a': 'project-old' }, ['memo-a'], null), {
+    'memo-a': null,
+  });
+});
+
+test('shared memo actions stay pending when their requested project link has not synced', () => {
+  assert.deepEqual(unresolvedPendingMemoLinkIds({
+    'memo-a': 'project-new',
+    'memo-b': null,
+    'memo-c': 'project-other',
+  }, ['memo-a', 'memo-b', 'memo-c', 'memo-d'], 'project-new'), ['memo-a']);
+  assert.deepEqual(unresolvedPendingMemoLinkIds({ 'memo-b': null }, ['memo-b'], null), ['memo-b']);
 });
 
 test('new memos follow the selected workspace or the active workspace in all-spaces view', () => {
@@ -107,6 +128,59 @@ test('manual summary preview calls the same policy boundary without saving propo
   assert.equal(t.calls.length, 1);
   assert.equal(t.store.getProposals().length, 0);
   assert.equal(t.store.getMemo(t.source.id).body, 'CANARY_BODY');
+});
+
+test('photo memo integration returns an editable preview without changing the saved memo', async () => {
+  const t = world();
+  t.policy({ route: 'external', allowedProviders: ['external'], consent: { external: true }, excluded: false });
+  t.response(async () => ({
+    ok: true,
+    request_id: 'photo-merge',
+    draft: { organized: '기존 내용\n\n사진에서 확인한 내용', title: '무시할 제목' },
+  }));
+
+  const result = await t.service.mergePhotoTextIntoMemo(t.source.id, '사진에서 확인한 내용', {
+    sourceRevision: t.source.revision,
+  });
+
+  assert.equal(result.body, '기존 내용\n\n사진에서 확인한 내용');
+  assert.equal(result.sourceRevision, t.source.revision);
+  assert.equal(t.store.getMemo(t.source.id).body, 'CANARY_BODY');
+  assert.equal(t.calls[0][0], 'organize');
+  assert.equal(t.calls[0][2].route, 'external');
+  assert.match(t.calls[0][1].text, /사진에서 확인한 내용/);
+});
+
+test('photo memo integration rejects stale source revisions and source edits during generation', async () => {
+  const t = world();
+  t.policy({ route: 'external', allowedProviders: ['external'], consent: { external: true }, excluded: false });
+  await assert.rejects(t.service.mergePhotoTextIntoMemo(t.source.id, '사진 내용', {
+    sourceRevision: t.source.revision + 1,
+  }), { code: 'SOURCE_CHANGED' });
+  await assert.rejects(t.service.mergePhotoTextIntoMemo(t.source.id, '사진 내용', {
+    sessionId: 'another-account',
+  }), { code: 'SOURCE_CHANGED' });
+  await assert.rejects(t.service.mergePhotoTextIntoMemo(t.source.id, '사진 내용', {
+    workspaceId: 'another-workspace',
+  }), { code: 'SOURCE_CHANGED' });
+  assert.equal(t.calls.length, 0);
+
+  t.response(async () => {
+    t.store.updateMemo(t.source.id, { body: '다른 기기에서 바뀐 내용' });
+    return { ok: true, draft: { organized: '오래된 초안' } };
+  });
+  await assert.rejects(t.service.mergePhotoTextIntoMemo(t.source.id, '사진 내용'), { code: 'SOURCE_CHANGED' });
+  assert.equal(t.store.getMemo(t.source.id).body, '다른 기기에서 바뀐 내용');
+});
+
+test('photo memo integration never routes through local AI or bypasses external consent', async () => {
+  const t = world();
+  await assert.rejects(t.service.mergePhotoTextIntoMemo(t.source.id, '사진 내용'), { code: 'ROUTE_UNSUPPORTED' });
+  assert.equal(t.calls.length, 0);
+
+  t.policy({ route: 'external', allowedProviders: ['external'], consent: {}, excluded: false });
+  await assert.rejects(t.service.mergePhotoTextIntoMemo(t.source.id, '사진 내용'), { code: 'CONSENT_REQUIRED' });
+  assert.equal(t.calls.length, 0);
 });
 
 test('caller cancellation prevents a late manual summary preview even if the transport ignores abort', async () => {

@@ -5,6 +5,77 @@ import { reviewReason } from '../features/proposal/proposalRules.js';
 export function createAIService({ store, gateway, getSession, getPolicy, newId }) {
   const active = new Set();
   const error = code => Object.assign(new Error(code), { code });
+  async function mergePhotoTextIntoMemo(id, photoText, { sourceRevision, sessionId, sessionGeneration, workspaceId, signal } = {}) {
+    if (signal?.aborted) throw error('CANCELLED');
+    const session = getSession();
+    const source = store.getMemo(id);
+    if (!session || !source || source.deletedAt !== null) throw error('SOURCE_CHANGED');
+    if (sourceRevision !== undefined && source.revision !== sourceRevision) throw error('SOURCE_CHANGED');
+    if ((sessionId !== undefined && session.id !== sessionId)
+      || (sessionGeneration !== undefined && session.generation !== sessionGeneration)
+      || (workspaceId !== undefined && store.getCurrentWorkspace().id !== workspaceId)) throw error('SOURCE_CHANGED');
+    const policy = getPolicy(source);
+    if (policy.route !== 'external') throw error('ROUTE_UNSUPPORTED');
+    requireTransmission(policy.route, [policy], policy.consent);
+
+    const text = String(photoText ?? '').trim();
+    if (!text) throw error('INVALID_MODEL_OUTPUT');
+    const input = [
+      `기존 메모 제목: ${source.title || '(제목 없음)'}`,
+      '기존 메모 본문:',
+      source.body,
+      '',
+      '사진에서 추출한 새 내용:',
+      text,
+    ].join('\n');
+    if (input.length > 8000) throw error('INPUT_TOO_LONG');
+
+    const snapshot = {
+      id: source.id,
+      revision: source.revision,
+      title: source.title,
+      body: source.body,
+      workspace: store.getCurrentWorkspace().id,
+      generation: session.generation,
+      accountId: session.id,
+    };
+    const controller = new AbortController();
+    active.add(controller);
+    const abort = () => controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    try {
+      const response = await gateway('organize', {
+        client_request_id: newId(),
+        text: input,
+        workspace_id: policy.workspaceId ?? null,
+      }, { route: policy.route, signal: controller.signal });
+
+      const current = getSession();
+      const memo = store.getMemo(snapshot.id);
+      if (controller.signal.aborted || current?.generation !== snapshot.generation || current?.id !== snapshot.accountId) {
+        throw error('CANCELLED');
+      }
+      if (store.getCurrentWorkspace().id !== snapshot.workspace || !memo || memo.deletedAt !== null
+        || memo.revision !== snapshot.revision || memo.body !== snapshot.body || memo.title !== snapshot.title) {
+        throw error('SOURCE_CHANGED');
+      }
+      const latest = getPolicy(memo);
+      requireTransmission(policy.route, [latest], latest.consent);
+      if (!response?.ok || typeof response.draft?.organized !== 'string' || !response.draft.organized.trim()) {
+        throw error('INVALID_MODEL_OUTPUT');
+      }
+      return {
+        body: response.draft.organized.trim(),
+        sourceId: snapshot.id,
+        sourceRevision: snapshot.revision,
+        requestId: response.request_id,
+      };
+    } finally {
+      signal?.removeEventListener('abort', abort);
+      active.delete(controller);
+    }
+  }
+
   async function analyzeMemo(id, { preview = false, signal } = {}) {
     if (signal?.aborted) throw error('CANCELLED');
     const session = getSession();
@@ -61,5 +132,5 @@ export function createAIService({ store, gateway, getSession, getPolicy, newId }
     } finally { signal?.removeEventListener('abort', abort); active.delete(controller); }
   }
   function cancel() { for (const c of active) c.abort(); }
-  return { analyzeMemo, cancel };
+  return { analyzeMemo, mergePhotoTextIntoMemo, cancel };
 }

@@ -3,7 +3,7 @@
 // ============================================================
 
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { memoTitle } from '../../../data/memos/MemoStore';
@@ -11,6 +11,7 @@ import { pointsToPath } from '../utils/InkUtils';
 import Icon from '../../../shared/components/Icon';
 import { IconTile, Tag } from '../../../shared/components/Ui';
 import SpaceTag from '../../../shared/components/SpaceTag';
+import AccessibleFileImage from './AccessibleFileImage';
 
 // 별 모양 (Icon.js 의 star 와 같은 24x24 경로)
 const STAR_D = 'M11.53 2.3a.53.53 0 0 1 .94 0l2.31 4.68a2.12 2.12 0 0 0 1.6 1.16l5.16.76a.53.53 0 0 1 .3.9l-3.74 3.64a2.12 2.12 0 0 0-.61 1.88l.88 5.14a.53.53 0 0 1-.77.56l-4.62-2.43a2.12 2.12 0 0 0-1.97 0L6.4 21.01a.53.53 0 0 1-.77-.56l.88-5.14a2.12 2.12 0 0 0-.61-1.88L2.16 9.8a.53.53 0 0 1 .29-.9l5.17-.76a2.12 2.12 0 0 0 1.6-1.16z';
@@ -51,9 +52,9 @@ function InkPreview({ strokes }) {
   );
 }
 
-function Thumb({ memo, photoUri, style }) {
+function Thumb({ memo, photoFile, style }) {
   const hasInk = memo.strokes && memo.strokes.length > 0;
-  if (photoUri) return <Image source={{ uri: photoUri }} style={[styles.thumbBase, style]} resizeMode="cover" accessibilityLabel="붙인 사진" />;
+  if (photoFile?.uri) return <AccessibleFileImage file={photoFile} style={[styles.thumbBase, style]} resizeMode="cover" accessibilityLabel="붙인 사진" />;
   if (hasInk) return <View style={[styles.thumbBase, styles.inkBox, style]}><InkPreview strokes={memo.strokes} /></View>;
   return null;
 }
@@ -76,9 +77,9 @@ function Check({ on, style }) {
   );
 }
 
-export default function MemoCard({ memo, mode, selecting, selected, highlighted, projectTitle, space, photoUri, onPress, onLongPress, onLayout }) {
+export default function MemoCard({ memo, mode, selecting, selected, highlighted, projectTitle, space, photoFile, onPress, onLongPress, onLayout }) {
   const hasInk = !!(memo.strokes && memo.strokes.length > 0);
-  const hasThumb = !!photoUri || hasInk;
+  const hasThumb = !!photoFile?.uri || hasInk;
   const body = (memo.body || '').trim();
   const photoCount = (memo.photos || []).length;
   const base = [styles.card, mode === 'grid' ? styles.gridCard : styles.listCard, highlighted && styles.focus, selected && styles.on];
@@ -119,7 +120,7 @@ export default function MemoCard({ memo, mode, selecting, selected, highlighted,
     >
       {mode === 'grid' ? (
         <>
-          {hasThumb && <Thumb memo={memo} photoUri={photoUri} style={styles.gridThumb} />}
+          {hasThumb && <Thumb memo={memo} photoFile={photoFile} style={styles.gridThumb} />}
           <View style={styles.gridText}>
             {titleRow(hasThumb ? 1 : 2)}
             {body.length > 0 && <Text style={styles.body} numberOfLines={hasThumb ? 2 : 5}>{body}</Text>}
@@ -136,7 +137,7 @@ export default function MemoCard({ memo, mode, selecting, selected, highlighted,
             {meta(false)}
           </View>
           {/* 오른쪽 타일: 사진이 있으면 사진 아이콘, 손글씨만 있으면 연필 아이콘 */}
-          {hasThumb && <IconTile icon={photoCount > 0 || photoUri ? 'image' : 'pencil'} size={68} iconSize={26} style={styles.listTile} />}
+          {hasThumb && <IconTile icon={photoCount > 0 || photoFile ? 'image' : 'pencil'} size={68} iconSize={26} style={styles.listTile} />}
         </>
       )}
     </Pressable>

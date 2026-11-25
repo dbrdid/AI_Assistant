@@ -14,6 +14,18 @@ export function applyPendingMemoLinks(serverLinks, pending) {
   return links;
 }
 
+export function queuePendingMemoLinks(pending, noteIds, projectId) {
+  const next = pending && typeof pending === 'object' ? { ...pending } : {};
+  for (const noteId of noteIds) next[noteId] = projectId;
+  return next;
+}
+
+export function unresolvedPendingMemoLinkIds(pending, noteIds, projectId) {
+  const queued = pending && typeof pending === 'object' ? pending : {};
+  return noteIds.filter(noteId => Object.prototype.hasOwnProperty.call(queued, noteId)
+    && queued[noteId] === projectId);
+}
+
 export function isReferenceNoteProjectFailure(row) {
   if (!row || row.status !== 'FAILED') return false;
   if (!String(row.lastError ?? '').includes('REFERENCE_NOT_FOUND')) return false;

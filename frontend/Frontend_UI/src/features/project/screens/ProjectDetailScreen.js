@@ -19,9 +19,9 @@ import { syncServerWorkspaceConnections, testSharedWorkspaceSync, useWorkspaces 
 import { runtime } from '../../../integration/runtime';
 import { isProjectLeader } from '../../../lib/stella/project-team';
 import { listOutbox } from '../../../lib/stella/local-sync';
-import { projectTaskSection } from '../projectTaskKind';
 import { noConnectionText } from '../projectConnectionText';
-import { canManageProjectItems, isWorkspaceOwner } from '../projectPermissions';
+import { projectTaskSection } from '../projectTaskKind';
+import { canManageProjectItems } from '../projectPermissions';
 
 export default function ProjectDetailScreen({ navigation, route }) {
   const projectId = route?.params?.projectId;
@@ -59,7 +59,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
     setSyncInfo((prev) => ({ ...prev, loading: true }));
     try {
       const own = runtime();
-      await syncPendingMemoLinks(own, currentWorkspace);
+      const pendingMemoLinks = await syncPendingMemoLinks(own, currentWorkspace);
       const status = await own.bridge.status();
       const workspaceStatus = status.workspaces?.[currentWorkspace.id];
       const outbox = await listOutbox(own.syncDb, currentWorkspace.serverId);
@@ -76,6 +76,11 @@ export default function ProjectDetailScreen({ navigation, route }) {
           message: workspaceStatus.lastError
             ? `서버 동기화 오류: ${workspaceStatus.lastError}${detail ? `\n${detail}` : ''}`
             : `서버 동기화에 실패한 변경이 있어요.${detail ? `\n${detail}` : ''}`,
+        });
+      } else if (pendingMemoLinks > 0) {
+        setSyncInfo({
+          loading: false,
+          message: `메모 연결 ${pendingMemoLinks}건이 아직 서버에 반영되지 않았어요. 메모와 프로젝트 동기화를 확인해 주세요.`,
         });
       } else if ((workspaceStatus?.pending ?? 0) > 0 || (workspaceStatus?.waiting ?? 0) > 0) {
         setSyncInfo({ loading: false, message: `연결 변경을 서버에 전송 대기 중이에요.${detail ? `\n${detail}` : ''}` });
@@ -142,16 +147,16 @@ export default function ProjectDetailScreen({ navigation, route }) {
     if (!project) return [];
     const L = project.links;
     const inL = (kind, id) => L[kind].includes(id);
-    const taskKind = (t) => projectTaskSection(t);
+    const taskKind = (task) => projectTaskSection(task);
     return [
-      { key: 'memos', kind: 'memos', label: '메모', unit: '개', all: memos.map((m) => ({ id: m.id, title: memoTitle(m), sub: `수정 ${new Date(m.updatedAt).getMonth() + 1}/${new Date(m.updatedAt).getDate()}` })) },
-      { key: 'todos', kind: 'tasks', label: '할 일', unit: '개', all: tasks.filter((t) => taskKind(t) === 'todos').map((t) => ({ id: t.id, title: t.title, sub: `${t.date.slice(5).replace('-', '/')} · ${t.status}` })) },
+      { key: 'memos', kind: 'memos', label: '메모', unit: '개', all: memos.map((memo) => ({ id: memo.id, title: memoTitle(memo), sub: `수정 ${new Date(memo.updatedAt).getMonth() + 1}/${new Date(memo.updatedAt).getDate()}` })) },
+      { key: 'todos', kind: 'tasks', label: '할 일', unit: '개', all: tasks.filter((task) => taskKind(task) === 'todos').map((task) => ({ id: task.id, title: task.title, sub: `${task.date.slice(5).replace('-', '/')} · ${task.status}` })) },
       { key: 'files', kind: 'files', label: '파일', unit: '개', all: [
         ...files.map((f) => ({ id: f.id, title: f.name, sub: `${isSharedWorkspace ? '기기 · ' : ''}${f.kind} · ${f.size}`, isCloud: false })),
         ...cloudFiles.map((f) => ({ id: f.id, title: f.name, sub: `클라우드 · ${f.kind} · ${f.size}`, isCloud: true })),
       ] },
-      { key: 'events', kind: 'tasks', label: '일정', unit: '개', all: tasks.filter((t) => taskKind(t) === 'events').map((t) => ({ id: t.id, title: t.title, sub: `${t.date.slice(5).replace('-', '/')} ${t.start}` })) },
-    ].map((s) => ({ ...s, items: s.all.filter((x) => inL(s.kind, x.id)), candidates: s.all.filter((x) => !inL(s.kind, x.id)) }));
+      { key: 'events', kind: 'tasks', label: '일정', unit: '개', all: tasks.filter((task) => taskKind(task) === 'events').map((task) => ({ id: task.id, title: task.title, sub: `${task.date.slice(5).replace('-', '/')} ${task.start}` })) },
+    ].map((section) => ({ ...section, items: section.all.filter((item) => inL(section.kind, item.id)), candidates: section.all.filter((item) => !inL(section.kind, item.id)) }));
   }, [project, memos, tasks, files, cloudFiles, isSharedWorkspace]);
 
   if (!project) {
@@ -197,7 +202,9 @@ export default function ProjectDetailScreen({ navigation, route }) {
           continue;
         }
         try {
-          ids.push(isSharedWorkspace ? (await uploadProjectFile(asset)).id : (await addAsset(asset)).id);
+          ids.push(isSharedWorkspace
+            ? (await uploadProjectFile(asset)).id
+            : (await addAsset(asset, {}, { referenceOnly: true })).id);
         } catch (error) {
           failures.push(`${asset.name || '파일'}: ${error.message || '가져오지 못했어요'}`);
         }
@@ -220,9 +227,8 @@ export default function ProjectDetailScreen({ navigation, route }) {
         setFileImportMessage(`${linked}${failures.slice(0, 3).join('\n')}${failures.length > 3 ? `\n외 ${failures.length - 3}개 실패` : ''}`);
         setFileImportFailed(true);
       } else if (linkedCount) {
-        setFileImportMessage(isSharedWorkspace
-          ? `${linkedCount}개 파일을 클라우드에 저장해 팀원과 공유했어요.`
-          : `${linkedCount}개 파일을 가져와 연결했어요.`);
+        setAdding(null);
+        setAddPicked([]);
       }
     } catch (error) {
       setFileImportMessage(error.message || '기기에서 파일을 가져오지 못했어요.');
@@ -236,7 +242,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
     setDownloadingFileId(id);
     try {
       const savedName = await downloadFileToDevice(id);
-      if (savedName) alertUser('다운로드 완료', `${savedName} 파일을 선택한 위치에 저장했어요.`);
+      if (savedName) alertUser('다운로드 완료', `${savedName} 파일을 휴대폰에 저장했어요.`);
     } catch (error) {
       alertUser('파일을 저장하지 못했어요', error.message || '다시 시도해 주세요.');
     } finally {
@@ -278,7 +284,8 @@ export default function ProjectDetailScreen({ navigation, route }) {
         setAdding(null);
       }
     } catch (error) {
-      alertUser('파일을 연결하지 못했어요', error.message || '다시 시도해 주세요.');
+      await refreshSyncInfo();
+      alertUser('항목을 연결하지 못했어요', error.message || '다시 시도해 주세요.');
     }
   };
   const createForProject = (key) => {
@@ -328,8 +335,8 @@ export default function ProjectDetailScreen({ navigation, route }) {
           continue;
         }
         const cloudIds = ids.filter((id) => section.items.find((item) => item.id === id)?.isCloud);
-        const localIds = ids.filter((id) => !cloudIds.includes(id));
-        if (localIds.length) unlinkItems('files', localIds);
+        const localFileIds = ids.filter((id) => !cloudIds.includes(id));
+        if (localFileIds.length) unlinkItems('files', localFileIds);
         if (cloudIds.length) await unlinkProjectFiles(project.id, cloudIds);
       }
       setConfirmUnlink(false);
@@ -345,8 +352,10 @@ export default function ProjectDetailScreen({ navigation, route }) {
   };
   const editPicked = () => {
     if (picked.length !== 1) return;
-    const [key, id] = [picked[0].split(':')[0], picked[0].slice(picked[0].indexOf(':') + 1)];
-    openItem(sections.find((s) => s.key === key), id);
+    const selection = sections.flatMap((section) => section.items
+      .filter((item) => keyOf(section, item.id) === picked[0])
+      .map((item) => ({ section, item })))[0];
+    if (selection) openItem(selection.section, selection.item.id);
   };
 
   return (
@@ -377,7 +386,6 @@ export default function ProjectDetailScreen({ navigation, route }) {
             )}
           </View>
         )}
-
         <Text style={styles.heading}>연결된 항목</Text>
 
         {sections.map((s) => {
@@ -412,7 +420,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
                     const pressItem = () => (editing ? toggle(k) : openItem(s, x.id));
                     if (s.kind === 'files' && !editing) {
                       return (
-                        <View key={x.id} style={styles.fileItemRow}>
+                        <View key={k} style={styles.fileItemRow}>
                           <Pressable
                             accessibilityRole="button"
                             onPress={pressItem}
@@ -438,7 +446,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
                     }
                     return (
                       <Pressable
-                        key={x.id}
+                        key={k}
                         accessibilityRole={editing ? 'checkbox' : 'button'}
                         accessibilityState={editing ? { checked: on } : undefined}
                         onPress={pressItem}
@@ -565,8 +573,8 @@ export default function ProjectDetailScreen({ navigation, route }) {
                 );
               })()}
               {(sections.find((s) => s.key === adding)?.candidates || []).map((x) => {
-                const on = addPicked.includes(x.id);
                 const s = sections.find((q) => q.key === adding);
+                const on = addPicked.includes(x.id);
                 const owner = projects.find((p) => p.id !== project.id && p.links[s.kind].includes(x.id));
                 return (
                   <Pressable key={x.id} accessibilityRole="checkbox" accessibilityState={{ checked: on }} onPress={() => setAddPicked((a) => (a.includes(x.id) ? a.filter((i) => i !== x.id) : [...a, x.id]))} style={[styles.item, on && styles.itemOn]}>

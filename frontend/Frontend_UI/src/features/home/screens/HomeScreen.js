@@ -152,6 +152,17 @@ export default function HomeScreen({ navigation, calendar }) {
   const rec = useRecorder();
   const [recSheet, setRecSheet] = useState(null); // 녹음이 끝난 뒤 뜨는 창 { state, uri, seconds, fileId }
   const recBusy = useRef(false); // 시작/종료 처리 중에 또 눌러도 무시
+  const retrySaveRecording = async () => {
+    const current = recSheet;
+    if (current?.state !== 'save_error' || current.saving) return;
+    setRecSheet({ ...current, saving: true, saveError: '' });
+    try {
+      const saved = await addRecording(current.uri, current.seconds);
+      setRecSheet({ ...current, state: 'saved', uri: saved.uri, fileId: saved.id, saving: false, saveError: '' });
+    } catch (error) {
+      setRecSheet({ ...current, saving: false, saveError: error?.message || '다운로드 폴더에 저장하지 못했어요.' });
+    }
+  };
   const toggleRecording = async () => {
     if (recBusy.current) return;
     recBusy.current = true;
@@ -163,9 +174,18 @@ export default function HomeScreen({ navigation, calendar }) {
           setRecSheet({ state: 'error' });
           return;
         }
-        const saved = await addRecording(uri, seconds).catch(() => null);
+        let saved = null;
+        let saveError = '';
+        try { saved = await addRecording(uri, seconds); }
+        catch (error) { saveError = error?.message || '다운로드 폴더에 저장하지 못했어요.'; }
         addUsage('voice', Math.max(1, Math.ceil(seconds / 60)));
-        setRecSheet({ state: 'saved', uri, seconds, fileId: saved?.id ?? null });
+        setRecSheet({
+          state: saved ? 'saved' : 'save_error',
+          uri: saved?.uri ?? uri,
+          seconds,
+          fileId: saved?.id ?? null,
+          saveError,
+        });
       } else {
         const r = await rec.start();
         if (!r.ok) {
@@ -562,6 +582,7 @@ export default function HomeScreen({ navigation, calendar }) {
         sheet={recSheet}
         onClose={() => setRecSheet(null)}
         onOpenFiles={() => { setRecSheet(null); go(ROUTES.Files); }}
+        onRetrySave={retrySaveRecording}
         onOpenMemo={(memoId) => { setRecSheet(null); go(ROUTES.MemoEdit, { memoId }); }}
         onOpenProposals={() => { setRecSheet(null); go(ROUTES.Proposals); }}
       />

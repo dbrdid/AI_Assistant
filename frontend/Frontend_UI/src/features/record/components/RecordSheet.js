@@ -58,7 +58,7 @@ function Player({ uri }) {
 const memoTitleFor = (d = new Date()) =>
   `녹음 ${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
-export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, onOpenProposals }) {
+export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, onOpenProposals, onRetrySave }) {
   // phase: idle(처음) · upload(올리고 받아 적는 중) · analyze(일정·할 일 찾는 중) · done · error
   const [phase, setPhase] = useState('idle');
   const [error, setError] = useState(null); // { code, message }
@@ -102,13 +102,29 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
     <Modal transparent visible animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.card} accessibilityViewIsModal>
-          {sheet.state === 'saved' && (
+          {(sheet.state === 'saved' || sheet.state === 'save_error') && (
             <>
               <View style={styles.titleRow}>
                 <View style={styles.titleIcon}><Icon name="mic" size={20} color={colors.mintDark} /></View>
-                <Text style={styles.title}>녹음을 저장했어요</Text>
+                <Text style={styles.title}>{sheet.state === 'saved' ? '녹음을 저장했어요' : '녹음 파일을 저장하지 못했어요'}</Text>
               </View>
-              <Text style={styles.sub}>{fmt(sheet.seconds || 0)}{sheet.fileId ? ' · 파일 보관함에 보관돼요' : ''}</Text>
+              <Text style={styles.sub}>
+                {fmt(sheet.seconds || 0)}{sheet.fileId ? ' · 다운로드 폴더에 저장했어요' : ''}
+              </Text>
+              {sheet.state === 'save_error' && (
+                <>
+                  <Text style={styles.error}>{sheet.saveError || '다운로드 폴더 권한을 확인해 주세요.'}</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={sheet.saving || busy}
+                    onPress={onRetrySave}
+                    style={[styles.primary, (sheet.saving || busy) && { opacity: 0.5 }]}
+                  >
+                    {sheet.saving ? <ActivityIndicator color={colors.white} /> : null}
+                    <Text style={styles.primaryText}>{sheet.saving ? '저장 중…' : '저장 다시 시도'}</Text>
+                  </Pressable>
+                </>
+              )}
               <Player uri={sheet.uri} />
               {phase === 'done' && result ? (
                 <>

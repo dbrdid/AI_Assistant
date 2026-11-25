@@ -134,15 +134,6 @@ export default function AiSettingsForm({ onOpenUsage, contentStyle, compact = fa
               </View>
             )}
 
-            <SectionTitle>처리</SectionTitle>
-            <Row label="처리 서버" value={ai.route === 'self_hosted' ? '자체 모델' : '외부 AI'} onPress={switchRoute} />
-            <ToggleRow
-              label="선택한 서버로 자료 전송 허용"
-              sub={ai.route === 'self_hosted' ? 'Supabase와 자체 모델 서버가 선택한 자료를 처리합니다. 외부 AI로 전환하지 않습니다.' : 'Supabase와 외부 AI 제공자가 선택한 자료를 처리합니다.'}
-              value={!ai.transmissionDisabled}
-              onValueChange={toggleTransmission}
-            />
-
             <SectionTitle>이용량</SectionTitle>
             <Row label="이용량" value={PLANS[saved.plan].name} onPress={onOpenUsage} />
           </>

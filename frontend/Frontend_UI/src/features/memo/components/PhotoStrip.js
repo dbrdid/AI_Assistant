@@ -3,11 +3,12 @@
 // ============================================================
 
 import React, { useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import Icon from '../../../shared/components/Icon';
 import { detachPhoto, useMemos } from '../../../data/memos/MemoStore';
 import { useFiles } from '../../../data/files/FileStore';
+import AccessibleFileImage from './AccessibleFileImage';
 
 export default function PhotoStrip({ memoId }) {
   const memos = useMemos();
@@ -25,7 +26,7 @@ export default function PhotoStrip({ memoId }) {
             {/* 연한 민트 타일 위에 사진 (사진을 못 불러오면 사진 아이콘이 보임) */}
             <View style={styles.thumb}>
               <Icon name="image" size={24} color={colors.mintDark} />
-              <Image source={{ uri: f.uri }} style={styles.thumbImg} />
+              <AccessibleFileImage file={f} style={styles.thumbImg} />
             </View>
           </Pressable>
         ))}
@@ -33,7 +34,7 @@ export default function PhotoStrip({ memoId }) {
 
       <Modal transparent visible={!!big} animationType="fade" onRequestClose={() => setBig(null)}>
         <View style={styles.backdrop}>
-          {big && <Image source={{ uri: big.uri }} style={styles.big} resizeMode="contain" accessibilityLabel={big.name} />}
+          {big && <AccessibleFileImage file={big} style={styles.big} resizeMode="contain" accessibilityLabel={big.name} />}
           <View style={styles.btns}>
             <Pressable accessibilityRole="button" onPress={() => { detachPhoto(memoId, big.id); setBig(null); }} style={[styles.btn, styles.ghost]}>
               <Text style={styles.ghostText}>메모에서 빼기</Text>

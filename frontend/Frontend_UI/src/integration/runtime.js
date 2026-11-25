@@ -335,41 +335,47 @@ export async function handwritingForMemo(lines, sourceId, signal) {
 //   job: { uri, seconds, uploadId, requestId, uploaded } — 호출자가 보관해 재시도 시 lib/stella의 절차를 따릅니다.
 //   retryPlan: 같은 요청, 같은 업로드로 새 요청, 또는 다시 업로드(newTranscribeJob/nextTranscribeJob 참고).
 //   변환에 성공하면 서버가 업로드된 오디오를 삭제합니다(실패한 경우 3일간 보관).
-export const newTranscribeJob = (uri, seconds) => ({ uri, seconds, uploadId: randomUUID(), requestId: randomUUID(), uploaded: false });
+export const newTranscribeJob = (uri, seconds, file = {}) => ({
+  uri, seconds, fileName: file.fileName, mimeType: file.mimeType,
+  uploadId: randomUUID(), requestId: randomUUID(), uploaded: false,
+});
 export function nextTranscribeJob(job, code) {
   const plan = retryPlan(code);
   if (plan === 'new_request_same_upload') return { ...job, requestId: randomUUID() };
   if (plan === 'reupload') return { ...job, uploadId: randomUUID(), requestId: randomUUID(), uploaded: false };
   return job; // same_request이거나 중단합니다(화면에 메시지를 표시하며 사용자는 나중에 다시 시도할 수 있음).
 }
-async function readAudio(uri) {
+async function readAudio(uri, fileName, mimeType) {
   if (Platform.OS === 'web') {
     // 웹의 expo-audio는 blob: URL(대개 audio/webm)에 녹음합니다. 저장소는 ;codecs=opus 같은 MIME 매개변수를 거부합니다.
     const blob = await (await fetch(uri)).blob();
-    const type = (blob.type || 'audio/webm').split(';')[0].trim();
-    return { bytes: blob, mimeType: type, fileName: `recording.${type.split('/')[1] || 'webm'}` };
+    const type = String(mimeType || blob.type || 'audio/webm').split(';')[0].trim();
+    return { bytes: blob, mimeType: type, fileName: fileName || `recording.${type.split('/')[1] || 'webm'}` };
   }
-  const ext = (uri.split('?')[0].match(/\.(\w+)$/)?.[1] ?? 'm4a').toLowerCase();
-  const mime = { m4a: 'audio/mp4', mp4: 'audio/mp4', aac: 'audio/mp4', caf: 'audio/x-caf', wav: 'audio/wav', mp3: 'audio/mpeg', webm: 'audio/webm', ogg: 'audio/ogg' }[ext] ?? 'audio/mp4';
-  return { bytes: await new File(uri).bytes(), mimeType: mime, fileName: `recording.${ext}` };
+  const ext = (String(fileName || uri).split('?')[0].match(/\.(\w+)$/)?.[1] ?? 'm4a').toLowerCase();
+  const mime = { flac: 'audio/flac', m4a: 'audio/mp4', mp4: 'audio/mp4', aac: 'audio/mp4', wav: 'audio/wav', mp3: 'audio/mpeg', mpeg: 'audio/mpeg', mpga: 'audio/mpga', webm: 'audio/webm', ogg: 'audio/ogg' }[ext]
+    ?? String(mimeType || 'audio/mp4').split(';')[0].trim();
+  return { bytes: await new File(uri).bytes(), mimeType: mime, fileName: fileName || `recording.${ext}` };
 }
 /** 성공하면 { text, remainingMinutes, job }을 반환하고, 실패하면 재시도에 사용할 job과 함께 { code, message, job }을 던집니다. */
-export async function transcribeForDevice(job) {
+export async function transcribeForDevice(job, { signal } = {}) {
   const own = runtime();
   const policy = aiPolicy();
   if (policy.route !== 'external') throw Object.assign(new Error('녹음 변환은 클라우드 AI에서만 쓸 수 있어요'), { code: 'ROUTE_UNSUPPORTED', job });
   requireTransmission(policy.route, [policy], policy.consent);
   let step = job;
   try {
+    if (signal?.aborted) throw Object.assign(new Error('요청이 취소됐습니다'), { code: 'CANCELLED' });
     if (!step.uploaded) {
-      const audio = await readAudio(step.uri);
+      const audio = await readAudio(step.uri, step.fileName, step.mimeType);
       await uploadRecording(supabase, { uploadId: step.uploadId, ...audio });
       step = { ...step, uploaded: true };
     }
+    if (signal?.aborted) throw Object.assign(new Error('요청이 취소됐습니다'), { code: 'CANCELLED' });
     const r = await transcribeUploaded(supabase, {
       clientRequestId: step.requestId, uploadId: step.uploadId, durationSeconds: Math.max(1, step.seconds || 1), workspaceId: policy.workspaceId,
     });
-    if (current !== own) throw Object.assign(new Error('계정이 바뀌었습니다'), { code: 'CANCELLED' });
+    if (current !== own || signal?.aborted) throw Object.assign(new Error('계정이 바뀌었거나 요청이 취소됐습니다'), { code: 'CANCELLED' });
     return { text: r.text, remainingMinutes: r.remainingMinutes, job: step };
   } catch (e) {
     const code = e?.code ?? 'UNKNOWN';
@@ -410,8 +416,14 @@ export async function titleForChat(question, answer, signal) {
 function mergeSources(attached, ranked, keywords) {
   const out = [];
   let total = 0;
-  for (const a of attached.slice(0, 3)) {
-    const text = excerptFor(a.text, keywords, CHAT_LIMITS.sourceChars);
+  const omittedAttachments = [];
+  for (const a of attached) {
+    const room = CHAT_LIMITS.sourcesTotalChars - total - a.title.length;
+    if (out.length >= CHAT_LIMITS.sources || room < 100) {
+      omittedAttachments.push({ id: a.id, name: a.title });
+      continue;
+    }
+    const text = excerptFor(a.text, keywords, Math.min(CHAT_LIMITS.sourceChars, room));
     out.push({ id: a.id, type: 'file', title: a.title.slice(0, 200), date: null, text, workspace_id: a.workspaceId ?? null });
     total += a.title.length + text.length;
   }
@@ -419,17 +431,17 @@ function mergeSources(attached, ranked, keywords) {
     if (out.length >= CHAT_LIMITS.sources || total + s.title.length + s.text.length > CHAT_LIMITS.sourcesTotalChars) break;
     out.push(s); total += s.title.length + s.text.length;
   }
-  return out;
+  return { sources: out, omittedAttachments };
 }
 
-export async function askFromDevice(question, signal, { history = [], attachments = [], fileVaultOnly = false } = {}) {
+export async function askFromDevice(question, signal, { history = [], attachments = [], fileVaultOnly = false, memoOnly = false } = {}) {
   const own = runtime(); const generation = own.session.generation;
   const ws = own.store.getCurrentWorkspace().id;
   const policy = aiPolicy();
   requireTransmission(policy.route, [policy], policy.consent);
   const records = fileVaultOnly ? [] : [
     ...own.store.getMemos().map(m => ({ id: m.id, type: 'memo', title: m.title, text: m.body, revision: m.revision, date: new Date(m.updatedAt).toISOString() })),
-    ...own.store.getTasks().map(t => ({ id: t.id, type: t.kind, title: t.title, text: t.desc, revision: t.revision, date: t.date, status: t.status === '완료' ? 'done' : 'open' })),
+    ...(!memoOnly ? own.store.getTasks().map(t => ({ id: t.id, type: t.kind, title: t.title, text: t.desc, revision: t.revision, date: t.date, status: t.status === '완료' ? 'done' : 'open' })) : []),
   ].filter(r => !aiPolicy(r).excluded).map(r => ({ ...r, workspaceId: policy.workspaceId }));
   const attachmentSources = attachments.filter(a => a.text).map(a => ({
     id: a.id, title: a.name, text: a.text, workspaceId: policy.workspaceId, sourceScope: a.sourceScope,
@@ -460,10 +472,14 @@ export async function askFromDevice(question, signal, { history = [], attachment
     // 사용자가 자료를 제공했으므로 질문에서 기록 검색이 필요하지 않다고 판단되더라도 해당 자료를 바탕으로 답변합니다.
     const plan = await planQuery(client, { clientRequestId: randomUUID(), question, history: turns, timezone: policy.timezone });
     const ranked = !fileVaultOnly && plan.intent === 'search' ? rankRecords(contextRecords, plan, { today: todayIn(policy.timezone) }) : [];
-    const sources = mergeSources(attached, ranked, plan.keywords ?? []);
+    const { sources, omittedAttachments } = mergeSources(attached, ranked, plan.keywords ?? []);
     const { answer: a } = await answerQuery(client, { clientRequestId: randomUUID(), question, history: turns, timezone: policy.timezone, sources });
     const byId = new Map(sources.map(s => [s.id, s]));
-    answer = { text: a.answer, sources: a.used_source_ids.filter(id => byId.has(id)).map(id => ({ id, type: byId.get(id).type, title: byId.get(id).title || '(제목 없음)' })) };
+    answer = {
+      text: a.answer,
+      sources: a.used_source_ids.filter(id => byId.has(id)).map(id => ({ id, type: byId.get(id).type, title: byId.get(id).title || '(제목 없음)' })),
+      attachmentWarnings: omittedAttachments,
+    };
   }
   checkSnapshot();
   if (signal?.aborted || current !== own || own.session.generation !== generation) throw new Error('요청이 취소됐습니다');
@@ -476,6 +492,38 @@ export async function askFromDevice(question, signal, { history = [], attachment
   }
   requireTransmission(policy.route, [aiPolicy()], aiPolicy().consent);
   return { ...answer, sources: answer.sources.map(s => ({ ...s, route: attachedIds.has(s.id) ? null : s.type === 'memo' ? 'MemoEdit' : 'TaskEdit' })) };
+}
+
+export async function recommendMemoForPhoto(photoText, signal) {
+  const own = runtime();
+  const generation = own.session.generation;
+  const workspaceId = own.store.getCurrentWorkspace().id;
+  if (aiPolicy().route !== 'external') {
+    throw Object.assign(new Error('사진 메모 추천은 클라우드 AI에서 사용할 수 있어요.'), { code: 'ROUTE_UNSUPPORTED' });
+  }
+  const eligible = own.store.getMemos().filter(m => !m.deletedAt && !aiPolicy(m).excluded);
+  if (!eligible.length) return null;
+
+  const prefix = '사진 내용과 의미상 가장 관련 있는 기존 메모를 찾아 주세요. 관련 메모가 없다면 메모를 억지로 고르지 말고 없다고 답하세요.\n\n사진에서 읽은 내용:\n';
+  const question = `${prefix}${String(photoText ?? '').trim()}`.slice(0, CHAT_LIMITS.questionChars);
+  const result = await askFromDevice(question, signal, { memoOnly: true });
+  if (runtime() !== own || own.session.generation !== generation || own.store.getCurrentWorkspace().id !== workspaceId) {
+    throw Object.assign(new Error('계정이나 워크스페이스가 바뀌었어요. 다시 시도해 주세요.'), { code: 'CANCELLED' });
+  }
+  const cited = result.sources.find(source => source.type === 'memo' && eligible.some(m => m.id === source.id));
+  if (!cited) return null;
+
+  const memo = own.store.getMemo(cited.id);
+  if (!memo || memo.deletedAt || memo.revision === undefined) return null;
+  return {
+    memoId: memo.id,
+    title: memo.title || '제목 없는 메모',
+    revision: memo.revision,
+    sessionId: own.session.id,
+    sessionGeneration: generation,
+    workspaceId,
+    reason: String(result.text ?? '').trim().slice(0, 320),
+  };
 }
 
 // 계정 탈퇴 후 이 계정의 기기 데이터를 삭제합니다(개인 기록은 이곳에만 저장됨). 이후 연결을 닫습니다.

@@ -75,7 +75,7 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false }
   const photoOf = (m) => {
     const id = (m.photos || [])[0];
     const f = id ? files.find((x) => x.id === id) : null;
-    return f ? f.uri : '';
+    return f ?? null;
   };
   const projTitleOf = (m) => {
     const p = projectOf('memos', m.id);
@@ -352,7 +352,7 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false }
                     highlighted={highlightId === m.id}
                     projectTitle={m.workspaceId === currentSpace.id ? projTitleOf(m) : ''}
                     space={multi && space === 'all' ? spaces[m.workspaceId] : null}
-                    photoUri={photoOf(m)}
+                    photoFile={photoOf(m)}
                     onLayout={(e) => onCardLayout(m.id, e)}
                     // 짧게 누르기: 선택 모드면 선택/해제, 아니면 열기
                     onPress={() => (selecting ? toggle(m.id) : openMemo(m))}

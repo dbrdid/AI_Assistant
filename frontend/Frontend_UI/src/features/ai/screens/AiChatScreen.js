@@ -32,7 +32,7 @@ import { AI_ROUTE_LABEL, LOCAL_AI_AVAILABLE, PLANS, addUsage, loadAiUsage, setAi
 import { ROUTES } from '../../../navigation/routes';
 import { TITLE_MAX, deleteChat, getChat, saveChat, setChatTitle, setPinned, sortChats, useChats } from '../../../data/ai/ChatStore';
 import UpSheet from '../components/UpSheet';
-import { MAX_ATTACHMENTS, describe, extract, pickAttachments } from '../../../services/ai/ChatAttachments';
+import { describe, extract, pickAttachments } from '../../../services/ai/ChatAttachments';
 import { canRecognize, recognizeFile, useCloudFiles, useFiles } from '../../../data/files/FileStore';
 import { chatErrorMessage } from '../../../lib/stella/ai-chat';
 import { colors, font, radius, shadow, spacing } from '../../../shared/theme/theme';
@@ -118,9 +118,12 @@ function MessageBubble({ message, onOpenSource }) {
         {message.attachments?.length > 0 && (
           <View style={styles.sentFiles}>
             {message.attachments.map((a) => (
-              <View key={a.id} style={styles.sentFile} accessibilityLabel={`${a.kind === 'image' ? '사진' : '파일'} ${a.name}`}>
-                <Icon name={a.kind === 'image' ? 'image' : 'file'} size={14} color={colors.mintDark} />
-                <Text style={styles.sentFileText} numberOfLines={1}>{a.name}</Text>
+              <View key={a.id} style={styles.sentFile} accessibilityLabel={`${a.kind === 'image' ? '사진' : a.kind === 'audio' ? '음성' : '파일'} ${a.name}`}>
+                <Icon name={a.kind === 'image' ? 'image' : a.kind === 'audio' ? 'mic' : 'file'} size={14} color={a.warning ? colors.coral : colors.mintDark} />
+                <View style={{ flexShrink: 1 }}>
+                  <Text style={styles.sentFileText} numberOfLines={1}>{a.name}</Text>
+                  {!!a.warning && <Text style={styles.sentFileWarning}>{a.warning}</Text>}
+                </View>
               </View>
             ))}
           </View>
@@ -263,12 +266,11 @@ export default function AiChatScreen({ navigation }) {
 
   // ---------- 첨부 ----------
   const addFiles = async (mode) => {
+    if (status !== 'idle') return;
     setPanel(null);
     let assets;
     try { assets = await pickAttachments(mode); } catch { return setBanner('파일을 고르지 못했어요'); }
-    const room = MAX_ATTACHMENTS - attachments.length;
-    if (assets.length > room) setBanner(`첨부는 한 번에 ${MAX_ATTACHMENTS}개까지예요`);
-    const items = assets.slice(0, Math.max(0, room)).map(describe);
+    const items = assets.map(describe);
     if (!items.length) return;
     setAttachments((prev) => [...prev, ...items]);
     extractAbort.current ??= new AbortController();
@@ -285,9 +287,6 @@ export default function AiChatScreen({ navigation }) {
     if (attachments.some((a) => a.archiveFileId === file.id && a.archiveStorage === storage)) {
       return setBanner('이미 첨부한 파일이에요');
     }
-    const room = MAX_ATTACHMENTS - attachments.length;
-    if (room <= 0) return setBanner(`첨부는 한 번에 ${MAX_ATTACHMENTS}개까지예요`);
-
     const item = { ...describe({ name: file.name, mimeType: file.mimeType }), archiveFileId: file.id, archiveStorage: storage, sourceScope: 'vault' };
     setPanel(null);
     setAttachments((prev) => [...prev, item]);
@@ -317,21 +316,22 @@ export default function AiChatScreen({ navigation }) {
       if (!routeReady) return setBanner('로컬 AI는 아직 연결 전이에요. 클라우드 AI로 바꿔 주세요');
 
       const aiId = nextId();
+      const userId = nextId();
       const sentFiles = ready.map(({ id, name, kind, text: body, sourceScope }) => ({ id, name, kind, text: body, sourceScope }));
       const history = messages.filter((m) => !m.error && m.text).map((m) => ({ role: m.role === 'user' ? 'user' : 'assistant', text: m.text }));
       dirty.current = true;
       if (!messages.length) setStartedAt(Date.now());
-      setMessages((prev) => [...prev, { id: nextId(), role: 'user', text, attachments: sentFiles }]);
+      setMessages((prev) => [...prev, { id: userId, role: 'user', text, attachments: sentFiles }]);
       setInput('');
-      setAttachments([]);
+      setAttachments((prev) => prev.filter((attachment) => attachment.status === 'error'));
       extractAbort.current = null;
       setStatus('thinking');
 
       addUsage('question');
       const controller = new AbortController(); requestRef.current = controller;
       let answer;
-      // 새 첨부가 앞, 앞서 보낸 첨부가 뒤 (서버에 한 번에 보내는 첨부는 최대 3개)
-      chatFiles.current = [...sentFiles, ...chatFiles.current.filter((f) => !sentFiles.some((s) => s.id === f.id))].slice(0, MAX_ATTACHMENTS);
+      // 새 첨부가 앞, 앞서 보낸 첨부가 뒤
+      chatFiles.current = [...sentFiles, ...chatFiles.current.filter((f) => !sentFiles.some((s) => s.id === f.id))];
       try {
         answer = await askFromDevice(text, controller.signal, {
           history,
@@ -345,6 +345,16 @@ export default function AiChatScreen({ navigation }) {
         return;
       }
       if (controller.signal.aborted || requestRef.current !== controller) return;
+      if (answer.attachmentWarnings?.length) {
+        const omittedIds = new Set(answer.attachmentWarnings.map((file) => file.id));
+        setMessages((prev) => prev.map((message) => message.id === userId ? {
+          ...message,
+          attachments: message.attachments.map((file) => omittedIds.has(file.id)
+            ? { ...file, warning: '이번 요청의 AI 자료 한도를 넘어 제외됐어요' }
+            : file),
+        } : message));
+        setBanner(`AI 요청 자료 한도를 넘어 이번 답변에서 제외된 파일: ${answer.attachmentWarnings.map(file => file.name).join(', ')}`);
+      }
       const full = answer.text;
 
       timers.current.think = setTimeout(() => {
@@ -527,11 +537,11 @@ export default function AiChatScreen({ navigation }) {
           {attachments.map((a) => (
             <View key={a.id} style={[styles.pending, a.status === 'error' && styles.pendingError]}>
               {a.status === 'reading' && <ActivityIndicator size="small" color={colors.mintDark} />}
-              {a.status !== 'reading' && <Icon name={a.kind === 'image' ? 'image' : 'file'} size={16} color={a.status === 'error' ? colors.coral : colors.mintDark} />}
+              {a.status !== 'reading' && <Icon name={a.kind === 'image' ? 'image' : a.kind === 'audio' ? 'mic' : 'file'} size={16} color={a.status === 'error' ? colors.coral : colors.mintDark} />}
               <View style={{ maxWidth: 180 }}>
-                <Text style={styles.pendingName} numberOfLines={1} accessibilityLabel={`${a.kind === 'image' ? '사진' : '파일'} ${a.name}`}>{a.name}</Text>
+                <Text style={styles.pendingName} numberOfLines={1} accessibilityLabel={`${a.kind === 'image' ? '사진' : a.kind === 'audio' ? '음성' : '파일'} ${a.name}`}>{a.name}</Text>
                 <Text style={[styles.pendingSub, a.status === 'error' && { color: colors.coral }]} numberOfLines={2}>
-                  {a.status === 'reading' ? (a.kind === 'image' ? '사진 글자 읽는 중…' : '글자 꺼내는 중…') : a.status === 'ready' ? `글자 ${a.text.length.toLocaleString()}자 준비됨` : a.error}
+                  {a.status === 'reading' ? (a.kind === 'image' ? '사진 글자 읽는 중…' : a.kind === 'audio' ? '음성 받아쓰는 중…' : '글자 꺼내는 중…') : a.status === 'ready' ? `글자 ${a.text.length.toLocaleString()}자 준비됨` : a.error}
                 </Text>
               </View>
               <Pressable accessibilityRole="button" accessibilityLabel={`${a.name} 빼기`} onPress={() => removeAttachment(a.id)} hitSlop={8}>
@@ -548,9 +558,9 @@ export default function AiChatScreen({ navigation }) {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="사진이나 파일 첨부"
-          disabled={status !== 'idle' || attachments.length >= MAX_ATTACHMENTS}
+          disabled={status !== 'idle'}
           onPress={() => setPanel('attach')}
-          style={[styles.attachBtn, (status !== 'idle' || attachments.length >= MAX_ATTACHMENTS) && { opacity: 0.4 }]}
+          style={[styles.attachBtn, status !== 'idle' && { opacity: 0.4 }]}
         >
           <Icon name="plus" size={22} color={colors.mintDark} />
         </Pressable>
@@ -610,7 +620,7 @@ export default function AiChatScreen({ navigation }) {
               <Text style={styles.optionName}>파일 보관함에서 선택</Text>
               <Text style={styles.optionSub}>기기 또는 현재 공유 공간에 저장된 파일을 첨부해요</Text>
             </Pressable>
-            <Text style={styles.sheetNote}>파일은 저장되지 않고, 꺼낸 글자만 질문과 함께 보내요. 한 번에 {MAX_ATTACHMENTS}개까지.</Text>
+            <Text style={styles.sheetNote}>파일은 대화 기록에 저장되지 않지만, 처리에 필요한 내용은 서버로 전송될 수 있어요. 읽을 수 없는 형식이나 처리 한도를 넘은 파일만 따로 안내해요.</Text>
           </View>
         </Pressable>
       </Modal>
@@ -768,7 +778,7 @@ export default function AiChatScreen({ navigation }) {
             {vaultFiles.map((file) => {
               const storage = file.storage || 'local';
               const selected = attachments.some((a) => a.archiveFileId === file.id && a.archiveStorage === storage);
-              const disabled = status !== 'idle' || attachments.length >= MAX_ATTACHMENTS || selected;
+              const disabled = status !== 'idle' || selected;
               return (
                 <Pressable
                   key={`${storage}:${file.id}`}
@@ -901,6 +911,7 @@ const styles = StyleSheet.create({
   sentFiles: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 6, maxWidth: '80%' },
   sentFile: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line, maxWidth: '100%' },
   sentFileText: { flexShrink: 1, fontSize: font.caption, fontWeight: '700', color: colors.ink },
+  sentFileWarning: { fontSize: 10, color: colors.coral },
   aiRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center' },
   // AI 말풍선: 흰 바탕 + 얇은 테두리

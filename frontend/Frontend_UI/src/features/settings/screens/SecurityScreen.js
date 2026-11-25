@@ -15,6 +15,7 @@ import { authenticateFingerprint, supportsFingerprintOnly } from '../../../servi
 const PERMS = [
   { id: 'mic', icon: 'mic', label: '마이크 권한', why: '녹음에 사용' },
   { id: 'camera', icon: 'camera', label: '카메라 권한', why: '카메라로 일정 추출에 사용' },
+  { id: 'media', icon: 'image', label: '사진·동영상 권한', why: '기기 사진 보관함에서 불러오기에 사용' },
   { id: 'noti', icon: 'bell', label: '알림 권한', why: '일정·브리핑 알림에 사용' },
   { id: 'files', icon: 'folder', label: '기기 접근 권한', why: '파일 선택에 사용' },
 ];

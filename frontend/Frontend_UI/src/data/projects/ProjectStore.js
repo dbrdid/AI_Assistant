@@ -16,7 +16,9 @@ import {
 } from '../../lib/stella/project-team';
 import { inviteMailErrorMessage, sendInviteMail } from '../../lib/stella/invite-mail';
 import { alertUser } from '../alert';
-import { applyPendingMemoLinks, isReferenceNoteProjectFailure } from '../../features/project/projectConnectionText';
+import {
+  applyPendingMemoLinks, isReferenceNoteProjectFailure, queuePendingMemoLinks, unresolvedPendingMemoLinkIds,
+} from '../../features/project/projectConnectionText';
 
 export const PROJECT_STATUSES = ['진행 전', '진행 중', '완료', '보류'];
 export const isEmail = value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -77,6 +79,7 @@ function refreshShared(serverId) {
 
 // 런타임 변경(브리지 결과 포함) 후 다시 읽습니다. 입력 중 DB를 과도하게 조회하지 않도록 요청을 합칩니다.
 let refreshTimer = null;
+
 runtimeSubscribe(() => {
   if (refreshTimer) return;
   refreshTimer = setTimeout(() => {
@@ -116,11 +119,9 @@ function buildPersonal(rows, tasks, links) {
 }
 
 const METHOD_LABEL = { EMAIL: '메일', LINK: '링크' };
-function buildShared(rt, entry, tasks, links) {
+function buildShared(rt, entry, tasks, links, pending) {
   const map = rt.store.serverMap;
   const byTask = taskIndex(tasks);
-  const ws = rt.store.getCurrentWorkspace();
-  const pending = ws?.serverId ? readPendingMemoLinks(ws.serverId) : {};
   const memoLinks = applyPendingMemoLinks(entry.noteLinks, pending);
   return entry.projects
     .slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
@@ -151,10 +152,13 @@ export function getProjects() {
   const ws = rt.store.getCurrentWorkspace();
   const tasks = rt.store.getTasks();
   const links = readLinks();
+  const pending = ws.personal || !ws.serverId ? null : readPendingMemoLinks(ws.serverId);
   const base = ws.personal ? list('projects') : ws.serverId ? sharedEntry(rt, ws.serverId) : EMPTY_SHARED;
-  const deps = [rt, ws.id, tasks, links, base];
+  const deps = [rt, ws.id, tasks, links, pending, base];
   if (view.deps && deps.every((d, i) => d === view.deps[i])) return view.value;
-  const value = Object.freeze(ws.personal ? buildPersonal(base, tasks, links) : buildShared(rt, base, tasks, links));
+  const value = Object.freeze(ws.personal
+    ? buildPersonal(base, tasks, links)
+    : buildShared(rt, base, tasks, links, pending ?? {}));
   view = { deps, value };
   return value;
 }
@@ -219,6 +223,7 @@ async function pushShared(rt, ws, changes, { before = false, localSaved = false 
     throw new Error(flush.conflicts?.some(isLeaderConflict) ? teamErrorMessage({ code: 'NOT_PROJECT_LEADER' }) : '다른 기기의 수정과 겹쳤어요. 동기화 상태를 확인해 주세요');
   }
   if (flush?.status === 'BLOCKED') throw new Error(flush.error || '서버가 저장을 거절했어요');
+  if (result?.handOff) throw new Error(result.handOff.error || '기존 변경을 서버에 동기화하지 못했어요');
 }
 
 async function clearStaleNoteProjectFailures(rt, ws) {
@@ -235,7 +240,7 @@ async function clearStaleNoteProjectFailures(rt, ws) {
 export async function syncPendingMemoLinks(rt, ws) {
   await clearStaleNoteProjectFailures(rt, ws);
   const pending = readPendingMemoLinks(ws.serverId);
-  if (!Object.keys(pending).length) return;
+  if (!Object.keys(pending).length) return 0;
 
   await rt.bridge.syncWorkspace(ws.id);
   await clearStaleNoteProjectFailures(rt, ws);
@@ -254,7 +259,7 @@ export async function syncPendingMemoLinks(rt, ws) {
       ready.push(...existing.map(l => ({ kind: 'unlink', entity: 'note_projects', data: { note_id: noteId, project_id: l.project_id } })));
     }
   }
-  if (!ready.length) return;
+  if (!ready.length) return Object.keys(readPendingMemoLinks(ws.serverId)).length;
 
   await pushShared(rt, ws, ready);
   const current = readPendingMemoLinks(ws.serverId);
@@ -263,6 +268,7 @@ export async function syncPendingMemoLinks(rt, ws) {
     if (pending[noteId] === (change.kind === 'link' ? change.data.project_id : null)) delete current[noteId];
   }
   writePendingMemoLinks(ws.serverId, current);
+  return Object.keys(current).length;
 }
 
 // ---------------------------------------------------------------------
@@ -313,7 +319,10 @@ export const deleteProject = id => safely(() => {
     saveList('projects', list('projects').filter(p => p.id !== id));
     const links = readLinks();
     const drop = map => Object.fromEntries(Object.entries(map).filter(([, p]) => p !== id));
-    writeLinks({ memos: drop(links.memos), files: drop(links.files) });
+    writeLinks({
+      memos: drop(links.memos),
+      files: drop(links.files),
+    });
     for (const t of rt.store.getTasks()) if (t.projectId === id) rt.store.updateTask(t.id, { projectId: null });
     return true;
   }
@@ -359,6 +368,7 @@ function setLinks(projectId, kind, ids) {
     if (projectId) guardLink(rt, ws);
     if (!projectId && source) guardManage(rt, ws, source.id);
   }
+  writePendingMemoLinks(ws.serverId, queuePendingMemoLinks(readPendingMemoLinks(ws.serverId), ids, projectId));
   void rt.bridge.syncWorkspace(ws.id);
   return true;
 }
@@ -378,8 +388,14 @@ export async function linkItemsNow(projectId, kind, ids) {
   }
   const result = await rt.bridge.syncWorkspace(ws.id);
   if (result?.status === 'ERROR') throw new Error(result.error || '서버에 동기화하지 못했어요');
+  if (result?.status && result.status !== 'OK') throw new Error(result.error || '공유 공간 동기화가 완료되지 않았어요');
+  if (result?.handOff) throw new Error(result.handOff.error || '기존 변경을 서버에 동기화하지 못했어요');
   if (result?.flush?.status === 'BLOCKED') throw new Error(result.flush.error || '서버가 연결 변경을 거절했어요');
   if (result?.flush?.status === 'CONFLICT') throw new Error('다른 기기와 충돌했어요. 동기화 상태를 확인해 주세요');
+  if (kindOf(kind) === 'memos'
+    && unresolvedPendingMemoLinkIds(readPendingMemoLinks(ws.serverId), ids, projectId).length) {
+    throw new Error('메모 또는 프로젝트가 아직 서버에 동기화되지 않아 연결하지 못했어요. 동기화가 끝난 후 다시 시도해 주세요.');
+  }
   return true;
 }
 
@@ -388,7 +404,12 @@ export async function unlinkItemsNow(kind, ids) {
   const { rt, ws } = current();
   if (ws.personal) return true;
   const result = await rt.bridge.syncWorkspace(ws.id);
-  if (kindOf(kind) === 'memos') await syncPendingMemoLinks(rt, ws);
+  if (kindOf(kind) === 'memos') {
+    await syncPendingMemoLinks(rt, ws);
+    if (unresolvedPendingMemoLinkIds(readPendingMemoLinks(ws.serverId), ids, null).length) {
+      throw new Error('메모가 아직 서버에 동기화되지 않아 연결을 해제하지 못했어요. 동기화가 끝난 후 다시 시도해 주세요.');
+    }
+  }
   if (result?.status === 'ERROR') throw new Error(result.error || '서버에 동기화하지 못했어요');
   if (result?.flush?.status === 'BLOCKED') throw new Error(result.flush.error || '서버가 연결 해제를 거절했어요');
   if (result?.flush?.status === 'CONFLICT') throw new Error('다른 기기와 충돌했어요. 동기화 상태를 확인해 주세요');

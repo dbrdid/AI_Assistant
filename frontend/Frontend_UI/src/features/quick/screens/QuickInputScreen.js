@@ -130,10 +130,10 @@ export default function QuickInputScreen({ navigation, route }) {
     for (const s of list) {
       patch(s.key, { status: 'uploading', reason: '' });
       try {
-        ids.push(await addAsset(s.asset, { taskIds }));
+        ids.push(await addAsset(s.asset, { taskIds }, { referenceOnly: true }));
         patch(s.key, { status: 'done' });
       } catch (e) {
-        patch(s.key, { status: 'failed', reason: '올리지 못했어요', canRetry: true });
+        patch(s.key, { status: 'failed', reason: '연결하지 못했어요', canRetry: true });
       }
     }
     if (projectId && ids.length) linkItems(projectId, 'files', ids);
@@ -142,15 +142,15 @@ export default function QuickInputScreen({ navigation, route }) {
   const saveFiles = async () => {
     const todo = staged.filter((s) => s.status === 'ready');
     if (!todo.length) {
-      notice.show(staged.length ? '올릴 수 있는 파일이 없어요' : '사진·파일을 먼저 선택해 주세요');
+      notice.show(staged.length ? '연결할 수 있는 파일이 없어요' : '사진·파일을 먼저 선택해 주세요');
       return;
     }
     const n = await upload(todo);
-    notice.show(n === todo.length ? `${n}개 올렸어요` : `${n}개 올렸고, 실패한 파일이 있어요`);
+    notice.show(n === todo.length ? `${n}개 파일을 연결했어요` : `${n}개 파일을 연결했고, 실패한 파일이 있어요`);
   };
   const retry = async (s) => {
     const n = await upload([s]);
-    if (n) notice.show('올렸어요');
+    if (n) notice.show('파일을 연결했어요');
   };
 
   const onSave = tab === 'memo' ? saveMemo : saveFiles;
@@ -207,11 +207,11 @@ export default function QuickInputScreen({ navigation, route }) {
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={styles.fileName} numberOfLines={1}>{s.asset.name}</Text>
                     <Text style={[styles.fileState, s.status === 'failed' && { color: colors.coral }, s.status === 'done' && { color: colors.mintDark }]}>
-                      {s.status === 'ready' ? '올릴 준비됨' : s.status === 'uploading' ? '올리는 중…' : s.status === 'done' ? '업로드 완료' : s.reason}
+                      {s.status === 'ready' ? '연결할 준비됨' : s.status === 'uploading' ? '연결 중…' : s.status === 'done' ? '연결 완료' : s.reason}
                     </Text>
                   </View>
                   {s.status === 'failed' && s.canRetry && (
-                    <Pressable accessibilityRole="button" onPress={() => retry(s)} style={styles.miniBtn}><Text style={styles.miniText}>다시 올리기</Text></Pressable>
+                    <Pressable accessibilityRole="button" onPress={() => retry(s)} style={styles.miniBtn}><Text style={styles.miniText}>다시 연결</Text></Pressable>
                   )}
                   {(s.status === 'ready' || s.status === 'failed') && (
                     <Pressable accessibilityRole="button" accessibilityLabel={`${s.asset.name} 목록에서 빼기`} onPress={() => setStaged((c) => c.filter((x) => x.key !== s.key))} hitSlop={8}>
@@ -220,7 +220,7 @@ export default function QuickInputScreen({ navigation, route }) {
                   )}
                 </View>
               ))}
-              {staged.length > 0 && readyCount > 0 && <Text style={styles.counter}>{readyCount}개를 올릴 준비가 됐어요. [저장]을 눌러 주세요.</Text>}
+              {staged.length > 0 && readyCount > 0 && <Text style={styles.counter}>{readyCount}개를 연결할 준비가 됐어요. [저장]을 눌러 주세요.</Text>}
             </>
           )}
 

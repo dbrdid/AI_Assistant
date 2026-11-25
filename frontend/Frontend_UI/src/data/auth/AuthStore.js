@@ -56,6 +56,8 @@ export function deleteAccount() {
     } catch (error) {
       return { ok: false, message: withdrawErrorMessage(error) };
     }
+    // DB를 닫기 전에 앱 화면을 내립니다. 마운트된 화면이 런타임 변경을 받아 runtime()을 호출할 수 있습니다.
+    publish({ status: 'loading', user: null, error: null });
     try { await wipeSessionData(); } catch (error) { console.error('[auth] 기기 데이터를 지우지 못했습니다', error); }
     publish({ status: 'out', user: null, error: null });
     return { ok: true };
