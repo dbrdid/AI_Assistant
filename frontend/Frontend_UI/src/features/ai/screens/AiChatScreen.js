@@ -145,7 +145,7 @@ function MessageBubble({ message, onOpenSource }) {
         </View>
         {sources.length > 0 && (
           <View style={styles.sources}>
-            <Text style={styles.sourcesLabel}>출처{sources.some((s) => s.route) ? ' · 누르면 해당 위치로 이동해요' : ''}</Text>
+            <Text style={styles.sourcesLabel}>출처{sources.some((s) => s.route) ? ', 누르면 해당 위치로 이동해요' : ''}</Text>
             <View style={styles.sourceChips}>
               {sources.map((src) => (
                 <Pressable
@@ -409,7 +409,7 @@ export default function AiChatScreen({ navigation }) {
   const togglePin = () => {
     setPanel(null);
     const ok = setPinned(chatId, !pinned, messages.map((m) => (m.role === 'ai' ? { ...m, done: true } : m)));
-    setBanner(!ok ? '답이 끝난 뒤에 고정할 수 있어요' : pinned ? '고정을 해제했어요' : '이 대화를 고정했어요 · 이전 대화 맨 위에 보여요');
+    setBanner(!ok ? '답이 끝난 뒤에 고정할 수 있어요' : pinned ? '고정을 해제했어요' : '이 대화를 고정했어요. 이전 대화 맨 위에 보여요');
   };
 
   // ---------- 이 대화에 올린 파일 ----------
@@ -610,7 +610,7 @@ export default function AiChatScreen({ navigation }) {
             <Text style={styles.sheetTitle}>첨부하기</Text>
             <Pressable accessibilityRole="button" onPress={() => addFiles('image')} style={styles.option}>
               <Text style={styles.optionName}>사진</Text>
-              <Text style={styles.optionSub}>사진 속 글자를 읽어서 함께 보내요 (클라우드 AI · 월 사용 횟수 차감)</Text>
+              <Text style={styles.optionSub}>사진 속 글자를 읽어서 함께 보내요 (클라우드 AI, 월 사용 횟수 차감)</Text>
             </Pressable>
             <Pressable accessibilityRole="button" onPress={() => addFiles('file')} style={styles.option}>
               <Text style={styles.optionName}>파일</Text>
@@ -642,7 +642,7 @@ export default function AiChatScreen({ navigation }) {
                   onPress={() => chooseRoute(id)}
                   style={[styles.option, on && styles.optionOn, off && { opacity: 0.5 }]}
                 >
-                  <Text style={styles.optionName}>{AI_ROUTE_LABEL[id]}{on ? ' · 사용 중' : off ? ' · 준비 중' : ''}</Text>
+                  <Text style={styles.optionName}>{AI_ROUTE_LABEL[id]}{on ? ', 사용 중' : off ? ', 준비 중' : ''}</Text>
                   <Text style={styles.optionSub}>
                     {id === 'external' ? '외부 AI 제공자가 답해요. 빠르고 사진 글자 인식도 돼요' : '팀 서버의 자체 모델이 답해요. 외부 AI로 넘기지 않아요 (서버 연결 후 사용)'}
                   </Text>
@@ -686,14 +686,14 @@ export default function AiChatScreen({ navigation }) {
               <ActivityIndicator color={colors.mintDark} style={{ alignSelf: 'flex-start', marginVertical: spacing.md }} />
             ) : (
               <>
-                <Text style={styles.optionSub}>요금제 · {PLANS[usage.data.plan].name}</Text>
+                <Text style={styles.optionSub}>요금제 {PLANS[usage.data.plan].name}</Text>
                 {usage.data.items.map((u) => {
                   const ratio = u.limit > 0 ? Math.min(1, u.used / u.limit) : 0;
                   return (
                     <View key={u.key} style={styles.usageRow}>
                       <View style={styles.usageHead}>
                         <Text style={styles.usageLabel}>{u.label}</Text>
-                        <Text style={styles.usageNum}>{u.used} / {u.limit}회 · 남은 {u.remaining}회</Text>
+                        <Text style={styles.usageNum}>{u.used}/{u.limit}회, 남은 {u.remaining}회</Text>
                       </View>
                       <View style={styles.usageTrack}>
                         <View style={[styles.usageFill, { width: `${ratio * 100}%`, backgroundColor: ratio >= 0.9 ? colors.coral : colors.mint }]} />
@@ -728,7 +728,7 @@ export default function AiChatScreen({ navigation }) {
               placeholderTextColor={colors.muted}
               accessibilityLabel="대화 제목"
             />
-            <Text style={styles.sheetNote}>{(renaming?.value ?? '').length} / {TITLE_MAX}자 · 직접 바꾼 제목은 AI가 다시 바꾸지 않아요</Text>
+            <Text style={styles.sheetNote}>{(renaming?.value ?? '').length} / {TITLE_MAX}자. 직접 바꾼 제목은 AI가 다시 바꾸지 않아요</Text>
             <View style={styles.renameRow}>
               <Pressable accessibilityRole="button" onPress={() => setRenaming(null)} style={[styles.renameBtn, styles.renameCancel]}>
                 <Text style={styles.renameCancelText}>취소</Text>
@@ -761,7 +761,7 @@ export default function AiChatScreen({ navigation }) {
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={styles.optionName} numberOfLines={1}>{u.name}</Text>
-                  <Text style={styles.optionSub} numberOfLines={1}>질문 · {u.question}</Text>
+                  <Text style={styles.optionSub} numberOfLines={1}>{u.question}</Text>
                 </View>
               </Pressable>
             ))}
@@ -796,7 +796,7 @@ export default function AiChatScreen({ navigation }) {
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={styles.optionName} numberOfLines={1}>{file.name}</Text>
                     <Text style={styles.optionSub} numberOfLines={1}>
-                      {selected ? '이미 첨부됨' : file.text ? '내용 인식 완료 · 선택해 첨부' : '선택하면 파일 내용을 읽어요'}
+                      {selected ? '이미 첨부됨' : file.text ? '내용 인식 완료. 선택해 첨부' : '선택하면 파일 내용을 읽어요'}
                     </Text>
                   </View>
                 </Pressable>
