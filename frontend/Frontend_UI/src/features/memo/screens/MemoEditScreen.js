@@ -249,9 +249,9 @@ export default function MemoEditScreen({ navigation, route }) {
       if (flushRef.current?.({ analyze: false, checkpoint: true })) setSaveStatus('기기에 저장됨');
     } catch (error) {
       if (error.code === 'editor_permission_changed') {
-        setSaveStatus('편집 권한이 바뀌었어요 · 초안 보존 중');
+        setSaveStatus('편집 권한이 바뀌었어요. 초안 보존 중');
       } else {
-        setSaveStatus(error.code === 'revision_conflict' ? '저장 충돌 · 완료에서 해결' : '자동 저장 실패 · 완료에서 다시 시도');
+        setSaveStatus(error.code === 'revision_conflict' ? '저장 충돌, 완료에서 해결' : '자동 저장 실패, 완료에서 다시 시도');
       }
     }
   }, []);
@@ -289,7 +289,7 @@ export default function MemoEditScreen({ navigation, route }) {
     const draft = latest.current;
     const saved = savedDraft.current;
     if (draft.title !== saved.title || draft.body !== saved.body || draft.strokes !== saved.strokes) {
-      setSaveStatus('다른 곳에서 변경됨 · 완료에서 해결');
+      setSaveStatus('다른 곳에서 변경됨, 완료에서 해결');
       return;
     }
     const next = { ...draft, title: persistedMemo.title, body: persistedMemo.body, strokes: persistedMemo.strokes };
@@ -705,7 +705,7 @@ export default function MemoEditScreen({ navigation, route }) {
           onBack={saveAndClose}
           titleRightInset={canEdit ? 136 : undefined}
           right={<>
-            {canEdit && <PillButton label="완료" onPress={saveAndClose} />}
+            {canEdit && <PillButton kind="text" label="완료" onPress={saveAndClose} />}
             <CircleButton icon="moreHorizontal" label="문서 도구 열기" onPress={() => setDetailsOpen(true)} />
           </>}
         />
@@ -763,14 +763,14 @@ export default function MemoEditScreen({ navigation, route }) {
         {!accessClosed && !!(activeMemo || (supportsHierarchy && draftParentId)) && (
           <View style={styles.hierarchy}>
             <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hierarchyRow}>
-              {!!parent && <PillButton kind="ghost" label={`상위 · ${memoTitle(parent)}`} onPress={() => openRelatedPage(parent.id)} />}
+              {!!parent && <PillButton kind="ghost" label={`상위: ${memoTitle(parent)}`} onPress={() => openRelatedPage(parent.id)} />}
               {!!parentId && !parent && <Text style={styles.edited}>상위 페이지를 열 수 없어요</Text>}
               {canEdit && <PillButton kind="ghost" label="페이지 이동" onPress={() => {
                 setParentQuery('');
                 setParentPickerOpen(true);
               }} />}
               {!!activeMemo && canEdit && <PillButton kind="ghost" label="하위 페이지 추가" onPress={createChildPage} />}
-              {children.map((child) => <PillButton key={child.id} kind="ghost" label={`하위 · ${memoTitle(child)}`} onPress={() => openRelatedPage(child.id)} />)}
+              {children.map((child) => <PillButton key={child.id} kind="ghost" label={`하위: ${memoTitle(child)}`} onPress={() => openRelatedPage(child.id)} />)}
             </ScrollView>
           </View>
         )}
@@ -824,9 +824,9 @@ export default function MemoEditScreen({ navigation, route }) {
         <View style={styles.backdrop}>
           <View style={styles.dialog} accessibilityViewIsModal>
             <Text accessibilityRole="header" style={styles.dialogTitle}>메모 내보내기</Text>
-            <PillButton label="PDF · 텍스트와 손글씨" onPress={exportCurrentPdf} />
+            <PillButton label="PDF, 텍스트와 손글씨" onPress={exportCurrentPdf} />
             {!!(title.trim() || body.trim()) && (
-              <PillButton kind="ghost" label="Markdown · 텍스트" onPress={() => {
+              <PillButton kind="ghost" label="Markdown, 텍스트" onPress={() => {
                 setExportOpen(false);
                 void exportMarkdown();
               }} />
@@ -863,12 +863,12 @@ export default function MemoEditScreen({ navigation, route }) {
               {'title' in (syncConflict?.fields ?? {}) && <Text selectable>{syncConflict.fields.title || '제목 없음'}</Text>}
               {'body' in (syncConflict?.fields ?? {}) && <Text selectable>{syncConflict.fields.body || '본문 없음'}</Text>}
               {'strokes' in (syncConflict?.fields ?? {}) && <Text>손글씨 변경 포함</Text>}
-              {'parent_note_id' in (syncConflict?.fields ?? {}) && <Text>상위 페이지 · {conflictParentTitle(syncConflict.fields.parent_note_id)}</Text>}
+              {'parent_note_id' in (syncConflict?.fields ?? {}) && <Text>상위 페이지, {conflictParentTitle(syncConflict.fields.parent_note_id)}</Text>}
               {syncConflict?.server && <>
                 <Text style={styles.projOptText}>서버 문서</Text>
                 <Text selectable>{syncConflict.server.title || '제목 없음'}</Text>
                 <Text selectable>{syncConflict.server.body || '본문 없음'}</Text>
-                {'parent_note_id' in syncConflict.fields && <Text>상위 페이지 · {conflictParentTitle(syncConflict.server.parent_note_id)}</Text>}
+                {'parent_note_id' in syncConflict.fields && <Text>상위 페이지, {conflictParentTitle(syncConflict.server.parent_note_id)}</Text>}
               </>}
             </ScrollView>
             {isResolvingSyncConflict && <Text accessibilityLiveRegion="polite" style={styles.edited}>처리 중…</Text>}
@@ -1142,7 +1142,7 @@ const styles = StyleSheet.create({
   },
   // 제목 아래: 프로젝트 알약 + 수정 시각
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingBottom: spacing.sm },
-  projPill: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 220, minHeight: 28, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.mintSoft },
+  projPill: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 220, minHeight: 44, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.mintSoft },
   projPillText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
   edited: { flexShrink: 1, fontSize: font.caption, color: colors.muted },
   // 글자 입력창 + 필기 캔버스가 겹치는 스크롤 영역
@@ -1165,7 +1165,7 @@ const styles = StyleSheet.create({
   summaryText: { fontSize: font.body, color: colors.ink, lineHeight: 22 },
   summarySub: { fontSize: font.body, color: colors.muted },
   summaryLoading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  summaryAdd: { alignSelf: 'flex-start', minHeight: 34, paddingHorizontal: spacing.lg, borderRadius: radius.sm, backgroundColor: colors.action, justifyContent: 'center', marginTop: 2 },
+  summaryAdd: { alignSelf: 'flex-start', minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: radius.sm, backgroundColor: colors.action, justifyContent: 'center', marginTop: 2 },
   summaryAddText: { fontSize: font.caption + 1, fontWeight: '600', color: colors.onPrimary },
 
   // 펜 옵션 줄: 색 동그라미(선택된 색은 바깥 고리) + 굵기

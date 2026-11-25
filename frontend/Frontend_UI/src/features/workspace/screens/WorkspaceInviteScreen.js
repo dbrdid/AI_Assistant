@@ -41,7 +41,7 @@ export default function WorkspaceInviteScreen({ navigation, route }) {
         <View style={styles.card}>
           <Text style={styles.name}>{preview?.workspace_name ?? '초대 코드를 확인해 주세요'}</Text>
           {preview && <Text style={styles.sub}>{preview.invited_by_name ?? '관리자'} 님의 초대</Text>}
-          {preview && <Text style={styles.meta}>{preview.role}  /  멤버 {preview.member_count}명</Text>}
+          {preview && <Text style={styles.meta}>{preview.role}, 멤버 {preview.member_count}명</Text>}
         </View>
 
         <View style={styles.info}>

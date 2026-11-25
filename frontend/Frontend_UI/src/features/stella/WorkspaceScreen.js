@@ -71,7 +71,7 @@ export function WorkspaceHeader({
   </View>;
   return <View style={headerStyle}>{left}<Pressable accessibilityRole="button" accessibilityLabel="작업 공간 메뉴 열기" onPress={onMenu} style={s.brand}><Text style={s.brandMark}>S</Text><View style={{
         flexShrink: 1
-      }}><Text style={s.brandTitle} numberOfLines={1}>{title}</Text><Text style={s.brandSub}>Stella{LOCAL_PREVIEW ? '  /  로컬 미리보기' : ''}</Text></View><Icon name="chevronDown" size={14} color={c.muted} /></Pressable><View style={s.actions}>{right || <>{onSearch && <IconButton name="search" label="문서 검색" onPress={onSearch} />}</>}</View></View>;
+      }}><Text style={s.brandTitle} numberOfLines={1}>{title}</Text><Text style={s.brandSub}>Atria{LOCAL_PREVIEW ? ', 로컬 미리보기' : ''}</Text></View><Icon name="chevronDown" size={14} color={c.muted} /></Pressable><View style={s.actions}>{right || <>{onSearch && <IconButton name="search" label="문서 검색" onPress={onSearch} />}</>}</View></View>;
 }
 function DocumentRow({ memo, onPress, hasChildren, collapsed, onToggle, compact = false }) {
   const title = memoTitle(memo);
@@ -85,8 +85,8 @@ function DocumentRow({ memo, onPress, hasChildren, collapsed, onToggle, compact 
       <Icon name="file" size={18} color={c.muted} />
       <View style={{ flex: 1 }}>
         <Text style={s.rowTitle} numberOfLines={1}>{title}</Text>
-        {!compact && <><Text style={s.rowBody} numberOfLines={1}>{memo.body || '필기 / 첨부가 있는 문서'}</Text>
-          <Text style={s.meta}>{memo.favorite ? '즐겨찾기  /  ' : ''}{new Date(memo.updatedAt).toLocaleDateString('ko-KR')}  /  기기 저장</Text></>}
+        {!compact && <><Text style={s.rowBody} numberOfLines={1}>{memo.body || '필기나 첨부가 있는 문서'}</Text>
+          <Text style={s.meta}>{memo.favorite ? '즐겨찾기, ' : ''}{new Date(memo.updatedAt).toLocaleDateString('ko-KR')}, 기기 저장</Text></>}
       </View>
     </Pressable>
     {onToggle &&
@@ -235,7 +235,7 @@ export default function WorkspaceScreen({
   const header = (highlight = selectedTab) => standalone ? <WorkspaceHeader title={title} onBack={() => navigation.goBack()} /> : <><WorkspaceHeader title={current?.name || '나의 작업 공간'} onMenu={() => setMenu(true)} tabs={!favoritesOnly && <TabBar current={highlight} onSelect={navigation.selectTab || navigation.navigate} />} onSearch={mode === "documents" ? undefined : () => go(ROUTES.Memos, {
       search: true
     })} />{error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}</>;
-  const intro = standalone ? null : <><View style={s.titleRow}><Text accessibilityRole="header" style={s.title}>{title}</Text>{mode === 'documents' ? <IconButton name="plus" label="새 문서 작성" onPress={() => go(ROUTES.MemoEdit)} /> : null}</View></>;
+  const intro = standalone ? null : <><View style={s.titleRow}><Text accessibilityRole="header" style={s.title}>{title}</Text></View></>;
   let content;
   if (mode === 'documents') {
     content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={list} keyExtractor={memo => memo.id} contentContainerStyle={s.page} keyboardShouldPersistTaps="handled" ListHeaderComponent={<>{intro}<View style={s.search}><Icon name="search" size={17} color={c.muted} /><TextInput autoFocus={requestSearch} accessibilityLabel="문서 검색" placeholder="제목이나 내용으로 검색" placeholderTextColor={c.subtle} value={query} onChangeText={setQuery} style={s.searchInput} />{query ? <IconButton name="x" label="검색어 지우기" onPress={() => setQuery('')} /> : null}</View><View style={s.filters}>{[['all', '모든 문서'], ['favorites', '즐겨찾기']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{
@@ -249,6 +249,8 @@ export default function WorkspaceScreen({
       if (next.has(item.id)) next.delete(item.id);else next.add(item.id);
       return next;
     })} />} ListEmptyComponent={<Text style={s.empty}>{query ? '검색 결과가 없습니다.' : filter === 'favorites' ? '즐겨찾기한 문서가 없습니다.' : '아직 문서가 없습니다.\n새 문서에서 첫 생각을 기록하세요.'}</Text>} />;
+    // 홈 하단 도크와 같은 자리(엄지가 닿는 오른쪽 아래)에 새 문서 버튼
+    content = <>{content}<View style={[s.homeDock, { justifyContent: 'flex-end', paddingBottom: Math.max(10, insets.bottom) }]}><IconButton name="pencil" label="새 문서 작성" onPress={() => go(ROUTES.MemoEdit)} /></View></>;
   } else if (mode === 'review') {
     const items = proposals.filter(p => p.status === reviewTab && shown(p));
     content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={items} keyExtractor={p => p.id} contentContainerStyle={s.page} ListHeaderComponent={<>{intro}<View style={s.filters}>{[['pending', '확인 대기'], ['hold', '보류']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{
@@ -261,7 +263,7 @@ export default function WorkspaceScreen({
         color: c.accent
       }]}>{p.kind === 'memo' ? '문서 요약' : p.kind === 'event' ? '일정' : '할 일'} 제안</Text><Text style={[s.sectionTitle, {
         marginTop: 9
-      }]}>{p.title}</Text><Text selectable style={s.proposalBody}>{p.body || p.evidence || [p.date, p.start, p.place].filter(Boolean).join('  /  ')}</Text>{p.sourceType === 'memo' && p.sourceId ? <Pressable accessibilityRole="button" onPress={() => go(ROUTES.MemoEdit, {
+      }]}>{p.title}</Text><Text selectable style={s.proposalBody}>{p.body || p.evidence || [p.date, p.start, p.place].filter(Boolean).join(', ')}</Text>{p.sourceType === 'memo' && p.sourceId ? <Pressable accessibilityRole="button" onPress={() => go(ROUTES.MemoEdit, {
         memoId: p.sourceId
       })} style={s.link}><Icon name="file" size={14} color={c.muted} /><Text style={s.linkText} numberOfLines={1}>출처: {p.sourceTitle || '원본 문서'}</Text></Pressable> : null}{reviewReason(p) ? <Text style={s.note} accessibilityRole="alert" accessibilityLabel={`경고: ${reviewReason(p)}`}>{reviewReason(p)}</Text> : null}<View style={[s.actions, {
         marginTop: 14,
@@ -286,7 +288,7 @@ export default function WorkspaceScreen({
         </HomeSection>
         {waiting.length > 0 && <Pressable accessibilityRole="button" onPress={() => go(ROUTES.Proposals)} style={s.homeReview}><Icon name="checkSquare" size={18} color={c.muted} /><Text style={s.rowTitle}>검토할 작업</Text><Text style={s.linkText}>{waiting.length}</Text></Pressable>}
       </ScrollView>
-      <View style={[s.homeDock, { paddingBottom: Math.max(10, insets.bottom) }]}><Pressable accessibilityRole="button" onPress={() => go(ROUTES.Memos, { search: true })} style={s.homeSearch}><Icon name="search" size={19} color={c.muted} /><Text style={s.homeSearchText}>검색</Text></Pressable><IconButton name="pencil" label="새 문서 작성" onPress={() => go(ROUTES.MemoEdit)} /></View>
+      <View style={[s.homeDock, { paddingBottom: Math.max(10, insets.bottom) }]}><Pressable accessibilityRole="button" onPress={() => go(ROUTES.Search)} style={s.homeSearch}><Icon name="search" size={19} color={c.muted} /><Text style={s.homeSearchText}>검색</Text></Pressable><IconButton name="pencil" label="새 문서 작성" onPress={() => go(ROUTES.MemoEdit)} /></View>
     </>;
   }
   const renderTab = (tab, i) => {

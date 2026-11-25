@@ -96,7 +96,7 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
     convert();
   };
   const consentNeeded = error && (error.code === 'CONSENT_REQUIRED' || error.code === 'TRANSMISSION_DENIED');
-  const label = phase === 'upload' ? '녹음을 받아 적는 중…' : phase === 'analyze' ? '일정 / 할 일 찾는 중…' : phase === 'error' ? '다시 시도' : '텍스트로 정리하기';
+  const label = phase === 'upload' ? '녹음을 받아 적는 중…' : phase === 'analyze' ? '일정과 할 일 찾는 중…' : phase === 'error' ? '다시 시도' : '텍스트로 정리하기';
 
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onClose}>
@@ -108,7 +108,7 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
                 <View style={styles.titleIcon}><Icon name="mic" size={20} color={colors.mintDark} /></View>
                 <Text style={styles.title}>녹음을 저장했어요</Text>
               </View>
-              <Text style={styles.sub}>{fmt(sheet.seconds || 0)}{sheet.fileId ? '  /  파일 보관함에 보관돼요' : ''}</Text>
+              <Text style={styles.sub}>{fmt(sheet.seconds || 0)}{sheet.fileId ? ', 파일 보관함에 보관돼요' : ''}</Text>
               <Player uri={sheet.uri} />
               {phase === 'done' && result ? (
                 <>
@@ -118,7 +118,7 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
                   </ScrollView>
                   <Text style={styles.note}>
                     {result.memoId ? '메모로 저장했어요. ' : '메모로 저장하지 못했어요. 글을 길게 눌러 복사해 주세요. '}
-                    {result.memoId && (result.analyzeError ? '일정 / 할 일은 찾지 못했어요.' : result.added > 0 ? `AI 제안 ${result.added}건을 만들었어요.` : '찾은 일정이나 할 일은 없어요.')}
+                    {result.memoId && (result.analyzeError ? '일정과 할 일은 찾지 못했어요.' : result.added > 0 ? `AI 제안 ${result.added}건을 만들었어요.` : '찾은 일정이나 할 일은 없어요.')}
                   </Text>
                   {result.added > 0 && onOpenProposals && (
                     <Pressable accessibilityRole="button" onPress={onOpenProposals} style={styles.primary}><Text style={styles.primaryText}>AI 제안 확인하기</Text></Pressable>

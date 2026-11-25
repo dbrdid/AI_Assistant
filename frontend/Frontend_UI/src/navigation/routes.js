@@ -66,7 +66,7 @@ export const TABS = [
     { route: ROUTES.Files, label: '파일 보관함' },
   ] },
   { route: ROUTES.Tasks, label: '업무', icon: 'checkSquare', pages: [
-    { route: ROUTES.Tasks, label: '할 일 / 일정' }, { route: ROUTES.Calendar, label: '캘린더' },
+    { route: ROUTES.Tasks, label: '할 일' }, { route: ROUTES.Calendar, label: '캘린더' },
   ] },
   // 문서와 할 일을 묶는 프로젝트는 매일 쓰는 단위라 상단에 둔다. 작업 검토·AI 연결·공유 공간·휴지통은 공간 메뉴로 옮겼다.
   { route: ROUTES.Projects, label: '프로젝트', icon: 'folder', pages: [
@@ -87,7 +87,7 @@ export const MORE_SECTIONS = [
     items: [
       { route: ROUTES.Search, label: '검색', icon: 'search' },
       { route: ROUTES.Relations, label: '문서 관계', icon: 'link' },
-      { route: ROUTES.AdvancedMemos, label: '가져오기 / 내보내기', icon: 'arrowUp' },
+      { route: ROUTES.AdvancedMemos, label: '가져오기와 내보내기', icon: 'arrowUp' },
       { route: ROUTES.AgendaCompare, label: '안건 비교', icon: 'compare' },
       { route: ROUTES.QuickInput, label: '사진, 문서 올리기', icon: 'arrowUp', params: { tab: 'file' } },
       { route: ROUTES.Favorites, label: '즐겨찾기', icon: 'star' },

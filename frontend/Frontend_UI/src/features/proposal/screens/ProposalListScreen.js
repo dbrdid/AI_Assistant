@@ -27,7 +27,7 @@ export default function ProposalListScreen({ navigation }) {
       <ScreenHeader
         title="AI 제안"
         onBack={navigation.goBack}
-        right={ready.length > 1 ? <PillButton label="모두 추가" onPress={() => setConfirmAll(true)} /> : null}
+        right={ready.length > 1 ? <PillButton kind="text" label="모두 추가" onPress={() => setConfirmAll(true)} /> : null}
       />
       <View style={styles.tabs}>
         {[['pending', '확인 대기'], ['hold', '보류']].map(([k, label]) => (
@@ -62,7 +62,7 @@ export default function ProposalListScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   tabs: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
-  tab: { minHeight: 40, paddingHorizontal: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, justifyContent: 'center' },
+  tab: { minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, justifyContent: 'center' },
   tabOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
   tabText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
   tabTextOn: { color: colors.onPrimary },

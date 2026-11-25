@@ -40,7 +40,7 @@ export default function WorkspaceCreateScreen({ navigation }) {
           <Text style={styles.label}>설명</Text>
           <TextInput style={[styles.input, { minHeight: 96, textAlignVertical: 'top' }]} value={desc} onChangeText={setDesc} placeholder="어떤 조직인지 간단히 적어 주세요" placeholderTextColor={colors.muted} multiline maxLength={120} accessibilityLabel="설명" />
         </View>
-        <Text style={styles.note}>만든 사람이 관리자가 돼요. 팀원 초대는 서버가 연결된 뒤에 사용할 수 있어요.</Text>
+        
         {!!error && <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text>}
         <Pressable accessibilityRole="button" disabled={busy} onPress={submit} style={[styles.save, busy && { opacity: 0.5 }]}>
           <Text style={styles.saveText}>{busy ? '만드는 중…' : '만들기'}</Text>

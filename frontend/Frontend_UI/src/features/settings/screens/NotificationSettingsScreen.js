@@ -20,7 +20,7 @@ const KINDS = [
 
 // 서버 알림 (공유 공간 · 휴대폰). 브리핑·개인 알림은 위의 기기 알림이 보내요.
 const SERVER_KINDS = [
-  { id: 'reminders', label: '공유 공간 마감 / 시작 알림', sub: '다른 멤버가 바꾼 일정 / 할 일 / 프로젝트도 알려 줘요' },
+  { id: 'reminders', label: '공유 공간 마감과 시작 알림', sub: '다른 멤버가 바꾼 일정, 할 일, 프로젝트도 알려 줘요' },
   { id: 'workspace', label: '새 멤버 소식' },
   { id: 'recording', label: '녹음 변환 끝' },
 ];
@@ -57,7 +57,7 @@ export default function NotificationSettingsScreen({ navigation }) {
           {n.dndOn && <Row label="끝" value={n.dndEnd} onPress={() => setPicker('dndEnd')} />}
         </Group>
         {n.dndOn && <Text style={styles.note}>시작이 끝보다 늦으면 다음 날 아침까지로 계산해요 (예: 22:00 ~ 06:30)</Text>}
-        <Text style={styles.note}>저장하면 이 설정대로 일정 / 할 일 마감 / 브리핑 알림이 예약돼요. 알림 시각은 일정/할 일의 [알림] 설정을 따라요.</Text>
+        
 
         <SectionTitle>서버 알림 (공유 공간)</SectionTitle>
         <Group>
@@ -66,7 +66,7 @@ export default function NotificationSettingsScreen({ navigation }) {
             <ToggleRow key={k.id} label={k.label} sub={k.sub} value={n.server[k.id]} onValueChange={(v) => setServer({ [k.id]: v })} />
           ))}
         </Group>
-        <Text style={styles.note}>앱을 열지 않아도 공유 공간 소식을 서버가 이 휴대폰으로 보내 줘요. 서버 알림이 켜져 있으면 공유 공간의 마감 알림은 서버가 보내고, 같은 알림이 두 번 오지 않아요.</Text>
+        <Text style={styles.note}>앱을 열지 않아도 공유 공간 소식을 받아요.</Text>
 
         <SaveButton
           disabled={saving || same(n, saved)}
@@ -75,7 +75,7 @@ export default function NotificationSettingsScreen({ navigation }) {
             updateSettings('notify', n);
             const r = unavailable ? { ok: true } : await registerPush({ ask: true });
             setSaving(false);
-            notice.show(r.ok || !n.server.on ? '저장했어요' : `저장했어요  /  ${r.reason}`);
+            notice.show(r.ok || !n.server.on ? '저장했어요' : `저장했어요. ${r.reason}`);
           }}
         />
       </ScrollView>

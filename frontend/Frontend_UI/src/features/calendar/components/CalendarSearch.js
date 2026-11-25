@@ -32,9 +32,7 @@ export default function CalendarSearch({ query, onChange, matches, onPick, onClo
         </Pressable>
       </View>
 
-      {!hasQuery ? (
-        <Text style={styles.hint}>검색어와 일치하는 일정이 있는 날짜가 달력에 표시돼요.</Text>
-      ) : matches.length === 0 ? (
+      {!hasQuery ? null : matches.length === 0 ? (
         <Text style={styles.hint}>"{query.trim()}"에 해당하는 일정이 없어요.</Text>
       ) : (
         <>
@@ -51,7 +49,7 @@ export default function CalendarSearch({ query, onChange, matches, onPick, onClo
               <View style={styles.body}>
                 <Text style={styles.title} numberOfLines={1}>{t.title}</Text>
                 <Text style={styles.meta} numberOfLines={1}>
-                  {[t.start, tagText(t, todayKey), t.place].filter(Boolean).join('  /  ')}
+                  {[t.start, tagText(t, todayKey), t.place].filter(Boolean).join(', ')}
                 </Text>
               </View>
             </Pressable>

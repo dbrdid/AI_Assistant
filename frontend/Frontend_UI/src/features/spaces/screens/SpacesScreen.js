@@ -8,7 +8,6 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import Icon from '../../../shared/components/Icon';
-import { CircleButton } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
@@ -16,13 +15,14 @@ import { occursOn, useAllTasks } from '../../../data/tasks/TaskStore';
 import { useAllMemos } from '../../../data/memos/MemoStore';
 import { toKey } from '../../calendar/utils/DateUtils';
 
-export function SpaceTile({ space, size = 40 }) {
+// Notion 워크스페이스 아이콘처럼 무채색 작은 사각형 + 첫 글자 (색 배경 타일 대신)
+export function SpaceTile({ space, size = 28 }) {
   return (
-    <View style={[styles.tile, { width: size, height: size, borderRadius: Math.round(size * 0.28), backgroundColor: `${space.color}26` }]}>
+    <View style={[styles.tile, { width: size, height: size }]}>
       {space.personal ? (
-        <Icon name="lock" size={Math.round(size * 0.45)} color={colors.mintDark} />
+        <Icon name="lock" size={Math.round(size * 0.5)} color={colors.ink} />
       ) : (
-        <Text style={[styles.tileText, { color: space.color, fontSize: Math.round(size * 0.42) }]}>{space.fullName.trim().charAt(0) || '?'}</Text>
+        <Text style={[styles.tileText, { fontSize: Math.round(size * 0.5) }]}>{space.fullName.trim().charAt(0) || '?'}</Text>
       )}
     </View>
   );
@@ -46,7 +46,7 @@ export default function SpacesScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="공간" onBack={navigation.goBack} right={<CircleButton icon="plus" label="새 공간 만들기" onPress={() => navigation.navigate(ROUTES.WorkspaceCreate)} />} />
+      <ScreenHeader title="공간" onBack={navigation.goBack} />
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
         {list.map((w) => {
           const space = spaces[w.id];
@@ -56,35 +56,28 @@ export default function SpacesScreen({ navigation }) {
               accessibilityRole="button"
               accessibilityLabel={`${w.name} 공간 열기`}
               onPress={() => navigation.navigate(ROUTES.SpaceHome, { workspaceId: w.id })}
-              style={({ pressed }) => [styles.card, pressed && { backgroundColor: colors.mintSoft }]}
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
             >
               <SpaceTile space={space} />
-              <View style={{ flex: 1, gap: 3 }}>
+              <View style={{ flex: 1, gap: 2 }}>
                 <Text style={styles.name} numberOfLines={1}>{w.name}</Text>
                 <Text style={styles.sub} numberOfLines={1}>
-                  {w.personal ? '나만 보는 메모  /  일정  /  이 기기에만 저장' : `${w.role}  /  멤버 ${w.members}명${w.serverId ? '' : '  /  서버 연결 전'}`}
+                  {w.personal ? '이 기기에만 저장돼요' : `${w.role}, 멤버 ${w.members}명${w.serverId ? '' : ', 서버 연결 전'}`}
                 </Text>
                 {!!statsOf(w.id) && <Text style={styles.stats} numberOfLines={1}>{statsOf(w.id)}</Text>}
               </View>
-              <Icon name="chevronRight" size={18} color={colors.muted} />
+              <Icon name="chevronRight" size={16} color={colors.muted} />
             </Pressable>
           );
         })}
 
-        <View style={styles.actions}>
-          <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.WorkspaceCreate)} style={({ pressed }) => [styles.action, styles.actionNew, pressed && { opacity: 0.7 }]}>
-            <Icon name="plus" size={16} color={colors.ink} />
-            <Text style={styles.actionNewText}>새 공간 만들기</Text>
+        <View style={styles.divider} />
+        {[['plus', '새 공간 만들기', ROUTES.WorkspaceCreate], ['userPlus', '초대 코드로 참여', ROUTES.WorkspaceInvite]].map(([icon, label, route]) => (
+          <Pressable key={label} accessibilityRole="button" onPress={() => navigation.navigate(route)} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
+            <View style={styles.rowIcon}><Icon name={icon} size={16} color={colors.muted} /></View>
+            <Text style={styles.actionText}>{label}</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.WorkspaceInvite)} style={({ pressed }) => [styles.action, pressed && { opacity: 0.7 }]}>
-            <Icon name="userPlus" size={16} color={colors.ink} />
-            <Text style={styles.actionText}>초대 코드로 참여</Text>
-          </Pressable>
-        </View>
-
-        <Text style={styles.hint}>
-          개인 공간은 나만 봐요. 팀 공간의 메모 / 일정 / 프로젝트는 멤버 모두가 함께 보고 고쳐요. 오늘 / 캘린더 / 할 일 / 메모 탭에는 모든 공간이 색으로 구분되어 함께 보여요. 공간 삭제 / 나가기는 각 공간 홈 맨 아래에 있어요.
-        </Text>
+        ))}
       </ScrollView>
     </View>
   );
@@ -92,17 +85,16 @@ export default function SpacesScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
-  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
-  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: 14, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline },
-  tile: { alignItems: 'center', justifyContent: 'center' },
-  tileText: { fontWeight: '600' },
-  name: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl },
+  // 카드 대신 Notion 목록 행: 테두리 없음, 누를 때만 옅은 배경
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 56, paddingHorizontal: spacing.sm, marginHorizontal: -spacing.sm, borderRadius: radius.sm },
+  rowPressed: { backgroundColor: colors.mintSoft },
+  rowIcon: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+  tile: { alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm, backgroundColor: colors.raised },
+  tileText: { fontWeight: '500', color: colors.ink },
+  name: { fontSize: font.body, fontWeight: '500', color: colors.ink },
   sub: { fontSize: font.caption, color: colors.muted },
-  stats: { fontSize: font.caption, fontWeight: '500', color: colors.mint },
-  actions: { flexDirection: 'row', gap: spacing.sm },
-  action: { flex: 1, flexDirection: 'row', gap: 6, minHeight: 44, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.actionBorder, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
-  actionNew: { backgroundColor: colors.action, borderColor: colors.action },
-  actionNewText: { fontSize: 14, fontWeight: '600', color: colors.ink },
-  actionText: { fontSize: 14, fontWeight: '500', color: colors.ink },
-  hint: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
+  stats: { fontSize: font.caption, color: colors.muted },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line, marginVertical: spacing.sm },
+  actionText: { fontSize: font.body, color: colors.ink },
 });

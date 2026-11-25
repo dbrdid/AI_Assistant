@@ -73,7 +73,7 @@ export default function CameraScreen({ navigation }) {
         <View style={styles.center}>
           <IconTile icon="camera" size={72} iconSize={34} />
           <Text style={styles.title}>카메라 권한이 필요해요</Text>
-          <Text style={styles.sub}>사진을 찍어 메모나 프로젝트에 바로 넣을 수 있어요.</Text>
+          
           {perm.canAskAgain ? (
             <Pressable accessibilityRole="button" onPress={requestPerm} style={styles.primary}>
               <Text style={styles.primaryText}>권한 허용하기</Text>

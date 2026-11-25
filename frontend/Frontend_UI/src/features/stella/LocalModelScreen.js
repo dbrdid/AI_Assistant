@@ -18,15 +18,15 @@ const native = Platform.OS === 'android' || Platform.OS === 'ios';
 const CONSENT = {
   device: '이 기기의 모델로 처리',
   server: '입력한 내용을 내가 지정한 서버로 전송',
-  cloud: '입력한 내용을 Stella 클라우드 AI로 전송',
+  cloud: '입력한 내용을 Atria 클라우드 AI로 전송',
   openai: '입력한 내용을 내 OpenAI 계정으로 전송',
   anthropic: '입력한 내용을 내 Anthropic 계정으로 전송',
 };
 const field = [s.editorBody, { minHeight: 44 }];
 const CARD_INFO = {
   device: { name: '이 기기', icon: 'lock', desc: 'Gemma 4 E2B를 휴대폰에서 실행합니다. 입력한 내용이 기기 밖으로 나가지 않습니다.' },
-  server: { name: '내 서버', icon: 'link', desc: 'Ollama, LM Studio, llama.cpp, Stella 브리지처럼 /v1/chat/completions를 제공하는 서버에 연결합니다. 같은 네트워크 밖에서는 https 주소를 권장합니다.' },
-  cloud: { name: 'Stella 클라우드', icon: 'cloud', desc: '로그인한 계정의 Stella AI 이용량에서 차감됩니다.' },
+  server: { name: '내 서버', icon: 'link', desc: 'Ollama, LM Studio, llama.cpp, Atria 브리지처럼 /v1/chat/completions를 제공하는 서버에 연결합니다. 같은 네트워크 밖에서는 https 주소를 권장합니다.' },
+  cloud: { name: 'Atria 클라우드', icon: 'cloud', desc: '로그인한 계정의 Atria AI 이용량에서 차감됩니다.' },
   openai: { name: 'OpenAI', icon: 'globe', desc: '본인 계정에서 발급한 API 키로 연결합니다. ChatGPT 구독 로그인은 다른 앱에서 쓸 수 없습니다.' },
   anthropic: { name: 'Anthropic', icon: 'globe', desc: '본인 계정에서 발급한 API 키로 연결합니다. Claude 구독 로그인은 다른 앱에서 쓸 수 없습니다.' },
 };
@@ -192,7 +192,7 @@ export default function LocalModelScreen({ navigation, route }) {
         const bridge = parseBridgeLink(serverUrl);
         if (bridge) setSessionKey('server', bridge.key);
         update({ serverUrl: bridge ? bridge.url : serverUrl });
-      }} editable={!busy} autoCapitalize="none" autoCorrect={false} placeholder="서버 주소 또는 Stella 브리지 연결 문자열" placeholderTextColor={c.subtle} style={s.connInput} />
+      }} editable={!busy} autoCapitalize="none" autoCorrect={false} placeholder="서버 주소 또는 Atria 브리지 연결 문자열" placeholderTextColor={c.subtle} style={s.connInput} />
       {detailRow('모델', connection.serverModel || '서버에서 불러오기', () => (serverList.length ? setPicker('server') : loadServer()))}
       {!!connection.serverUrl && serverList.length > 0 && <View style={s.aiActions}>{ghost('모델 목록 새로고침', 'refresh', loadServer)}</View>}
     </>}
@@ -226,7 +226,7 @@ export default function LocalModelScreen({ navigation, route }) {
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.page}>
       {commandMode && <Text accessibilityRole="header" style={s.title}>앱 작업 해석</Text>}
       {!!target && <Text selectable style={s.aiTarget}>{targetLine(target)}</Text>}
-      {!asking && <Text style={s.intro}>문서 블록을 길게 누르면 여기서 사용 중으로 고른 AI에게 요청합니다. 어떤 AI든 앱 변경은 검토와 승인 뒤에만 실행합니다.</Text>}
+      {!asking && <Text style={s.intro}>바뀌는 내용은 승인한 뒤에만 적용돼요.</Text>}
       {!asking && <View style={{ gap: 12, marginTop: 16 }}>{cards}</View>}
       {!asking && errorView}
       {asking && <>
@@ -255,7 +255,7 @@ export default function LocalModelScreen({ navigation, route }) {
         </View>}
         {/* 연결 설정은 요청 화면에서 빼고, 한 줄 요약과 별도 시트로 연다(입력한 요청은 그대로 유지). */}
         <Pressable accessibilityRole="button" onPress={() => setShowSettings(true)} style={s.aiConnection}>
-          <Icon name={CARD_INFO[provider].icon} size={15} color={c.subtle} /><Text numberOfLines={1} style={s.aiConnectionText}>{CARD_INFO[provider].name}{modelLabel ? ', ' + modelLabel : ''}  /  {statusOf(provider)}</Text>
+          <Icon name={CARD_INFO[provider].icon} size={15} color={c.subtle} /><Text numberOfLines={1} style={s.aiConnectionText}>{CARD_INFO[provider].name}{modelLabel ? ', ' + modelLabel : ''}, {statusOf(provider)}</Text>
           <Text style={s.linkText}>AI 연결</Text></Pressable>
       </>}
     </ScrollView>

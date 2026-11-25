@@ -8,7 +8,7 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import Icon from '../../../shared/components/Icon';
-import { Chip, CircleButton, Tag } from '../../../shared/components/Ui';
+import { BottomCreate, Chip, Tag } from '../../../shared/components/Ui';
 import { useSnackbar } from '../../../shared/components/Snackbar';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
@@ -134,7 +134,6 @@ export default function TasksScreen({ navigation }) {
       <ScreenHeader
         title="할 일"
         onBack={navigation.goBack}
-        right={<CircleButton icon="plus" label="할 일 추가" onPress={() => navigation.navigate(ROUTES.TaskEdit, { date: today, kind: 'task', ...(space !== 'all' ? { workspaceId: space } : {}) })} />}
       />
       <View>
         <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
@@ -163,7 +162,6 @@ export default function TasksScreen({ navigation }) {
           open.length === 0 ? (
             <View style={styles.emptyBox}>
               <Text style={styles.emptyTitle}>남은 할 일이 없어요</Text>
-              <Text style={styles.empty}>오른쪽 위 ＋ 로 새 할 일을 추가해 보세요.</Text>
             </View>
           ) : (
             <>
@@ -184,6 +182,7 @@ export default function TasksScreen({ navigation }) {
           <View style={styles.group}>{done.map((t) => row(t, 'done'))}</View>
         )}
       </ScrollView>
+      <BottomCreate label="할 일 추가" onPress={() => navigation.navigate(ROUTES.TaskEdit, { date: today, kind: 'task', ...(space !== 'all' ? { workspaceId: space } : {}) })} />
       {snack.view}
     </View>
   );
@@ -192,7 +191,7 @@ export default function TasksScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   chips: { flexDirection: 'row', paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.md },
-  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   spaceChipOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
   spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.ink },
   list: {paddingHorizontal:20,paddingBottom:96,gap:20},

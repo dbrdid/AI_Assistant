@@ -645,13 +645,13 @@ export default function GraphCanvas({
         </div>)}
       </div>
       {!nodes.length && <div className="graph-empty">문서를 작성하면 여기에 나타납니다.</div>}
-      {selectedRoute&&!connection&&<div className="graph-edit-hint">선을 끌어 구간 이동  /  양 끝 원을 끌어 연결 위치 변경{selectedRoute.anchors.via?.length>0&&<button onPointerDown={e=>e.stopPropagation()} onClick={resetRoute}>꺾임 초기화</button>}</div>}
+      {selectedRoute&&!connection&&<div className="graph-edit-hint">선을 끌어 구간 이동, 양 끝 원을 끌어 연결 위치 변경{selectedRoute.anchors.via?.length>0&&<button onPointerDown={e=>e.stopPropagation()} onClick={resetRoute}>꺾임 초기화</button>}</div>}
     </div>
     <div className="graph-context" aria-live="polite">
       {connection ? <><span>연결할 문서의 테두리로 끌어주세요</span><button onClick={() => {
           setConnection(null);
           connectionRef.current = null;
-        }}>취소</button></> : selectedNode ? <><span className="graph-selected-title">{selectedNode.title}</span><button onClick={() => open(selectedNode)}>열기 ↗</button></> : selectedEdge ? <><span>{selectedEdge.kind === 'manual' ? '문서 연결' : selectedEdge.kind === 'hierarchy' ? '상위 / 하위 문서' : selectedEdge.kind === 'source' ? '원본 / 요약 문서' : '문서 / 할 일 연결'}</span>{selectedEdge.kind === 'manual' ? <button className="graph-delete" onClick={removeLink}>연결 해제</button> : <span className="graph-muted">문서 편집에서 관리</span>}</> : <span className="graph-muted">테두리 어디서나 연결  /  본문 드래그로 이동</span>}
+        }}>취소</button></> : selectedNode ? <><span className="graph-selected-title">{selectedNode.title}</span><button onClick={() => open(selectedNode)}>열기 ↗</button></> : selectedEdge ? <><span>{selectedEdge.kind === 'manual' ? '문서 연결' : selectedEdge.kind === 'hierarchy' ? '상위와 하위 문서' : selectedEdge.kind === 'source' ? '원본과 요약 문서' : '문서와 할 일 연결'}</span>{selectedEdge.kind === 'manual' ? <button className="graph-delete" onClick={removeLink}>연결 해제</button> : <span className="graph-muted">문서 편집에서 관리</span>}</> : <span className="graph-muted">테두리 어디서나 연결, 본문 드래그로 이동</span>}
       <div className="graph-zoom"><button aria-label="축소" onClick={() => zoom(1 / 1.2)}>−</button><button aria-label="100% 보기" onClick={() => setView(previous => zoomAt(previous, {
           x: size.width / 2,
           y: size.height / 2

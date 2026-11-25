@@ -496,9 +496,9 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
         </View>
       )}
 
-      {/* 새 메모 버튼: 오른쪽 아래에 떠 있음 (선택 모드에서는 숨김) */}
+      {/* 새 메모 버튼: 홈 개요와 같은 하단 도크 오른쪽 (선택 모드에서는 숨김) */}
       {!selecting && canCreateMemo && (
-        <Pressable
+        <View style={[styles.bar, { justifyContent: 'flex-end', paddingBottom: Math.max(10, insets.bottom) }]}><Pressable
           accessibilityRole="button"
           accessibilityLabel="새 메모 쓰기"
           onPress={() => {
@@ -507,13 +507,13 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
             enterSpace(createSpaceId);
             navigation.navigate(ROUTES.MemoEdit);
           }}
-          style={({ pressed }) => [styles.fab, { bottom: insets.bottom + spacing.xl }, pressed && { opacity: 0.85 }]}
+          style={({ pressed }) => [styles.fab, pressed && { opacity: 0.5 }]}
         >
-          <Icon name="plus" size={28} color={colors.white} strokeWidth={2.2} />
-        </Pressable>
+          <Icon name="plus" size={21} color={colors.ink} />
+        </Pressable></View>
       )}
 
-      {/* 선택 모드 아래 줄: 취소 · 전체 · 즐겨찾기 · 삭제 */}
+      {/* 선택 모드 아래 줄: 취소, 전체, 즐겨찾기, 삭제 */}
       {selecting && (
         <View style={[styles.bar, { paddingBottom: insets.bottom + spacing.sm }]}>
           <Pressable accessibilityRole="button" onPress={() => setSelected(allSelected ? [] : memos.map((m) => m.id))} style={styles.barBtn}>
@@ -539,7 +539,7 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
           <Pressable accessibilityRole="button" disabled={none} onPress={doFavorite} style={[styles.barBtn, none && styles.off]}>
             <View style={styles.barInner}>
               <Icon name="star" size={16} color={colors.coral} strokeWidth={2} />
-              <Text style={[styles.barText, { color: colors.mintDark }]}>{allFavorite ? '해제' : '즐겨찾기'}</Text>
+              <Text style={styles.barText}>{allFavorite ? '해제' : '즐겨찾기'}</Text>
             </View>
           </Pressable>
           <Pressable accessibilityRole="button" disabled={none} onPress={doTrash} style={[styles.barBtn, none && styles.off]}>
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
   searchBar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md + 2, minHeight: 48, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   searchInput: { flex: 1, fontSize: font.bodyLg, color: colors.ink, paddingVertical: 8 },
   chips: { gap: spacing.sm, paddingVertical: 2 },
-  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   spaceChipOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
   spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.ink },
   chip: { maxWidth: 180 },
@@ -721,28 +721,10 @@ const styles = StyleSheet.create({
   snackAction: { fontSize: font.body, fontWeight: '600', color: colors.mint },
 
   // 새 메모 버튼 (동그란 +, 진한 녹색 + 떠 있는 그림자)
-  fab: {
-    position: 'absolute',
-    right: spacing.lg,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.action,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow.float,
-  },
+  fab: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
 
   // 선택 모드 아래 줄
-  bar: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-    backgroundColor: colors.cream,
-  },
+  bar: { flexDirection: 'row', gap: 4, paddingHorizontal: 16, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.cream },
   proj: { fontSize: font.caption, fontWeight: '500', color: colors.mintDark },
   dialogBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialogBox: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.md },
@@ -750,8 +732,8 @@ const styles = StyleSheet.create({
   projOpt: { minHeight: 44, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, paddingHorizontal: spacing.lg, justifyContent: 'center' },
   projOptText: { fontSize: font.bodyLg, color: colors.ink },
   projClose: { minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  barBtn: { flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  barText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
+  barBtn: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  barText: { fontSize: 15, fontWeight: '500', color: colors.ink },
   barInner: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   off: { opacity: 0.35 },
 

@@ -20,7 +20,7 @@ export function proposalWhen(p) {
     parts.push(`${d.getMonth() + 1}/${d.getDate()} (${WEEKDAYS[d.getDay()]})${p.start ? ` ${p.start}` : ''}`);
   }
   if (p.place) parts.push(p.place);
-  return parts.join('  /  ');
+  return parts.join(', ');
 }
 
 function Btn({ label, onPress, primary, danger }) {
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   reason: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   reasonText: { flex: 1, fontSize: 13, fontWeight: '500', color: colors.coral },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: 4 },
-  btn: { minHeight: 36, paddingHorizontal: 14, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
+  btn: { minHeight: 44, paddingHorizontal: 14, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   btnPrimary: { backgroundColor: colors.action, borderColor: colors.actionBorder },
   btnText: { fontSize: font.body, fontWeight: '600', color: colors.ink },
 });

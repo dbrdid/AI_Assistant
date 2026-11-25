@@ -86,8 +86,8 @@ export default function EditorTools({
             setSelectedVersion(null);
             setError(`버전 ${number} 저장됨`);
           }), readOnly)}
-      {row('버전 기록 / 복원', 'clock', () => setPanel('versions'))}
-      {row('원문 / 출처 보기', 'file', () => setPanel('original'))}
+      {row('버전 기록', 'clock', () => setPanel('versions'))}
+      {row('원문과 출처', 'file', () => setPanel('original'))}
       {row('저장본과 비교', 'compare', () => setPanel('compare'))}
       {row('하위 문서 만들기', 'plus', () => run(saved => {
             close();
@@ -95,22 +95,22 @@ export default function EditorTools({
               parentId: saved.id
             }, { push: true });
           }), readOnly)}
-      {row('문서 이동 / 순서', 'sort', () => setPanel('move'), readOnly)}
+      {row('문서 이동', 'sort', () => setPanel('move'), readOnly)}
       {row('문서 간 연결', 'link', () => setPanel('links'), readOnly)}
-      {row('필기 / 사진 / 기존 편집 도구', 'pencil', () => {
+      {row('필기와 사진', 'pencil', () => {
             close();
             onAdvanced();
           })}
       {row('휴지통으로 이동', 'trash', () => setConfirmation('trash'), readOnly)}
     </>}
-    {panel === 'versions' && <>{!versions.length && <Text style={s.empty}>저장한 버전이 없습니다.{'\n'}문서 도구의 ‘현재 버전 저장’으로 기록하세요.</Text>}{versions.map(version => row(`버전 ${version.number}  /  ${new Date(version.createdAt).toLocaleString('ko-KR')}`, 'clock', () => setSelectedVersion(version)))}{selectedVersion && <View style={{
+    {panel === 'versions' && <>{!versions.length && <Text style={s.empty}>저장한 버전이 없습니다.{'\n'}문서 도구의 ‘현재 버전 저장’으로 기록하세요.</Text>}{versions.map(version => row(`버전 ${version.number}, ${new Date(version.createdAt).toLocaleString('ko-KR')}`, 'clock', () => setSelectedVersion(version)))}{selectedVersion && <View style={{
             paddingVertical: 18
           }}><Text style={s.sectionTitle}>{selectedVersion.title || '제목 없는 문서'}</Text><Text selectable style={s.proposalBody}>{selectedVersion.body}</Text><Pressable accessibilityRole="button" disabled={readOnly} onPress={() => setConfirmation('restore')} style={[s.primary, {
               marginTop: 18
             }]}><Text style={s.primaryText}>이 버전 복원</Text></Pressable></View>}</>}
-    {panel === 'original' && original && <><Text style={s.note}>{original.capturedAt ? `${new Date(original.capturedAt).toLocaleString('ko-KR')}  /  이 기기에서 편집 전에 보존한 원문` : '이 문서는 아직 보존한 이전 원문이 없어 현재 저장본을 표시합니다.'}</Text><Text selectable style={s.proposalBody}>{original.body}</Text><Text style={[s.sectionTitle, {
+    {panel === 'original' && original && <><Text style={s.note}>{original.capturedAt ? `${new Date(original.capturedAt).toLocaleString('ko-KR')}, 이 기기에서 편집 전에 보존한 원문` : '이 문서는 아직 보존한 이전 원문이 없어 현재 저장본을 표시합니다.'}</Text><Text selectable style={s.proposalBody}>{original.body}</Text><Text style={[s.sectionTitle, {
             marginTop: 20
-          }]}>연결된 출처 / 문서</Text>{links.filter(link => link.source === memo.id || link.target === memo.id).map(link => {
+          }]}>연결된 출처와 문서</Text>{links.filter(link => link.source === memo.id || link.target === memo.id).map(link => {
             const target = docs.find(document => document.id === (link.source === memo.id ? link.target : link.source));
             return target && row(target.title || '제목 없는 문서', 'link', () => {
               close();
@@ -119,7 +119,7 @@ export default function EditorTools({
               });
             });
           })}</>}
-    {panel === 'compare' && <><Text style={s.note}>입력 중인 내용과 최신 저장본을 읽기 전용으로 비교합니다. 자동 병합하거나 덮어쓰지 않습니다.</Text><Text style={[s.sectionTitle, {
+    {panel === 'compare' && <><Text style={s.note}>최신 저장본과 읽기 전용으로 비교해요.</Text><Text style={[s.sectionTitle, {
             marginTop: 18
           }]}>입력 중</Text><Text selectable style={s.proposalBody}>{draft.title}{'\n\n'}{draft.body}</Text><Text style={[s.sectionTitle, {
             marginTop: 18
@@ -135,7 +135,7 @@ export default function EditorTools({
             const index = siblings.findIndex(document => document.id === saved.id);
             if (index < siblings.length - 1) own.documents.moveDocument(saved.id, current?.parentId, siblings[index + 2]?.id ?? null);
           }))}<Text style={s.note}>아래 문서의 하위로 이동</Text>{docs.filter(document => document.id !== memo?.id).map(document => row(document.title || '제목 없는 문서', 'file', () => run(saved => own.documents.moveDocument(saved.id, document.id))))}</>}
-    {panel === 'links' && <><Text style={s.note}>선택한 문서와 연결합니다. 연결은 문서 본문 아래와 문서 관계에 표시됩니다.</Text>{docs.filter(document => document.id !== memo?.id).map(document => {
+    {panel === 'links' && <>{docs.filter(document => document.id !== memo?.id).map(document => {
             const linked = links.some(link => [link.source, link.target].includes(memo?.id) && [link.source, link.target].includes(document.id));
             return <Pressable key={document.id} accessibilityRole="checkbox" accessibilityState={{
               checked: linked

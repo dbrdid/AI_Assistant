@@ -41,7 +41,7 @@ export default function NoticeScreen({ navigation }) {
           <View style={styles.actions}>
             {unread > 0 ? (
               <Pressable accessibilityRole="button" onPress={markAllRead} hitSlop={8}>
-                <Text style={styles.readAllText} numberOfLines={1}>안 읽은 {unread}개  /  모두 읽음</Text>
+                <Text style={styles.readAllText} numberOfLines={1}>안 읽은 {unread}개, 모두 읽음</Text>
               </Pressable>
             ) : (
               <Text style={styles.allRead}>모두 읽었어요</Text>
@@ -78,7 +78,7 @@ export default function NoticeScreen({ navigation }) {
                     <Text style={styles.title} numberOfLines={1}>{n.title}</Text>
                   </View>
                   <Text style={styles.body} numberOfLines={2}>{n.body}</Text>
-                  <Text style={styles.time}>{k.label}  /  {dateLabel(n.at)}</Text>
+                  <Text style={styles.time}>{k.label}, {dateLabel(n.at)}</Text>
                 </View>
                 <Pressable accessibilityRole="button" accessibilityLabel="이 알림 지우기" onPress={() => removeNotice(n.id)} hitSlop={10}>
                   <Icon name="x" size={18} color={colors.muted} />
@@ -107,7 +107,7 @@ export default function NoticeScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
-  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 40 },
+  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
   allRead: { fontSize: font.body, color: colors.muted },
   clear: { fontSize: font.body, fontWeight: '500', color: colors.coral },
   chips: { gap: spacing.sm, paddingVertical: spacing.xs },

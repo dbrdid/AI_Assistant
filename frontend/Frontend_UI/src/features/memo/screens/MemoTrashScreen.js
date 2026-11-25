@@ -104,7 +104,7 @@ export default function TrashScreen({ navigation }) {
                 {selecting && <Icon name={on ? 'checkSquare' : 'square'} size={24} color={on ? colors.mintDark : colors.muted} strokeWidth={on ? 2.2 : 1.8} />}
                 <View style={styles.info}>
                   <Text style={styles.title} numberOfLines={1}>{memoTitle(m)}</Text>
-                  <Text style={styles.date}>삭제 {formatMD(m.deletedAt)}  /  수정 {formatMD(m.updatedAt)}</Text>
+                  <Text style={styles.date}>삭제 {formatMD(m.deletedAt)}, 수정 {formatMD(m.updatedAt)}</Text>
                   {projectOf('memos', m.id) && <Tag label={projectOf('memos', m.id).title} style={styles.tag} />}
                   {m.body.trim().length > 0 && <Text style={styles.body} numberOfLines={2}>{m.body}</Text>}
                   {m.strokes && m.strokes.length > 0 && (
@@ -126,7 +126,7 @@ export default function TrashScreen({ navigation }) {
         </View>
       )}
 
-      {/* 선택 모드 아래 줄: 취소 · 전체 · 이동 · 복구 · 삭제 */}
+      {/* 선택 모드 아래 줄: 취소, 전체, 이동, 복구, 삭제 */}
       {selecting && (
         <View style={[styles.bar, { paddingBottom: insets.bottom + spacing.sm }]}>
           <Pressable accessibilityRole="button" onPress={exitSelect} style={styles.barBtn}>
@@ -144,7 +144,7 @@ export default function TrashScreen({ navigation }) {
             <Text style={styles.barText}>이동</Text>
           </Pressable>
           <Pressable accessibilityRole="button" disabled={none} onPress={() => setConfirm('restore')} style={[styles.barBtn, none && styles.off]}>
-            <Text style={[styles.barText, { color: colors.mintDark }]}>복구</Text>
+            <Text style={styles.barText}>복구</Text>
           </Pressable>
           <Pressable accessibilityRole="button" disabled={none} onPress={() => setConfirm('delete')} style={[styles.barBtn, none && styles.off]}>
             <Text style={[styles.barText, { color: colors.coral }]}>삭제</Text>
@@ -212,16 +212,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
-  bar: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-    backgroundColor: colors.cream,
-  },
-  barBtn: { flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  barText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
+  bar: { flexDirection: 'row', gap: 4, paddingHorizontal: 16, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.cream },
+  barBtn: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  barText: { fontSize: 15, fontWeight: '500', color: colors.ink },
   off: { opacity: 0.35 },
 });

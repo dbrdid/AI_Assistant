@@ -98,10 +98,10 @@ export default function SetupFlow({ user, onDone }) {
   // ---------- 소개 (19장) ----------
   if (name === 'intro') {
     const flow = [
-      ['1', '정보 입력', '메모  /  녹음  /  사진  /  문서'],
-      ['2', 'AI 분석', '일정  /  할 일 후보 추출'],
+      ['1', '정보 입력', '메모, 녹음, 사진, 문서'],
+      ['2', 'AI 분석', '일정, 할 일 후보 추출'],
       ['3', '사용자 확인', '추출 내용 확인'],
-      ['4', '저장', '캘린더  /  할 일에 저장'],
+      ['4', '저장', '캘린더, 할 일에 저장'],
     ];
     return (
       <View style={styles.root}>
@@ -149,7 +149,7 @@ export default function SetupFlow({ user, onDone }) {
           <Pressable accessibilityRole="button" onPress={() => setTzOpen(true)} style={styles.card}>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={styles.cardTitle}>{timezoneLabel(tz)}</Text>
-              <Text style={styles.cardSub}>{tz === deviceTimezone() ? '기기 시간대' : '직접 선택한 시간대'}  /  일정과 브리핑에 적용돼요</Text>
+              <Text style={styles.cardSub}>{tz === deviceTimezone() ? '기기 시간대' : '직접 선택한 시간대'}, 일정과 브리핑에 적용돼요</Text>
             </View>
             <Icon name="chevronRight" size={18} color={colors.muted} />
           </Pressable>
@@ -194,10 +194,10 @@ export default function SetupFlow({ user, onDone }) {
             {chip('전체', all, () => setTargets(all ? { schedule: false, task: false, person: false, place: false } : { schedule: true, task: true, person: true, place: true }))}
             {KEYS.map(([k, l]) => chip(l, targets[k], () => setTargets((t) => ({ ...t, [k]: !t[k] }))))}
           </View>
-          <ToggleRow label="AI 자동 요약" sub="메모 / 녹음 / 회의 내용을 AI가 자동으로 요약해 드려요" value={autoSummary} onValueChange={setAutoSummary} />
+          <ToggleRow label="AI 자동 요약" sub="메모, 녹음, 회의 내용을 AI가 자동으로 요약해 드려요" value={autoSummary} onValueChange={setAutoSummary} />
           <View style={styles.info}>
             <Text style={styles.infoTitle}>외부 AI로 전달되는 정보</Text>
-            <Text style={styles.infoText}>분석 요청한 메모  /  녹음  /  텍스트가 전달돼요. 설정에서 기기 내 처리로 바꿀 수 있어요.</Text>
+            <Text style={styles.infoText}>분석 요청한 메모, 녹음, 텍스트가 전달돼요. 설정에서 기기 내 처리로 바꿀 수 있어요.</Text>
           </View>
         </ScrollView>
         {footer('다음', saveAi)}
@@ -218,7 +218,7 @@ export default function SetupFlow({ user, onDone }) {
     if (items.task) parts.push(`남은 할 일 ${nTodos}건`);
     if (items.due) parts.push(`마감 임박 ${nDue}건`);
     if (items.note) parts.push(`중요 메모 ${nNotes}건`);
-    const via = [channels.app && '앱 알림', channels.voice && '음성', channels.external && '외부 채널'].filter(Boolean).join('  /  ');
+    const via = [channels.app && '앱 알림', channels.voice && '음성', channels.external && '외부 채널'].filter(Boolean).join(', ');
     const KEYS = [['schedule', '일정'], ['task', '할 일'], ['due', '마감 임박'], ['note', '중요 메모']];
     const allItems = KEYS.every(([k]) => items[k]);
     const chip = (label, on, onPress) => (
@@ -235,7 +235,7 @@ export default function SetupFlow({ user, onDone }) {
             {chip('전체', allItems, () => setItems(allItems ? { schedule: false, task: false, due: false, note: false } : { schedule: true, task: true, due: true, note: true }))}
             {KEYS.map(([k, l]) => chip(l, items[k], () => setItems((t) => ({ ...t, [k]: !t[k] }))))}
           </View>
-          <ToggleRow label="상황 맞춤 브리핑" sub="하루 시작 / 회의 직전 등 상황에 따라 길이와 전달 방식이 달라져요" value={contextual} onValueChange={setContextual} />
+          <ToggleRow label="상황 맞춤 브리핑" sub="하루 시작이나 회의 직전처럼 상황에 따라 길이와 전달 방식이 달라져요" value={contextual} onValueChange={setContextual} />
           <Text style={styles.q}>브리핑 받는 방법</Text>
           <View style={styles.chipRow}>
             {chip('앱 알림', channels.app, () => setChannels((c) => ({ ...c, app: !c.app })))}
@@ -245,7 +245,7 @@ export default function SetupFlow({ user, onDone }) {
           {channels.external && <Text style={styles.note}>외부 채널은 동의한 경우에만 쓸 수 있어요. 실제 연결은 서버가 준비되면 시작돼요.</Text>}
           <View style={styles.preview}>
             <Text style={styles.previewLabel}>미리 보기</Text>
-            <Text style={styles.previewText}>{parts.length ? parts.join('  /  ') : '브리핑에 포함할 내용을 선택해 주세요'}</Text>
+            <Text style={styles.previewText}>{parts.length ? parts.join(', ') : '브리핑에 포함할 내용을 선택해 주세요'}</Text>
             {contextual && <Text style={styles.previewSub}>회의 직전에는 짧게 요약해 드려요</Text>}
             {!!via && <Text style={styles.previewSub}>받는 방법: {via}</Text>}
           </View>
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
   big: { fontSize: 26, fontWeight: '600', color: colors.ink, lineHeight: 34 },
   q: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   note: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
-  textBtn: { alignSelf: 'center', minHeight: 40, justifyContent: 'center' },
+  textBtn: { alignSelf: 'center', minHeight: 44, justifyContent: 'center' },
   textBtnText: { fontSize: font.body, fontWeight: '500', color: colors.muted },
   flowRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   flowNum: { width: 34, height: 34, borderRadius: 4, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   radio: { fontSize: 22, color: colors.muted },
   chev: { fontSize: 24, color: colors.muted },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chip: { minHeight: 40, paddingHorizontal: spacing.lg, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  chip: { minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   chipOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
   chipText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
   info: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.mintSoft, gap: 4 },

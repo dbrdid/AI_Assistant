@@ -11,7 +11,7 @@ import { CircleButton } from '../../../shared/components/Ui';
 import Icon from '../../../shared/components/Icon';
 import { WEEKDAYS, isSameDay, monthMatrix, toKey } from '../utils/DateUtils';
 
-const OUTSIDE = '#4f5356'; // 이번 달이 아닌 날짜: 어두운 배경에서 한 단계 물러난 회색
+const OUTSIDE = '#6a6e71'; // 이번 달이 아닌 날짜: 어두운 배경에서 한 단계 물러난 회색
 const WEEKEND = '#d79b9b'; // 일요일·공휴일: 코랄을 낮춘 색(강조보다 구분용)
 const TODAY = '#ffffff'; // 오늘: 가장 밝은 글자 + 굵게(녹색 없이 구분)
 
@@ -38,7 +38,7 @@ export default function MonthCalendar({
   return (
     <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.grid}>
-        {/* ---------- 1) 맨 위: 2026년 11월 ·  ‹ › ---------- */}
+        {/* ---------- 1) 맨 위: 2026년 11월,  ‹ › ---------- */}
         <View style={styles.head}>
           {/* 달 이름을 누르면 연·월을 골라서 이동. month 는 0~11 이라서 +1 */}
           <Pressable
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   weekHead: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line, marginBottom: 6 },
   // flex: 1 → 7칸이 폭을 똑같이 나눠 가짐
   // 요일 줄: 작고 흐리게, 아래 옅은 선으로 날짜와 구분
-  weekday: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '500', letterSpacing: 0.4, color: '#7d8184', paddingTop: 2, paddingBottom: 10 },
+  weekday: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '500', letterSpacing: 0.4, color: '#878b8e', paddingTop: 2, paddingBottom: 10 },
   cell: { flex: 1, height: 48, alignItems: 'center', justifyContent: 'center' },
   // 날짜: 얇은 글자, 선택은 낮은 대비의 채운 원, 오늘은 강조색 글자만(테두리 없음)
   // Android: 나중에 배경이 생기면 둥근 모서리가 빠지므로 처음부터 투명 배경과 잘라내기를 둔다.

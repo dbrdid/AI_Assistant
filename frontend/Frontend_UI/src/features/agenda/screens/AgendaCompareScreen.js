@@ -108,7 +108,7 @@ export default function AgendaCompareScreen({ navigation, route }) {
         {!project ? (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>비교할 프로젝트가 없어요</Text>
-            <Text style={styles.emptySub}>프로젝트를 만들고 메모 / 할 일 / 파일을 연결하면{'\n'}하루 단위로 달라진 점을 알려드려요.</Text>
+            <Text style={styles.emptySub}>프로젝트를 만들고 메모, 할 일, 파일을 연결하면{'\n'}하루 단위로 달라진 점을 알려드려요.</Text>
           </View>
         ) : (
           <>
@@ -134,7 +134,7 @@ export default function AgendaCompareScreen({ navigation, route }) {
               </Pressable>
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text style={styles.dayText}>{longDateKey(day)}{day === today ? ' (오늘)' : ''}</Text>
-                <Text style={styles.daySub}>{prevDay ? `${shortDateKey(prevDay)} 기록과 비교` : basis === 'timestamp' ? '이전 기록 없음  /  작성/수정 시각 기준' : ' '}</Text>
+                <Text style={styles.daySub}>{prevDay ? `${shortDateKey(prevDay)} 기록과 비교` : basis === 'timestamp' ? '이전 기록 없음, 작성/수정 시각 기준' : ' '}</Text>
               </View>
               <Pressable accessibilityRole="button" accessibilityLabel="다음 기록 날짜" disabled={idx >= days.length - 1} onPress={() => move(1)} style={[styles.arrow, idx >= days.length - 1 && { opacity: 0.3 }]}>
                 <Icon name="chevronRight" size={20} />
@@ -142,15 +142,15 @@ export default function AgendaCompareScreen({ navigation, route }) {
             </View>
 
             <View style={styles.summary} accessibilityLabel={`추가 ${count.added}, 내용 바뀜 ${count.changed}, 삭제 ${count.removed}`}>
-              <Text style={styles.summaryText}>추가 {count.added}  /  내용 바뀜 {count.changed}  /  삭제 {count.removed}</Text>
+              <Text style={styles.summaryText}>추가 {count.added}, 내용 바뀜 {count.changed}, 삭제 {count.removed}</Text>
               {judging ? <Text style={styles.summarySub}>회의 메모와 비교하는 중…</Text>
-                : judgedVals.length > 0 && <Text style={styles.summarySub}>논의됨 {nDiscussed}  /  미논의 {nOpen}</Text>}
+                : judgedVals.length > 0 && <Text style={styles.summarySub}>논의됨 {nDiscussed}, 미논의 {nOpen}</Text>}
             </View>
 
             {changes.length === 0 && (
               <Text style={styles.hint}>
                 {Object.keys(project.links.memos).length + project.links.tasks.length + project.links.files.length === 0
-                  ? '이 프로젝트에 연결된 메모 / 할 일 / 파일이 아직 없어요.'
+                  ? '이 프로젝트에 연결된 메모, 할 일, 파일이 아직 없어요.'
                   : '이 날은 달라진 내용이 없어요.'}
               </Text>
             )}
@@ -208,7 +208,7 @@ export default function AgendaCompareScreen({ navigation, route }) {
             })}
             {!!judgeNote && <Text style={styles.hint}>{judgeNote}</Text>}
             <Text style={styles.foot}>
-              논의됨 / 미논의는 그날 이 프로젝트에 연결된 회의 메모(제목에 '회의'가 들어가거나 녹음으로 만든 메모)를 AI 가 읽고 판단해요. 확실하지 않으면 미논의로 표시돼요.
+              '논의됨'과 '미논의'는 그날 이 프로젝트에 연결된 회의 메모(제목에 '회의'가 들어가거나 녹음으로 만든 메모)를 AI 가 읽고 판단해요. 확실하지 않으면 미논의로 표시돼요.
             </Text>
           </>
         )}
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   chips: { gap: spacing.sm, paddingVertical: spacing.xs },
-  chip: { maxWidth: 220, paddingHorizontal: spacing.lg, minHeight: 40, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  chip: { maxWidth: 220, paddingHorizontal: spacing.lg, minHeight: 44, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   chipOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
   chipText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
   dayRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   diffLabel: { fontSize: font.caption, fontWeight: '600', color: colors.muted },
   diffBox: { padding: spacing.md, borderRadius: radius.sm || 8 },
   diffText: { fontSize: font.body, color: colors.ink, lineHeight: 20 },
-  openBtn: { alignSelf: 'flex-start', minHeight: 40, paddingHorizontal: spacing.lg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
+  openBtn: { alignSelf: 'flex-start', minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
   openText: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },
   foot: { fontSize: font.caption, color: colors.muted, lineHeight: 18, marginTop: spacing.sm },
 });

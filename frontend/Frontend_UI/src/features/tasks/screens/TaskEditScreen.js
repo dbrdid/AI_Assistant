@@ -28,12 +28,32 @@ const dateLabel = (k) => {
   return `${d.getMonth() + 1}월 ${d.getDate()}일 ${WEEKDAYS_LONG[d.getDay()]}`;
 };
 
-function Chips({ label, options, value, onChange }) {
+export function Chips({ label, options, value, onChange }) {
   const [open,setOpen]=useState(false);
   return (
     <><Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${value}`} onPress={()=>setOpen(true)} style={styles.line}>
       <Icon name={label==='알림'?'bell':label==='중요도'?'flag':'checkSquare'} size={18} color={colors.muted}/><Text style={styles.lineLabel}>{label}</Text><Text style={styles.lineValue}>{value}</Text><Icon name="chevronDown" size={15} color={colors.muted}/>
     </Pressable><SheetModal visible={open} onClose={()=>setOpen(false)} label={`${label} 선택`}><View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",minHeight:44}}><Text style={styles.label}>{label}</Text><Pressable accessibilityRole="button" accessibilityLabel={`${label} 선택 닫기`} onPress={()=>setOpen(false)} style={{minWidth:44,minHeight:44,alignItems:"center",justifyContent:"center"}}><Icon name="x" size={18} color={colors.muted}/></Pressable></View><ScrollView showsVerticalScrollIndicator={false}>{options.map(option=><Pressable key={option} accessibilityRole="radio" accessibilityState={{checked:value===option}} accessibilityLabel={option} onPress={()=>{onChange(option);setOpen(false);}} style={styles.line}><Text style={styles.lineValue}>{option}</Text><View style={{flex:1}}/>{value===option&&<Icon name="check" size={18} color={colors.ink}/>}</Pressable>)}</ScrollView></SheetModal></>
+  );
+}
+
+// 공간: 다른 속성 줄과 같은 한 줄, 누르면 아래 시트에서 고른다 (Notion 캘린더의 캘린더 선택 줄)
+function SpaceLine({ list, spaces, current, onPick }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <><Pressable accessibilityRole="button" accessibilityLabel={`공간: ${current.name}`} onPress={() => setOpen(true)} style={styles.line}>
+      <SpaceDot color={spaces[current.id]?.color} /><Text style={styles.lineLabel}>공간</Text><Text style={styles.lineValue} numberOfLines={1}>{current.name}</Text><Icon name="chevronDown" size={15} color={colors.muted} />
+    </Pressable><SheetModal visible={open} onClose={() => setOpen(false)} label="공간 선택"><View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}><Text style={styles.label}>공간</Text><Pressable accessibilityRole="button" accessibilityLabel="공간 선택 닫기" onPress={() => setOpen(false)} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={18} color={colors.muted} /></Pressable></View><ScrollView showsVerticalScrollIndicator={false}>{list.map((w) => { const s = spaces[w.id]; const on = w.id === current.id; return <Pressable key={w.id} accessibilityRole="radio" accessibilityState={{ checked: on, disabled: s.readOnly }} accessibilityLabel={s.name} disabled={s.readOnly} onPress={() => { onPick(w.id); setOpen(false); }} style={[styles.line, s.readOnly && { opacity: 0.4 }]}><SpaceDot color={s.color} /><Text style={[styles.lineValue, { flex: 1 }]} numberOfLines={1}>{s.name}</Text>{on && <Icon name="check" size={18} color={colors.ink} />}</Pressable>; })}</ScrollView></SheetModal></>
+  );
+}
+
+// 장소처럼 짧은 값: 아이콘 + 입력칸 한 줄 (제목 라벨과 placeholder를 겹쳐 쓰지 않는다)
+export function FieldLine({ icon, label, ...rest }) {
+  return (
+    <View style={styles.line}>
+      <Icon name={icon} size={18} color={colors.muted} />
+      <TextInput style={styles.lineInput} placeholder={label} placeholderTextColor={colors.muted} accessibilityLabel={label} {...rest} />
+    </View>
   );
 }
 
@@ -47,7 +67,7 @@ function Input({ label, ...rest }) {
 }
 
 // 아이콘 + 글자 + 오른쪽 값/스위치 한 줄
-function Line({ icon, label, value, onPress, right, muted }) {
+export function Line({ icon, label, value, onPress, right, muted }) {
   const body = (
     <>
       <Icon name={icon} size={18} color={muted ? colors.muted : colors.mintDark} />
@@ -199,53 +219,24 @@ export default function TaskEditScreen({ navigation, route }) {
             );
           })}
         </View>}
-        {!!existing && <View style={styles.spaceLine}><Icon name={isEvent?'calendar':'checkSquare'} size={16} color={colors.muted}/><Text style={styles.note}>{isEvent?'일정':'할 일'} / {currentSpace.name}</Text></View>}
-
-        {/* ---------- 공간 (팀 공간이 있을 때만) ---------- */}
-        {spaceList.length > 1 && (existing ? (
-          <View style={styles.spaceLine}>
-            <SpaceDot color={spaces[currentSpace.id]?.color} />
-            <Text style={styles.note}>{currentSpace.name} 공간의 {isEvent ? '일정' : '할 일'}</Text>
-          </View>
-        ) : (
-          <View style={styles.field}>
-            <Text style={styles.label}>공간</Text>
-            <View style={styles.chipRow}>
-              {spaceList.map((w) => {
-                const s = spaces[w.id];
-                const on = w.id === currentSpace.id;
-                return (
-                  <Pressable
-                    key={w.id}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: on, disabled: s.readOnly }}
-                    disabled={s.readOnly}
-                    onPress={() => { enterSpace(w.id); setProjectId(null); }}
-                    style={[styles.spacePick, on && styles.spacePickOn, s.readOnly && { opacity: 0.4 }]}
-                  >
-                    <SpaceDot color={s.color} />
-                    <Text style={[styles.spacePickText, on && { color: colors.mintDark }]} numberOfLines={1}>{s.name}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        ))}
 
         <TextInput
           accessibilityLabel="제목"
           style={styles.titleInput}
           value={f.title}
           onChangeText={set('title')}
-          placeholder={isEvent ? '어떤 일정인가요?' : '무엇을 할까요?'}
+          placeholder="제목"
           placeholderTextColor={colors.muted}
           maxLength={100}
           autoFocus={!existing}
           multiline
         />
 
-        {/* ---------- 날짜 · 시간 ---------- */}
+        {/* ---------- 날짜, 시간 ---------- */}
         <View style={styles.group}>
+          {spaceList.length > 1 && (existing
+            ? <Line icon="users" muted label="공간" value={currentSpace.name} />
+            : <SpaceLine list={spaceList} spaces={spaces} current={currentSpace} onPick={(id) => { enterSpace(id); setProjectId(null); }} />)}
           <Line icon="calendar" label={isEvent ? (multiDay ? '시작' : '날짜') : '기한'} value={dateLabel(f.date)} onPress={() => setPicker('date')} />
           {isEvent && (
             <Line
@@ -259,20 +250,20 @@ export default function TaskEditScreen({ navigation, route }) {
           {isEvent && <Line icon="clock" muted={!allDay} label="종일" right={<Toggle label="종일 일정" value={allDay} onValueChange={setAllDay} />} />}
           {!(isEvent && allDay) && (
             <View style={styles.lineBlock}>
-              {!isEvent && <Text style={styles.lineHint}>시간 (선택)</Text>}
+
               {timeRow}
             </View>
           )}
         </View>
 
         <Chips label="알림" options={ALARMS} value={f.alarm} onChange={set('alarm')} />
-        <Text style={styles.note}>알림 설정은 저장만 되고, 실제 알림은 추후 지원돼요.</Text>
-        {isEvent && <Input label="장소" value={f.place} onChangeText={set('place')} placeholder="장소" />}
+        {f.alarm !== ALARMS[0] && <Text style={styles.note}>아직 알림은 울리지 않아요. 설정만 저장돼요.</Text>}
+        {isEvent && <FieldLine icon="pin" label="장소" value={f.place} onChangeText={set('place')} />}
 
         {/* ---------- 더보기 ---------- */}
         <Pressable accessibilityRole="button" accessibilityState={{ expanded: more }} onPress={() => setMore((v) => !v)} style={styles.moreBtn}>
-          <Icon name="chevronDown" size={18} color={colors.mintDark} style={more ? styles.flip : undefined} />
-          <Text style={styles.moreText}>{more ? '접기' : `더보기  /  프로젝트, ${isEvent ? '' : '장소, '}담당자, 중요도, 메모`}</Text>
+          <Icon name="chevronDown" size={18} color={colors.muted} style={more ? styles.flip : undefined} />
+          <Text style={styles.moreText}>{more ? '접기' : '더보기'}</Text>
         </Pressable>
         {more && (
           <>
@@ -288,8 +279,8 @@ export default function TaskEditScreen({ navigation, route }) {
                 </View>
               )}
             </View>
-            {!isEvent && <Input label="장소" value={f.place} onChangeText={set('place')} placeholder="장소" />}
-            <Input label="담당자" value={f.assignee} onChangeText={set('assignee')} placeholder="담당자" />
+            {!isEvent && <FieldLine icon="pin" label="장소" value={f.place} onChangeText={set('place')} />}
+            <FieldLine icon="users" label="담당자" value={f.assignee} onChangeText={set('assignee')} />
             <Chips label="중요도" options={PRIORITIES} value={f.priority} onChange={set('priority')} />
             <Chips label="상태" options={STATUSES} value={f.status} onChange={set('status')} />
             <Input label="메모" value={f.desc} onChangeText={set('desc')} placeholder="설명" multiline style={[styles.input, { minHeight: 96, textAlignVertical: 'top', paddingTop: 12 }]} />
@@ -384,20 +375,21 @@ export default function TaskEditScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({headerSaveText:{fontSize:13,fontWeight:'600',color:colors.onPrimary},headerSave:{minHeight:36,minWidth:54,paddingHorizontal:12,borderRadius:4,backgroundColor:colors.action,alignItems:'center',justifyContent:'center'},
+const styles = StyleSheet.create({headerSaveText:{fontSize:16,fontWeight:'600',color:colors.ink},headerSave:{minHeight:44,minWidth:44,paddingHorizontal:8,alignItems:'center',justifyContent:'center'},
   root: { flex: 1, backgroundColor: colors.cream },
   content: {paddingHorizontal:20,paddingBottom:32,gap:10},
-  seg: {flexDirection:'row',backgroundColor:'transparent',borderRadius:0,borderWidth:0,borderColor:colors.line,padding:0,borderBottomWidth:1},
-  segBtn: {flex:1,minHeight:40,borderRadius:0,alignItems:'center',justifyContent:'center'},
-  segOn: {backgroundColor:'transparent',borderBottomWidth:2,borderColor:colors.ink},
-  segText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
+  seg: { flexDirection: 'row', gap: 4, marginLeft: -10 },
+  segBtn: { minHeight: 44, paddingHorizontal: 10, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
+  segOn: { backgroundColor: colors.raised },
+  segText: { fontSize: 14, fontWeight: '500', color: colors.muted },
   segTextOn: {color:colors.ink},
   spaceLine: {flexDirection:'row',alignItems:'center',gap:6,marginTop:8},
-  spacePick: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, maxWidth: 180, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  spacePick: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, maxWidth: 180, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   spacePickOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
   spacePickText: { flexShrink: 1, fontSize: font.body, fontWeight: '600', color: colors.ink },
   titleInput: {minHeight:96,borderBottomWidth:0,borderBottomColor:colors.line,fontSize:28,fontWeight:'600',color:colors.ink,paddingHorizontal:2,lineHeight:38,paddingTop:12,paddingBottom:16,textAlignVertical:'top'},
   group: {backgroundColor:'transparent',borderRadius:0,borderWidth:0,borderColor:colors.line,overflow:'hidden'},
+  lineInput: { flex: 1, minHeight: 50, fontSize: 15, color: colors.ink, paddingVertical: 0 },
   line: {flexDirection:'row',alignItems:'center',gap:spacing.md,minHeight:52,paddingHorizontal:0,borderBottomWidth:1,borderBottomColor:colors.line},
   lineLabel: {flex:1,fontSize:14,fontWeight:'400',color:colors.muted},
   lineValue: {fontSize:15,color:colors.ink},
@@ -412,7 +404,7 @@ const styles = StyleSheet.create({headerSaveText:{fontSize:13,fontWeight:'600',c
   tilde: { fontSize: font.bodyLg, color: colors.muted },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   note: {fontSize:font.caption,color:colors.muted,marginTop:0,lineHeight:20},
-  moreBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 40 },
+  moreBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
   moreText: {flex:1,fontSize:13,fontWeight:'400',color:colors.muted},
   flip: { transform: [{ rotate: '180deg' }] },
   error: { fontSize: font.body, fontWeight: '500', color: colors.coral },

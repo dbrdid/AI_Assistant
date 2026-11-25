@@ -10,14 +10,13 @@ import ScreenHeader from '../../../shared/components/ScreenHeader';
 import Icon from '../../../shared/components/Icon';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
-import { deleteWorkspace, enterSpace, listMembers, recentValue, useSpaceInfo, useWorkspaceAccessClosed, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
+import { deleteWorkspace, enterSpace, listMembers, recentValue, useWorkspaceAccessClosed, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { lastDate, shiftKey, shortDate, taskIn, useAllTasks } from '../../../data/tasks/TaskStore';
 import { memoTitle, useAllMemos } from '../../../data/memos/MemoStore';
 import { useProjects } from '../../../data/projects/ProjectStore';
 import { createInvite, inviteUrl } from '../../../lib/stella/workspaces';
 import { toKey } from '../../calendar/utils/DateUtils';
-import { SpaceTile } from './SpacesScreen';
 
 const ROLE = { OWNER: '관리자', EDITOR: '멤버', VIEWER: '보기 전용' };
 // 멤버 화면(SpaceMembersScreen)과 같은 무채색 아바타
@@ -35,9 +34,8 @@ function Section({ title, onAdd, addLabel, children }) {
       <View style={styles.sectionHead}>
         <Text style={styles.sectionTitle} accessibilityRole="header">{title}</Text>
         {onAdd && (
-          <Pressable accessibilityRole="button" accessibilityLabel={addLabel} onPress={onAdd} hitSlop={8} style={styles.addLink}>
-            <Icon name="plus" size={14} color={colors.mintDark} strokeWidth={2.4} />
-            <Text style={styles.addLinkText}>추가</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={addLabel} onPress={onAdd} style={({ pressed }) => [styles.addLink, pressed && { opacity: 0.5 }]}>
+            <Icon name="plus" size={18} color={colors.muted} />
           </Pressable>
         )}
       </View>
@@ -51,7 +49,6 @@ export default function SpaceHomeScreen({ navigation, route }) {
   const { list, current } = useWorkspaces();
   const ws = list.find((w) => w.id === id);
   const accessClosed = useWorkspaceAccessClosed(id);
-  const space = useSpaceInfo()[id];
 
   // 이 공간을 현재 공간으로 (프로젝트·파일·안건 화면이 이 공간 것을 보여 주도록)
   useEffect(() => {
@@ -85,7 +82,7 @@ export default function SpaceHomeScreen({ navigation, route }) {
     }
   };
   const shareInvite = () =>
-    Share.share({ message: `「${ws.name}」 공간에 초대합니다.\n앱의 [공간 → 초대 코드로 참여]에 코드를 입력해 주세요.\n코드: ${invite.code}\n${invite.url}` }).catch(() => {});
+    Share.share({ message: `「${ws.name}」 공간에 초대합니다.\n앱의 공간 화면에서 '초대 코드로 참여'를 누르고 코드를 입력해 주세요.\n코드: ${invite.code}\n${invite.url}` }).catch(() => {});
 
   // ---------- 공간 삭제 (관리자) · 나가기 (멤버) ----------
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -141,52 +138,37 @@ export default function SpaceHomeScreen({ navigation, route }) {
     <View style={styles.root}>
       <ScreenHeader title={ws.name} onBack={navigation.goBack} />
       <ScrollView contentContainerStyle={styles.content}>
-        {/* ---------- 공간 소개 + 멤버 ---------- */}
-        <View style={styles.hero}>
-          <SpaceTile space={space} size={48} />
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text style={styles.heroSub}>{ws.personal ? '나만 보는 공간 · 이 기기에만 저장돼요' : `${ws.role} · 멤버 ${ws.members}명`}</Text>
-            {!!ws.desc && <Text style={styles.desc} numberOfLines={2}>{ws.desc}</Text>}
-          </View>
-        </View>
-        {!ws.personal && (
-          <View style={styles.membersRow}>
-            {members.loading ? (
-              <View style={{ minHeight: 44 }} />
-            ) : members.error ? (
+        {/* ---------- 공간 소개 ---------- */}
+        {ws.personal ? (
+          <Text style={styles.muted}>나만 보는 공간이에요. 이 기기에만 저장돼요.</Text>
+        ) : !!ws.desc && <Text style={styles.muted} numberOfLines={2}>{ws.desc}</Text>}
+
+        {/* ---------- 멤버 행 + 바로 가기: Notion 페이지 행 (테두리 없음) ---------- */}
+        <View style={styles.quick}>
+          {!ws.personal && (
+            members.error ? (
               <Text style={styles.muted}>{members.error}</Text>
             ) : (
-              <Pressable accessibilityRole="button" onPress={() => go(ROUTES.SpaceMembers, { workspaceId: id })} hitSlop={8}
-                style={[styles.avatars, { minHeight: 44 }]} accessibilityLabel={`멤버 ${members.list.map((m) => m.display_name || '이름 없음').join(', ')}. 멤버 관리 열기`}>
-                {members.list.slice(0, 5).map((m, i) => <Avatar key={m.account_id} name={m.display_name} i={i} />)}
-                {members.list.length > 5 && <Text style={styles.more}>+{members.list.length - 5}</Text>}
+              <Pressable accessibilityRole="button" onPress={() => go(ROUTES.SpaceMembers, { workspaceId: id })}
+                style={({ pressed }) => [styles.quickBtn, pressed && { backgroundColor: colors.mintSoft }]}
+                accessibilityLabel={`${ws.role}, 멤버 ${ws.members}명. 멤버 관리 열기`}>
+                <View style={styles.avatars}>
+                  {members.list.slice(0, 3).map((m, i) => <Avatar key={m.account_id} name={m.display_name} i={i} size={24} />)}
+                </View>
+                <Text style={styles.quickText}>{`${ws.role}, 멤버 ${ws.members}명`}</Text>
                 <Icon name="chevronRight" size={16} color={colors.muted} />
               </Pressable>
-            )}
-            <View style={{ flex: 1 }} />
-            {canInvite && (
-              <Pressable accessibilityRole="button" onPress={makeInvite} style={({ pressed }) => [styles.inviteBtn, pressed && { opacity: 0.7 }]}>
-                <Icon name="userPlus" size={16} color={colors.white} />
-                <Text style={styles.inviteText}>초대</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
-        {!ws.personal && members.list.length > 0 && (
-          <Text style={styles.muted} numberOfLines={2}>
-            {members.list.map((m) => `${m.display_name || '이름 없음'}${m.role === 'OWNER' ? '(관리자)' : m.role === 'VIEWER' ? '(보기 전용)' : ''}`).join(' · ')}
-          </Text>
-        )}
-
-        {/* ---------- 바로 가기 ---------- */}
-        <View style={styles.quick}>
+            )
+          )}
           {[
+            canInvite && { icon: 'userPlus', label: '초대', onPress: makeInvite },
             { icon: 'compare', label: '회의 안건', route: ROUTES.AgendaCompare },
             { icon: 'paperclip', label: '파일', route: ROUTES.Files },
-          ].map((q) => (
-            <Pressable key={q.label} accessibilityRole="button" onPress={() => go(q.route)} style={({ pressed }) => [styles.quickBtn, pressed && { backgroundColor: colors.mintSoft }]}>
-              <Icon name={q.icon} size={18} color={colors.mintDark} />
+          ].filter(Boolean).map((q) => (
+            <Pressable key={q.label} accessibilityRole="button" onPress={q.onPress ?? (() => go(q.route))} style={({ pressed }) => [styles.quickBtn, pressed && { backgroundColor: colors.mintSoft }]}>
+              <Icon name={q.icon} size={18} color={colors.muted} />
               <Text style={styles.quickText}>{q.label}</Text>
+              <Icon name="chevronRight" size={16} color={colors.muted} />
             </Pressable>
           ))}
         </View>
@@ -205,16 +187,16 @@ export default function SpaceHomeScreen({ navigation, route }) {
                     <Text style={styles.cardTitle} numberOfLines={1}>{p.title || '(제목 없음)'}</Text>
                     {!!p.due && <Text style={styles.muted}>{shortDate(p.due)} 마감</Text>}
                   </View>
-                  <View style={styles.track}><View style={[styles.fill, { width: `${pct}%`, backgroundColor: space.color }]} /></View>
-                  <Text style={styles.muted}>{pr.total ? `할 일 ${pr.total}개 중 ${pr.done}개 완료` : '연결된 할 일 없음'}{p.members.length ? ` · 팀원 ${p.members.length}명` : ''}</Text>
+                  <View style={styles.track}><View style={[styles.fill, { width: `${pct}%` }]} /></View>
+                  <Text style={styles.muted}>{pr.total ? `할 일 ${pr.total}개 중 ${pr.done}개 완료` : '연결된 할 일 없음'}{p.members.length ? `, 팀원 ${p.members.length}명` : ''}</Text>
                 </Pressable>
               );
             })
           )}
         </Section>
 
-        {/* ---------- 다가오는 일정 · 할 일 (일주일 안 + 기한 지남) ---------- */}
-        <Section title="다가오는 일정 · 할 일" addLabel="일정 · 할 일 추가" onAdd={() => go(ROUTES.TaskEdit, { date: today, kind: 'task', workspaceId: id })}>
+        {/* ---------- 다가오는 일정, 할 일 (일주일 안 + 기한 지남) ---------- */}
+        <Section title="다가오는 일정과 할 일" addLabel="일정이나 할 일 추가" onAdd={() => go(ROUTES.TaskEdit, { date: today, kind: 'task', workspaceId: id })}>
           {upcoming.length === 0 ? (
             <Text style={styles.empty}>일주일 안에 할 일이 없어요</Text>
           ) : (
@@ -227,12 +209,12 @@ export default function SpaceHomeScreen({ navigation, route }) {
                       <Icon name="square" size={20} color={colors.muted} />
                     </Pressable>
                   ) : (
-                    <Icon name="calendar" size={18} color={space.color} />
+                    <Icon name="calendar" size={18} color={colors.muted} />
                   )}
                   <Pressable accessibilityRole="button" onPress={() => go(ROUTES.TaskEdit, { taskId: t.id })} style={styles.itemBody}>
                     <Text style={styles.itemTitle} numberOfLines={1}>{t.title}</Text>
                     <Text style={[styles.when, late && { color: colors.coral }]}>
-                      {t.date === today ? '오늘' : shortDate(t)}{t.start ? ` ${t.start}` : ''}{t.assignee ? ` · ${t.assignee}` : ''}
+                      {t.date === today ? '오늘' : shortDate(t)}{t.start ? ` ${t.start}` : ''}{t.assignee ? `, ${t.assignee}` : ''}
                     </Text>
                   </Pressable>
                 </View>
@@ -255,14 +237,14 @@ export default function SpaceHomeScreen({ navigation, route }) {
             ))
           )}
           {memos.length > 4 && (
-            <Pressable accessibilityRole="button" onPress={() => go(ROUTES.Memos, { space: id })} hitSlop={8} style={styles.addLink}>
+            <Pressable accessibilityRole="button" onPress={() => go(ROUTES.Memos, { space: id })} style={styles.moreLink}>
               <Text style={styles.addLinkText}>메모 {memos.length}개 모두 보기</Text>
-              <Icon name="chevronRight" size={14} color={colors.mintDark} />
+              <Icon name="chevronRight" size={14} color={colors.muted} />
             </Pressable>
           )}
         </Section>
 
-        {/* ---------- 공간 삭제 · 나가기 (팀 공간만) ---------- */}
+        {/* ---------- 공간 삭제, 나가기 (팀 공간만) ---------- */}
         {!ws.personal && (
           <View style={styles.danger}>
             {!!removeError && <Text style={styles.dangerError} accessibilityLiveRegion="polite">{removeError}</Text>}
@@ -305,7 +287,7 @@ export default function SpaceHomeScreen({ navigation, route }) {
             ) : invite ? (
               <>
                 <Text style={styles.code} selectable accessibilityLabel={`초대 코드 ${invite.code}`}>{invite.code}</Text>
-                <Text style={styles.muted}>7일 동안 한 명이 쓸 수 있는 코드예요. 받는 사람은 [공간 → 초대 코드로 참여]에 입력하면 돼요. 이 코드는 다시 볼 수 없어요.</Text>
+                <Text style={styles.muted}>7일 안에 한 명만 쓸 수 있고, 닫으면 다시 볼 수 없어요.</Text>
                 <Pressable accessibilityRole="button" onPress={shareInvite} style={styles.primary}>
                   <Text style={styles.primaryText}>코드 공유하기</Text>
                 </Pressable>
@@ -329,33 +311,29 @@ const styles = StyleSheet.create({
   dangerBtn: { flexDirection: 'row', gap: spacing.md, minHeight: 48, alignItems: 'center' },
   dangerText: { fontSize: font.body, fontWeight: '400', color: colors.coral },
   dangerError: { fontSize: font.body, fontWeight: '500', color: colors.coral, textAlign: 'center' },
-  hero: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  heroSub: { fontSize: font.body, fontWeight: '500', color: colors.ink },
-  desc: { fontSize: font.caption, color: colors.muted },
-  membersRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: -spacing.sm },
   avatars: { flexDirection: 'row', alignItems: 'center' },
   avatar: { alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.cream },
   avatarText: { fontSize: 12, fontWeight: '600' },
-  more: { marginLeft: 6, fontSize: font.caption, fontWeight: '500', color: colors.muted },
-  inviteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, paddingHorizontal: 14, borderRadius: radius.sm, backgroundColor: colors.action },
-  inviteText: { fontSize: font.body, fontWeight: '600', color: colors.onPrimary },
-  quick: { flexDirection: 'row', gap: spacing.sm },
-  quickBtn: { flex: 1, minHeight: 64, gap: 4, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  quickText: { fontSize: font.caption, fontWeight: '600', color: colors.ink },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { fontSize: font.body, fontWeight: '600', color: colors.muted },
-  addLink: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 28, alignSelf: 'flex-start' },
-  addLinkText: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
-  empty: { fontSize: font.body, color: colors.muted, paddingVertical: spacing.xs, paddingHorizontal: spacing.lg },
-  card: { gap: 6, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  // 카드 묶음 대신 Notion 페이지 행: 테두리·배경 없이 아이콘 + 이름, 누를 때만 옅은 배경
+  quick: { gap: 0 },
+  quickBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 44, paddingHorizontal: spacing.sm, marginHorizontal: -spacing.sm, borderRadius: radius.sm },
+  quickText: { flex: 1, fontSize: font.body, color: colors.ink },
+  // 홈 화면 섹션 이름(features/stella homeSectionLabel)과 같은 작고 흐린 글자
+  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
+  sectionTitle: { fontSize: font.caption, fontWeight: '400', color: colors.muted },
+  addLink: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginRight: -spacing.md },
+  moreLink: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 44, alignSelf: 'flex-start' },
+  addLinkText: { fontSize: font.caption, color: colors.muted },
+  empty: { fontSize: font.body, color: colors.muted, paddingVertical: spacing.xs },
+  card: { gap: 6, paddingVertical: spacing.md },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  cardTitle: { flex: 1, fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
-  track: { height: 6, borderRadius: 3, backgroundColor: colors.mintSoft, overflow: 'hidden' },
-  fill: { height: 6, borderRadius: 3 },
+  cardTitle: { flex: 1, fontSize: font.body, fontWeight: '500', color: colors.ink },
+  track: { height: 3, borderRadius: 2, backgroundColor: colors.mintSoft, overflow: 'hidden' },
+  fill: { height: 3, borderRadius: 2, backgroundColor: colors.muted },
   muted: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
-  itemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 50, paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 44 },
   itemBody: { flex: 1, minHeight: 44, justifyContent: 'center', gap: 2 },
-  itemTitle: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
+  itemTitle: { fontSize: font.body, fontWeight: '400', color: colors.ink },
   when: { fontSize: font.caption, color: colors.muted },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 400, gap: spacing.md, padding: spacing.xl, borderRadius: radius.card, backgroundColor: colors.cream },

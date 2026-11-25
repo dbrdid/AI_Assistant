@@ -11,7 +11,7 @@ import { AuthButton, AuthDialog, AuthField, AuthFrame } from '../components/Auth
 const TERMS = {
   required: {
     title: '필수 약관',
-    body: '[서비스 이용약관  /  개인정보 수집 / 이용 동의]\n\n(임시 문구) 서비스 이용에 필요한 이메일 / 이름 / 소속 정보를 수집하고, 계정 관리와 서비스 제공에만 사용합니다. 정식 약관은 서비스 출시 전에 이곳에 넣어 주세요.',
+    body: '[서비스 이용약관, 개인정보 수집과 이용 동의]\n\n(임시 문구) 서비스 이용에 필요한 이메일, 이름, 소속 정보를 수집하고, 계정 관리와 서비스 제공에만 사용합니다. 정식 약관은 서비스 출시 전에 이곳에 넣어 주세요.',
   },
   optional: {
     title: '선택 약관',
@@ -61,7 +61,7 @@ export default function SignupScreen({ onBack, onVerify }) {
       <AuthField label="이름" value={form.name} onChangeText={set('name')} autoCapitalize="words" placeholder="홍길동" />
       <AuthField label="비밀번호" value={form.password} onChangeText={set('password')} secure hint="영문 + 숫자 + 특수문자를 포함해 8자 이상" />
       <AuthField label="비밀번호 확인" value={form.confirm} onChangeText={set('confirm')} secure hint="영문 + 숫자 + 특수문자" />
-      <AuthField label="소속 (선택)" value={form.affiliation} onChangeText={set('affiliation')} autoCapitalize="words" placeholder="대학교 / 회사" />
+      <AuthField label="소속 (선택)" value={form.affiliation} onChangeText={set('affiliation')} autoCapitalize="words" placeholder="대학교나 회사" />
       <Terms id="required" label="[필수] 이용약관 및 개인정보 수집 동의" value={reqTerms} onChange={setReqTerms} />
       <Terms id="optional" label="[선택] 마케팅 정보 수신 동의" value={optTerms} onChange={setOptTerms} />
       <AuthButton label="이메일 인증" onPress={submit} busy={busy} />

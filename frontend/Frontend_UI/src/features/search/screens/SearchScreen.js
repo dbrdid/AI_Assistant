@@ -36,8 +36,6 @@ import { enterSpace, useSpaceInfo, useWorkspaceAccessClosed, useWorkspaces } fro
 import { excerptFor } from '../../../lib/stella/ai-chat';
 
 // 입력창이 비어 있을 때 보여줄 추천 키워드 (샘플 데이터에 맞춘 것)
-const SUGGESTED_KEYWORDS = ['회의', '중간고사', '발표', '장보기'];
-
 // 종류 걸러보기 칩 목록
 const FILTERS = [
   { key: 'all', label: '전체' },
@@ -197,17 +195,6 @@ export default function SearchScreen({ navigation, route }) {
                 </View>
               </View>
             )}
-            <View style={styles.block}>
-              <Text style={styles.blockTitle}>이런 키워드는 어때요?</Text>
-              <View style={styles.tags}>
-                {SUGGESTED_KEYWORDS.map((k) => (
-                  <Pressable key={k} accessibilityRole="button" onPress={() => setQuery(k)} style={styles.tag}>
-                    <Text style={styles.tagText}>{k}</Text>
-                  </Pressable>
-                ))}
-              </View>
-              <Text style={styles.hint}>메모와 파일에서 키워드가 들어 있는 내용을 찾아 드려요. 결과를 누르면 그 내용이 있는 곳으로 이동해요.</Text>
-            </View>
           </View>
         ) : results.length === 0 ? (
           // (2) 검색어는 있는데 결과 없음

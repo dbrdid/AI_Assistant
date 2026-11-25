@@ -54,6 +54,6 @@ const styles = StyleSheet.create({
   wrap: { position: 'absolute', left: spacing.lg, right: spacing.lg, alignItems: 'center' },
   bar: { width: '100%', maxWidth: 480, flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 48, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.md, backgroundColor: colors.action },
   text: { flex: 1, fontSize: font.body, color: colors.onPrimary },
-  btn: { minHeight: 32, justifyContent: 'center' },
+  btn: { minHeight: 44, justifyContent: 'center' },
   btnText: { fontSize: font.body, fontWeight: '600', color: colors.mint },
 });

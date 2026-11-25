@@ -35,7 +35,7 @@ export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarT
     lunarText || null,
   ]
     .filter(Boolean)
-    .join('  /  ');
+    .join(', ');
 
   return (
     <View style={styles.root}>
@@ -55,7 +55,7 @@ export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarT
           hitSlop={6}
           style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.75 }]}
         >
-          <Icon name="plus" size={16} color={colors.mintDark} strokeWidth={2.4} />
+          <Icon name="plus" size={14} color={colors.mintDark} strokeWidth={2.4} />
           <Text style={styles.addText}>추가</Text>
         </Pressable>
       </View>
@@ -74,8 +74,8 @@ export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarT
           const span = t.endDate ? `${shortDate(t.date)}~${shortDate(t.endDate)}` : null; // 여러 날 일정
           const space = spaces ? spaces[t.workspaceId] : null;
           const subText = isEvent
-            ? [space?.name, span, t.place || (span || space ? null : '일정'), t.project].filter(Boolean).join('  /  ')
-            : [space?.name ?? '할 일', done ? '완료' : t.project, c === 'overdue' ? '초과' : null].filter(Boolean).join('  /  ');
+            ? [space?.name, span, t.place || (span || space ? null : '일정'), t.project].filter(Boolean).join(', ')
+            : [space?.name ?? '할 일', done ? '완료' : t.project, c === 'overdue' ? '초과' : null].filter(Boolean).join(', ');
           // 색 막대: 여러 공간이면 공간 색, 아니면 일정 = 민트 · 할 일 = 진녹색
           const barColor = done ? colors.line : space ? space.color : isEvent ? colors.mint : colors.mintDark;
           const toggle = () => (t.workspaceId ? taskIn(t, 'toggleDone', t.id) : toggleDone(t.id)); // 합쳐 볼 때는 그 항목의 공간에서
@@ -173,17 +173,9 @@ const styles = StyleSheet.create({
   holiday: { fontSize: font.caption, fontWeight: '500', color: colors.coral },
   sub: { fontSize: 13, color: colors.muted },
 
-  // '+ 추가' 알약 (연한 민트 바탕 + 진녹색 글자)
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    minHeight: 36,
-    paddingHorizontal: 14,
-    borderRadius: radius.pill,
-    backgroundColor: colors.mintSoft,
-  },
-  addText: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },
+  // '+ 추가': 홈 오늘의 '+ 추가'와 같은 면 없는 흐린 글자
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 44 },
+  addText: { fontSize: font.caption, fontWeight: '500', color: colors.muted },
 
   empty: { fontSize: font.body, color: colors.muted, paddingVertical: spacing.sm },
 
@@ -201,10 +193,10 @@ const styles = StyleSheet.create({
   itemTitleDone: { color: colors.muted, textDecorationLine: 'line-through' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   itemMeta: { flex: 1, fontSize: 13, color: colors.muted },
-  check: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  check: { width: 32, height: 44, alignItems: 'center', justifyContent: 'center' },
 
   actions: { flexDirection: 'row', gap: spacing.sm },
-  actionBtn: { flex: 1, minHeight: 40, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
+  actionBtn: { flex: 1, minHeight: 44, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   editBtn: { backgroundColor: 'transparent', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.actionBorder },
   editText: { fontSize: 14, fontWeight: '500', color: colors.ink },
   delBtn: { backgroundColor: colors.coralSoft },

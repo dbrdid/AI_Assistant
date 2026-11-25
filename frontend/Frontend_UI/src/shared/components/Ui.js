@@ -14,6 +14,34 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Icon from './Icon';
 import { colors, font, radius, spacing } from '../theme/theme';
+import { useInsets } from '../hooks/useInsets';
+
+// 화면 아래 오른쪽 '만들기' 버튼: 홈 하단 도크(features/stella homeDock)와 같은 자리·모양.
+// 엄지가 닿기 쉬운 곳에 자주 쓰는 생성 동작을 두고, 같은 기능은 모든 화면에서 같은 자리에 둔다.
+export function BottomCreate({ label, onPress, icon = 'plus' }) {
+  return (
+    <BottomBar>
+      <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.dockButton, pressed && { opacity: 0.5 }]}>
+        <Icon name={icon} size={21} color={colors.ink} />
+      </Pressable>
+    </BottomBar>
+  );
+}
+
+// 모든 화면의 하단 줄: 홈 개요 도크와 같은 1px 윗선·좌우 16·면 없음. 왼쪽 정보, 오른쪽 동작.
+export function BottomBar({ children, style }) {
+  const insets = useInsets();
+  return <View style={[styles.dock, { paddingBottom: Math.max(10, insets.bottom) }, style]}>{children}</View>;
+}
+
+// 하단 줄 오른쪽 글자 동작 (저장 등)
+export function BarAction({ label, onPress, disabled, danger }) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress} hitSlop={6} style={({ pressed }) => [styles.dockButton, { paddingHorizontal: 8 }, pressed && { opacity: 0.5 }, disabled && { opacity: 0.4 }]}>
+      <Text style={{ fontSize: 16, fontWeight: '600', color: danger ? colors.coral : colors.ink }}>{label}</Text>
+    </Pressable>
+  );
+}
 
 export function CircleButton({ icon, onPress, label, size = 40, iconSize = 20, color = colors.ink, badge, disabled, children, style }) {
   return (
@@ -42,9 +70,9 @@ export function PillButton({ label, onPress, kind = 'primary', disabled, style }
       disabled={disabled}
       onPress={onPress}
       hitSlop={6}
-      style={({ pressed }) => [styles.pill, primary ? styles.pillPrimary : styles.pillGhost, pressed && { opacity: 0.8 }, disabled && { opacity: 0.4 }, style]}
+      style={({ pressed }) => [styles.pill, kind === 'text' ? styles.pillTextOnly : primary ? styles.pillPrimary : styles.pillGhost, pressed && { opacity: 0.6 }, disabled && { opacity: 0.4 }, style]}
     >
-      <Text style={[styles.pillText, { color: primary ? colors.onPrimary : colors.ink }]}>{label}</Text>
+      <Text style={[styles.pillText, { color: primary ? colors.onPrimary : colors.ink }, kind === 'text' && { fontSize: 16 }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -128,14 +156,18 @@ export const uiStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   circle: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.line },
   badgeDot: { position: 'absolute', top: 7, right: 8, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.coral, borderWidth: 1, borderColor: colors.white },
+  dock: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.cream },
+  dockButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm },
   // Stella 주요 버튼(features/stella/theme.js primary·secondary)과 같은 4px 모서리
   pill: { minHeight: 44, paddingHorizontal: 18, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   pillPrimary: { backgroundColor: colors.action },
+  // 머리글 오른쪽 동작(저장·완료): Notion처럼 면 없는 글자 버튼
+  pillTextOnly: { paddingHorizontal: 8, minWidth: 44 },
   pillGhost: { backgroundColor: 'transparent', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.actionBorder },
   pillText: { fontSize: 14, fontWeight: '600' },
   card: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, padding: spacing.lg },
   // 선택 전 칩은 면 없이 흐린 글자, 선택된 칩만 낮은 대비의 면으로 표시한다(밝은 채움 금지).
-  chip: { minHeight: 34, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
+  chip: { minHeight: 44, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
   chipActive: { backgroundColor: colors.raised, borderColor: colors.raised },
   chipText: { fontSize: 13, fontWeight: '500', color: colors.muted },
   chipTextActive: { color: colors.ink },

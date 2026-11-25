@@ -19,7 +19,7 @@ export default function MemoBlockReader({ body, pages, onOpenPage }) {
           return <Text key={index} selectable={!canOpen} accessibilityRole={canOpen ? 'link' : undefined}
             onPress={canOpen ? () => onOpenPage(reference.id) : undefined}
             style={[styles.text, canOpen && styles.link]}>
-            {pageById && !page ? `${label} · 열 수 없는 페이지` : label}
+            {pageById && !page ? `${label}, 열 수 없는 페이지` : label}
           </Text>;
         }
         const prefix = type === 'bullet' ? '•  ' : type === 'todo' ? (checked ? '☑  ' : '☐  ') : '';

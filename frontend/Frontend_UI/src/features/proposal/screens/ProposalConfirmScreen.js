@@ -108,7 +108,7 @@ export default function ProposalConfirmScreen({ navigation, route }) {
 
         {!!p.evidence && (
           <View style={styles.evBox}>
-            <Text style={styles.evLabel}>근거  /  {p.sourceType === 'record' ? '녹음' : '메모'}{p.sourceTitle ? ` “${p.sourceTitle}”` : ''}</Text>
+            <Text style={styles.evLabel}>근거, {p.sourceType === 'record' ? '녹음' : '메모'}{p.sourceTitle ? ` “${p.sourceTitle}”` : ''}</Text>
             <Text style={styles.evText}>“<Text style={styles.hl}>{p.evidence}</Text>”</Text>
           </View>
         )}
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   empty: { textAlign: 'center', color: colors.muted, marginTop: spacing.xxl, fontSize: font.body },
   body: { padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl },
   seg: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, padding: 4, marginBottom: spacing.sm },
-  segBtn: { flex: 1, minHeight: 40, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
+  segBtn: { flex: 1, minHeight: 44, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   segOn: { backgroundColor: colors.action },
   segText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
   segTextOn: { color: colors.onPrimary },

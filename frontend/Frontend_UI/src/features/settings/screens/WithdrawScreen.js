@@ -35,12 +35,12 @@ export default function WithdrawScreen({ navigation }) {
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>탈퇴하면 이렇게 돼요</Text>
-          <Text style={styles.line}>• 계정과 개인 공간의 메모 / 할 일 / 일정이 삭제돼요</Text>
+          <Text style={styles.line}>• 계정과 개인 공간의 메모, 할 일, 일정이 삭제돼요</Text>
           <Text style={styles.line}>• 삭제된 정보는 되돌릴 수 없어요</Text>
           <Text style={styles.line}>• 조직에 공유한 기록은 워크스페이스에 남아요</Text>
         </View>
         <View style={styles.card}>
-          <Text style={styles.line}>• 이용 중인 요금제 / 백업 / 녹음은 탈퇴와 함께 삭제돼요</Text>
+          <Text style={styles.line}>• 이용 중인 요금제, 백업, 녹음은 탈퇴와 함께 삭제돼요</Text>
           <Text style={styles.line}>• 공유 공간에 남긴 기록의 작성자는 '탈퇴한 사용자'로 표시돼요</Text>
         </View>
         <View style={styles.card}>

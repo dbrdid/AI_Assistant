@@ -103,7 +103,7 @@ export default function HomeScreen({ navigation }) {
     const late = mine.filter((t) => lastDate(t) < todayKey).length;
     const week = mine.filter((t) => daysBetween(todayKey, t.date) > 0 && daysBetween(todayKey, t.date) <= 7).length;
     const parts = [today ? `오늘 ${today}` : '', late ? `기한 지남 ${late}` : '', week ? `일주일 안 ${week}` : ''].filter(Boolean);
-    return { w, text: parts.length ? parts.join('  /  ') : '이번 주 예정 없음', alert: late > 0 };
+    return { w, text: parts.length ? parts.join(', ') : '이번 주 예정 없음', alert: late > 0 };
   });
 
   // ---------- 입력줄: 어느 공간에 쓸지 + 글 메모 ----------
@@ -127,7 +127,7 @@ export default function HomeScreen({ navigation }) {
     snack.show(`${where}메모를 저장했어요`, { label: '열기', onPress: () => go(ROUTES.MemoEdit, { memoId: memo.id }) });
     // AI 자동 분석이 켜져 있으면 일정·할 일 후보를 찾아 위의 제안 카드로 보여 줌
     analyzeText({ sourceType: 'memo', sourceId: memo.id }).then((r) => {
-      if (r && r.added) snack.show(`AI가 일정 / 할 일 ${r.added}건을 찾았어요`, { label: '확인', onPress: () => go(ROUTES.Proposals) });
+      if (r && r.added) snack.show(`AI가 일정과 할 일 ${r.added}건을 찾았어요`, { label: '확인', onPress: () => go(ROUTES.Proposals) });
     });
   };
 
@@ -170,14 +170,14 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {/* ---------- 머리: 나 · 날짜 · AI · 검색 · 알림 ---------- */}
+      {/* ---------- 머리: 나, 날짜, AI, 검색, 알림 ---------- */}
       <View style={[styles.header, { paddingTop: embedded ? 18 : insets.top + spacing.sm }]}>
-        {!embedded && <Pressable accessibilityRole="button" accessibilityLabel="나  /  설정" onPress={() => go(ROUTES.More)} hitSlop={6} style={({ pressed }) => [styles.me, pressed && { opacity: 0.7 }]}>
+        {!embedded && <Pressable accessibilityRole="button" accessibilityLabel="나, 설정" onPress={() => go(ROUTES.More)} hitSlop={6} style={({ pressed }) => [styles.me, pressed && { opacity: 0.7 }]}>
           <Text style={styles.meText}>{myName ? myName.charAt(0) : '나'}</Text>
         </Pressable>}
         <View style={{ flex: 1 }}>
           <Text style={styles.date} accessibilityRole="header" numberOfLines={1}>{dateText}</Text>
-          {multi && <Text style={styles.scope}>모든 공간  /  개인 + 팀 {teams.length}개</Text>}
+          {multi && <Text style={styles.scope}>모든 공간, 개인 + 팀 {teams.length}개</Text>}
         </View>
         <CircleButton icon="search" label="검색" onPress={() => go(ROUTES.Search)} />
         <Bell onPress={() => go(ROUTES.Notices)} />
@@ -230,7 +230,7 @@ export default function HomeScreen({ navigation }) {
                     {multi && <SpaceTag space={spaces[t.workspaceId]} />}
                     {!!(t.place || t.end || t.endDate) && (
                       <Text style={styles.itemSub} numberOfLines={1}>
-                        {[t.place, t.end ? `${t.end}까지` : '', t.endDate ? `${Number(t.endDate.slice(5, 7))}/${Number(t.endDate.slice(8))}까지` : ''].filter(Boolean).join('  /  ')}
+                        {[t.place, t.end ? `${t.end}까지` : '', t.endDate ? `${Number(t.endDate.slice(5, 7))}/${Number(t.endDate.slice(8))}까지` : ''].filter(Boolean).join(', ')}
                       </Text>
                     )}
                   </View>
@@ -241,7 +241,7 @@ export default function HomeScreen({ navigation }) {
         )}
 
         {/* ---------- 오늘 할 일 (기한 지난 것 포함) ---------- */}
-        <SectionHead title={left ? `오늘 할 일  /  ${left}개 남음` : '오늘 할 일'} addLabel="오늘 할 일 추가" onAdd={() => go(ROUTES.TaskEdit, { date: todayKey, kind: 'task' })} />
+        <SectionHead title={left ? `오늘 할 일, ${left}개 남음` : '오늘 할 일'} addLabel="오늘 할 일 추가" onAdd={() => go(ROUTES.TaskEdit, { date: todayKey, kind: 'task' })} />
         {todos.length === 0 ? (
           <Text style={styles.empty}>오늘 할 일이 없어요</Text>
         ) : (
@@ -277,8 +277,8 @@ export default function HomeScreen({ navigation }) {
           <>
             <View style={styles.recDot} />
             <Text style={styles.recText} accessibilityLiveRegion="polite">녹음 중 {formatTime(seconds)}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="녹음 끝내기" onPress={toggleRecording} style={[styles.round, styles.stop]}>
-              <Icon name="stop" size={18} color={colors.onPrimary} />
+            <Pressable accessibilityRole="button" accessibilityLabel="녹음 끝내기" onPress={toggleRecording} style={styles.iconBtn}>
+              <Icon name="stop" size={20} color={colors.coral} />
             </Pressable>
           </>
         ) : (
@@ -288,7 +288,7 @@ export default function HomeScreen({ navigation }) {
                 <Pressable accessibilityRole="button" accessibilityLabel={`저장할 공간 ${targetSpace.fullName}, 눌러서 바꾸기`} onPress={() => setPickSpace(true)} hitSlop={6} style={styles.spaceChip}>
                   <SpaceDot color={targetSpace.color} size={7} />
                   <Text style={styles.spaceChipText} numberOfLines={1}>{targetSpace.name}</Text>
-                  <Icon name="chevronDown" size={12} color={colors.mintDark} />
+                  <Icon name="chevronDown" size={12} color={colors.muted} />
                 </Pressable>
               )}
               <TextInput
@@ -296,23 +296,22 @@ export default function HomeScreen({ navigation }) {
                 style={styles.input}
                 value={text}
                 onChangeText={(v) => setText(v.slice(0, MAX_LEN))}
-                placeholder="무엇이든 적어 보세요"
+                placeholder="메모"
                 placeholderTextColor={colors.muted}
                 multiline
-                numberOfLines={1}
                 maxLength={MAX_LEN}
               />
             </View>
             {text.trim() ? (
-              <Pressable accessibilityRole="button" accessibilityLabel="메모 저장" onPress={saveMemo} style={styles.round}>
-                <Icon name="arrowUp" size={20} color={colors.onPrimary} strokeWidth={2.4} />
+              <Pressable accessibilityRole="button" accessibilityLabel="메모 저장" onPress={saveMemo} style={styles.iconBtn}>
+                <Icon name="arrowUp" size={21} color={colors.ink} strokeWidth={2.2} />
               </Pressable>
             ) : (
               <>
-                <CircleButton icon="paperclip" label="사진  /  문서 올리기" size={38} iconSize={18} color={colors.muted} onPress={() => go(ROUTES.QuickInput, { tab: 'file' })} style={styles.ghost} />
-                <CircleButton icon="camera" label="카메라" size={38} iconSize={18} color={colors.muted} onPress={() => go(ROUTES.Camera)} style={styles.ghost} />
-                <Pressable accessibilityRole="button" accessibilityLabel="녹음 시작" onPress={toggleRecording} style={styles.round}>
-                  <Icon name="mic" size={20} color={colors.onPrimary} strokeWidth={2} />
+                <CircleButton icon="paperclip" label="사진이나 문서 올리기" size={44} iconSize={20} color={colors.muted} onPress={() => go(ROUTES.QuickInput, { tab: 'file' })} style={styles.ghost} />
+                <CircleButton icon="camera" label="카메라" size={44} iconSize={20} color={colors.muted} onPress={() => go(ROUTES.Camera)} style={styles.ghost} />
+                <Pressable accessibilityRole="button" accessibilityLabel="녹음 시작" onPress={toggleRecording} style={styles.iconBtn}>
+                  <Icon name="mic" size={21} color={colors.ink} strokeWidth={2} />
                 </Pressable>
               </>
             )}
@@ -324,7 +323,7 @@ export default function HomeScreen({ navigation }) {
       <Modal transparent visible={pickSpace} animationType="fade" onRequestClose={() => setPickSpace(false)}>
         <Pressable style={styles.backdrop} onPress={() => setPickSpace(false)} accessibilityLabel="닫기">
           <View style={styles.sheet} accessibilityViewIsModal>
-            <Text style={styles.sheetTitle}>어느 공간에 저장할까요?</Text>
+            <Text style={styles.sheetTitle}>저장할 공간</Text>
             {spacesList.map((w) => {
               const s = spaces[w.id];
               const on = w.id === targetId;
@@ -381,7 +380,7 @@ const styles = StyleSheet.create({
 
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md },
   sectionTitle: { fontSize: 12, fontWeight: '400', color: colors.muted },
-  addLink: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 28 },
+  addLink: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 44 },
   addLinkText: { fontSize: font.caption, fontWeight: '500', color: colors.muted },
   empty: { fontSize: 13, color: colors.subtle ?? colors.muted, paddingVertical: spacing.xs },
 
@@ -400,11 +399,12 @@ const styles = StyleSheet.create({
   mine: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
   late: { fontSize: font.caption, fontWeight: '500', color: colors.coral },
 
-  capture: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, minHeight: CAPTURE_HEIGHT, paddingHorizontal: spacing.lg, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, backgroundColor: colors.cream },
-  inputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: 42, borderRadius: 21, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, backgroundColor: colors.card, paddingLeft: 6 },
-  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 110, height: 30, paddingHorizontal: 10, borderRadius: 15, backgroundColor: colors.mintSoft },
-  spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
-  input: { flex: 1, minHeight: 40, maxHeight: 120, paddingHorizontal: spacing.md, paddingTop: 8, paddingBottom: 8, fontSize: font.bodyLg, lineHeight: 22, color: colors.ink },
+  capture: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: CAPTURE_HEIGHT, paddingHorizontal: 16, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.cream },
+  inputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: 44 },
+  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 110, minHeight: 44, paddingRight: 8 },
+  spaceChipText: { flexShrink: 1, fontSize: 14, color: colors.muted },
+  input: { flex: 1, minHeight: 44, maxHeight: 120, paddingHorizontal: 8, paddingVertical: 10, fontSize: 15, lineHeight: 22, color: colors.ink, textAlignVertical: 'center' },
+  iconBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   round: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   ghost: { borderWidth: 0, backgroundColor: 'transparent', marginBottom: 2 },
   stop: { backgroundColor: colors.coralSoft },

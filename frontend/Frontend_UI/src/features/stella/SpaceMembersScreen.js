@@ -67,10 +67,10 @@ export default function SpaceMembersScreen({ navigation, route }) {
   const byId = Object.fromEntries(state.members.map(m => [m.account_id, m]));
   const who = accountId => !accountId ? '시스템' : accountId === me ? '나' : byId[accountId] ? nameOf(byId[accountId]) : '이전 멤버';
   const logText = entry => ({
-    BILLING_ASSIGNED: `결제 주체 지정 · ${who(entry.target_id)}`,
-    BILLING_CLEARED: `결제 주체 해제 · ${who(entry.target_id)} (공간 FREE)`,
-    MEMBER_EXPIRY_SET: entry.detail?.expires_at ? `접근 만료 ${day(entry.detail.expires_at)} 지정 · ${who(entry.target_id)}` : `접근 만료 해제 · ${who(entry.target_id)}`,
-    MEMBER_EXPIRED: `만료되어 내보냄 · ${who(entry.target_id)}`,
+    BILLING_ASSIGNED: `결제 주체 지정, ${who(entry.target_id)}`,
+    BILLING_CLEARED: `결제 주체 해제, ${who(entry.target_id)} (공간 FREE)`,
+    MEMBER_EXPIRY_SET: entry.detail?.expires_at ? `접근 만료 ${day(entry.detail.expires_at)} 지정, ${who(entry.target_id)}` : `접근 만료 해제, ${who(entry.target_id)}`,
+    MEMBER_EXPIRED: `만료되어 내보냄, ${who(entry.target_id)}`,
   })[entry.action] ?? entry.action;
 
   return <View style={s.root}>
@@ -85,8 +85,8 @@ export default function SpaceMembersScreen({ navigation, route }) {
         <View style={s.menuRow}>
           <Icon name="card" size={18} color={c.muted} />
           <View style={{ flex: 1 }}>
-            <Text style={s.rowTitle}>{billing.billing_account_id ? `${billing.is_me ? '나' : billing.billing_name || '이름 없음'} · ${billing.plan}` : `결제 주체 없음 · ${billing.plan}`}</Text>
-            <Text style={s.rowBody}>공간 혜택은 결제 주체의 요금제를 따라요. 결제 주체가 관리자에서 빠지면 FREE가 돼요.</Text>
+            <Text style={s.rowTitle}>{billing.billing_account_id ? `${billing.is_me ? '나' : billing.billing_name || '이름 없음'}, ${billing.plan}` : `결제 주체 없음, ${billing.plan}`}</Text>
+            
           </View>
         </View>
         {owner && !billing.is_me && <Pressable accessibilityRole="button" disabled={busy} onPress={() => setConfirm('billing')}
@@ -121,7 +121,7 @@ export default function SpaceMembersScreen({ navigation, route }) {
           <Text style={[s.rowBody, { flex: 1, marginTop: 0 }]}>{logText(entry)}</Text>
           <Text style={[s.meta, { marginTop: 0 }]}>{day(entry.created_at)}</Text>
         </View>)}
-        <Text style={s.note}>관리자에게만 보여요.</Text>
+        
       </View>}
     </ScrollView>
 
@@ -139,7 +139,7 @@ export default function SpaceMembersScreen({ navigation, route }) {
           {member.role === code ? <Icon name="check" size={18} color={c.text} /> : null}
         </Pressable>)}
         {member.role !== 'OWNER' && <>
-          <Text style={[s.meta, { marginTop: 16, marginBottom: 4 }]}>접근 만료{member.expires_at ? ` · 지금 ${day(member.expires_at)}까지` : ''}</Text>
+          <Text style={[s.meta, { marginTop: 16, marginBottom: 4 }]}>접근 만료{member.expires_at ? `, 지금 ${day(member.expires_at)}까지` : ''}</Text>
           {EXPIRY.map(([days, label]) => {
             const on = days === 0 && !member.expires_at;
             return <Pressable key={days} accessibilityRole="radio" accessibilityState={{ checked: on, disabled: busy }} accessibilityLabel={`접근 만료: ${label}`}
@@ -148,7 +148,7 @@ export default function SpaceMembersScreen({ navigation, route }) {
               <Text style={s.menuLabel}>{label}</Text>{on ? <Icon name="check" size={18} color={c.text} /> : null}
             </Pressable>;
           })}
-          <Text style={[s.note, { marginTop: 4 }]}>만료되면 자동으로 내보내지고, 다시 들어오려면 새 초대가 필요해요.</Text>
+          <Text style={[s.note, { marginTop: 4 }]}>지나면 자동으로 내보내요.</Text>
         </>}
         <Pressable accessibilityRole="button" disabled={busy} onPress={() => setConfirm('remove')} style={[s.menuRow, { marginTop: 12 }, busy && { opacity: .5 }]}>
           <Icon name="userX" size={18} color={c.danger} /><Text style={[s.menuLabel, { color: c.danger }]}>공간에서 내보내기</Text>

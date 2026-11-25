@@ -108,7 +108,7 @@ function GraphNode({
     borderColor: node.kind === 'memo' ? '#6a6e72' : '#45494c',
     borderRadius: 4,
     touchAction: 'none'
-  }}><Pressable accessibilityRole="button" accessibilityLabel={`${node.kind === 'memo' ? '문서' : '할 일 / 일정'}: ${node.title}`} onPress={() => {
+  }}><Pressable accessibilityRole="button" accessibilityLabel={`${node.kind === 'memo' ? '문서' : '할 일과 일정'}: ${node.title}`} onPress={() => {
       if (!dragged.current && !openedOnPointer.current) onOpen();
     }} style={{
       paddingHorizontal: 13,
@@ -240,7 +240,7 @@ export default function GraphCanvas({
       paddingHorizontal: 22,
       paddingTop: 25,
       paddingBottom: 16
-    }}><Text style={[s.intro, { marginTop: 0 }]}>문서를 연결하고, 생각의 흐름을 살펴보세요.</Text></View>{error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}<View {...Platform.OS === 'web' ? webPan : pan.panHandlers} accessibilityLabel="문서 관계 캔버스  /  빈 공간을 드래그해 이동" style={{
+    }}><Text style={[s.intro, { marginTop: 0 }]}>문서를 연결하고, 생각의 흐름을 살펴보세요.</Text></View>{error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}<View {...Platform.OS === 'web' ? webPan : pan.panHandlers} accessibilityLabel="문서 관계 캔버스, 빈 공간을 드래그해 이동" style={{
       flex: 1,
       minHeight: 320,
       overflow: 'hidden',
@@ -311,8 +311,5 @@ export default function GraphCanvas({
           x: 18,
           y: 24,
           zoom: .75
-        })], ['확대', 'plus', () => changeZoom(.1)]].map(([label, icon, onPress]) => <Pressable key={label} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={s.iconButton}>{label === '보기 초기화' ? <Text style={s.meta}>{Math.round(view.zoom * 100)}%</Text> : <Icon name={icon} size={18} color={c.text} />}</Pressable>)}</View></View><View style={{
-      padding: 15,
-      paddingBottom: 15 + insets.bottom
-    }}><Text style={s.note}>빈 공간은 화면 이동  /  문서는 위치 이동  /  누르면 열기</Text></View></View>;
+        })], ['확대', 'plus', () => changeZoom(.1)]].map(([label, icon, onPress]) => <Pressable key={label} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={s.iconButton}>{label === '보기 초기화' ? <Text style={s.meta}>{Math.round(view.zoom * 100)}%</Text> : <Icon name={icon} size={18} color={c.text} />}</Pressable>)}</View></View><View style={{ height: insets.bottom }} /></View>;
 }

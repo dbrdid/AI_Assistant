@@ -7,26 +7,13 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import Icon from '../../../shared/components/Icon';
-import { Chip } from '../../../shared/components/Ui';
+import { Chips, FieldLine, Line } from '../../tasks/screens/TaskEditScreen';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { fromKey } from '../../calendar/utils/DateUtils';
 import { ALARMS, PRIORITIES } from '../../../data/tasks/TaskStore';
 import { PROJECT_STATUSES, addProject, deleteProject, getProject, updateProject } from '../../../data/projects/ProjectStore';
 import { DatePickerModal } from '../../../shared/components/DateTimePicker';
-
-function Chips({ label, options, value, onChange }) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.chipRow}>
-        {options.map((o) => (
-          <Chip key={o} label={o} active={value === o} onPress={() => onChange(o)} />
-        ))}
-      </View>
-    </View>
-  );
-}
 
 export default function ProjectEditScreen({ navigation, route }) {
   const existing = route?.params?.projectId ? getProject(route.params.projectId) : null;
@@ -60,53 +47,24 @@ export default function ProjectEditScreen({ navigation, route }) {
     }
   };
 
-  const input = (label, key, extra) => (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput style={[styles.input, extra]} value={f[key]} onChangeText={set(key)} placeholder={label} placeholderTextColor={colors.muted} accessibilityLabel={label} {...(key === 'desc' ? { multiline: true } : {})} />
-    </View>
-  );
-
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScreenHeader title={existing ? '프로젝트 편집' : '프로젝트 추가'} onBack={navigation.goBack} />
+      <ScreenHeader title={existing ? '프로젝트 편집' : '새 프로젝트'} onBack={navigation.goBack} right={<Pressable accessibilityRole="button" accessibilityLabel="저장하기" onPress={save} style={styles.headerSave}><Text style={styles.headerSaveText}>저장</Text></Pressable>} />
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.field}>
-          <Text style={styles.label}>제목 *</Text>
-          <TextInput style={styles.input} value={f.title} onChangeText={set('title')} placeholder="프로젝트 이름" placeholderTextColor={colors.muted} maxLength={60} accessibilityLabel="제목" />
+        <TextInput style={styles.titleInput} value={f.title} onChangeText={set('title')} placeholder="제목" placeholderTextColor={colors.muted} maxLength={60} accessibilityLabel="제목" autoFocus={!existing} multiline />
+
+        <View>
+          <Line icon="calendar" label="마감일" value={f.due ? `${fromKey(f.due).getFullYear()}년 ${fromKey(f.due).getMonth() + 1}월 ${fromKey(f.due).getDate()}일` : '없음'} onPress={() => setPickDate(true)} right={f.due ? <Pressable accessibilityRole="button" accessibilityLabel="마감일 지우기" onPress={() => set('due')('')} hitSlop={8} style={styles.clear}><Icon name="x" size={16} color={colors.muted} /></Pressable> : null} />
+          <Chips label="중요도" options={PRIORITIES} value={f.priority} onChange={set('priority')} />
+          <Chips label="상태" options={PROJECT_STATUSES} value={f.status} onChange={set('status')} />
+          <Chips label="알림" options={ALARMS} value={f.alarm} onChange={set('alarm')} />
+          <FieldLine icon="users" label="담당자" value={f.assignee} onChangeText={set('assignee')} />
+          <FieldLine icon="pin" label="장소" value={f.place} onChangeText={set('place')} />
         </View>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>마감일</Text>
-          <View style={styles.row}>
-            <Pressable accessibilityRole="button" onPress={() => setPickDate(true)} style={[styles.input, styles.pick]}>
-              <Icon name="calendar" size={18} color={f.due ? colors.mintDark : colors.muted} />
-              <Text style={[styles.pickText, !f.due && { color: colors.muted }]}>
-                {f.due ? `${fromKey(f.due).getFullYear()}년 ${fromKey(f.due).getMonth() + 1}월 ${fromKey(f.due).getDate()}일` : '마감일 선택 (선택)'}
-              </Text>
-            </Pressable>
-            {!!f.due && (
-              <Pressable accessibilityRole="button" accessibilityLabel="마감일 지우기" onPress={() => set('due')('')} style={styles.clear}>
-                <Text style={styles.clearText}>지우기</Text>
-              </Pressable>
-            )}
-          </View>
-        </View>
-
-        <Chips label="중요도" options={PRIORITIES} value={f.priority} onChange={set('priority')} />
-        <Chips label="상태" options={PROJECT_STATUSES} value={f.status} onChange={set('status')} />
-        <Chips label="알림" options={ALARMS} value={f.alarm} onChange={set('alarm')} />
-        <Text style={styles.note}>마감일 아침 9시를 기준으로 알려 드려요 (휴대폰 앱). 공유 공간 프로젝트는 서버 알림을 켠 멤버 모두에게 가요.</Text>
-
-        {input('담당자', 'assignee')}
-        {input('장소', 'place')}
-        {input('설명', 'desc', { minHeight: 96, textAlignVertical: 'top' })}
+        {f.alarm !== ALARMS[0] && <Text style={styles.note}>마감일 아침 9시에 알려 드려요.</Text>}
+        <TextInput style={styles.desc} value={f.desc} onChangeText={set('desc')} placeholder="설명" placeholderTextColor={colors.muted} accessibilityLabel="설명" multiline />
 
         {!!error && <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text>}
-
-        <Pressable accessibilityRole="button" onPress={save} style={styles.save}>
-          <Text style={styles.saveText}>저장하기</Text>
-        </Pressable>
         {existing && (
           <Pressable accessibilityRole="button" onPress={() => setConfirmDelete(true)} style={styles.del}>
             <Text style={styles.delText}>프로젝트 삭제</Text>
@@ -118,7 +76,7 @@ export default function ProjectEditScreen({ navigation, route }) {
       <ConfirmDialog
         visible={confirmDelete}
         title="프로젝트를 삭제할까요?"
-        sub="연결된 메모 / 할 일 / 파일은 지워지지 않고, 프로젝트와의 연결만 풀려요."
+        sub="연결된 메모, 할 일, 파일은 지워지지 않고, 프로젝트와의 연결만 풀려요."
         confirmText="삭제"
         danger
         onCancel={() => setConfirmDelete(false)}
@@ -135,20 +93,14 @@ export default function ProjectEditScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
-  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
-  field: { gap: spacing.sm },
-  label: { fontSize: font.body, fontWeight: '500', color: colors.ink },
-  input: { minHeight: 46, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, paddingHorizontal: spacing.lg, fontSize: font.bodyLg, color: colors.ink },
-  pick: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  pickText: { fontSize: font.bodyLg, color: colors.ink },
-  row: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
-  clear: { minHeight: 46, paddingHorizontal: spacing.md, justifyContent: 'center' },
-  clearText: { fontSize: font.body, color: colors.coral, fontWeight: '500' },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  note: { fontSize: font.caption, color: colors.muted, marginTop: -spacing.sm },
+  content: { paddingHorizontal: 20, paddingBottom: spacing.xxl, gap: 10 },
+  headerSave: { minHeight: 44, minWidth: 44, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
+  headerSaveText: { fontSize: 16, fontWeight: '600', color: colors.ink },
+  titleInput: { minHeight: 72, fontSize: 28, fontWeight: '600', color: colors.ink, paddingHorizontal: 2, lineHeight: 38, paddingTop: 12, paddingBottom: 8, textAlignVertical: 'top' },
+  clear: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  desc: { minHeight: 96, fontSize: font.bodyLg, color: colors.ink, textAlignVertical: 'top', paddingTop: 12 },
+  note: { fontSize: font.caption, color: colors.muted },
   error: { fontSize: font.body, fontWeight: '500', color: colors.coral },
-  save: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
-  saveText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
-  del: { minHeight: 48, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.coral, alignItems: 'center', justifyContent: 'center' },
-  delText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.coral },
+  del: { minHeight: 48, justifyContent: 'center' },
+  delText: { fontSize: 14, color: colors.coral },
 });

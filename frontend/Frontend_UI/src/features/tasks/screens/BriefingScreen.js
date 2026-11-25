@@ -47,7 +47,7 @@ export default function BriefingScreen({ navigation }) {
       <Text style={styles.rowTime}>{t.date === todayKey ? t.start || '종일' : shortDate(t)}</Text>
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={[styles.rowTitle, t.status === '완료' && styles.done]} numberOfLines={1}>{t.title}</Text>
-        <Text style={styles.rowMeta} numberOfLines={1}>{[tagText(t, todayKey), t.place].filter(Boolean).join('  /  ')}</Text>
+        <Text style={styles.rowMeta} numberOfLines={1}>{[tagText(t, todayKey), t.place].filter(Boolean).join(', ')}</Text>
       </View>
     </Pressable>
   );
@@ -77,7 +77,7 @@ export default function BriefingScreen({ navigation }) {
                   </View>
                   <Icon name="chevronRight" size={18} color={colors.muted} />
                 </View>
-                <Text style={styles.rowMeta}>AI가 찾은 일정 / 할 일을 확인해 주세요</Text>
+                <Text style={styles.rowMeta}>AI가 찾은 일정과 할 일을 확인해 주세요</Text>
               </Pressable>
             )}
             <Section title="마감 임박" count={soon.length} open={soonOpen} onToggle={() => setSoonOpen((v) => !v)}>

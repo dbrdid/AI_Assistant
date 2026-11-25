@@ -57,8 +57,8 @@ export default function ProjectDetailScreen({ navigation, route }) {
     const taskKind = (t) => (t.kind === 'event' ? 'events' : 'todos');
     return [
       { key: 'memos', kind: 'memos', label: '메모', unit: '개', all: memos.map((m) => ({ id: m.id, title: memoTitle(m), date: new Date(m.updatedAt).toLocaleDateString('sv-SE'), sub: `수정 ${new Date(m.updatedAt).getMonth() + 1}/${new Date(m.updatedAt).getDate()}` })) },
-      { key: 'todos', kind: 'tasks', label: '할 일', unit: '개', all: tasks.filter((t) => taskKind(t) === 'todos').map((t) => ({ id: t.id, title: t.title, date: t.date, status: t.status, sub: `${t.date.slice(5).replace('-', '/')} · ${t.status}` })) },
-      { key: 'files', kind: 'files', label: '파일', unit: '개', all: files.map((f) => ({ id: f.id, title: f.name, sub: `${f.kind} · ${f.size}` })) },
+      { key: 'todos', kind: 'tasks', label: '할 일', unit: '개', all: tasks.filter((t) => taskKind(t) === 'todos').map((t) => ({ id: t.id, title: t.title, date: t.date, status: t.status, sub: `${t.date.slice(5).replace('-', '/')}, ${t.status}` })) },
+      { key: 'files', kind: 'files', label: '파일', unit: '개', all: files.map((f) => ({ id: f.id, title: f.name, sub: `${f.kind}, ${f.size}` })) },
       { key: 'events', kind: 'tasks', label: '일정', unit: '개', all: tasks.filter((t) => taskKind(t) === 'events').map((t) => ({ id: t.id, title: t.title, date: t.date, status: t.status, sub: `${t.date.slice(5).replace('-', '/')} ${t.start}` })) },
     ].map((s) => ({ ...s, items: s.all.filter((x) => inL(s.kind, x.id)), candidates: s.all.filter((x) => !inL(s.kind, x.id)) }));
   }, [project, memos, tasks, files]);
@@ -105,7 +105,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
         right={<CircleButton icon="userPlus" label="팀원 초대" onPress={() => navigation.navigate(ROUTES.ProjectInvite, { projectId })} />}
       />
       <ScrollView contentContainerStyle={styles.content}>
-        {/* 프로젝트 정보: 상태 꼬리표 + 마감 · 담당 · 장소 (있는 값만) */}
+        {/* 프로젝트 정보: 상태 꼬리표 + 마감, 담당, 장소 (있는 값만) */}
         <View style={[styles.section, styles.info]}>
           <View style={styles.infoRow}>
             <Tag label={project.status} tone={project.status === '진행 중' ? 'mint' : project.status === '완료' ? 'muted' : 'outline'} />
@@ -239,7 +239,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
               <Text style={styles.barText}>연결 해제</Text>
             </Pressable>
             <Pressable accessibilityRole="button" disabled={picked.length === 0} onPress={() => setConfirmDelete(true)} style={[styles.barBtn, styles.barDanger, picked.length === 0 && styles.off]}>
-              <Text style={[styles.barText, { color: colors.onPrimary }]}>삭제</Text>
+              <Text style={[styles.barText, { color: colors.coral }]}>삭제</Text>
             </Pressable>
           </View>
         </View>
@@ -261,7 +261,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
                     <Icon name={on ? 'checkSquare' : 'square'} size={22} color={on ? colors.mintDark : colors.muted} />
                     <View style={{ flex: 1, gap: 2 }}>
                       <Text style={styles.itemTitle} numberOfLines={1}>{x.title}</Text>
-                      <Text style={styles.itemSub} numberOfLines={1}>{x.sub}{owner ? ` · 「${owner.title}」에서 이동` : ''}</Text>
+                      <Text style={styles.itemSub} numberOfLines={1}>{x.sub}{owner ? `, 「${owner.title}」에서 이동` : ''}</Text>
                     </View>
                   </Pressable>
                 );
@@ -290,7 +290,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
       <Modal transparent visible={moving} animationType="fade" onRequestClose={() => setMoving(false)}>
         <View style={styles.backdrop}>
           <View style={styles.dialog} accessibilityViewIsModal>
-            <Text style={styles.dialogTitle}>어느 프로젝트로 옮길까요?</Text>
+            <Text style={styles.dialogTitle}>옮길 프로젝트</Text>
             <ScrollView style={{ maxHeight: 300 }} contentContainerStyle={{ gap: spacing.sm }}>
               {otherProjects.map((p) => (
                 <Pressable
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   itemOn: { borderColor: colors.mint, backgroundColor: colors.mintSoft },
   itemTitle: { fontSize: font.body, fontWeight: '600', color: colors.ink },
   itemSub: { fontSize: font.caption, color: colors.muted },
-  linkBtn: { minHeight: 42, borderRadius: radius.md },
+  linkBtn: { minHeight: 44, borderRadius: radius.md },
   bottomRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   bigBtn: { minHeight: 50, borderRadius: radius.card, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
   primary: { flex: 1, backgroundColor: colors.action },
@@ -377,12 +377,12 @@ const styles = StyleSheet.create({
   ghost: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   ghostText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
   off: { opacity: 0.4 },
-  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.line, padding: spacing.md, gap: spacing.sm },
-  barCount: { fontSize: font.body, fontWeight: '500', color: colors.ink, textAlign: 'center' },
-  barRow: { flexDirection: 'row', gap: spacing.sm },
-  barBtn: { flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.cream, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  barDanger: { backgroundColor: colors.coralSoft, borderColor: colors.coral, flex: 1.4 },
-  barText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
+  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.cream, borderTopWidth: 1, borderTopColor: colors.line, paddingHorizontal: 16, paddingTop: 6, paddingBottom: spacing.md, gap: 2 },
+  barCount: { fontSize: 13, color: colors.muted, textAlign: 'center', paddingTop: 4 },
+  barRow: { flexDirection: 'row', gap: 4 },
+  barBtn: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  barDanger: {},
+  barText: { fontSize: 15, fontWeight: '500', color: colors.ink },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.lg, gap: spacing.md },
   dialogTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },

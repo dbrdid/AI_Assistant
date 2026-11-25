@@ -37,7 +37,7 @@ export default function AiUsageScreen({ navigation }) {
       <ScreenHeader title="AI 이용량" onBack={navigation.goBack} />
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Text style={styles.heading}>이번 달 사용량</Text>
-        <Text style={styles.plan}>현재 요금제  /  {PLANS[s.plan].name}</Text>
+        <Text style={styles.plan}>현재 요금제, {PLANS[s.plan].name}</Text>
         {Object.keys(USAGE_LABELS).map((k) => (
           <Bar key={k} label={USAGE_LABELS[k]} used={u[k]} limit={limitOf(k)} />
         ))}

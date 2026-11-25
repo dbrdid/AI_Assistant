@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
   side: { position: 'absolute', height: 40, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   sideLeft: { left: spacing.lg },
   sideRight: { right: spacing.lg },
-  todayBtn: {minHeight:34,paddingHorizontal:14,borderRadius:4,borderWidth:0,borderColor:colors.line,backgroundColor:'transparent',alignItems:'center',justifyContent:'center'},
+  todayBtn: {minHeight: 44,paddingHorizontal:14,borderRadius:4,borderWidth:0,borderColor:colors.line,backgroundColor:'transparent',alignItems:'center',justifyContent:'center'},
   todayText: { fontSize: 13, fontWeight: '600', color: colors.ink },
   searchOn: { backgroundColor: colors.mintSoft, borderColor: colors.mint },
 
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   panelBarWrap: {height:12,alignItems:'center',justifyContent:'center',marginBottom:spacing.xs},
   spaceChipsBar: { flexGrow: 0, flexShrink: 0, marginBottom: spacing.md },
   spaceChips: { gap: spacing.sm, alignItems: 'center' },
-  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   spaceChipAll: { backgroundColor: colors.action, borderColor: colors.actionBorder },
   spaceChipOff: { backgroundColor: colors.cream },
   spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.ink },

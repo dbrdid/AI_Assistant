@@ -135,7 +135,7 @@ export default function TeamScreen({ navigation, route }) {
               onPress={() => (wouldRemoveAllLeaders() ? setNotice('팀장은 모두 삭제할 수 없어요') : setConfirmDel(true))}
               style={[styles.barBtn, styles.barDanger, picked.length === 0 && styles.off]}
             >
-              <Text style={[styles.barText, { color: colors.onPrimary }]}>삭제</Text>
+              <Text style={[styles.barText, { color: colors.coral }]}>삭제</Text>
             </Pressable>
           </View>
         </View>
@@ -178,7 +178,7 @@ export default function TeamScreen({ navigation, route }) {
       <Modal transparent visible={moving} animationType="fade" onRequestClose={() => setMoving(false)}>
         <View style={styles.backdrop}>
           <View style={styles.dialog} accessibilityViewIsModal>
-            <Text style={styles.dialogTitle}>어느 프로젝트로 옮길까요?</Text>
+            <Text style={styles.dialogTitle}>옮길 프로젝트</Text>
             {others.map((p) => (
               <Pressable key={p.id} accessibilityRole="button" onPress={() => { moveMembers(project.id, p.id, picked); setMoving(false); exit(); }} style={styles.row}>
                 <Text style={styles.name}>{p.title}</Text>
@@ -223,12 +223,12 @@ const styles = StyleSheet.create({
   inviteMeta: { fontSize: font.caption, color: colors.muted },
   ok: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
   okText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
-  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.line, padding: spacing.md, gap: spacing.sm },
-  barCount: { fontSize: font.body, fontWeight: '500', color: colors.ink, textAlign: 'center' },
-  barRow: { flexDirection: 'row', gap: spacing.sm },
-  barBtn: { flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.cream, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  barDanger: { backgroundColor: colors.coralSoft, borderColor: colors.coral },
-  barText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
+  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.cream, borderTopWidth: 1, borderTopColor: colors.line, paddingHorizontal: 16, paddingTop: 6, paddingBottom: spacing.md, gap: 2 },
+  barCount: { fontSize: 13, color: colors.muted, textAlign: 'center', paddingTop: 4 },
+  barRow: { flexDirection: 'row', gap: 4 },
+  barBtn: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  barDanger: {},
+  barText: { fontSize: 15, fontWeight: '500', color: colors.ink },
   off: { opacity: 0.4 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.lg, gap: spacing.md },

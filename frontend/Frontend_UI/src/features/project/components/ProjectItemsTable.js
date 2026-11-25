@@ -172,7 +172,7 @@ export default function ProjectItemsTable({ initialSettings, onSaveSettings, sha
           openProperty({ mode: 'add', type: 'text' });
         }} />}
         {canEditProperties && fields.length > 0 && <PillButton kind="ghost" label="속성 관리" onPress={() => openProperty({ mode: 'manage' })} />}
-        {fields.length > 0 && <PillButton kind="ghost" label={activeFilterField ? `필터 · ${activeFilterField.label}` : '속성 필터'} onPress={() => setFilterDraft({
+        {fields.length > 0 && <PillButton kind="ghost" label={activeFilterField ? `필터: ${activeFilterField.label}` : '속성 필터'} onPress={() => setFilterDraft({
           key: activeFilterField?.key ?? fields[0].key,
           input: activeFilterField ? String(view.propertyFilter.value) : '',
         })} />}
@@ -286,8 +286,8 @@ export default function ProjectItemsTable({ initialSettings, onSaveSettings, sha
             <Text accessibilityRole="header" style={styles.title}>{isManagingFields ? '속성 관리' : isAddingField ? '새 속성' : propertyEditor?.label}</Text>
             {propertyConflict ? <>
               <Text accessibilityLiveRegion="polite" style={styles.value}>같은 셀의 수정이 겹쳤어요.</Text>
-              <Text style={styles.value}>내 값 · {displayConflictValue(propertyConflict.local)}</Text>
-              <Text style={styles.value}>서버 값 · {displayConflictValue(propertyConflict.remote)}</Text>
+              <Text style={styles.value}>내 값, {displayConflictValue(propertyConflict.local)}</Text>
+              <Text style={styles.value}>서버 값, {displayConflictValue(propertyConflict.remote)}</Text>
               <PillButton label="내 값 유지" disabled={isSavingProperty} onPress={() => resolvePropertyConflict('keep_both')} />
               <PillButton kind="ghost" label="서버 값 사용" disabled={isSavingProperty} onPress={() => resolvePropertyConflict('use_server')} />
               <PillButton kind="ghost" label="나중에 해결" disabled={isSavingProperty} onPress={closeProperty} />

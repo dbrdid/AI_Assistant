@@ -30,7 +30,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={styles.name}>{name || '이름을 설정해 주세요'}</Text>
-            <Text style={styles.email} numberOfLines={1}>{s.profile.email || '로그인 전'}  /  {PLANS[s.plan].name}</Text>
+            <Text style={styles.email} numberOfLines={1}>{s.profile.email || '로그인 전'}, {PLANS[s.plan].name}</Text>
           </View>
           <Icon name="chevronRight" size={18} color={colors.muted} />
         </Pressable>

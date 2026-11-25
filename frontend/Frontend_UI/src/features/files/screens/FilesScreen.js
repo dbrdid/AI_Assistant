@@ -131,7 +131,7 @@ export default function FilesScreen({ navigation, route }) {
             <View style={styles.info}>
               <Text style={styles.name}>{f.name}</Text>
               <Text style={styles.meta}>
-                {[f.kind, sizeText(f.size), dateText(f.createdAt)].filter(Boolean).join('  /  ')}
+                {[f.kind, sizeText(f.size), dateText(f.createdAt)].filter(Boolean).join(', ')}
               </Text>
               {f.text ? (
                 <Text style={styles.desc} numberOfLines={3}>{f.text.slice(0, 120)}</Text>
@@ -194,6 +194,6 @@ const styles = StyleSheet.create({
   note: { fontSize: font.caption, color: colors.muted, marginTop: 2 },
   desc: { fontSize: font.body, color: colors.ink, lineHeight: 20, marginTop: 2 },
   actions: { gap: 4, marginTop: 2 },
-  smallBtn: {flexDirection:'row',alignItems:'center',gap:6,alignSelf:'flex-start',paddingHorizontal:spacing.md,minHeight:36,borderRadius:4,borderWidth:0,borderColor:colors.mint,backgroundColor:colors.card,marginTop:4},
+  smallBtn: {flexDirection:'row',alignItems:'center',gap:6,alignSelf:'flex-start',paddingHorizontal:spacing.md,minHeight: 44,borderRadius:4,borderWidth:0,borderColor:colors.mint,backgroundColor:colors.card,marginTop:4},
   smallBtnText: {fontSize:13,fontWeight:'400',color:colors.mintDark},
 });

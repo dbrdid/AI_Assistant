@@ -51,7 +51,7 @@ export default function WorkspacePicker({ visible, onClose, navigation, onSwitch
                   <View style={[styles.dot, on && { backgroundColor: colors.mint }]} />
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={styles.name} numberOfLines={1}>{w.name}</Text>
-                    <Text style={styles.sub} numberOfLines={1}>{w.personal ? w.desc : `멤버 ${w.members}명  /  ${w.role}`}</Text>
+                    <Text style={styles.sub} numberOfLines={1}>{w.personal ? w.desc : `멤버 ${w.members}명, ${w.role}`}</Text>
                   </View>
                   {on && (
                     <View style={styles.badge}>

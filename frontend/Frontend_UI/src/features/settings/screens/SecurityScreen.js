@@ -12,7 +12,7 @@ import { Group, Row, SectionTitle, ToggleRow, useNotice } from '../../../shared/
 const PERMS = [
   { id: 'mic', icon: 'mic', label: '마이크 권한', why: '녹음에 사용' },
   { id: 'camera', icon: 'camera', label: '카메라 권한', why: '카메라로 일정 추출에 사용' },
-  { id: 'noti', icon: 'bell', label: '알림 권한', why: '일정 / 브리핑 알림에 사용' },
+  { id: 'noti', icon: 'bell', label: '알림 권한', why: '일정과 브리핑 알림에 사용' },
   { id: 'files', icon: 'folder', label: '기기 접근 권한', why: '파일 선택에 사용' },
 ];
 
@@ -34,7 +34,7 @@ export default function SecurityScreen({ navigation }) {
       <ScreenHeader title="보안 및 권한 설정" onBack={navigation.goBack} />
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
         {/* 기기 인증(생체·PIN) 모듈이 아직 없어서, 켜도 잠기지 않는 설정은 저장하지 않음 */}
-        <ToggleRow icon="lock" label="앱 화면 잠금" sub="준비 중  /  기기 인증(지문 / 얼굴 / PIN) 연결 후 켤 수 있어요" value={false} disabled />
+        <ToggleRow icon="lock" label="앱 화면 잠금" sub="준비 중, 기기 인증(지문, 얼굴, PIN) 연결 후 켤 수 있어요" value={false} disabled />
 
         <SectionTitle>기기 권한</SectionTitle>
         <Group>
@@ -55,8 +55,8 @@ export default function SecurityScreen({ navigation }) {
             <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={{ maxHeight: 280 }}>
               <Text style={styles.policy}>
                 (임시 문구) 서비스 출시 전에 실제 개인정보 처리방침으로 교체해 주세요.{'\n\n'}
-                • 수집 항목: 이름, 소속, 이메일, 사용자가 작성한 메모 / 일정 / 파일{'\n'}
-                • 이용 목적: 서비스 제공, 기록 검색, AI 요약 / 브리핑 기능 제공{'\n'}
+                • 수집 항목: 이름, 소속, 이메일, 사용자가 작성한 메모, 일정, 파일{'\n'}
+                • 이용 목적: 서비스 제공, 기록 검색, AI 요약과 브리핑 기능 제공{'\n'}
                 • 보관 기간: 회원 탈퇴 시 지체 없이 삭제{'\n'}
                 • 문의: 앱 내 설정 {'>'} 문의
               </Text>

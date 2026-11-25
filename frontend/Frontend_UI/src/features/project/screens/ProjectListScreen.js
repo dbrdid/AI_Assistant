@@ -8,7 +8,7 @@ import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import Icon from '../../../shared/components/Icon';
-import { CircleButton, Tag } from '../../../shared/components/Ui';
+import { BottomCreate, Tag } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
@@ -36,7 +36,6 @@ export default function ProjectsScreen({ navigation }) {
       <ScreenHeader
         title={selecting ? `${ids.length}개 선택` : '프로젝트'}
         onBack={selecting ? exitSelect : navigation.goBack}
-        right={!selecting && <CircleButton icon="plus" label="프로젝트 생성" onPress={() => navigation.navigate(ROUTES.ProjectEdit)} />}
       />
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.list, selecting && { paddingBottom: 110 }]}>
         {!selecting && projects.length > 0 && <Text style={styles.hint}>꾹 누르면 여러 개를 선택해 삭제할 수 있어요</Text>}
@@ -72,7 +71,7 @@ export default function ProjectsScreen({ navigation }) {
                   <Text style={[styles.title, isDone && styles.titleDone]} numberOfLines={1}>{p.title}</Text>
                   <Tag label={p.status} tone={toneOf(p.status)} style={styles.tag} />
                 </View>
-                {/* 마감일 · 인원 (있는 값만) */}
+                {/* 마감일, 인원 (있는 값만) */}
                 <View style={styles.metaRow}>
                   {!!p.due && (
                     <View style={styles.metaItem}>
@@ -92,7 +91,7 @@ export default function ProjectsScreen({ navigation }) {
 
       </ScrollView>
 
-      {/* 선택 모드 아래 줄: 취소 · 전체/해제 · 삭제 */}
+      {/* 선택 모드 아래 줄: 취소, 전체/해제, 삭제 */}
       {selecting && (
         <View style={[styles.bar, { paddingBottom: insets.bottom + spacing.sm }]}>
           <Pressable accessibilityRole="button" onPress={exitSelect} style={styles.barBtn}>
@@ -110,7 +109,7 @@ export default function ProjectsScreen({ navigation }) {
       <ConfirmDialog
         visible={confirm}
         title={`프로젝트 ${ids.length}개를 삭제할까요?`}
-        sub="프로젝트만 삭제돼요. 안에 있던 메모 / 할 일 / 파일은 지워지지 않고 프로젝트에서만 빠져요."
+        sub="프로젝트만 삭제돼요. 안에 있던 메모, 할 일, 파일은 지워지지 않고 프로젝트에서만 빠져요."
         confirmText="삭제"
         danger
         onCancel={() => setConfirm(false)}
@@ -120,6 +119,7 @@ export default function ProjectsScreen({ navigation }) {
           exitSelect();
         }}
       />
+      {!selecting && <BottomCreate label="프로젝트 생성" onPress={() => navigation.navigate(ROUTES.ProjectEdit)} />}
     </View>
   );
 }
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   meta: { fontSize: 13, color: colors.muted },
-  bar: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, backgroundColor: colors.cream, borderTopWidth: 1, borderTopColor: colors.line },
-  barBtn: {flex:1,minHeight:42,borderRadius:21,backgroundColor:colors.card,borderWidth:0,borderColor:colors.line,alignItems:'center',justifyContent:'center'},
-  barText: {fontSize:14,fontWeight:'500',color:colors.ink},
+  bar: { flexDirection: 'row', gap: 4, paddingHorizontal: 16, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.cream },
+  barBtn: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  barText: { fontSize: 15, fontWeight: '500', color: colors.ink },
 });

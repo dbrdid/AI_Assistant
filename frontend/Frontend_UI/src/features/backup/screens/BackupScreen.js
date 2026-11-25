@@ -64,7 +64,7 @@ export default function BackupScreen({ navigation }) {
   const doBackup = () => runAction(async () => {
     const r = await createBackup(false);
     if (!r.ok) return setErrorMessage(r.reason === 'not-personal' ? '개인 공간에서만 백업할 수 있어요' : r.message || '백업하지 못했어요. 다시 시도해 주세요.');
-    showNotice(r.dropped > 0 ? `백업했어요 · 가장 오래된 백업 ${r.dropped}개는 지워졌어요` : '백업했어요');
+    showNotice(r.dropped > 0 ? `백업했어요. 가장 오래된 백업 ${r.dropped}개는 지워졌어요` : '백업했어요');
   });
 
   const doRestore = () => {
@@ -74,7 +74,7 @@ export default function BackupScreen({ navigation }) {
       const r = await restoreBackup(selected.id);
       if (!r.ok) return setErrorMessage(r.reason === 'not-personal' ? '개인 공간에서만 복원할 수 있어요' : r.message || '복원하지 못했어요');
       setSelectedId(null);
-      showNotice(r.safety ? '복원했어요 · 복원 전 상태는 "자동" 백업으로 남겨 뒀어요' : '복원했어요');
+      showNotice(r.safety ? '복원했어요. 복원 전 상태는 "자동" 백업으로 남겨 뒀어요' : '복원했어요');
     });
   };
 
@@ -151,7 +151,7 @@ export default function BackupScreen({ navigation }) {
                     <Text style={styles.date}>{fmt(b.createdAt)}</Text>
                     {b.auto && <Tag label="자동" tone="muted" />}
                   </View>
-                  <Text style={styles.counts}>메모 {b.counts.memos} · 할 일 {b.counts.tasks} · 프로젝트 {b.counts.projects}</Text>
+                  <Text style={styles.counts}>메모 {b.counts.memos}, 할 일 {b.counts.tasks}, 프로젝트 {b.counts.projects}</Text>
                 </View>
                 <Pressable accessibilityRole="button" accessibilityLabel="백업 삭제" disabled={busy} onPress={() => setDelId(b.id)} hitSlop={10}>
                   <Icon name="trash" size={20} color={colors.muted} />
