@@ -62,7 +62,7 @@ export default function ProposalListScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   tabs: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
-  tab: { minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, justifyContent: 'center' },
+  tab: { minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line, justifyContent: 'center' },
   tabOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
   tabText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
   tabTextOn: { color: colors.onPrimary },

@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   day: { width: 34, height: 34, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   dayOn: { backgroundColor: colors.action },
   dayText: { fontSize: font.body, color: colors.ink },
-  closeBtn: { minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { minHeight: 44, borderRadius: radius.md, borderWidth: 0, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   closeText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
   cols: { flexDirection: 'row', gap: spacing.md, height: 240 },
   col: { flex: 1 },
@@ -122,5 +122,5 @@ const styles = StyleSheet.create({
   optText: { fontSize: font.bodyLg, color: colors.ink },
   optTextOn: { color: colors.onPrimary, fontWeight: '600' },
   btn: { flex: 1, minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  btnGhost: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  btnGhost: { backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
 });

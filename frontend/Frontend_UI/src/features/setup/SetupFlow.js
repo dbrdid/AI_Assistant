@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   radio: { fontSize: 22, color: colors.muted },
   chev: { fontSize: 24, color: colors.muted },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chip: { minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  chip: { minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: 4, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   chipOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
   chipText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
   info: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.mintSoft, gap: 4 },

@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.md },
   dialogTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   dialogSub: { fontSize: font.body, color: colors.muted },
-  dialogOption: { minHeight: 46, justifyContent: 'center', paddingHorizontal: spacing.lg, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  dialogOption: { minHeight: 46, justifyContent: 'center', paddingHorizontal: spacing.lg, borderRadius: radius.sm, borderWidth: 0, borderColor: colors.line, backgroundColor: colors.card },
   dialogOptionText: { fontSize: font.bodyLg, color: colors.ink },
   root: { flex: 1, backgroundColor: colors.cream },
   list: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, gap: spacing.md },

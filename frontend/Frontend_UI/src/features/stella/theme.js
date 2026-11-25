@@ -48,7 +48,9 @@ export const styles = StyleSheet.create({
   aiActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 12 },
   aiSend: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: '#35373a' },
   aiSendText: { color: c.text, fontSize: 14, fontWeight: '600' },
-  aiGhost: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, borderColor: '#45494c' },
+  aiGhost: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 0, borderColor: '#45494c',
+    backgroundColor: c.raised
+  },
   aiGhostText: { color: c.text, fontSize: 13 },
   aiConsent: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, marginTop: 6 },
   aiReply: { marginTop: 20, padding: 14, backgroundColor: c.surface, borderRadius: 10 },
@@ -60,7 +62,9 @@ export const styles = StyleSheet.create({
   connCardOn: { borderColor: '#4a4e52' },
   connHead: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   connName: { flex: 1, color: c.text, fontSize: 15, fontWeight: '600' },
-  connBadge: { color: c.subtle, fontSize: 11, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: '#45494c', overflow: 'hidden' },
+  connBadge: { color: c.subtle, fontSize: 11, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, borderWidth: 0, borderColor: '#45494c', overflow: 'hidden',
+    backgroundColor: c.raised
+  },
   connBadgeOn: { color: c.text, backgroundColor: '#35373a', borderColor: '#35373a' },
   connBadgeReady: { color: c.text, borderColor: '#55595c' },
   connDesc: { color: c.muted, fontSize: 12, lineHeight: 18 },
@@ -199,13 +203,14 @@ export const styles = StyleSheet.create({
     fontWeight: '600'
   },
   secondary: {
-    borderWidth: 1,
+    borderWidth: 0,
     borderColor: c.line,
     minHeight: 44,
     paddingHorizontal: 13,
     borderRadius: 4,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    backgroundColor: c.raised
   },
   secondaryText: {
     color: c.text,

@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
 
   actions: { flexDirection: 'row', gap: spacing.sm },
   actionBtn: { flex: 1, minHeight: 44, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
-  editBtn: { backgroundColor: 'transparent', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.actionBorder },
+  editBtn: { backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.actionBorder },
   editText: { fontSize: 14, fontWeight: '500', color: colors.ink },
   delBtn: { backgroundColor: colors.coralSoft },
   delText: { fontSize: font.body, fontWeight: '500', color: colors.onPrimary },

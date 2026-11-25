@@ -677,7 +677,7 @@ const styles = StyleSheet.create({
   treeTitle: { flex: 1, fontSize: font.bodyLg, color: colors.ink },
   treeSpace: { maxWidth: 88, fontSize: font.caption, color: colors.muted },
   treeSelected: { backgroundColor: colors.mintSoft },
-  emptyBtn: { marginTop: spacing.md, minHeight: 44, paddingHorizontal: spacing.xl, borderRadius: radius.md, borderWidth: 1, borderColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
+  emptyBtn: { marginTop: spacing.md, minHeight: 44, paddingHorizontal: spacing.xl, borderRadius: radius.md, borderWidth: 0, borderColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
   emptyBtnText: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },
 
   empty: { alignItems: 'center', paddingTop: 80, gap: spacing.sm },

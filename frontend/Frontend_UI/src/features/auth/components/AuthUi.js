@@ -81,7 +81,7 @@ export function AuthButton({ label, onPress, kind = 'primary', disabled, busy, i
 
 const BUTTON_TONES = {
   primary: { box: { backgroundColor: colors.action }, text: colors.onPrimary },
-  ghost: { box: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line }, text: colors.ink },
+  ghost: { box: { backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line }, text: colors.ink },
   outline: { box: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.line }, text: colors.mintDark },
   // 소셜 로그인: 각 회사 버튼 가이드 색 (Google 흰색, 카카오 노란색 #FEE500)
   google: { box: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DADCE0' }, text: '#1F1F1F' },

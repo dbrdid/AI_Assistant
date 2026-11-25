@@ -238,5 +238,5 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', gap: spacing.sm },
   dialogRow: { flexDirection: 'row', gap: spacing.sm },
   dBtn: { flex: 1, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  ghost: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  ghost: { backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
 });

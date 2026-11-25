@@ -153,6 +153,6 @@ const styles = StyleSheet.create({
   hl: { backgroundColor: '#474022' },
   primary: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', marginTop: spacing.lg },
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
-  ghost: { minHeight: 48, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  ghost: { minHeight: 48, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
 });

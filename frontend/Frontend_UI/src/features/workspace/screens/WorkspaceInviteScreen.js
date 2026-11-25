@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   expiredSub: { fontSize: font.body, color: colors.ink },
   row: { flexDirection: 'row', gap: spacing.md },
   btn: { flex: 1, minHeight: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  ghost: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  ghost: { backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
   ghostText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
   primary: { backgroundColor: colors.action },
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },

@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   chips: { gap: spacing.sm, paddingVertical: spacing.xs },
-  chip: { maxWidth: 220, paddingHorizontal: spacing.lg, minHeight: 44, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  chip: { maxWidth: 220, paddingHorizontal: spacing.lg, minHeight: 44, borderRadius: 4, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   chipOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
   chipText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
   dayRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   diffLabel: { fontSize: font.caption, fontWeight: '600', color: colors.muted },
   diffBox: { padding: spacing.md, borderRadius: radius.sm || 8 },
   diffText: { fontSize: font.body, color: colors.ink, lineHeight: 20 },
-  openBtn: { alignSelf: 'flex-start', minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
+  openBtn: { alignSelf: 'flex-start', minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: radius.md, borderWidth: 0, borderColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
   openText: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },
   foot: { fontSize: font.caption, color: colors.muted, lineHeight: 18, marginTop: spacing.sm },
 });

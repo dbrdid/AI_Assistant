@@ -325,6 +325,6 @@ const styles = StyleSheet.create({
   recTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   recReason: { fontSize: font.caption, color: colors.muted },
   recGo: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },
-  ghost: { minHeight: 48, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  ghost: { minHeight: 48, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
 });

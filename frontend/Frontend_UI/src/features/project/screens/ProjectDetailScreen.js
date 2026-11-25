@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
   bigBtn: { minHeight: 50, borderRadius: radius.card, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
   primary: { flex: 1, backgroundColor: colors.action },
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
-  ghost: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  ghost: { backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
   ghostText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
   off: { opacity: 0.4 },
   bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.cream, borderTopWidth: 1, borderTopColor: colors.line, paddingHorizontal: 16, paddingTop: 6, paddingBottom: spacing.md, gap: 2 },

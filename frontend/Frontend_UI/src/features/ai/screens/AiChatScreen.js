@@ -38,7 +38,6 @@ import { chatErrorMessage } from '../../../lib/stella/ai-chat';
 import { colors, font, radius, shadow, spacing } from '../../../shared/theme/theme';
 
 // 대화가 비어 있을 때 보여줄 "추천 질문" 버튼들. 누르면 그 문장이 바로 전송됩니다.
-const SUGGESTIONS = ['중간고사 일정 알려줘', '회의 내용 요약해줘', '발표 자료 어디 있어?', '장보기 목록 알려줘'];
 const ATTACH_ONLY_QUESTION = '첨부한 자료를 요약해줘';
 
 // 오류 코드 → 화면 문구 (정책 검사·서버 오류 모두)
@@ -484,18 +483,9 @@ export default function AiChatScreen({ navigation }) {
 
         {messages.length === 0 ? (
           <View style={styles.empty}>
-            <View style={styles.emptyIconWrap}>
-              <Icon name="sparkles" size={30} color={colors.mintDark} />
-            </View>
-            <Text style={styles.emptyTitle}>무엇을 도와드릴까요?</Text>
-            <Text style={styles.emptySub}>앱에 저장된 기록과 첨부한 사진, 파일을 바탕으로 답해드려요</Text>
-            <View style={styles.chips}>
-              {SUGGESTIONS.map((s) => (
-                <Pressable key={s} accessibilityRole="button" onPress={() => send(s)} style={({ pressed }) => [styles.chip, pressed && { backgroundColor: colors.mintSoft }]}>
-                  <Text style={styles.chipText}>{s}</Text>
-                </Pressable>
-              ))}
-            </View>
+            {/* Notion AI처럼 빈 화면은 이름만 (예시 질문 칩 없음) */}
+            <Icon name="sparkles" size={22} color={colors.muted} />
+            <Text style={styles.emptyTitle}>Atria AI</Text>
           </View>
         ) : (
           <FlatList
@@ -870,7 +860,7 @@ const styles = StyleSheet.create({
   usageNum: { fontSize: font.caption, color: colors.muted },
   usageTrack: { height: 8, borderRadius: 4, backgroundColor: colors.line, overflow: 'hidden' },
   usageFill: { height: 8, borderRadius: 4 },
-  routeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  routeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
   routeDot: { width: 8, height: 8, borderRadius: 4 },
   routeText: { fontSize: font.caption + 1, fontWeight: '700', color: colors.ink },
   newChatBtn: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.mintSoft },
@@ -884,12 +874,7 @@ const styles = StyleSheet.create({
 
   // ----- 대화가 없을 때 -----
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl, gap: spacing.sm },
-  emptyIconWrap: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
-  emptyTitle: { fontSize: font.title, fontWeight: '700', color: colors.ink },
-  emptySub: { fontSize: font.body, color: colors.muted, textAlign: 'center', lineHeight: 20 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.lg },
-  chip: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm + 2, borderRadius: radius.lg + 8, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  chipText: { fontSize: font.body, color: colors.ink },
+  emptyTitle: { fontSize: 15, color: colors.muted, marginTop: spacing.sm },
 
   // ----- 대화 목록 -----
   list: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.lg, gap: spacing.lg },
@@ -914,7 +899,7 @@ const styles = StyleSheet.create({
   sourcesLabel: { fontSize: font.caption, color: colors.muted },
   sourceChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   // 출처 칩: 흰 바탕 + 테두리, 아이콘 + 굵은 제목
-  sourceChip: { flexDirection: 'row', alignItems: 'center', gap: 5, maxWidth: '100%', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  sourceChip: { flexDirection: 'row', alignItems: 'center', gap: 5, maxWidth: '100%', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
   sourceText: { flexShrink: 1, fontSize: font.caption + 1, fontWeight: '800', color: colors.ink },
   dotsBubble: { flexDirection: 'row', gap: 5, alignItems: 'center', paddingVertical: spacing.lg },
   dot: { width: 7, height: 7, borderRadius: 4 },
@@ -940,8 +925,8 @@ const styles = StyleSheet.create({
   sheet: { width: '100%', maxWidth: 380, backgroundColor: colors.cream, borderRadius: radius.lg + 4, padding: spacing.xl, gap: spacing.sm, borderWidth: 1, borderColor: colors.line },
   sheetTitle: { fontSize: font.title - 2, fontWeight: '800', color: colors.ink, marginBottom: spacing.xs },
   sheetNote: { fontSize: font.caption, color: colors.muted, marginTop: spacing.xs, lineHeight: 17 },
-  option: { padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, gap: 2 },
-  optionOn: { borderColor: colors.mintDark, borderWidth: 1.5, backgroundColor: colors.mintSoft },
+  option: { padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line, gap: 2 },
+  optionOn: { borderColor: colors.mintDark, borderWidth: 0.5, backgroundColor: colors.mintSoft },
   optionName: { fontSize: font.bodyLg - 1, fontWeight: '800', color: colors.ink },
   optionSub: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
   historySheet: { maxWidth: 420 },

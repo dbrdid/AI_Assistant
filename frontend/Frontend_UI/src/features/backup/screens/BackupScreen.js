@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   btn: { flex: 1, minHeight: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   primary: { backgroundColor: colors.action },
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.white },
-  ghost: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.mint },
+  ghost: { backgroundColor: colors.card, borderWidth: 0, borderColor: colors.mint },
   ghostText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.mintDark },
   hint: { fontSize: font.caption, color: colors.muted },
   listHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md },

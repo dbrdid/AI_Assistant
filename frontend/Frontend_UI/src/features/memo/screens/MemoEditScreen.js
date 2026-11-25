@@ -1257,7 +1257,7 @@ const styles = StyleSheet.create({
   dialogSub: { fontSize: font.body, color: colors.muted },
   dialogButtons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   dialogBtn: { flex: 1, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  cancelBtn: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  cancelBtn: { backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
   cancelText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
   deleteBtn: { backgroundColor: colors.coralSoft },
   deleteText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.onPrimary },

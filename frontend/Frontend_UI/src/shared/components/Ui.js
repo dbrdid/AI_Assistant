@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   pillPrimary: { backgroundColor: colors.action },
   // 머리글 오른쪽 동작(저장·완료): Notion처럼 면 없는 글자 버튼
   pillTextOnly: { paddingHorizontal: 8, minWidth: 44 },
-  pillGhost: { backgroundColor: 'transparent', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.actionBorder },
+  pillGhost: { backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.actionBorder },
   pillText: { fontSize: 14, fontWeight: '600' },
   card: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, padding: spacing.lg },
   // 선택 전 칩은 면 없이 흐린 글자, 선택된 칩만 낮은 대비의 면으로 표시한다(밝은 채움 금지).
