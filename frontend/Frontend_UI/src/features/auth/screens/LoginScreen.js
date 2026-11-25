@@ -9,6 +9,7 @@ import { colors, font, spacing } from '../../../shared/theme/theme';
 import { startSession } from '../../../data/auth/AuthStore';
 import { login, socialLogin } from '../../../services/auth/AuthApi';
 import { AuthButton, AuthDialog, AuthField, AuthFrame } from '../components/AuthUi';
+import { GoogleLogo, KakaoLogo } from '../components/SocialLogos';
 
 export default function LoginScreen({ prefillEmail = '', notice = '', onSignup, onForgot }) {
   const [email, setEmail] = useState(prefillEmail);
@@ -60,8 +61,8 @@ export default function LoginScreen({ prefillEmail = '', notice = '', onSignup, 
           <View style={styles.line} /><Text style={styles.or}>또는</Text><View style={styles.line} />
         </View>
         <View style={styles.socials}>
-          {providers.google && <AuthButton kind="ghost" label="Google로 계속하기" onPress={() => social('Google')} />}
-          {providers.kakao && <AuthButton kind="ghost" label="카카오로 계속하기" onPress={() => social('카카오')} />}
+          {providers.google && <AuthButton kind="google" logo={<GoogleLogo />} label="Google로 계속하기" onPress={() => social('Google')} />}
+          {providers.kakao && <AuthButton kind="kakao" logo={<KakaoLogo />} label="카카오로 계속하기" onPress={() => social('카카오')} />}
         </View>
       </>}
       <View style={styles.signup}>
