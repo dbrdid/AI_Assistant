@@ -29,16 +29,30 @@ const CHAT_SYSTEM = GATEWAY_SYSTEM + '\n'
   + '날짜는 YYYY-MM-DD로 쓰고, "내일"처럼 날짜가 정해지지 않았거나 값이 부족하면 명령 대신 필요한 값을 짧게 되묻는다. '
   + '블록 번호와 문서 제목은 사용자가 말한 것만 쓴다. 요청 앞에 "대상: 현재 문서의 N번 블록" 줄이 있으면 그 블록 번호를 그대로 쓴다.\n'
   + '형식:\n' + [...examples, ...projectExamples].join('\n') + '\n열 수 있는 화면: ' + Object.keys(screens).join(', ') + '\n'
+  + '대상 블록의 글을 요약, 번역, 다듬기, 늘리기, 맞춤법 교정처럼 글 자체를 바꿔 달라는 요청은 앱 작업이 아니다. 이때는 바뀐 글만 출력한다 (설명, 따옴표, 머리말 없이). 사용자가 미리 보고 바꿀지 정한다.\n'
   + '앱 작업이 아닌 질문에는 한국어로 짧고 정확하게 답한다. 모르는 내용은 모른다고 답한다.';
 
 /** mode 'command' uses the frozen command prompt; 'chat' answers or proposes one app command. */
-export function gatewayMessages(request, mode) {
+export function gatewayMessages(request, mode, now = new Date()) {
   const text = String(request ?? '').trim();
   if (!text) throw new Error('요청을 입력해 주세요.');
-  if (mode === 'command') return { system: GATEWAY_SYSTEM, user: commandPrompt(text) };
-  return { system: CHAT_SYSTEM, user: text };
+  // 모델은 오늘 날짜를 모른다: "12월 1일"을 엉뚱한 해로 쓰지 않게 기기의 오늘 날짜를 알려 준다 (명령의 날짜는 앱이 원문과 다시 대조한다).
+  const pad = n => String(n).padStart(2, '0');
+  const today = `\n오늘 날짜: ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} (${'일월화수목금토'[now.getDay()]}요일)`;
+  if (mode === 'command') return { system: GATEWAY_SYSTEM + today, user: commandPrompt(text) };
+  return { system: CHAT_SYSTEM + today, user: text };
 }
 
+// 지원 명령의 머리 부분 모양 (예시에서 만든다): '일정 추가 2026-12-02 15:00: 낭독회' → /^일정 추가 \d{4}-\d{2}-\d{2} \d{2}:\d{2}\s*[:：]/
+const escape = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const COMMAND_SHAPES = [
+  ...[...examples, ...projectExamples].map(example => {
+    const [head, value] = example.split(/[:：]\s/);
+    const pattern = escape(head).replace(/\d{4}-\d{2}-\d{2}/g, '\\d{4}-\\d{2}-\\d{2}').replace(/\d{2}:\d{2}/g, '\\d{2}:\\d{2}').replace(/\d+(번|행|열)/g, '\\d+$1');
+    return new RegExp('^' + pattern + (value === undefined ? '$' : '\\s*[:：]\\s*\\S'));
+  }),
+  new RegExp('^(?:' + Object.keys(screens).map(escape).join('|') + ') 열어줘$'),
+];
 const clean = line => line.trim().replace(/^[-*>•\s]+/, '').replace(/^["'`“”]+|["'`“”.]+$/g, '').replace(/^(?:출력|명령)\s*[:：]\s*/, '').trim();
 export function readReply(text, mode) {
   const raw = String(text ?? '').replace(/```[a-z]*/gi, '').trim();
@@ -50,6 +64,9 @@ export function readReply(text, mode) {
   }
   const line = lines.find(item => /^앱\s*작업\s*[:：]/.test(item));
   if (line) return { command: line.replace(/^앱\s*작업\s*[:：]\s*/, '').trim() };
+  // 작은 로컬 모델은 "앱 작업:" 머리말을 빼먹기도 한다. 한 줄 답이 지원 명령의 모양과 같으면 명령으로 본다.
+  // (어느 경우든 앱 작업 화면에서 원문 대조와 사용자 승인을 거친다)
+  if (lines.length === 1 && COMMAND_SHAPES.some(shape => shape.test(lines[0]))) return { command: lines[0] };
   return { text: raw };
 }
 

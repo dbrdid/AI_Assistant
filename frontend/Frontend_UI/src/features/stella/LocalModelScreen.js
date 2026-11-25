@@ -210,7 +210,7 @@ export default function LocalModelScreen({ navigation, route }) {
       editable={!busy} autoCapitalize="none" autoCorrect={false} placeholder={DEFAULT_CONNECTION[id + 'Model']} placeholderTextColor={c.subtle} style={s.connInput} />}
     {['server', 'openai', 'anthropic'].includes(id) && <>
       {/* 입력하는 즉시 이번 실행에 적용한다. 기기에는 저장하지 않는다. */}
-      <TextInput accessibilityLabel="API 키" value={keyDraft} onChangeText={value => { setKeyDraft(value); if (value) { setSessionKey(id, value); setError(''); } }} secureTextEntry editable={!busy}
+      <TextInput accessibilityLabel="API 키" importantForAutofill="no" autoComplete="off" value={keyDraft} onChangeText={value => { setKeyDraft(value); if (value) { setSessionKey(id, value); setError(''); } }} secureTextEntry editable={!busy}
         autoCapitalize="none" autoCorrect={false} placeholder={hasSessionKey(id) ? '키 입력됨. 바꾸려면 다시 입력' : id === 'server' ? '서버 키 (필요할 때만)' : 'API 키'}
         placeholderTextColor={c.subtle} style={s.connInput} />
       <Text style={s.connNote}>키는 기기에 저장하지 않으며 앱을 다시 열면 다시 입력해야 합니다.</Text>

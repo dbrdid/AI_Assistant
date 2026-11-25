@@ -22,6 +22,10 @@ test('every provider receives the same gateway instructions', async () => {
   assert.match(chat.system, /프로젝트 만들기: 신제품 출시/);
   assert.match(chat.system, /"대상: 현재 문서의 N번 블록" 줄이 있으면 그 블록 번호를 그대로 쓴다/);
   assert.throws(() => gatewayMessages('  ', 'chat'), /입력/);
+  // 모델이 연도를 지어내지 않도록 기기의 오늘 날짜를 함께 보낸다
+  const dated = gatewayMessages('12월 1일까지 포스터 제출 할 일 추가해줘', 'chat', new Date(2026, 10, 26));
+  assert.match(dated.system, /오늘 날짜: 2026-11-26 \(목요일\)/);
+  assert.match(gatewayMessages('표 블록 추가', 'command', new Date(2026, 10, 26)).system, /오늘 날짜: 2026-11-26/);
 
   setSessionKey('openai', 'sk-test');
   setSessionKey('anthropic', 'ak-test');
@@ -71,6 +75,16 @@ test('server addresses accept origins or /v1 bases only', async () => {
   assert.deepEqual(await listServerModels({ serverUrl: 'http://localhost:11434' }, list), ['gemma4:e2b', 'qwen']);
 });
 
+test('a local model reply in exact command shape without the 앱 작업 prefix is still a command; rewritten text stays text', () => {
+  assert.deepEqual(readReply('일정 추가 2026-11-27 15:00: Dentist checkup', 'chat'), { command: '일정 추가 2026-11-27 15:00: Dentist checkup' });
+  assert.deepEqual(readReply('할 일 추가 2026-11-27: 포스터 제출', 'chat'), { command: '할 일 추가 2026-11-27: 포스터 제출' });
+  assert.deepEqual(readReply('문서 만들기: 회의록', 'chat'), { command: '문서 만들기: 회의록' });
+  assert.deepEqual(readReply('3번 블록 삭제', 'chat'), { command: '3번 블록 삭제' });
+  assert.deepEqual(readReply('캘린더 열어줘', 'chat'), { command: '캘린더 열어줘' });
+  assert.deepEqual(readReply('회의는 내일 3시에 있습니다', 'chat'), { text: '회의는 내일 3시에 있습니다' });
+  assert.deepEqual(readReply('First sentence. Second and third sentences.', 'chat'), { text: 'First sentence. Second and third sentences.' });
+  assert.equal(readReply('문서 만들기: 회의록\n그리고 다른 설명', 'chat').text, '문서 만들기: 회의록\n그리고 다른 설명');
+});
 test('replies become app commands only through the explicit command line', () => {
   assert.deepEqual(readReply('```\n앱 작업: 문서 만들기: 회의록\n```', 'chat'), { command: '문서 만들기: 회의록' });
   assert.deepEqual(readReply('일반 답변입니다.', 'chat'), { text: '일반 답변입니다.' });

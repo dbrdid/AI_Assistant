@@ -31,6 +31,7 @@
       ],
       ["llama.rn", { "enableOpenCLAndHexagon": false }],
       "./plugins/with-cleartext",
+      "./plugins/with-neutral-accent",
       [
         "expo-camera",
         {
