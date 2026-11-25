@@ -35,6 +35,7 @@ export const styles = StyleSheet.create({
   homeDock: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, borderTopWidth: 1, borderTopColor: c.line },
   homeSearch: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, paddingHorizontal: 8 },
   homeSearchText: { color: c.muted, fontSize: 14 },
+  askPill: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: c.surface },
   recentBody:{color:c.muted,fontSize:12,lineHeight:18},
   // 본문 아래 하위·연결 문서: Notion 페이지 링크처럼 낮은 대비의 행, 누를 때만 면 표시
   pageLinks: { marginTop: 32, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },

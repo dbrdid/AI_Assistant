@@ -570,7 +570,7 @@ export async function askFromDevice(question, signal, { history = [], attachment
   requireTransmission(policy.route, [policy], policy.consent);
   // 멤버가 아니게 된(닫힌) 공유 공간의 기록은 검색 화면과 같이 AI에도 보내지 않음
   const records = fileVaultOnly || own.closedSpaces?.has(ws) ? [] : [
-    ...own.store.getMemos().map(m => ({ id: m.id, type: 'memo', title: m.title, text: m.body, revision: m.revision, date: new Date(m.updatedAt).toISOString() })),
+    ...own.store.getMemos().map(m => ({ id: m.id, type: 'memo', title: m.title || m.body.split('\n')[0].slice(0, 60), text: m.body, revision: m.revision, date: new Date(m.updatedAt).toISOString() })),
     ...(!memoOnly ? own.store.getTasks().map(t => ({ id: t.id, type: t.kind, title: t.title, text: t.desc, revision: t.revision, date: t.date, status: t.status === '완료' ? 'done' : 'open' })) : []),
   ].filter(r => !aiPolicy(r).excluded).map(r => ({ ...r, workspaceId: policy.workspaceId }));
   const attachmentSources = attachments.filter(a => a.text).map(a => ({

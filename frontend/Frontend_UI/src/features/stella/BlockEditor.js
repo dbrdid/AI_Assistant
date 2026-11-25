@@ -4,7 +4,7 @@ import { randomUUID } from 'expo-crypto';
 import { SheetModal } from '../../shared/components/Motion';
 import Icon from '../../shared/components/Icon';
 import { palette as c, styles as s } from './theme';
-import { insertBlock, moveBlock, splitBlock, tableRows, MAX_BLOCKS } from '../../../../../backend/local/src/document-blocks.mjs';
+import { blockBreaks, insertBlock, moveBlock, splitBlock, tableRows, MAX_BLOCKS } from '../../../../../backend/local/src/document-blocks.mjs';
 
 const TYPES = [['paragraph','텍스트','file'],['heading','제목','type'],['bullet','목록','list'],['task','체크리스트','checkSquare'],['table','표','grid']];
 function InsertBoundary({label, open, drop}) {
@@ -59,9 +59,9 @@ const BlockEditor = forwardRef(function BlockEditor({ blocks, onChange, disabled
     holdEnd();
     if(disabled)return;
     if(text==='/'){update(block.id,{text});setPicker({id:block.id});return;}
-    const shouldSplit=!skipSplit.current && (text.match(/\n/g)?.length??0)>(block.text.match(/\n/g)?.length??0);
+    const parts=skipSplit.current?null:blockBreaks(block.text,text);
     skipSplit.current=false;
-    try{if(shouldSplit){const next=splitBlock(blocks,block.id,text,randomUUID);pendingFocus.current=next[blocks.findIndex(item=>item.id===block.id)+1]?.id;commit(next);}else update(block.id,{text});}catch(e){setError(e.message);}
+    try{if(parts){const next=splitBlock(blocks,block.id,text,randomUUID,parts);pendingFocus.current=next[blocks.findIndex(item=>item.id===block.id)+1]?.id;commit(next);}else update(block.id,{text});}catch(e){setError(e.message);}
   }
   function choose(type){
     if(disabled||!picker)return;

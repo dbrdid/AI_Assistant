@@ -2,10 +2,19 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setup } from '../../backend/local/tests/helpers.mjs';
 import { createStellaDocumentStore, normalizeBlocks, blocksText, prepareDocumentTables } from '../../backend/local/src/stella-documents.js';
-import { insertBlock, splitBlock, moveBlock, tableRows } from '../../backend/local/src/document-blocks.mjs';
+import { blockBreaks, insertBlock, splitBlock, moveBlock, tableRows } from '../../backend/local/src/document-blocks.mjs';
 import { createDocumentWorkspace } from '../../frontend/Frontend_UI/src/integration/documentWorkspace.mjs';
 function fixture(){const t=setup(),prefs=new Map();const content=createStellaDocumentStore({db:t.db,store:t.store});const documents=createDocumentWorkspace({content,store:t.store,read:(key,value)=>prefs.get(key)??value,write:(key,value)=>prefs.set(key,value)});return {...t,documents};}
 const paragraph=(id,text)=>({id,type:'paragraph',text,checked:false});
+test('pasting keeps sentences in one block and splits only at blank lines; Enter splits at the caret',()=>{
+  assert.equal(blockBreaks('', '첫 문장입니다.\n둘째 문장입니다.\n셋째 문장입니다.'), null);
+  assert.deepEqual(blockBreaks('', '첫 문단 한 줄.\n이어지는 줄.\n\n둘째 문단.'), ['첫 문단 한 줄.\n이어지는 줄.', '둘째 문단.']);
+  assert.deepEqual(blockBreaks('가나다', '가나\n다'), ['가나', '다']);
+  assert.deepEqual(blockBreaks('a\nb', 'a\nb\n'), ['a\nb', '']);
+  assert.equal(blockBreaks('abc', 'abcd'), null);
+  const split=splitBlock([paragraph('a','x')],'a','p1\n\np2',()=> 'n',blockBreaks('x','p1\n\np2'));
+  assert.deepEqual(split.map(b=>b.text),['p1','p2']);
+});
 test('between-block insertion, splitting and movement preserve block data',()=>{const initial=[paragraph('a','첫 문단'),paragraph('b','마지막')];const added=insertBlock(initial,'a',paragraph('c','중간'));assert.deepEqual(added.map(b=>b.id),['a','c','b']);const split=splitBlock(added,'c','중간\n다음',()=> 'd');assert.deepEqual(split.map(b=>b.text),['첫 문단','중간','다음','마지막']);assert.deepEqual(moveBlock(split,'d','a').map(b=>b.id),['d','a','c','b']);assert.equal(initial.length,2);});
 test('table blocks retain all cells through save, version restore and backup',()=>{const t=fixture();const memo=t.store.addMemo({title:'표 문서',body:'원문'});const blocks=normalizeBlocks([{id:'grid',type:'table',rows:[['이름','상태'],['회의','준비']]}]);const saved=t.documents.saveContent(memo.id,{title:memo.title,body:blocksText(blocks),blocks},memo.revision);assert.deepEqual(t.documents.blocksFor(saved)[0].rows,[['이름','상태'],['회의','준비']]);const version=t.documents.createVersion(saved.id,saved.revision);const changed=t.documents.saveContent(saved.id,{title:'변경',body:'다른 내용',blocks:[paragraph('x','다른 내용')]},saved.revision);const restored=t.documents.restoreVersion(saved.id,version,changed.revision);assert.deepEqual(t.documents.blocksFor(restored),blocks);const backup=t.store.exportAll();assert.ok(backup.documents);t.store.importAll(backup);assert.deepEqual(t.documents.blocksFor(t.store.getMemo(saved.id)),blocks);});
 test('existing hierarchy is the only parent authority used by the forced UI',()=>{const t=fixture(),a=t.store.addMemo({title:'상위'}),b=t.store.addMemo({title:'하위'});t.documents.moveDocument(b.id,a.id);assert.equal(t.store.getMemo(b.id).parentMemoId,a.id);assert.equal(t.documents.listDocuments().find(d=>d.id===b.id).parentId,a.id);assert.throws(()=>t.documents.moveDocument(a.id,b.id));});

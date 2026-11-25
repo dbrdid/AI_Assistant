@@ -150,6 +150,9 @@ const DOCUMENT_MODES = { [ROUTES.Memos]: 'documents', [ROUTES.Relations]: 'relat
 // Web overflow:hidden can scroll focused descendants in addition to the pager transform.
 const pagerOverflow = Platform.OS === 'web' ? 'clip' : 'hidden';
 
+// 자체 입력줄이 있는 쪽 (오늘: 메모, 첨부, 녹음 입력줄 / 빠른 입력: 저장 줄)은 공통 하단을 겹쳐 그리지 않는다
+const OWN_BOTTOM_BAR = new Set([ROUTES.Today, ROUTES.QuickInput]);
+
 function PageRail({ index, pages, header, renderPage, keepVisited = false }) {
   const position = useRef(new Animated.Value(index)).current;
   const lastPosition = useRef(index);
@@ -252,6 +255,15 @@ export default function WorkspaceScreen({
       search: true
     })} />{error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}</>;
   const intro = standalone ? null : <><View style={s.titleRow}><Text accessibilityRole="header" style={s.title}>{title}</Text></View></>;
+  // 탭 안에 들어간 쪽은 아래 공통 하단(검색, AI에게 질문하기, 새 문서)을 쓰고 자체 하단을 그리지 않는다
+  const embedded = pagerIndex !== undefined || bodyOnly;
+  // Notion 모바일 하단과 같은 형식: 왼쪽 검색, 가운데 AI에게 질문하기, 오른쪽 새 문서
+  const askDock = <View style={[s.homeDock, { gap: 8, paddingBottom: Math.max(10, insets.bottom) }]}>
+    <IconButton name="search" label="검색" onPress={() => go(ROUTES.Search)} />
+    <Pressable accessibilityRole="button" accessibilityLabel="AI에게 질문하기" onPress={() => go(ROUTES.AiChat)} style={({ pressed }) => [s.askPill, pressed && { opacity: .6 }]}>
+      <Icon name="sparkles" size={17} color={c.muted} /><Text style={s.homeSearchText}>AI에게 질문하기</Text></Pressable>
+    <IconButton name="pencil" label="새 문서 작성" onPress={() => go(ROUTES.MemoEdit)} />
+  </View>;
   let content;
   if (mode === 'documents') {
     content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={list} keyExtractor={memo => memo.id} contentContainerStyle={s.page} keyboardShouldPersistTaps="handled" ListHeaderComponent={<>{intro}<View style={s.search}><Icon name="search" size={17} color={c.muted} /><TextInput autoFocus={requestSearch} accessibilityLabel="문서 검색" placeholder="제목이나 내용으로 검색" placeholderTextColor={c.subtle} value={query} onChangeText={setQuery} style={s.searchInput} />{query ? <IconButton name="x" label="검색어 지우기" onPress={() => setQuery('')} /> : null}</View><View style={s.filters}>{[['all', '모든 문서'], ['favorites', '즐겨찾기']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{
@@ -266,7 +278,7 @@ export default function WorkspaceScreen({
       return next;
     })} />} ListEmptyComponent={<Text style={s.empty}>{query ? '검색 결과가 없습니다.' : filter === 'favorites' ? '즐겨찾기한 문서가 없습니다.' : '아직 문서가 없습니다.\n새 문서에서 첫 생각을 기록하세요.'}</Text>} />;
     // 홈 하단 도크와 같은 자리(엄지가 닿는 오른쪽 아래)에 새 문서 버튼
-    content = <>{content}<View style={[s.homeDock, { justifyContent: 'flex-end', paddingBottom: Math.max(10, insets.bottom) }]}><IconButton name="pencil" label="새 문서 작성" onPress={() => go(ROUTES.MemoEdit)} /></View></>;
+    if (!embedded) content = <>{content}<View style={[s.homeDock, { justifyContent: 'flex-end', paddingBottom: Math.max(10, insets.bottom) }]}><IconButton name="pencil" label="새 문서 작성" onPress={() => go(ROUTES.MemoEdit)} /></View></>;
   } else if (mode === 'review') {
     const items = proposals.filter(p => p.status === reviewTab && shown(p));
     content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={items} keyExtractor={p => p.id} contentContainerStyle={s.page} ListHeaderComponent={<>{intro}<View style={s.filters}>{[['pending', '확인 대기'], ['hold', '보류']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{
@@ -305,16 +317,21 @@ export default function WorkspaceScreen({
         {waiting.length > 0 && <Pressable accessibilityRole="button" onPress={() => go(ROUTES.Proposals)} style={s.homeReview}><Icon name="checkSquare" size={18} color={c.muted} /><Text style={s.rowTitle}>검토할 작업</Text><Text style={s.linkText}>{waiting.length}</Text></Pressable>}
         {appUpdate && <Pressable accessibilityRole="button" accessibilityLabel={`새 버전 ${appUpdate.version} 받기`} onPress={() => Linking.openURL(appUpdate.url)} style={s.homeReview}><Icon name="arrowUp" size={18} color={c.muted} /><Text style={s.rowTitle}>새 버전 {appUpdate.version}</Text><Text style={s.linkText}>받기</Text></Pressable>}
       </ScrollView>
-      <View style={[s.homeDock, { paddingBottom: Math.max(10, insets.bottom) }]}><Pressable accessibilityRole="button" onPress={() => go(ROUTES.Search)} style={s.homeSearch}><Icon name="search" size={19} color={c.muted} /><Text style={s.homeSearchText}>검색</Text></Pressable><IconButton name="pencil" label="새 문서 작성" onPress={() => go(ROUTES.MemoEdit)} /></View>
+      {!embedded && askDock}
     </>;
   }
+  // 탭 안에서 지금 보이는 쪽. 탭 버튼으로 들어오면 첫 쪽, 다른 화면에서 그 쪽의 경로로 바로 왔으면 그 쪽
+  const subIndexOf = (tab, i) => {
+    const pages = tab.pages;
+    const requested = pages.findIndex(p => p.route === route?.params?.subpage);
+    const direct = !route?.tab && tab.route !== ROUTES.Home ? pages.findIndex(p => p.route === route?.name) : -1;
+    return i === pagerIndex ? Math.max(0, requested >= 0 ? requested : direct) : 0;
+  };
   const renderTab = (tab, i) => {
     const pages = tab.pages;
     // 탭 버튼으로 들어오면 첫 쪽. 다른 화면에서 그 탭의 경로로 바로 이동했으면(예: '할 일' 명령) 그 경로의 쪽을 연다.
     // 홈은 앱을 처음 열 때도 같은 경로라 항상 첫 쪽(오늘)부터
-    const requested = pages.findIndex(p => p.route === route?.params?.subpage);
-    const direct = !route?.tab && tab.route !== ROUTES.Home ? pages.findIndex(p => p.route === route?.name) : -1;
-    const subIndex = i === pagerIndex ? Math.max(0, requested >= 0 ? requested : direct) : 0;
+    const subIndex = subIndexOf(tab, i);
     const select = name => navigation.setParams({ subpage: name });
     return <PageRail index={subIndex} pages={pages} header={active => pages.length < 2 ? null :
       <View><ScrollView horizontal showsHorizontalScrollIndicator={false}
@@ -337,7 +354,8 @@ export default function WorkspaceScreen({
           route={{ name: page.route, params: i === pagerIndex ? route?.params ?? {} : {} }} /></ScreenEntryProvider>;
       }} />;
   };  return <View style={s.root}>{pagerIndex !== undefined
-    ? <PageRail index={pagerIndex} pages={TABS} keepVisited header={tab => header(tab.route)} renderPage={renderTab} />
+    ? <><PageRail index={pagerIndex} pages={TABS} keepVisited header={tab => header(tab.route)} renderPage={renderTab} />
+      {!OWN_BOTTOM_BAR.has(TABS[pagerIndex]?.pages[subIndexOf(TABS[pagerIndex], pagerIndex)]?.route) && askDock}</>
     : <>{!bodyOnly && header()}{content}</>}{actions.snack.view}<SheetModal visible={menu} onClose={() => setMenu(false)} label="작업 공간 메뉴"><View style={s.handle} /><View style={s.titleRow}><Text style={s.sectionTitle}>나의 작업 공간</Text><IconButton name="x" label="메뉴 닫기" onPress={() => setMenu(false)} /></View><ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4 }}>
       {/* 공간 / AI / 관리 세 묶음. 묶음마다 둥근 면 안에 같은 높이의 행, 아이콘 열과 글자 시작점을 맞춘다. */}
       {[['공간', [...spaces.list.map(space => ({ key: space.id, label: space.name, icon: space.personal ? 'home' : 'users', checked: space.id === current?.id, onPress: () => {

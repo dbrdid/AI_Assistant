@@ -67,15 +67,6 @@ const dayLabel = (ms) => {
 // 출처 칩 아이콘: 메모 · 일정 · 첨부
 const sourceIcon = (src) => (!src.route ? 'paperclip' : src.type === 'memo' ? 'file' : 'calendar');
 
-// AI 쪽 동그란 얼굴 (연한 민트 원 + 반짝이 아이콘)
-function Avatar() {
-  return (
-    <View style={styles.avatar}>
-      <Icon name="sparkles" size={16} color={colors.mintDark} />
-    </View>
-  );
-}
-
 // ------------------------------------------------------------
 // 입력 중 표시 (● ● ● 가 차례로 깜빡임 · 시안: 진한 민트 → 민트 → 연한 색)
 // ------------------------------------------------------------
@@ -98,7 +89,6 @@ function TypingDots() {
   }, [dots]);
   return (
     <View style={styles.aiRow} accessibilityLabel="답변 준비 중">
-      <Avatar />
       <View style={[styles.aiBubble, styles.dotsBubble]}>
         {dots.map((v, i) => (
           <Animated.View key={i} style={[styles.dot, { backgroundColor: DOT_COLORS[i], opacity: v }]} />
@@ -138,7 +128,6 @@ function MessageBubble({ message, onOpenSource }) {
   const sources = message.done && message.sources ? message.sources : [];
   return (
     <View style={styles.aiRow}>
-      <Avatar />
       <View style={styles.aiCol}>
         <View style={[styles.aiBubble, styles.aiBubbleFit, message.error && styles.errorBubble]}>
           <Text style={[styles.aiText, message.error && styles.errorText]} selectable>{message.text}</Text>
@@ -499,7 +488,7 @@ export default function AiChatScreen({ navigation }) {
               <Icon name="sparkles" size={30} color={colors.mintDark} />
             </View>
             <Text style={styles.emptyTitle}>무엇을 도와드릴까요?</Text>
-            <Text style={styles.emptySub}>앱에 저장된 기록과 첨부한 사진·파일을 바탕으로 답해드려요</Text>
+            <Text style={styles.emptySub}>앱에 저장된 기록과 첨부한 사진, 파일을 바탕으로 답해드려요</Text>
             <View style={styles.chips}>
               {SUGGESTIONS.map((s) => (
                 <Pressable key={s} accessibilityRole="button" onPress={() => send(s)} style={({ pressed }) => [styles.chip, pressed && { backgroundColor: colors.mintSoft }]}>
@@ -554,16 +543,7 @@ export default function AiChatScreen({ navigation }) {
 
       {/* ---------- 입력창 + 오른쪽 아래 도구 (AI 선택 · 사용량) ---------- */}
       <View style={[styles.inputArea, { paddingBottom: keyboardUp ? spacing.xs : insets.bottom + spacing.xs }]}>
-      <View style={styles.inputBar}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="사진이나 파일 첨부"
-          disabled={status !== 'idle'}
-          onPress={() => setPanel('attach')}
-          style={[styles.attachBtn, status !== 'idle' && { opacity: 0.4 }]}
-        >
-          <Icon name="plus" size={22} color={colors.mintDark} />
-        </Pressable>
+      <View style={styles.inputBox}>
         <TextInput
           style={styles.input}
           value={input}
@@ -574,32 +554,42 @@ export default function AiChatScreen({ navigation }) {
           maxLength={2000}
           accessibilityLabel="메시지 입력"
         />
-        {status === 'idle' ? (
+        <View style={styles.inputTools}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="전송"
-            accessibilityState={{ disabled: !canSend }}
-            onPress={() => send(input)}
-            disabled={!canSend}
-            style={[styles.sendBtn, canSend ? styles.sendOn : styles.sendOff]}
+            accessibilityLabel="사진이나 파일 첨부"
+            disabled={status !== 'idle'}
+            onPress={() => setPanel('attach')}
+            style={[styles.toolBtn, status !== 'idle' && { opacity: 0.4 }]}
           >
-            <Icon name="arrowUp" size={22} color={colors.onPrimary} strokeWidth={2.4} />
+            <Icon name="plus" size={20} color={colors.muted} />
           </Pressable>
-        ) : (
-          <Pressable accessibilityRole="button" accessibilityLabel="답변 중지" onPress={stop} style={({ pressed }) => [styles.sendBtn, styles.sendOn, pressed && { opacity: 0.85 }]}>
-            <Icon name="stop" size={20} color={colors.onPrimary} />
+          <Pressable accessibilityRole="button" accessibilityLabel="이번 달 AI 사용량" onPress={openUsage} style={styles.routeChip}>
+            <Text style={styles.routeText}>사용량</Text>
           </Pressable>
-        )}
-      </View>
-      <View style={styles.inputTools}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`AI 선택, 지금 ${AI_ROUTE_LABEL[route]}`} onPress={() => setPanel('route')} style={styles.routeChip}>
-          <View style={[styles.routeDot, { backgroundColor: !routeReady ? colors.muted : allowed ? colors.mint : colors.coral }]} />
-          <Text style={styles.routeText}>{AI_ROUTE_LABEL[route]}</Text>
-          <Icon name="chevronDown" size={14} color={colors.muted} />
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="이번 달 AI 사용량" onPress={openUsage} style={styles.routeChip}>
-          <Text style={styles.routeText}>사용량</Text>
-        </Pressable>
+          <View style={{ flex: 1 }} />
+          <Pressable accessibilityRole="button" accessibilityLabel={`AI 선택, 지금 ${AI_ROUTE_LABEL[route]}`} onPress={() => setPanel('route')} style={styles.routeChip}>
+            <View style={[styles.routeDot, { backgroundColor: !routeReady ? colors.muted : allowed ? colors.mint : colors.coral }]} />
+            <Text style={styles.routeText}>{AI_ROUTE_LABEL[route]}</Text>
+            <Icon name="chevronDown" size={14} color={colors.muted} />
+          </Pressable>
+          {status === 'idle' ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="전송"
+              accessibilityState={{ disabled: !canSend }}
+              onPress={() => send(input)}
+              disabled={!canSend}
+              style={[styles.sendBtn, canSend ? styles.sendOn : styles.sendOff]}
+            >
+              <Icon name="arrowUp" size={22} color={colors.onPrimary} strokeWidth={2.4} />
+            </Pressable>
+          ) : (
+            <Pressable accessibilityRole="button" accessibilityLabel="답변 중지" onPress={stop} style={({ pressed }) => [styles.sendBtn, styles.sendOn, pressed && { opacity: 0.85 }]}>
+              <Icon name="stop" size={20} color={colors.onPrimary} />
+            </Pressable>
+          )}
+        </View>
       </View>
       </View>
 
@@ -872,8 +862,8 @@ const styles = StyleSheet.create({
 
   // ----- 도구 줄 -----
   toolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
-  inputArea: { backgroundColor: colors.cream, borderTopWidth: 1, borderTopColor: colors.line },
-  inputTools: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: 6 },
+  inputArea: { backgroundColor: colors.cream, paddingHorizontal: spacing.md, paddingTop: spacing.sm },
+  inputTools: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: 6, paddingBottom: 6 },
   usageRow: { gap: 6, paddingVertical: spacing.xs },
   usageHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: spacing.sm },
   usageLabel: { fontSize: font.body, fontWeight: '700', color: colors.ink },
@@ -913,13 +903,12 @@ const styles = StyleSheet.create({
   sentFileText: { flexShrink: 1, fontSize: font.caption, fontWeight: '700', color: colors.ink },
   sentFileWarning: { fontSize: 10, color: colors.coral },
   aiRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
-  avatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center' },
   // AI 말풍선: 흰 바탕 + 얇은 테두리
-  aiBubble: { maxWidth: '80%', backgroundColor: colors.card, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line },
+  aiBubble: { maxWidth: '100%', paddingVertical: 2 },
   aiText: { fontSize: font.bodyLg, color: colors.ink, lineHeight: 22 },
-  errorBubble: { borderColor: colors.coral, backgroundColor: colors.coralSoft },
-  errorText: { color: colors.ink, fontSize: font.body },
-  aiCol: { flex: 1, maxWidth: '88%', gap: spacing.sm },
+  errorBubble: {},
+  errorText: { color: colors.coral, fontSize: font.body },
+  aiCol: { flex: 1, gap: spacing.sm },
   aiBubbleFit: { alignSelf: 'flex-start', maxWidth: '100%' },
   sources: { gap: 6 },
   sourcesLabel: { fontSize: font.caption, color: colors.muted },
@@ -939,10 +928,10 @@ const styles = StyleSheet.create({
   pendingSub: { fontSize: 11, color: colors.muted },
 
   // ----- 입력창 -----
-  inputBar: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
-  attachBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  input: { flex: 1, minHeight: 46, maxHeight: 120, paddingHorizontal: 18, paddingTop: 12, paddingBottom: 12, fontSize: 15, color: colors.ink, backgroundColor: colors.card, borderRadius: 23, borderWidth: 1, borderColor: colors.line },
-  sendBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 1 },
+  inputBox: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  toolBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  input: { minHeight: 44, maxHeight: 140, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6, fontSize: 15, color: colors.ink },
+  sendBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   sendOn: { backgroundColor: colors.action },
   sendOff: { backgroundColor: colors.line },
 
