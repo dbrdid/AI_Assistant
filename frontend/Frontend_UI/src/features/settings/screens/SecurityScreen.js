@@ -79,5 +79,5 @@ const styles = StyleSheet.create({
   dialogTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   policy: { fontSize: font.body, color: colors.ink, lineHeight: 22 },
   closeBtn: { minHeight: 46, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  closeText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  closeText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
 });

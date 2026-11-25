@@ -1076,7 +1076,7 @@ export default function MemoEditScreen({ navigation, route }) {
                     }}
                     style={[styles.projOpt, on && styles.projOptOn]}
                   >
-                    <Text style={[styles.projOptText, on && { color: colors.onPrimary, fontWeight: '800' }]} numberOfLines={1}>
+                    <Text style={[styles.projOptText, on && { color: colors.onPrimary, fontWeight: '600' }]} numberOfLines={1}>
                       {p.title}
                     </Text>
                   </Pressable>
@@ -1143,7 +1143,7 @@ const styles = StyleSheet.create({
   // 제목 아래: 프로젝트 알약 + 수정 시각
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingBottom: spacing.sm },
   projPill: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 220, minHeight: 28, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.mintSoft },
-  projPillText: { flexShrink: 1, fontSize: font.caption, fontWeight: '800', color: colors.mintDark },
+  projPillText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
   edited: { flexShrink: 1, fontSize: font.caption, color: colors.muted },
   // 글자 입력창 + 필기 캔버스가 겹치는 스크롤 영역
   scroll: { flex: 1 },
@@ -1160,13 +1160,13 @@ const styles = StyleSheet.create({
   // AI 요약 카드 (연한 민트 바탕)
   summaryCard: { marginHorizontal: spacing.lg, marginBottom: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.mintSoft, gap: spacing.sm },
   summaryHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  summaryTitle: { flex: 1, fontSize: font.body + 1, fontWeight: '800', color: colors.mintDark },
+  summaryTitle: { flex: 1, fontSize: font.body + 1, fontWeight: '600', color: colors.mintDark },
   summaryScroll: { maxHeight: 160 },
   summaryText: { fontSize: font.body, color: colors.ink, lineHeight: 22 },
   summarySub: { fontSize: font.body, color: colors.muted },
   summaryLoading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   summaryAdd: { alignSelf: 'flex-start', minHeight: 34, paddingHorizontal: spacing.lg, borderRadius: radius.pill, backgroundColor: colors.action, justifyContent: 'center', marginTop: 2 },
-  summaryAddText: { fontSize: font.caption + 1, fontWeight: '800', color: colors.onPrimary },
+  summaryAddText: { fontSize: font.caption + 1, fontWeight: '600', color: colors.onPrimary },
 
   // 펜 옵션 줄: 색 동그라미(선택된 색은 바깥 고리) + 굵기
   penOptions: {
@@ -1194,36 +1194,36 @@ const styles = StyleSheet.create({
     borderTopColor: colors.line,
     backgroundColor: colors.mintSoft,
   },
-  convertHint: { flex: 1, fontSize: font.caption, color: colors.mintDark, fontWeight: '700' },
+  convertHint: { flex: 1, fontSize: font.caption, color: colors.mintDark, fontWeight: '500' },
   convertAll: { paddingHorizontal: spacing.md, minHeight: 34, borderRadius: radius.pill, backgroundColor: colors.action, justifyContent: 'center' },
-  convertAllText: { fontSize: font.body, fontWeight: '700', color: colors.onPrimary },
+  convertAllText: { fontSize: font.body, fontWeight: '500', color: colors.onPrimary },
 
   // 도구 줄 (흰 바탕 + 위쪽 얇은 선)
   tools: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.card },
-  notice: { textAlign: 'center', fontSize: font.caption, color: colors.mintDark, fontWeight: '700', paddingTop: spacing.sm },
+  notice: { textAlign: 'center', fontSize: font.caption, color: colors.mintDark, fontWeight: '500', paddingTop: spacing.sm },
   toolRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.xs, paddingTop: spacing.sm, gap: 2 },
   tool: { width: 44, minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 3 },
   toolOn: { backgroundColor: colors.mintSoft },
   toolLabel: { fontSize: 11, color: colors.muted, fontWeight: '600' },
-  toolLabelOn: { color: colors.mintDark, fontWeight: '800' },
+  toolLabelOn: { color: colors.mintDark, fontWeight: '600' },
 
   // 프로젝트 고르기 창
   projOpt: { minHeight: 44, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, paddingHorizontal: spacing.lg, justifyContent: 'center' },
   projOptOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
   projOptText: { fontSize: font.bodyLg, color: colors.ink },
   projClose: { minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm },
-  projCloseText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  projCloseText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
   toolSub: { fontSize: font.caption, color: colors.muted },
 
   // 삭제 확인 창
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.sm },
-  dialogTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
+  dialogTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   dialogSub: { fontSize: font.body, color: colors.muted },
   dialogButtons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   dialogBtn: { flex: 1, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   cancelBtn: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  cancelText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  cancelText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
   deleteBtn: { backgroundColor: colors.coralSoft },
-  deleteText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.onPrimary },
+  deleteText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.onPrimary },
 });

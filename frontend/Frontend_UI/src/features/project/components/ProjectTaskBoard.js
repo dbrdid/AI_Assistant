@@ -51,7 +51,7 @@ export default function ProjectTaskBoard({ tasks, canEdit, onOpen }) {
 const styles = StyleSheet.create({
   board: { flexDirection: 'row', gap: spacing.md },
   column: { width: 232, gap: spacing.sm, paddingVertical: spacing.xs },
-  heading: { fontSize: font.body, fontWeight: '700', color: colors.ink, paddingHorizontal: spacing.xs },
+  heading: { fontSize: font.body, fontWeight: '500', color: colors.ink, paddingHorizontal: spacing.xs },
   card: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, backgroundColor: colors.card },
   open: { minHeight: 48, padding: spacing.md, justifyContent: 'center', gap: spacing.xs },
   title: { fontSize: font.body, fontWeight: '600', color: colors.ink },

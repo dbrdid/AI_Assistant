@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, minHeight: 64 },
-  cardOn: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
+  cardOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
   name: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   sub: { fontSize: font.body, color: colors.muted },
   desc: { fontSize: font.caption, color: colors.muted },

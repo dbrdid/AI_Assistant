@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   primary: { width: '100%', minHeight: 52, borderRadius: radius.md, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm },
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   ghost: { width: '100%', minHeight: 52, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  ghostText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  ghostText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   card: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, alignItems: 'center' },
 });

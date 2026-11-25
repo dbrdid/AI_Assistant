@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   count: { fontSize: font.caption, color: colors.muted },
 
   empty: { alignItems: 'center', paddingTop: 80, gap: spacing.sm },
-  emptyTitle: { fontSize: font.title, fontWeight: '700', color: colors.ink },
+  emptyTitle: { fontSize: font.title, fontWeight: '500', color: colors.ink },
   emptySub: { fontSize: font.body, color: colors.muted },
 
   card: {
@@ -192,14 +192,14 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     padding: spacing.lg,
   },
-  cardOn: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
+  cardOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
   info: { flex: 1, gap: 6 },
   title: { fontSize: font.header, fontWeight: '600', color: colors.ink },
   date: { fontSize: font.caption, color: colors.muted },
   body: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
   tag: { maxWidth: 200 },
   inkRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  ink: { fontSize: font.caption, color: colors.mintDark, fontWeight: '700' },
+  ink: { fontSize: font.caption, color: colors.mintDark, fontWeight: '500' },
 
   notice: { position: 'absolute', left: spacing.lg, right: spacing.lg, alignItems: 'center' },
   noticeText: {
@@ -222,6 +222,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cream,
   },
   barBtn: { flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  barText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
+  barText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
   off: { opacity: 0.35 },
 });

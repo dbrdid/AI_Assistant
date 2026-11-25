@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   headText: { flex: 1, gap: 2 },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: spacing.sm },
   title: { fontSize: 18, fontWeight: '600', color: colors.ink },
-  holiday: { fontSize: font.caption, fontWeight: '700', color: colors.coral },
+  holiday: { fontSize: font.caption, fontWeight: '500', color: colors.coral },
   sub: { fontSize: 13, color: colors.muted },
 
   // '+ 추가' 알약 (연한 민트 바탕 + 진녹색 글자)
@@ -208,5 +208,5 @@ const styles = StyleSheet.create({
   editBtn: { backgroundColor: 'transparent', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.actionBorder },
   editText: { fontSize: 14, fontWeight: '500', color: colors.ink },
   delBtn: { backgroundColor: colors.coralSoft },
-  delText: { fontSize: font.body, fontWeight: '700', color: colors.onPrimary },
+  delText: { fontSize: font.body, fontWeight: '500', color: colors.onPrimary },
 });

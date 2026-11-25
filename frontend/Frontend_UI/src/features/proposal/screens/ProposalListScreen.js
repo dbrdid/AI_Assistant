@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   tab: { minHeight: 40, paddingHorizontal: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, justifyContent: 'center' },
   tabOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
-  tabText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
+  tabText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
   tabTextOn: { color: colors.onPrimary },
   body: { padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.md, paddingBottom: 96 },
   empty: { textAlign: 'center', color: colors.muted, fontSize: font.body, lineHeight: 22, marginTop: spacing.xxl },

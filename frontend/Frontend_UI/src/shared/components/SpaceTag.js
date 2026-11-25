@@ -23,5 +23,5 @@ export default function SpaceTag({ space, style }) {
 
 const styles = StyleSheet.create({
   tag: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 120, flexShrink: 1 },
-  text: { flexShrink: 1, fontSize: font.caption, fontWeight: '700', color: colors.muted },
+  text: { flexShrink: 1, fontSize: font.caption, fontWeight: '500', color: colors.muted },
 });

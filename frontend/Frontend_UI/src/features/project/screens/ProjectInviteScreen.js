@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, gap: spacing.lg, paddingBottom: spacing.xxl },
   field: { gap: spacing.sm },
-  label: { fontSize: font.body, fontWeight: '700', color: colors.ink },
+  label: { fontSize: font.body, fontWeight: '500', color: colors.ink },
   box: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radius.md, backgroundColor: colors.mintSoft, borderWidth: 1, borderColor: colors.mint, paddingHorizontal: spacing.lg },
   boxText: { flex: 1, fontSize: font.bodyLg, fontWeight: '600', color: colors.mintDark },
   chipRow: { flexDirection: 'row', gap: spacing.sm },
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   warn: { gap: spacing.sm, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   warnText: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
   left: { fontSize: font.body, fontWeight: '600', color: colors.ink },
-  error: { fontSize: font.body, fontWeight: '700', color: colors.coral },
+  error: { fontSize: font.body, fontWeight: '500', color: colors.coral },
   send: { minHeight: 52, borderRadius: radius.card, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   sendText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
 });

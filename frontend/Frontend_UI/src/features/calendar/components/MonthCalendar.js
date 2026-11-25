@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   todayRing: {},
   selectedCircle: { backgroundColor: '#3a3d40' },
   dayText: { fontSize: 14, fontWeight: '400', color: colors.ink, fontVariant: ['tabular-nums'] },
-  todayText: { color: TODAY, fontWeight: '700' },
+  todayText: { color: TODAY, fontWeight: '500' },
   selectedText: { color: colors.ink, fontWeight: '600' },
   outsideText: { color: OUTSIDE, fontWeight: '400' },
   dots: { flexDirection: 'row', gap: 3, height: 4, marginTop: 2, alignItems: 'center' },
@@ -225,5 +225,5 @@ const styles = StyleSheet.create({
   monthBtnOn: { backgroundColor: colors.raised, borderColor: colors.raised },
   monthBtnText: { fontSize: 15, color: colors.ink, fontWeight: '500' },
   closeBtn: { minHeight: 44, borderRadius: radius.pill, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
-  closeText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  closeText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
 });

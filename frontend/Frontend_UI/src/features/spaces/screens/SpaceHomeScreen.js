@@ -10,7 +10,7 @@ import ScreenHeader from '../../../shared/components/ScreenHeader';
 import Icon from '../../../shared/components/Icon';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
-import { deleteWorkspace, enterSpace, listMembers, useSpaceInfo, useWorkspaceAccessClosed, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
+import { deleteWorkspace, enterSpace, listMembers, recentValue, useSpaceInfo, useWorkspaceAccessClosed, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { lastDate, shiftKey, shortDate, taskIn, useAllTasks } from '../../../data/tasks/TaskStore';
 import { memoTitle, useAllMemos } from '../../../data/memos/MemoStore';
@@ -20,13 +20,11 @@ import { toKey } from '../../calendar/utils/DateUtils';
 import { SpaceTile } from './SpacesScreen';
 
 const ROLE = { OWNER: '관리자', EDITOR: '멤버', VIEWER: '보기 전용' };
-const AVATAR_BG = ['#EEEEEC', '#EEEDFE', '#FAEEDA', '#E6F1FB', '#FBEAF0'];
-const AVATAR_FG = ['#085041', '#3C3489', '#633806', '#0C447C', '#72243E'];
-
+// 멤버 화면(SpaceMembersScreen)과 같은 무채색 아바타
 function Avatar({ name, i, size = 30 }) {
   return (
-    <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: AVATAR_BG[i % 5], marginLeft: i ? -8 : 0 }]}>
-      <Text style={[styles.avatarText, { color: AVATAR_FG[i % 5] }]}>{(name || '?').trim().charAt(0)}</Text>
+    <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor: colors.raised, marginLeft: i ? -8 : 0 }]}>
+      <Text style={[styles.avatarText, { color: colors.ink }]}>{(name || '?').trim().charAt(0)}</Text>
     </View>
   );
 }
@@ -63,11 +61,12 @@ export default function SpaceHomeScreen({ navigation, route }) {
   const projects = useProjects();
 
   // ---------- 멤버 (팀 공간만, 서버에서 받아 옴) ----------
-  const [members, setMembers] = useState({ list: [], loading: false, error: '' });
+  // 마지막으로 받은 목록을 먼저 보여 주고 조용히 새로 고침 (스피너 깜빡임 없음)
+  const [members, setMembers] = useState(() => ({ list: (ws?.serverId && recentValue('members', ws.serverId)) || [], loading: false, error: '' }));
   useEffect(() => {
     if (accessClosed || !ws || ws.personal || !ws.serverId) return undefined;
     let alive = true;
-    setMembers((m) => ({ ...m, loading: true, error: '' }));
+    setMembers((m) => ({ ...m, loading: !m.list.length, error: '' }));
     listMembers(ws.serverId)
       .then((r) => alive && setMembers({ list: r, loading: false, error: '' }))
       .catch(() => alive && setMembers({ list: [], loading: false, error: '멤버 목록을 불러오지 못했어요' }));
@@ -153,7 +152,7 @@ export default function SpaceHomeScreen({ navigation, route }) {
         {!ws.personal && (
           <View style={styles.membersRow}>
             {members.loading ? (
-              <ActivityIndicator color={colors.mintDark} />
+              <View style={{ minHeight: 44 }} />
             ) : members.error ? (
               <Text style={styles.muted}>{members.error}</Text>
             ) : (
@@ -194,9 +193,7 @@ export default function SpaceHomeScreen({ navigation, route }) {
 
         {/* ---------- 진행 중 프로젝트 ---------- */}
         <Section title={`진행 중 프로젝트${activeProjects.length ? ` ${activeProjects.length}` : ''}`} addLabel="프로젝트 추가" onAdd={ready ? () => go(ROUTES.ProjectEdit) : null}>
-          {!ready ? (
-            <ActivityIndicator color={colors.mintDark} />
-          ) : activeProjects.length === 0 ? (
+          {!ready ? null : activeProjects.length === 0 ? (
             <Text style={styles.empty}>진행 중인 프로젝트가 없어요</Text>
           ) : (
             activeProjects.map((p) => {
@@ -329,42 +326,42 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
   danger: { gap: spacing.sm, marginTop: spacing.lg, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.line },
   dangerBtn: { flexDirection: 'row', gap: 6, minHeight: 48, borderRadius: radius.card, borderWidth: 1, borderColor: colors.coral, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  dangerText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.coral },
-  dangerError: { fontSize: font.body, fontWeight: '700', color: colors.coral, textAlign: 'center' },
+  dangerText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.coral },
+  dangerError: { fontSize: font.body, fontWeight: '500', color: colors.coral, textAlign: 'center' },
   hero: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  heroSub: { fontSize: font.body, fontWeight: '700', color: colors.ink },
+  heroSub: { fontSize: font.body, fontWeight: '500', color: colors.ink },
   desc: { fontSize: font.caption, color: colors.muted },
   membersRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: -spacing.sm },
   avatars: { flexDirection: 'row', alignItems: 'center' },
   avatar: { alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.cream },
-  avatarText: { fontSize: 12, fontWeight: '800' },
-  more: { marginLeft: 6, fontSize: font.caption, fontWeight: '700', color: colors.muted },
+  avatarText: { fontSize: 12, fontWeight: '600' },
+  more: { marginLeft: 6, fontSize: font.caption, fontWeight: '500', color: colors.muted },
   inviteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 34, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: colors.action },
-  inviteText: { fontSize: font.body, fontWeight: '800', color: colors.onPrimary },
+  inviteText: { fontSize: font.body, fontWeight: '600', color: colors.onPrimary },
   quick: { flexDirection: 'row', gap: spacing.sm },
   quickBtn: { flex: 1, minHeight: 64, gap: 4, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  quickText: { fontSize: font.caption, fontWeight: '800', color: colors.ink },
+  quickText: { fontSize: font.caption, fontWeight: '600', color: colors.ink },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { fontSize: font.body, fontWeight: '800', color: colors.muted },
+  sectionTitle: { fontSize: font.body, fontWeight: '600', color: colors.muted },
   addLink: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 28, alignSelf: 'flex-start' },
-  addLinkText: { fontSize: font.caption, fontWeight: '800', color: colors.mintDark },
+  addLinkText: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
   empty: { fontSize: font.body, color: colors.muted, paddingVertical: spacing.xs, paddingHorizontal: spacing.lg },
   card: { gap: 6, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  cardTitle: { flex: 1, fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  cardTitle: { flex: 1, fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   track: { height: 6, borderRadius: 3, backgroundColor: colors.mintSoft, overflow: 'hidden' },
   fill: { height: 6, borderRadius: 3 },
   muted: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 50, paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   itemBody: { flex: 1, minHeight: 44, justifyContent: 'center', gap: 2 },
-  itemTitle: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  itemTitle: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
   when: { fontSize: font.caption, color: colors.muted },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 400, gap: spacing.md, padding: spacing.xl, borderRadius: radius.card, backgroundColor: colors.cream },
-  dialogTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
-  code: { fontSize: 28, fontWeight: '800', letterSpacing: 2, color: colors.mintDark, textAlign: 'center', paddingVertical: spacing.sm },
+  dialogTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
+  code: { fontSize: 28, fontWeight: '600', letterSpacing: 2, color: colors.mintDark, textAlign: 'center', paddingVertical: spacing.sm },
   primary: { minHeight: 48, borderRadius: radius.card, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { fontSize: font.bodyLg, fontWeight: '800', color: colors.onPrimary },
+  primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   ghost: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  ghostText: { fontSize: font.body, fontWeight: '700', color: colors.muted },
+  ghostText: { fontSize: font.body, fontWeight: '500', color: colors.muted },
 });

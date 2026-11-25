@@ -283,13 +283,13 @@ const styles = StyleSheet.create({
   },
   filterChipOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
   filterText: { fontSize: font.body, color: colors.ink },
-  filterTextOn: { color: colors.white, fontWeight: '700' },
+  filterTextOn: { color: colors.white, fontWeight: '500' },
 
   // 검색어 없을 때
   idle: { paddingHorizontal: spacing.lg, gap: spacing.xl },
   block: { gap: spacing.sm },
   blockHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  blockTitle: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  blockTitle: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
   blockAction: { fontSize: font.body, color: colors.muted },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   tag: {
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
 
   // 결과 없음
   noResult: { alignItems: 'center', paddingTop: 80, paddingHorizontal: spacing.xl, gap: spacing.sm },
-  noResultTitle: { fontSize: font.title, fontWeight: '700', color: colors.ink },
+  noResultTitle: { fontSize: font.title, fontWeight: '500', color: colors.ink },
   noResultSub: { fontSize: font.body, color: colors.muted, textAlign: 'center' },
 
   // 결과 목록
@@ -319,11 +319,11 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between' },
-  badge: { fontSize: font.caption, fontWeight: '700', color: colors.mintDark },
+  badge: { fontSize: font.caption, fontWeight: '500', color: colors.mintDark },
   date: { fontSize: font.caption, color: colors.muted },
-  cardTitle: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  cardTitle: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
   cardSnippet: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
   cardGo: { fontSize: font.caption, color: colors.mintDark, marginTop: 2 },
   // 검색어와 일치하는 글자: 진한 녹색 + 굵게 + 연한 민트 배경
-  hit: { color: colors.mintDark, fontWeight: '800', backgroundColor: colors.mintSoft },
+  hit: { color: colors.mintDark, fontWeight: '600', backgroundColor: colors.mintSoft },
 });

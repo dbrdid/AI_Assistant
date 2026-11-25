@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   emptyTitle: {fontSize:15,fontWeight:'500',color:colors.ink,textAlign:'left'},
   emptySub: {fontSize:13,color:colors.muted,textAlign:'left',lineHeight:21},
   card: {flexDirection:'row',gap:spacing.md,backgroundColor:colors.cream,borderRadius:0,borderWidth:0,borderColor:colors.line,padding:spacing.lg,borderBottomWidth:1,paddingHorizontal:0,paddingVertical:18},
-  cardFocus: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
+  cardFocus: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
   icon: {width:32,height:36,borderRadius:0,backgroundColor:'transparent',alignItems:'center',justifyContent:'center'},
   info: { flex: 1, gap: 4 },
   name: {fontSize:15,fontWeight:'500',color:colors.ink},

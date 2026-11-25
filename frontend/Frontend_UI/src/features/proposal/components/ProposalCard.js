@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   when: { fontSize: font.body, color: colors.ink },
   evidence: { fontSize: 13, color: colors.muted, lineHeight: 19 },
   reason: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  reasonText: { flex: 1, fontSize: 13, fontWeight: '700', color: colors.coral },
+  reasonText: { flex: 1, fontSize: 13, fontWeight: '500', color: colors.coral },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: 4 },
   btn: { minHeight: 36, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   btnPrimary: { backgroundColor: colors.action, borderColor: colors.actionBorder },

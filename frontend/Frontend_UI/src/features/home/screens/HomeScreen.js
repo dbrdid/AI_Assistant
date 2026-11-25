@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
   aiBox: { backgroundColor: colors.mintSoft, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm, marginBottom: spacing.xs },
   aiHead: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
   aiTitle: { flex: 1, fontSize: font.body, fontWeight: '600', color: colors.mintDark },
-  aiMore: { fontSize: font.caption, fontWeight: '700', color: colors.mintDark },
+  aiMore: { fontSize: font.caption, fontWeight: '500', color: colors.mintDark },
 
   teamCard: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   teamTitle: { fontSize: font.caption, fontWeight: '600', color: colors.muted, marginBottom: 2 },
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   todoTitle: { fontSize: 15, fontWeight: '500', color: colors.ink },
   todoDone: { color: colors.muted, textDecorationLine: 'line-through' },
   mine: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
-  late: { fontSize: font.caption, fontWeight: '700', color: colors.coral },
+  late: { fontSize: font.caption, fontWeight: '500', color: colors.coral },
 
   capture: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, minHeight: CAPTURE_HEIGHT, paddingHorizontal: spacing.lg, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, backgroundColor: colors.cream },
   inputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: 42, borderRadius: 21, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, backgroundColor: colors.card, paddingLeft: 6 },
@@ -415,5 +415,5 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xs },
   sheetTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink, marginBottom: spacing.sm },
   sheetRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 50, paddingHorizontal: spacing.md, borderRadius: radius.md },
-  sheetText: { flex: 1, fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  sheetText: { flex: 1, fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
 });

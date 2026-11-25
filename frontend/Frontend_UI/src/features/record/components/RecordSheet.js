@@ -190,5 +190,5 @@ const styles = StyleSheet.create({
   primary: { minHeight: 52, borderRadius: radius.pill, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.sm },
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   ghost: { minHeight: 48, borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  ghostText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  ghostText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
 });

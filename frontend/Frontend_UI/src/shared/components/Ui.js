@@ -122,7 +122,7 @@ export function StatBox({ icon, label, value, onPress, style }) {
 export const uiStyles = StyleSheet.create({
   // 화면 공통 여백 (시안: 좌우 16)
   screenPad: { paddingHorizontal: spacing.lg },
-  sectionLabel: { fontSize: font.caption, fontWeight: '700', color: colors.muted },
+  sectionLabel: { fontSize: font.caption, fontWeight: '500', color: colors.muted },
 });
 
 const styles = StyleSheet.create({
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   tag: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, backgroundColor: colors.mintSoft },
   tagOutline: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.pill },
   tagMuted: { backgroundColor: colors.raised, borderRadius: radius.pill },
-  tagText: { fontSize: font.caption, fontWeight: '700', color: colors.mintDark },
+  tagText: { fontSize: font.caption, fontWeight: '500', color: colors.mintDark },
   tile: { alignItems: 'center', justifyContent: 'center' },
   // '+ 추가' 행: Notion의 새 페이지 행처럼 흐린 글자, 누를 때만 면 표시
   dashed: { flexDirection: 'row', gap: 8, minHeight: 44, borderRadius: radius.md, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'flex-start' },

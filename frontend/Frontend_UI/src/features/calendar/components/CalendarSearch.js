@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, fontSize: font.bodyLg, color: colors.ink, paddingVertical: 8 },
   hint: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
-  count: { fontSize: font.caption, fontWeight: '700', color: colors.muted },
+  count: { fontSize: font.caption, fontWeight: '500', color: colors.muted },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

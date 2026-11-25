@@ -64,7 +64,7 @@ export default function LoginScreen({ prefillEmail = '', notice = '', onSignup, 
 
 const styles = StyleSheet.create({
   notice: { padding: spacing.lg, borderRadius: 4, backgroundColor: colors.mintSoft },
-  noticeText: { fontSize: font.body, fontWeight: '700', color: colors.mintDark, lineHeight: 20 },
+  noticeText: { fontSize: font.body, fontWeight: '500', color: colors.mintDark, lineHeight: 20 },
   optionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: -8 },
   linkText: { fontSize: 12, color: colors.muted, fontWeight: '400' },
   orRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },

@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   peekTitle: { fontSize: 15, fontWeight: '600', color: colors.ink },
   peekLink: { fontSize: 13, fontWeight: '600', color: colors.mintDark },
   peekRow: { flexDirection: 'row' },
-  peekWeekday: { flex: 1, textAlign: 'center', fontSize: font.caption, fontWeight: '700', color: colors.muted, paddingVertical: 4 },
+  peekWeekday: { flex: 1, textAlign: 'center', fontSize: font.caption, fontWeight: '500', color: colors.muted, paddingVertical: 4 },
   peekCell: { flex: 1, alignItems: 'center' },
   peekCircle: { width: 36, height: 36, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   peekToday: { backgroundColor: colors.action },

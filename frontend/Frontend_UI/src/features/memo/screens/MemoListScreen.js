@@ -638,7 +638,7 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
                   }}
                   style={({ pressed }) => [styles.menuItem, (active || pressed) && { backgroundColor: colors.mintSoft }]}
                 >
-                  <Text style={[styles.menuText, active && { color: colors.mintDark, fontWeight: '800' }]}>{it.label}</Text>
+                  <Text style={[styles.menuText, active && { color: colors.mintDark, fontWeight: '600' }]}>{it.label}</Text>
                 </Pressable>
               );
             })}
@@ -659,14 +659,14 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: font.bodyLg, color: colors.ink, paddingVertical: 8 },
   chips: { gap: spacing.sm, paddingVertical: 2 },
   spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
-  spaceChipOn: { borderColor: colors.mintDark, borderWidth: 2, backgroundColor: colors.mintSoft },
-  spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '800', color: colors.ink },
+  spaceChipOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
+  spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.ink },
   chip: { maxWidth: 180 },
   tools: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44 },
-  toolText: { fontSize: font.caption + 1, color: colors.ink, fontWeight: '800' },
+  toolText: { fontSize: font.caption + 1, color: colors.ink, fontWeight: '600' },
   sectionRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.xs },
-  sectionTitle: { fontSize: font.caption, fontWeight: '700', color: colors.muted },
+  sectionTitle: { fontSize: font.caption, fontWeight: '500', color: colors.muted },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'space-between' },
   listCol: { gap: spacing.md },
   treeRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
@@ -676,10 +676,10 @@ const styles = StyleSheet.create({
   treeSpace: { maxWidth: 88, fontSize: font.caption, color: colors.muted },
   treeSelected: { backgroundColor: colors.mintSoft },
   emptyBtn: { marginTop: spacing.md, minHeight: 44, paddingHorizontal: spacing.xl, borderRadius: radius.md, borderWidth: 1, borderColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
-  emptyBtnText: { fontSize: font.body, fontWeight: '800', color: colors.mintDark },
+  emptyBtnText: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },
 
   empty: { alignItems: 'center', paddingTop: 80, gap: spacing.sm },
-  emptyTitle: { fontSize: font.title, fontWeight: '700', color: colors.ink },
+  emptyTitle: { fontSize: font.title, fontWeight: '500', color: colors.ink },
   emptySub: { fontSize: font.body, color: colors.muted, textAlign: 'center' },
 
   card: {
@@ -693,16 +693,16 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   // 검색/AI 에서 이동해 왔을 때 강조된 카드
-  cardFocus: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
+  cardFocus: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
   // 선택된 카드
-  cardOn: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
+  cardOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
   check: { fontSize: 22, color: colors.muted },
   checkOn: { color: colors.mintDark },
   info: { flex: 1, gap: 6 },
-  title: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  title: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
   date: { fontSize: font.caption, color: colors.muted },
   body: { fontSize: font.body, color: colors.ink, lineHeight: 21, marginTop: 2 },
-  ink: { fontSize: font.caption, color: colors.mintDark, fontWeight: '700', marginTop: 2 },
+  ink: { fontSize: font.caption, color: colors.mintDark, fontWeight: '500', marginTop: 2 },
 
   // 되돌리기 안내 (＋ 버튼 왼쪽에 놓음)
   snack: {
@@ -718,7 +718,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   snackText: { flex: 1, fontSize: font.body, color: colors.onPrimary, paddingRight: spacing.sm },
-  snackAction: { fontSize: font.body, fontWeight: '800', color: colors.mint },
+  snackAction: { fontSize: font.body, fontWeight: '600', color: colors.mint },
 
   // 새 메모 버튼 (동그란 +, 진한 녹색 + 떠 있는 그림자)
   fab: {
@@ -743,15 +743,15 @@ const styles = StyleSheet.create({
     borderTopColor: colors.line,
     backgroundColor: colors.cream,
   },
-  proj: { fontSize: font.caption, fontWeight: '700', color: colors.mintDark },
+  proj: { fontSize: font.caption, fontWeight: '500', color: colors.mintDark },
   dialogBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialogBox: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.md },
-  dialogTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  dialogTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   projOpt: { minHeight: 44, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, paddingHorizontal: spacing.lg, justifyContent: 'center' },
   projOptText: { fontSize: font.bodyLg, color: colors.ink },
   projClose: { minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   barBtn: { flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  barText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
+  barText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
   barInner: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   off: { opacity: 0.35 },
 

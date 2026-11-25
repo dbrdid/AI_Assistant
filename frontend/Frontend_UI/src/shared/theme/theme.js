@@ -31,8 +31,8 @@ export const colors = {
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 
 // 모서리 둥글기. 클수록 더 동그랗습니다.
-// Stella 화면과 같은 부드러운 모서리: 입력·카드 10, 알약 버튼·칩은 완전한 둥근 끝.
-export const radius = { sm: 6, md: 8, lg: 10, card: 10, pill: 999 };
+// Stella(features/stella/theme.js)와 같은 절제된 모서리: 버튼·입력 4~6, 카드 6, 알약 버튼·칩은 완전한 둥근 끝.
+export const radius = { sm: 4, md: 6, lg: 6, card: 6, pill: 999 };
 
 // 글자 크기
 export const font = { caption: 12, body: 15, bodyLg: 16, header: 17, title: 22, headline: 28 };

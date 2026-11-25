@@ -43,7 +43,7 @@ export default function MemoBlockReader({ body, pages, onOpenPage }) {
 const styles = StyleSheet.create({
   document: { paddingTop: spacing.sm, paddingBottom: spacing.xl },
   text: { fontSize: font.bodyLg, lineHeight: 26, color: colors.ink },
-  heading: { marginTop: spacing.md, marginBottom: spacing.xs, fontSize: 21, lineHeight: 29, fontWeight: '700' },
+  heading: { marginTop: spacing.md, marginBottom: spacing.xs, fontSize: 21, lineHeight: 29, fontWeight: '500' },
   completed: { color: colors.muted, textDecorationLine: 'line-through' },
   link: { color: colors.mintDark, textDecorationLine: 'underline' },
   blank: { height: 13 },

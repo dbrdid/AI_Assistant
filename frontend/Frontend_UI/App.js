@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -35,17 +35,14 @@ function Root() {
     else stopNotifier();
   }, [live]);
 
+  // 짧은 확인 단계: 스피너 없이 스플래시와 같은 배경만 (깜빡임 없음)
   if (status === 'loading' || (status === 'in' && setup === 'checking')) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={colors.mintDark} />
-      </View>
-    );
+    return <View style={{ flex: 1, backgroundColor: colors.cream }} />;
   }
   if (status === 'storage-error') return <View style={{flex:1,justifyContent:'center',padding:28,backgroundColor:colors.cream,gap:18}}><Text accessibilityRole="header" style={{fontSize:22,fontWeight:'600',color:colors.ink}}>작업 공간을 열지 못했습니다</Text><Text style={{fontSize:15,lineHeight:24,color:colors.muted}}>기기 저장소를 여는 중 문제가 생겼습니다. 다시 시도해 주세요.</Text><Pressable accessibilityRole="button" accessibilityLabel="다시 시도" onPress={()=>{void retrySession();}} style={{minHeight:44,paddingHorizontal:20,alignSelf:'flex-start',backgroundColor:colors.action,borderRadius:6,justifyContent:'center'}}><Text style={{fontSize:14,color:colors.onPrimary}}>다시 시도</Text></Pressable></View>;
   if (status !== 'in') return <AuthFlow />;
   if (setup === 'needed') return <SetupFlow user={user} onDone={() => setSetup('done')} />;
-  return <View style={{ flex: 1, backgroundColor: '#0e0e0f' }}><View style={{ flex: 1, width: '100%', maxWidth: 412, alignSelf: 'center' }}><AppNavigator /></View></View>;
+  return <View style={{ flex: 1, backgroundColor: colors.cream }}><View style={{ flex: 1, width: '100%', maxWidth: 412, alignSelf: 'center' }}><AppNavigator /></View></View>;
 }
 
 export default function App() {

@@ -118,7 +118,7 @@ export default function TasksScreen({ navigation }) {
             </View>
           )}
         </Pressable>
-        {!!when && <Text style={[styles.when, group === 'overdue' && { color: colors.coral, fontWeight: '700' }]}>{when}</Text>}
+        {!!when && <Text style={[styles.when, group === 'overdue' && { color: colors.coral, fontWeight: '500' }]}>{when}</Text>}
       </View>
     );
     if (isDone) return <View key={t.id}>{body}</View>;
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   chips: { flexDirection: 'row', paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.md },
   spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
-  spaceChipOn: { borderColor: colors.mintDark, borderWidth: 2, backgroundColor: colors.mintSoft },
+  spaceChipOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
   spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.ink },
   list: {paddingHorizontal:20,paddingBottom:96,gap:20},
   group: { gap: spacing.sm },

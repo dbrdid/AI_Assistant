@@ -1,9 +1,9 @@
 // Shared space members, billing owner and management log (Notion mobile: Members list + per-member role sheet).
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { runtime } from '../../integration/runtime';
 import {
-  changeMemberRole, claimWorkspaceBilling, getWorkspaceBilling, listAuditLogs, listMembers, removeMember, setMemberExpiry,
+  changeMemberRole, claimWorkspaceBilling, getWorkspaceBilling, listAuditLogs, listMembers, recentValue, rememberValue, removeMember, setMemberExpiry,
   useWorkspaceAccessClosed, useWorkspaces,
 } from '../../data/workspaces/WorkspaceStore';
 import ConfirmDialog from '../../shared/components/ConfirmDialog';
@@ -29,7 +29,8 @@ export default function SpaceMembersScreen({ navigation, route }) {
   const me = runtime().session?.id;
   const serverId = ws?.serverId;
   const owner = ws?.roleCode === 'OWNER';
-  const [state, setState] = useState({ loading: true, members: [], billing: null, log: [], error: '' });
+  // 마지막 결과를 먼저 보여 주고 조용히 새로 고침 (다시 열 때 스피너·빈 화면 깜빡임 없음)
+  const [state, setState] = useState(() => (serverId && recentValue('membersScreen', serverId)) || { loading: true, members: [], billing: null, log: [], error: '' });
   const [selected, setSelected] = useState(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -41,7 +42,7 @@ export default function SpaceMembersScreen({ navigation, route }) {
       const [members, billing, log] = await Promise.all([
         listMembers(serverId), getWorkspaceBilling(serverId), owner ? listAuditLogs(serverId) : Promise.resolve([]),
       ]);
-      setState({ loading: false, members, billing, log, error: '' });
+      setState(rememberValue('membersScreen', serverId, { loading: false, members, billing, log, error: '' }));
     } catch (e) {
       setState(prev => ({ ...prev, loading: false, error: e.message || '멤버 정보를 불러오지 못했어요' }));
     }
@@ -76,7 +77,6 @@ export default function SpaceMembersScreen({ navigation, route }) {
     <WorkspaceHeader title="멤버" onBack={navigation.goBack} />
     <ScrollView contentContainerStyle={s.page}>
       <Text style={s.title}>{ws.name}</Text>
-      {state.loading ? <ActivityIndicator color={c.muted} style={{ marginTop: 24 }} /> : null}
       {state.error ? <Text accessibilityRole="alert" style={[s.error, { marginTop: 16 }]}>{state.error}</Text> : null}
       {!!actionError && !selected && <Text accessibilityRole="alert" style={[s.error, { marginTop: 16 }]}>{actionError}</Text>}
 
@@ -94,7 +94,7 @@ export default function SpaceMembersScreen({ navigation, route }) {
           <Text style={s.secondaryText}>내 요금제로 결제 주체 되기</Text></Pressable>}
       </View>}
 
-      <View style={s.section}>
+      {!state.loading && <View style={s.section}>
         <View style={s.sectionHead}><Text accessibilityRole="header" style={s.sectionTitle}>멤버 {state.members.length}</Text></View>
         {state.members.map(m => {
           const mine = m.account_id === me, editable = owner && !mine;
@@ -113,7 +113,7 @@ export default function SpaceMembersScreen({ navigation, route }) {
             {editable ? <Icon name="chevronDown" size={16} color={c.subtle} /> : null}
           </Pressable>;
         })}
-      </View>
+      </View>}
 
       {owner && state.log.length > 0 && <View style={s.section}>
         <View style={s.sectionHead}><Text accessibilityRole="header" style={s.sectionTitle}>관리 기록</Text></View>

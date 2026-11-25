@@ -27,7 +27,12 @@ export function enterSpace(workspaceId) {
   const own = runtime().store;
   if (workspaceId && own.getCurrentWorkspace().id !== workspaceId) own.switchWorkspace(workspaceId);
 }
-export const listMembers = (serverId) => api.listMembers(serverId, { activeOnly: true });
+// 화면을 다시 열 때 깜빡이지 않도록 마지막 결과를 계정·공간별로 기억 (앱이 켜져 있는 동안만)
+const recent = new Map();
+const recentKey = (kind, serverId) => `${runtime().session?.id}:${serverId}:${kind}`;
+export const recentValue = (kind, serverId) => recent.get(recentKey(kind, serverId)) ?? null;
+export const rememberValue = (kind, serverId, value) => { recent.set(recentKey(kind, serverId), value); return value; };
+export const listMembers = async (serverId) => rememberValue('members', serverId, await api.listMembers(serverId, { activeOnly: true }));
 
 // 멤버 관리 (공유 공간): 바꾼 뒤 기기 기록도 곧 맞추도록 동기화를 요청
 async function memberChange(call) {

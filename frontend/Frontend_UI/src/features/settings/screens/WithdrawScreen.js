@@ -97,9 +97,9 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   line: { fontSize: font.body, color: colors.ink, lineHeight: 21 },
   agree: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 48 },
-  agreeText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  agreeText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
   danger: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.coralSoft, alignItems: 'center', justifyContent: 'center' },
   dangerText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   cancel: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  cancelText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  cancelText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
 });

@@ -42,5 +42,5 @@ const styles = StyleSheet.create({
   wrap: { flexGrow: 0 },
   row: { gap: spacing.sm, paddingVertical: spacing.xs },
   chip: { flexDirection: 'row', gap: 4, maxWidth: 220, minHeight: 30, paddingHorizontal: spacing.md, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  text: { flexShrink: 1, fontSize: font.caption, fontWeight: '700', color: colors.mintDark },
+  text: { flexShrink: 1, fontSize: font.caption, fontWeight: '500', color: colors.mintDark },
 });

@@ -90,5 +90,5 @@ const styles = StyleSheet.create({
   devCode: { fontWeight: '600', letterSpacing: 2 },
   timer: { fontSize: 28, fontWeight: '600', color: colors.mintDark, textAlign: 'center' },
   link: { alignSelf: 'center', minHeight: 40, justifyContent: 'center' },
-  linkText: { fontSize: font.body, color: colors.mintDark, fontWeight: '700' },
+  linkText: { fontSize: font.body, color: colors.mintDark, fontWeight: '500' },
 });

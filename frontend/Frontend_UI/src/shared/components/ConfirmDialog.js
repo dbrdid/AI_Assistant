@@ -41,6 +41,6 @@ const styles = StyleSheet.create({
   buttons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   btn: { flex: 1, minHeight: 46, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   cancel: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  cancelText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  cancelText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
   confirmText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
 });

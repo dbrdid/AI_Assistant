@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
   cells: { flexDirection: 'row' },
   propertyCell: { borderStartWidth: StyleSheet.hairlineWidth, borderStartColor: colors.line },
   cell: { minHeight: 46, justifyContent: 'center', paddingHorizontal: spacing.sm },
-  header: { fontSize: font.caption, color: colors.muted, fontWeight: '700' },
+  header: { fontSize: font.caption, color: colors.muted, fontWeight: '500' },
   value: { fontSize: font.body, color: colors.muted },
   title: { color: colors.ink, fontWeight: '600' },
   empty: { paddingVertical: spacing.lg, color: colors.muted },

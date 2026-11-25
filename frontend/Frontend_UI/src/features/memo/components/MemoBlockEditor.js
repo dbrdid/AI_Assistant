@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   controlText: { color: colors.muted, fontSize: 20 },
   bullet: { marginTop: 10, marginRight: spacing.sm, fontSize: 20, color: colors.ink },
   input: { flex: 1, minHeight: 44, paddingVertical: 10, fontSize: font.bodyLg, lineHeight: 24, color: colors.ink, textAlignVertical: 'top' },
-  heading: { fontSize: 20, fontWeight: '700', color: colors.ink },
+  heading: { fontSize: 20, fontWeight: '500', color: colors.ink },
   completed: { color: colors.muted, textDecorationLine: 'line-through' },
   action: { minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md },
   actionText: { fontSize: font.body, color: colors.ink },

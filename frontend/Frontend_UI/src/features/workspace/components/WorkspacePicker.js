@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
   grip: { alignSelf: 'center', width: 40, height: 4, borderRadius: 4, backgroundColor: colors.line, marginBottom: spacing.xs },
   title: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 60, padding: spacing.md, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  rowOn: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
+  rowOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.line },
   name: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   sub: { fontSize: font.caption, color: colors.muted },
@@ -92,5 +92,5 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: font.caption, fontWeight: '600', color: colors.onPrimary },
   links: { flexDirection: 'row', gap: spacing.sm },
   link: { flex: 1, flexDirection: 'row', gap: 4, minHeight: 46, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  linkText: { fontSize: font.body, fontWeight: '700', color: colors.mintDark },
+  linkText: { fontSize: font.body, fontWeight: '500', color: colors.mintDark },
 });
