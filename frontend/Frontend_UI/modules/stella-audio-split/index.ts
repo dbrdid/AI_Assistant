@@ -6,7 +6,7 @@
 //   const plan = planSegments(total);                       // @/lib/stella (약 2분씩)
 //   const segs = await splitAudio(recorder.uri, plan.map((p) => ({ start: p.startSeconds, duration: p.durationSeconds })));
 //   → createRecording(supabase, { recordingId, segments: segs.map((s) => ({ seq: s.seq, durationSeconds: s.durationSeconds, sizeBytes: s.sizeBytes })) })
-import { requireNativeModule } from 'expo-modules-core';
+import { requireNativeModule } from 'expo';
 
 export interface SplitRange { start: number; duration: number }          // 초
 export interface SplitSegment { seq: number; uri: string; startSeconds: number; durationSeconds: number; sizeBytes: number }

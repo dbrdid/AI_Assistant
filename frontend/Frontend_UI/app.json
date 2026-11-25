@@ -3,15 +3,10 @@
     "name": "Atria",
     "slug": "planner",
     "scheme": "ai-assistant-planner",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#191a1b"
-    },
     "ios": {
       "supportsTablet": true
     },
@@ -25,6 +20,15 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#191a1b"
+        }
+      ],
       ["llama.rn", { "enableOpenCLAndHexagon": false }],
       "./plugins/with-cleartext",
       [

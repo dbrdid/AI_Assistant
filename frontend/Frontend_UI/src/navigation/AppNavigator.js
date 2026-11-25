@@ -6,7 +6,8 @@ import LocalModelScreen from '../features/stella/LocalModelScreen';
 // ============================================================
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, Platform, StyleSheet, View } from 'react-native';
+import { BackHandler, Linking, Platform, StyleSheet, View } from 'react-native';
+import { parseInviteCode } from '../lib/stella/invites';
 import StellaWorkspaceScreen from '../features/stella/WorkspaceScreen';
 import { ScreenMotion } from '../shared/components/Motion';
 import TodayScreen from '../features/home/screens/HomeScreen';
@@ -221,6 +222,19 @@ export default function AppNavigator() {
     });
     return () => sub.remove();
   }, [history, goBack]);
+
+  // 초대 메일의 링크(ai-assistant-planner://invite?code=...)로 앱이 열리면 초대 화면에 코드를 채워 연다.
+  // 로그인 전에 링크로 열렸어도 로그인 뒤 이 화면이 처음 그려질 때 getInitialURL로 다시 받는다.
+  useEffect(() => {
+    const open = url => {
+      if (!url || !/\/\/(?:[^/]*\/)*invite(?:[/?#]|$)|\/--\/invite/i.test(url)) return;
+      const code = parseInviteCode(url);
+      if (code) navigate(ROUTES.WorkspaceInvite, { code });
+    };
+    Linking.getInitialURL().then(open).catch(() => {});
+    const sub = Linking.addEventListener('url', ({ url }) => open(url));
+    return () => sub.remove();
+  }, [navigate]);
 
   // 폰 알림을 누르면 그 알림의 화면으로 이동 (없는 화면 이름이면 무시)
   useEffect(

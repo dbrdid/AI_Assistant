@@ -47,7 +47,7 @@ Deno.test("invite-mail: 확인 → 보내기 → 기록, 설정 없음·실패·
       getUserId: async (tk) => (tk.startsWith("user:") ? tk.slice(5) : null),
       rpc,
       sendMail: configured ? async (m) => { if (smtp === "down") throw new Error("535 auth failed"); sent.push(m); } : null,
-      inviteUrlBase: "stella://invite",
+      inviteUrlBase: "ai-assistant-planner://invite",
     });
     const post = async (h: (r: Request) => Promise<Response>, uid: string | null, body: unknown, path = "send") => {
       const res = await h(new Request(`https://x.test/functions/v1/invite-mail/${path}`, {
@@ -77,9 +77,9 @@ Deno.test("invite-mail: 확인 → 보내기 → 기록, 설정 없음·실패·
       assertEquals([r.status, r.body.email, r.body.kind], [200, "friend@example.com", "WORKSPACE"]);
       const m = sent.at(-1)!;
       assertEquals(m.to, "friend@example.com");
-      assertEquals(m.subject, "[Stella] 보내는 사람님이 '메일 시험 공간' 공간에 초대했어요");
+      assertEquals(m.subject, "[Atria] 보내는 사람님이 '메일 시험 공간' 공간에 초대했어요");
       assert(m.text.includes(`초대 코드: ${inv.code}`) && m.text.includes(koreanDateTime(inv.expires_at)), m.text);
-      assert(m.html.includes(`stella://invite?code=${encodeURIComponent(inv.code)}`), "앱 링크");
+      assert(m.html.includes(`ai-assistant-planner://invite?code=${encodeURIComponent(inv.code)}`), "앱 링크");
       const row = (await db.query("select status from private.invite_mails order by created_at desc limit 1")).rows[0];
       assertEquals(row.status, "SENT");
     });
@@ -99,7 +99,7 @@ Deno.test("invite-mail: 확인 → 보내기 → 기록, 설정 없음·실패·
       const m = buildInviteMail({ mail_id: "x", email: "a@b.co", kind: "PROJECT", workspace_name: "<b>팀</b>", project_name: "A&B",
         inviter_name: "<script>", role: "EDITOR", expires_at: "2026-11-20T06:05:00Z", code: "ABCDE-FGHJK" });
       assert(!m.html.includes("<script>") && m.html.includes("&lt;script&gt;") && m.html.includes("A&amp;B"), m.html);
-      assertEquals(m.subject, "[Stella] <script>님이 '<b>팀</b>' 공간의 'A&B' 프로젝트에 초대했어요");
+      assertEquals(m.subject, "[Atria] <script>님이 '<b>팀</b>' 공간의 'A&B' 프로젝트에 초대했어요");
       assert(m.text.includes("11월 20일 오후 3:05"), "서울 시각");
     });
 

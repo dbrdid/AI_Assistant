@@ -4,7 +4,7 @@
 //   환경변수 (Edge Functions → Secrets):
 //     SMTP_PASSWORD (필수, Gmail 앱 비밀번호 — 병욱이 직접 등록. 없으면 503 MAIL_NOT_CONFIGURED)
 //     SMTP_USER (기본 stella.app.noreply@gmail.com), SMTP_HOST (기본 smtp.gmail.com), SMTP_PORT (기본 465, SSL)
-//     MAIL_FROM_NAME (기본 Stella), INVITE_URL_BASE (기본 stella://invite — app.json scheme을 정하면 맞추기)
+//     MAIL_FROM_NAME (기본 Atria), INVITE_URL_BASE (기본 ai-assistant-planner://invite, app.json scheme과 같아야 함)
 //   Edge Function은 SMTP 25·587 포트를 막아서 465(SSL)를 씀
 // =====================================================================
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -25,7 +25,7 @@ const transport = SMTP_PASSWORD
       connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 15_000,
     })
   : null;
-const FROM = `"${env("MAIL_FROM_NAME", "Stella")}" <${SMTP_USER}>`;
+const FROM = `"${env("MAIL_FROM_NAME", "Atria")}" <${SMTP_USER}>`;
 
 Deno.serve(createHandler({
   async getUserId(token) {
@@ -39,6 +39,6 @@ Deno.serve(createHandler({
   sendMail: transport
     ? async (m) => { await transport.sendMail({ from: FROM, to: m.to, subject: m.subject, text: m.text, html: m.html }); }
     : null,
-  inviteUrlBase: env("INVITE_URL_BASE", "stella://invite"),
+  inviteUrlBase: env("INVITE_URL_BASE", "ai-assistant-planner://invite"),
   log: (msg, extra) => console.error(`[invite-mail] ${msg}`, extra ?? {}),
 }));

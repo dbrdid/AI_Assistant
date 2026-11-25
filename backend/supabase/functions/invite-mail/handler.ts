@@ -19,7 +19,7 @@ export interface Deps {
   rpc(name: string, args: Record<string, unknown>): Promise<RpcResult>;
   /** null = SMTP 설정 없음 */
   sendMail: ((m: MailMessage) => Promise<void>) | null;
-  /** 앱으로 바로 여는 링크 앞부분 (기본 stella://invite) */
+  /** 앱으로 바로 여는 링크 앞부분 (기본 ai-assistant-planner://invite) */
   inviteUrlBase?: string;
   log?: (msg: string, extra?: Record<string, unknown>) => void;
 }
@@ -59,16 +59,16 @@ export function koreanDateTime(iso: string): string {
 }
 
 /** 메일 내용 (제목·글·HTML) */
-export function buildInviteMail(info: MailInfo, urlBase = "stella://invite"): MailMessage {
+export function buildInviteMail(info: MailInfo, urlBase = "ai-assistant-planner://invite"): MailMessage {
   const ws = info.workspace_name ?? "공간";
   const where = info.kind === "PROJECT" && info.project_name ? `'${ws}' 공간의 '${info.project_name}' 프로젝트` : `'${ws}' 공간`;
-  const subject = `[Stella] ${info.inviter_name}님이 ${where}에 초대했어요`;
+  const subject = `[Atria] ${info.inviter_name}님이 ${where}에 초대했어요`;
   const url = `${urlBase}?code=${encodeURIComponent(info.code)}`;
   const until = koreanDateTime(info.expires_at);
   const text = [
-    `${info.inviter_name}님이 Stella의 ${where}에 초대했어요.`,
+    `${info.inviter_name}님이 Atria의 ${where}에 초대했어요.`,
     "",
-    `Stella 앱에서 [공간 참여]를 누르고 아래 코드를 입력하세요.`,
+    `Atria 앱에서 [초대 코드로 참여]를 누르고 아래 코드를 입력하세요.`,
     `초대 코드: ${info.code}`,
     `${until}까지 쓸 수 있어요.`,
     "",
@@ -77,8 +77,8 @@ export function buildInviteMail(info: MailInfo, urlBase = "stella://invite"): Ma
     "이 메일은 보내기 전용이에요. 모르는 초대라면 무시해 주세요.",
   ].join("\n");
   const html = `<!doctype html><html><body style="font-family:-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;color:#222;line-height:1.6">
-<p><b>${esc(info.inviter_name)}</b>님이 Stella의 ${esc(where)}에 초대했어요.</p>
-<p>Stella 앱에서 <b>[공간 참여]</b>를 누르고 아래 코드를 입력하세요.</p>
+<p><b>${esc(info.inviter_name)}</b>님이 Atria의 ${esc(where)}에 초대했어요.</p>
+<p>Atria 앱에서 <b>[초대 코드로 참여]</b>를 누르고 아래 코드를 입력하세요.</p>
 <p style="font-size:24px;letter-spacing:2px;font-weight:700;margin:16px 0">${esc(info.code)}</p>
 <p>${esc(until)}까지 쓸 수 있어요.</p>
 <p><a href="${esc(url)}">앱에서 바로 열기</a> (앱이 설치된 휴대폰에서)</p>

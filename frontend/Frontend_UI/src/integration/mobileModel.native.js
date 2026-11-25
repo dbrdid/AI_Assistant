@@ -1,5 +1,5 @@
 import { AppState, Platform } from 'react-native';
-import { requireOptionalNativeModule } from 'expo-modules-core';
+import { requireOptionalNativeModule } from 'expo';
 import { Directory, File, Paths } from 'expo-file-system';
 import { checkAbort, COMMAND_MAX_CHARS, deviceModels, GENERAL_MAX_CHARS, GENERAL_MAX_TOKENS, heavyTaskBlock, inferenceLimits, loadCandidates, outputLimit, STANDARD_LIMITS } from './mobileModelPolicy.mjs';
 import { metrics } from './s22Gate';
