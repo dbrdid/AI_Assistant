@@ -32,9 +32,55 @@ export function targetRewrite(command, block) {
 }
 
 /** Paragraph blocks from an AI answer, one per non-empty paragraph. */
+/**
+ * AI가 쓴 Markdown을 실제 블록으로: # 제목, - [ ] 체크리스트, - · 1. 목록, | 표 |, 나머지는 문단(빈 줄로 나눔).
+ * 표는 첫 줄의 칸 수에 맞추고 구분선(|---|)은 건너뛴다. 1~50행, 1~20열을 넘으면 넘는 부분은 버린다.
+ */
+export function markdownBlocks(text, newId) {
+  const blocks = [];
+  let paragraph = [], table = null;
+  const block = (type, value, extra = {}) => blocks.push({ id: newId(), type, text: value, checked: false, ...extra });
+  const flush = () => {
+    if (paragraph.length) { block('paragraph', paragraph.join('\n')); paragraph = []; }
+    if (table) {
+      const columns = Math.min(20, table[0].length);
+      const rows = table.slice(0, 50).map(row => Array.from({ length: columns }, (_, i) => (row[i] ?? '').replace(/\*\*(.+?)\*\*/g, '$1')));
+      blocks.push({ id: newId(), type: 'table', text: '', checked: false, rows });
+      table = null;
+    }
+  };
+  for (const raw of String(text ?? '').replace(/\r\n?/g, '\n').replace(/```[a-z]*\n?/gi, '').split('\n')) {
+    const line = raw.trim();
+    if (/^\|.*\|$/.test(line)) {
+      if (paragraph.length) { const keep = table; table = null; flush(); table = keep; }
+      if (/^\|[\s:|-]+\|$/.test(line)) continue; // 표 구분선
+      (table ??= []).push(line.slice(1, -1).split('|').map(cell => cell.trim()));
+      continue;
+    }
+    if (table) flush();
+    if (!line) { flush(); continue; }
+    let m;
+    if ((m = /^#{1,6}\s+(.+)$/.exec(line))) { flush(); block('heading', m[1].replace(/\*\*/g, '')); }
+    else if ((m = /^[-*•]\s+\[( |x|X)\]\s*(.*)$/.exec(line))) { flush(); block('task', m[2], { checked: m[1] !== ' ' }); }
+    else if ((m = /^(?:[-*•]|\d+[.)])\s+(.+)$/.exec(line))) { flush(); block('bullet', m[1]); }
+    else paragraph.push(line);
+  }
+  flush();
+  return blocks.map(b => b.type === 'table' ? b : { ...b, text: b.text.replace(/\*\*(.+?)\*\*/g, '$1') });
+}
+
 function answerBlocks(text, newId) {
-  const parts = String(text ?? '').split(/\r?\n\s*\r?\n/).map(part => part.trim()).filter(Boolean);
-  return parts.map(part => ({ id: newId(), type: 'paragraph', text: part, checked: false }));
+  return markdownBlocks(text, newId);
+}
+
+/** AI가 쓴 글 전체로 새 문서를 블록 단위로 만든다. 문서 전체가 "AI가 만든 문서"로 표시되어 수용 또는 거절을 기다린다. */
+export function createAiDocument({ store, documents }, { title, text }, prefs, newId) {
+  const blocks = markdownBlocks(text, newId);
+  if (!blocks.length) throw new Error('문서로 만들 내용이 없습니다.');
+  const memo = store.addMemo({ title: String(title ?? '').trim().slice(0, 200), body: blocksText(blocks) });
+  const saved = documents.saveContent(memo.id, { title: memo.title, body: blocksText(blocks), blocks }, memo.revision);
+  prefs.write(pendingDocKey(saved.id), true);
+  return saved.id;
 }
 
 /** A block for a task or event proposal. */
@@ -87,7 +133,10 @@ export function placeAnswer({ store, documents }, { memoId, revision, blockId, t
  */
 export function placeProposal({ store, documents }, p, prefs, newId) {
   if (p.kind === 'memo') {
-    const saved = store.approveProposal(p.id, {});
+    let saved = store.approveProposal(p.id, {});
+    // 요약 속 목록, 체크리스트, 표도 실제 블록으로
+    const blocks = markdownBlocks(saved.body, newId);
+    if (blocks.length > 1 || blocks[0]?.type !== 'paragraph') saved = documents.saveContent(saved.id, { title: saved.title, body: blocksText(blocks), blocks }, saved.revision);
     prefs.write(pendingDocKey(saved.id), true);
     return saved.id;
   }

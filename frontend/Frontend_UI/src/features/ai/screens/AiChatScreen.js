@@ -20,7 +20,11 @@ import {
   View,
 } from 'react-native';
 import { randomUUID } from 'expo-crypto';
-import { askFromDevice, titleForChat } from '../../../integration/runtime';
+import { askFromDevice, titleForChat, runtime, writePreference } from '../../../integration/runtime';
+import { readPreference } from '../../../data/hooks';
+import { createAiDocument } from '../../stella/aiPending.mjs';
+import { nextField, parseProjectRequest, summary as projectSummary } from '../projectTemplate.mjs';
+import { addProject } from '../../../data/projects/ProjectStore';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import { PinIcon } from '../components/ChatIcons';
 import Icon from '../../../shared/components/Icon';
@@ -100,7 +104,28 @@ function TypingDots() {
 // ------------------------------------------------------------
 // 말풍선 하나 (내 메시지 / AI 메시지)
 // ------------------------------------------------------------
-function MessageBubble({ message, onOpenSource }) {
+// "프로젝트 만들어줘": 템플릿의 필수 항목을 하나씩 눌러 고르고, 다 고르면 만들기
+function ProjectForm({ form, onAction }) {
+  const chip = (label, onPress, strong) => <Pressable key={label} accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.formChip, strong && styles.formChipStrong, pressed && { opacity: 0.6 }]}>
+    <Text style={[styles.formChipText, strong && { color: colors.ink }]}>{label}</Text></Pressable>;
+  if (form.created) return <View style={styles.form}><Text style={styles.aiText}>'{form.values.title}' 프로젝트를 만들었어요.</Text><View style={styles.formRow}>{chip('프로젝트 열기', () => onAction('open'), true)}</View></View>;
+  if (form.cancelled) return <View style={styles.form}><Text style={styles.formNote}>프로젝트 만들기를 취소했어요.</Text></View>;
+  const field = nextField(form.values);
+  return <View style={styles.form}>
+    {!!field && Object.keys(form.values).length > 0 && <Text style={styles.formNote}>{projectSummary(form.values)}</Text>}
+    {field ? <>
+      <Text style={styles.aiText}>{field.ask}</Text>
+      {field.options ? <View style={styles.formRow}>{field.options().map(([label, value]) => chip(label, () => onAction('set', field.key, value)))}</View>
+        : <Text style={styles.formNote}>아래 입력창에 써서 보내 주세요.</Text>}
+    </> : <>
+      <Text style={styles.aiText}>{projectSummary(form.values)}</Text>
+      <View style={styles.formRow}>{chip('프로젝트 만들기', () => onAction('create'), true)}{chip('취소', () => onAction('cancel'))}</View>
+    </>}
+    {field && <View style={styles.formRow}>{chip('취소', () => onAction('cancel'))}</View>}
+  </View>;
+}
+
+function MessageBubble({ message, onOpenSource, onMakeDoc, onProject }) {
   if (message.role === 'user') {
     return (
       <View style={styles.userRow}>
@@ -131,6 +156,13 @@ function MessageBubble({ message, onOpenSource }) {
         <View style={[styles.aiBubble, styles.aiBubbleFit, message.error && styles.errorBubble]}>
           <Text style={[styles.aiText, message.error && styles.errorText]} selectable>{message.text}</Text>
         </View>
+        {message.projectForm && <ProjectForm form={message.projectForm} onAction={(...args) => onProject(message, ...args)} />}
+        {/* Notion AI의 "페이지로 만들기"처럼: 답의 제목, 목록, 체크리스트, 표가 실제 블록이 된 새 문서 */}
+        {message.done && !message.error && !message.projectForm && !!onMakeDoc && (
+          <Pressable accessibilityRole="button" onPress={() => onMakeDoc(message)} hitSlop={6} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', minHeight: 36 }, pressed && { opacity: 0.6 }]}>
+            <Icon name="file" size={15} color={colors.muted} /><Text style={{ fontSize: font.caption + 1, color: colors.muted }}>문서로 만들기</Text>
+          </Pressable>
+        )}
         {sources.length > 0 && (
           <View style={styles.sources}>
             <Text style={styles.sourcesLabel}>출처{sources.some((s) => s.route) ? ', 누르면 해당 위치로 이동해요' : ''}</Text>
@@ -301,6 +333,23 @@ export default function AiChatScreen({ navigation }) {
     async (raw) => {
       const text = raw.trim() || (ready.length ? ATTACH_ONLY_QUESTION : '');
       if (!text || status !== 'idle' || reading) return;
+      const waiting = [...messages].reverse().find((m) => m.projectForm && !m.projectForm.created && !m.projectForm.cancelled);
+      if (waiting && nextField(waiting.projectForm.values)?.key === 'title') {
+        dirty.current = true;
+        setInput('');
+        setMessages((prev) => [...prev.filter((m) => m.id !== waiting.id), { id: nextId(), role: 'user', text },
+          { ...waiting, projectForm: { ...waiting.projectForm, values: { ...waiting.projectForm.values, title: text.slice(0, 200) } } }]);
+        return;
+      }
+      const project = !ready.length && parseProjectRequest(text);
+      if (project) {
+        dirty.current = true;
+        if (!messages.length) setStartedAt(Date.now());
+        setInput('');
+        setMessages((prev) => [...prev, { id: nextId(), role: 'user', text },
+          { id: nextId(), role: 'ai', text: '프로젝트를 만들게요. 필요한 항목을 골라 주세요.', done: true, sources: [], projectForm: { values: project.title ? { title: project.title } : {} } }]);
+        return;
+      }
       if (!routeReady) return setBanner('로컬 AI는 아직 연결 전이에요. 클라우드 AI로 바꿔 주세요');
 
       const aiId = nextId();
@@ -493,7 +542,28 @@ export default function AiChatScreen({ navigation }) {
             data={messages}
             keyExtractor={(m) => m.id}
             renderItem={({ item }) => (
-              <MessageBubble message={item} onOpenSource={(src) => src.route && navigation.navigate(src.route, openParams(src.type, src.id))} />
+              <MessageBubble message={item} onOpenSource={(src) => src.route && navigation.navigate(src.route, openParams(src.type, src.id))}
+                onProject={(message, action, field, value) => {
+                  let form = message.projectForm;
+                  if (action === 'open') return navigation.navigate(ROUTES.ProjectDetail, { projectId: form.createdId });
+                  if (action === 'set') form = { ...form, values: { ...form.values, [field]: value } };
+                  if (action === 'cancel') form = { ...form, cancelled: true };
+                  if (action === 'create') {
+                    const row = addProject({ ...form.values, desc: '' });
+                    if (!row?.id) return setBanner('프로젝트를 만들지 못했어요. 공간 권한을 확인해 주세요');
+                    form = { ...form, created: true, createdId: row.id };
+                  }
+                  dirty.current = true;
+                  setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, projectForm: form } : m)));
+                }}
+                onMakeDoc={(answer) => {
+                  try {
+                    const question = messages[messages.indexOf(answer) - 1]?.text ?? '';
+                    const title = (/^#{1,6}\s+(.+)$/m.exec(answer.text)?.[1] || question || answer.text.split('\n')[0]).replace(/\*\*/g, '').trim().slice(0, 40);
+                    const id = createAiDocument(runtime(), { title, text: answer.text }, { read: readPreference, write: writePreference }, randomUUID);
+                    navigation.navigate(ROUTES.MemoEdit, { memoId: id });
+                  } catch (e) { setBanner(e.message); }
+                }} />
             )}
             contentContainerStyle={styles.list}
             ListHeaderComponent={startedAt ? <Text style={styles.dayDivider}>{dayLabel(startedAt)}</Text> : null}
@@ -890,6 +960,12 @@ const styles = StyleSheet.create({
   aiRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   // AI 말풍선: 흰 바탕 + 얇은 테두리
   aiBubble: { maxWidth: '100%', paddingVertical: 2 },
+  form: { gap: spacing.sm, marginTop: spacing.xs },
+  formRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  formChip: { minHeight: 36, paddingHorizontal: 14, borderRadius: 18, backgroundColor: colors.raised, justifyContent: 'center' },
+  formChipStrong: { backgroundColor: colors.action },
+  formChipText: { fontSize: font.body, color: colors.muted },
+  formNote: { fontSize: font.caption + 1, color: colors.muted, lineHeight: 19 },
   aiText: { fontSize: font.bodyLg, color: colors.ink, lineHeight: 22 },
   errorBubble: {},
   errorText: { color: colors.coral, fontSize: font.body },

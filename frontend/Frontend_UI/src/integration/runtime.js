@@ -39,7 +39,8 @@ export const emitRuntime = emit;
 export function syncContext(serverId) {
   const own = runtime();
   if (!serverId) throw new Error('서버에 연결된 공유 공간이 아닙니다');
-  return { db: own.syncDb, transport: supabaseTransport, workspaceId: serverId, myAccountId: own.session.id };
+  // Hermes에는 globalThis.crypto.randomUUID가 없어 공유 공간 저장(프로젝트 등)이 "newId를 넘겨주세요"로 실패했다
+  return { db: own.syncDb, transport: supabaseTransport, workspaceId: serverId, myAccountId: own.session.id, newId: randomUUID };
 }
 export function runtime() { if (!current) throw new Error('로그인과 기기 저장소 초기화가 필요합니다'); return current; }
 export const maybeRuntime = () => current;
