@@ -287,3 +287,73 @@ test('버린 보낼 묶음은 원문을 보관하고, 다른 계정으로 바뀌
   await engine.bindSyncAccount(d.db, OTHER);
   assert.equal(await d.count('stella_outbox_discarded'), 0);
 });
+
+// 11/25 휴대폰 → 웹 동기화가 멈춘 원인: 메모보다 먼저 간 메모↔프로젝트 연결이 REFERENCE_NOT_FOUND로 거절되면
+// 그 묶음이 맨 앞에서 FAILED가 되어, 뒤에 쌓인 저장이 서버로 전혀 가지 않았음
+const PROJECT = '88888888-8888-4888-8888-888888888888';
+const NOTE2 = '99999999-9999-4999-8999-999999999999';
+const link = (noteId = NOTE) => [{ kind: 'link', entity: 'note_projects', data: { note_id: noteId, project_id: PROJECT } }];
+/** note_projects는 거절하고(서버 FK 오류와 같은 코드) 나머지는 받아 주는 서버 */
+function rejectLinks(d) {
+  const { SyncError } = require('./lib/errors.js');
+  const accept = d.ctx.transport.push;
+  d.ctx.transport.push = async (ws, operationId, ops, deviceId) => {
+    if (ops.some(o => o.entity === 'note_projects')) {
+      d.pushed.push([operationId, 'REJECTED:note_projects']);
+      throw new SyncError('REFERENCE_NOT_FOUND', '연결 대상이 이 공간에 없습니다');
+    }
+    return accept(ws, operationId, ops, deviceId);
+  };
+}
+
+test('막힘 방지: 거절된 연결 묶음은 남겨 두고 뒤의 저장은 계속 보낸다', { skip: !available }, async () => {
+  const d = await device();
+  rejectLinks(d);
+  const linkOp = await engine.saveLocal(d.ctx, link());          // 메모보다 연결이 먼저 보낼 목록에 들어감
+  await engine.saveLocal(d.ctx, create());
+  await engine.saveLocal(d.ctx, create(NOTE2));
+  const first = await engine.syncNow(d.ctx);
+  assert.equal(first.flush.status, 'DONE');
+  assert.equal(first.flush.sent, 2);                              // 연결 뒤의 메모 2개는 서버로 감
+  assert.deepEqual(first.flush.failedLinks.map(f => f.code), ['REFERENCE_NOT_FOUND']);
+  const outbox = await engine.listOutbox(d.db, WS);
+  assert.deepEqual(outbox.map(r => [r.operationId, r.status]), [[linkOp, 'FAILED']]);   // 연결은 버리지 않고 남김 (화면이 다시 만들거나 버림)
+
+  // 다음 동기화: 이미 FAILED인 연결이 맨 앞에 있어도 새 저장은 보냄 (다시 보내지는 않음)
+  const before = d.pushed.length;
+  await engine.saveLocal(d.ctx, create('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'));   // 휴대폰에서 새로 쓴 메모
+  const second = await engine.syncNow(d.ctx);
+  assert.deepEqual([second.flush.status, second.flush.sent, second.flush.failedLinks.length], ['DONE', 1, 1]);
+  assert.deepEqual(d.pushed.slice(before).map(p => p[1]), ['UPSERT:notes']);
+  const status = await engine.getSyncStatus(d.db, WS);
+  assert.deepEqual([status.pending, status.failed], [1, 1]);       // 화면(동기화 확인)에는 거절된 연결이 계속 보임
+
+  // 버리면 깨끗해짐
+  await engine.discardOutbox(d.ctx, outbox[0].seq);
+  assert.deepEqual((await engine.syncNow(d.ctx)).flush, { status: 'DONE', sent: 0 });
+});
+
+test('막힘 방지: 연결이 아닌 묶음이 거절되면 예전처럼 거기서 멈춘다 (뒤 묶음이 기댈 수 있어서)', { skip: !available }, async () => {
+  const d = await device();
+  const { SyncError } = require('./lib/errors.js');
+  const accept = d.ctx.transport.push;
+  d.ctx.transport.push = async (ws, operationId, ops, deviceId) => {
+    if (ops.some(o => o.id === NOTE)) throw new SyncError('CHECK_FAILED', '형식이 틀림');
+    return accept(ws, operationId, ops, deviceId);
+  };
+  await engine.saveLocal(d.ctx, create());
+  await engine.saveLocal(d.ctx, create(NOTE2));
+  const r = await engine.syncNow(d.ctx);
+  assert.deepEqual([r.flush.status, r.flush.code, r.flush.sent], ['BLOCKED', 'CHECK_FAILED', 0]);
+  assert.equal((await engine.syncNow(d.ctx)).flush.status, 'BLOCKED');
+  assert.equal(await d.count('stella_outbox'), 2);
+});
+
+test('막힘 방지: 메모와 연결이 서로 다른 묶음이어도 메모가 먼저면 둘 다 간다', { skip: !available }, async () => {
+  const d = await device();
+  await engine.saveLocal(d.ctx, create());
+  await engine.saveLocal(d.ctx, link());
+  const r = await engine.syncNow(d.ctx);
+  assert.deepEqual(r.flush, { status: 'DONE', sent: 2 });
+  assert.deepEqual(d.pushed.map(p => p[1]), ['UPSERT:notes', 'UPSERT:note_projects']);
+});

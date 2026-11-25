@@ -1,6 +1,7 @@
 import DocumentEditor from '../features/stella/DocumentEditor';
 import AppCommandScreen from '../features/stella/AppCommandScreen';
 import LocalModelScreen from '../features/stella/LocalModelScreen';
+import AiChatScreen from '../features/ai/screens/AiChatScreen';
 // ============================================================
 // AppNavigator.js — "어떤 화면을 보여줄지" 를 정하는 직접 만든 간단한 화면 이동기
 // ============================================================
@@ -98,6 +99,7 @@ const REAL_SCREENS = {
   [ROUTES.WorkspaceCreate]: WorkspaceCreateScreen, // 새 워크스페이스 만들기
   [ROUTES.WorkspaceInvite]: WorkspaceInviteScreen, // 초대 수락 / 만료
   [ROUTES.Calendar]: CalendarScreen, // 사이드 메뉴 "캘린더" + 홈 시트를 끝까지 올렸을 때
+  [ROUTES.AiChat]: AiChatScreen,      // AI 채팅
   [ROUTES.Ai]: LocalModelScreen,     // 예전 AI 채팅 경로 (appCommands.mjs 화면 열기 호환)
   [ROUTES.Search]: SearchScreen,     // 사이드 메뉴 "검색"
   [ROUTES.Memos]: props => <StellaWorkspaceScreen {...props} mode="documents" />,       // 사이드 메뉴 "메모" + 검색/AI 결과에서 이동

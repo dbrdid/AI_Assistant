@@ -16,7 +16,7 @@ import { registerDevice } from '../../lib/stella/devices';
 import { disablePushToken, registerPushToken, setNotificationSettings } from '../../lib/stella/push';
 import { getSettings } from '../../data/settings/SettingsStore';
 
-export const SERVER_NOTIFY_DEFAULT = Object.freeze({ on: true, reminders: true, workspace: true, recording: true });
+export const SERVER_NOTIFY_DEFAULT = Object.freeze({ on: true, reminders: true, workspace: true, recording: true, project: true });
 export const serverNotify = () => ({ ...SERVER_NOTIFY_DEFAULT, ...(getSettings().notify?.server ?? {}) });
 
 let state = { ready: false, deviceId: null, reason: '' };
@@ -58,6 +58,8 @@ export async function registerPush({ ask = false } = {}) {
       push: true, reminders: pref.reminders, workspace: pref.workspace, recording: pref.recording,
       briefing_daily: { on: false }, briefing_weekly: { on: false },
     });
+    // 프로젝트 소식은 서버 migration 20261125051502부터 받음. 그 전 서버는 모르는 설정이라 거절하므로 따로 보내고 실패는 넘어감
+    try { await setNotificationSettings(supabase, { project: pref.project }); } catch (e) { console.warn('[push] 프로젝트 소식 설정을 서버가 받지 않았어요', e); }
     set({ ready: true, deviceId, reason: '' });
     return { ok: true, reason: '' };
   } catch (e) {

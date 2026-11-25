@@ -1,7 +1,7 @@
 import { accessibleRecords, maybeRuntime, runtime, useValue, readPreference, writePreference } from '../hooks';
 import { listOutbox } from '../../lib/stella/local-sync';
 import { ROUTES } from '../../navigation/routes';
-import { rankSearchRows, searchTerms } from './memoSearch.mjs';
+import { fileSearchRow, rankSearchRows, searchTerms } from './memoSearch.mjs';
 export { searchTerms } from './memoSearch.mjs';
 export const TYPE_INFO = { memo: { label: '메모', icon: '📝', route: ROUTES.MemoEdit }, task: { label: '일정', icon: '✓', route: ROUTES.TaskEdit }, event: { label: '일정', icon: '◷', route: ROUTES.TaskEdit }, project: { label: '프로젝트', icon: '▣', route: ROUTES.ProjectDetail }, file: { label: '파일', icon: '📄', route: ROUTES.Files } };
 export const STORAGE_INFO = { local: { icon: '▣', label: '기기', desc: '이 기기에 저장된 파일' }, cloud: { icon: '☁', label: '클라우드', desc: '공유 공간 멤버가 함께 보는 파일' } };
@@ -87,7 +87,7 @@ export function searchApp(query, sources) {
     ...memos.map(m => ({ ...m, type: 'memo', title: memoTitle(m), text: m.body })),
     ...tasks.map(t => ({ ...t, type: 'task', text: t.desc })),
     ...(accessClosed ? [] : sources?.projects ?? []).map(p => ({ ...p, type: 'project', text: p.desc })),
-    ...(sources?.files ?? []).map(f => ({ ...f, type: 'file', title: f.name, text: f.kind })),
+    ...(sources?.files ?? []).map(fileSearchRow),
   ];
   return rankSearchRows(rows, terms);
 }

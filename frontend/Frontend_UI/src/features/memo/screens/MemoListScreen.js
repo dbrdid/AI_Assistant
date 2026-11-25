@@ -11,6 +11,7 @@ import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets'
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { getAllMemos, memoIn, memoTitle, searchTerms, useAllMemos } from '../../../data/memos/MemoStore';
 import { enterSpace, useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
+import { memoCreationWorkspaceId } from '../memoCreationWorkspace';
 import { SpaceDot } from '../../../shared/components/SpaceTag';
 import { useFiles } from '../../../data/files/FileStore';
 import Svg, { Path } from 'react-native-svg';
@@ -59,7 +60,8 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
   const multi = spaceList.length > 1;
   const personalId = spaceList.find((w) => w.personal)?.id;
   const [space, setSpace] = useState(() => (route.params?.space && spaces[route.params.space] ? route.params.space : 'all'));
-  const createSpaceId = space === 'all' ? personalId : space;
+  // 특정 공간을 보고 있으면 그 공간에, 모든 공간 보기에서는 지금 활성 공간에 만듦 (없으면 개인 공간)
+  const createSpaceId = memoCreationWorkspaceId({ selectedSpace: space, currentWorkspaceId: currentSpace?.id ?? personalId });
   const canCreateMemo = !!createSpaceId && !spaces[createSpaceId]?.readOnly;
   const importingMarkdown = useRef(false);
   const isMounted = useRef(false);
@@ -98,7 +100,7 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
   const photoOf = (m) => {
     const id = (m.photos || [])[0];
     const f = id ? files.find((x) => x.id === id) : null;
-    return f ? f.uri : '';
+    return f ?? null;   // 파일 자체를 넘김 (기기 파일 참조는 카드가 열 때 접근 권한을 받음)
   };
   const projTitleOf = (m) => {
     const p = projectOf('memos', m.id);
@@ -459,7 +461,7 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
                     highlighted={highlightId === m.id}
                     projectTitle={m.workspaceId === currentSpace.id ? projTitleOf(m) : ''}
                     space={multi && space === 'all' ? spaces[m.workspaceId] : null}
-                    photoUri={photoOf(m)}
+                    photoFile={photoOf(m)}
                     onLayout={(e) => onCardLayout(m.id, e)}
                     // 짧게 누르기: 선택 모드면 선택/해제, 아니면 열기
                     onPress={() => (selecting ? toggle(m.id) : openMemo(m))}
@@ -502,7 +504,7 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
           accessibilityRole="button"
           accessibilityLabel="새 메모 쓰기"
           onPress={() => {
-            // 새 메모는 고른 공간에 (모든 공간 보기에서는 개인 공간에)
+            // 새 메모는 고른 공간에 (모든 공간 보기에서는 지금 활성 공간에)
             rememberTreePosition();
             enterSpace(createSpaceId);
             navigation.navigate(ROUTES.MemoEdit);

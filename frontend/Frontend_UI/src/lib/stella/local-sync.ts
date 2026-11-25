@@ -10,6 +10,8 @@
 //      → 응답을 못 받고 재전송해도 서버가 처음 결과를 돌려줘서 중복 저장이 안 됨
 //   3) 충돌·거절이 나면 그 묶음에서 멈춤 (뒤 묶음이 앞 묶음에 기대는 경우가 있어서)
 //      → resolveConflict('keep_mine' | 'use_server') 또는 discardOutbox로 풀기
+//      단, 서버가 거절한 "연결만 있는 묶음"(link·unlink)은 남겨 두고 뒤 묶음을 계속 보냄 (FlushResult.failedLinks)
+//      → 다른 기록은 연결에 기대지 않으므로, 연결 하나 때문에 그 뒤 저장이 전부 묶이지 않게
 //   4) 받기·전체 재동기화는 "서버 사본"만 바꿈. 안 보낸 내 수정은 서버 사본 위에 다시 얹어 보여줌
 //      → 전체 재동기화를 해도 안 보낸 수정은 지워지지 않음
 //   5) revision은 커지는 쪽만 반영 (늦게 도착한 옛 값으로 덮지 않음)
@@ -78,8 +80,11 @@ export interface LocalRecord<T = Record<string, unknown>> {
   serverRevision: number | null;
 }
 
+/** 서버가 거절했지만 뒤 묶음을 막지 않고 건너뛴 연결(link·unlink)만 있는 묶음 */
+export interface SkippedLinkRow { outboxSeq: number; code: string; error: string }
+
 export type FlushResult =
-  | { status: 'DONE'; sent: number }
+  | { status: 'DONE'; sent: number; failedLinks?: SkippedLinkRow[] }   // failedLinks: 거절돼 남겨 둔 연결 묶음 (뒤 묶음은 보냄)
   | { status: 'OFFLINE'; sent: number; error: string; code?: string; attempts?: number }  // 나중에 같은 요청으로 다시 보냄 (code: NETWORK·AUTH_REQUIRED 등, attempts: 이 묶음을 보낸 횟수)
   | { status: 'CONFLICT'; sent: number; outboxSeq: number; conflicts: PushConflict[] }   // 사용자 선택 필요
   | { status: 'BLOCKED'; sent: number; outboxSeq: number; code: string; error: string }; // 서버가 거절 → 버리거나 고쳐야 함
@@ -416,17 +421,35 @@ async function applyAccepted(db: SqlDb, ws: string, ops: SyncOp[], results: Push
   }
 }
 
+/** 연결(link·unlink)만 있는 묶음. 다른 기록이 연결에 기대지 않으므로, 거절돼도 뒤 묶음을 막지 않음 */
+function isLinkOnly(row: OutboxRow): boolean {
+  const changes = JSON.parse(row.intent) as LocalChange[];
+  return changes.length > 0 && changes.every((c) => c.kind === 'link' || c.kind === 'unlink');
+}
+const skippedOf = (row: OutboxRow): SkippedLinkRow => {
+  const text = row.last_error ?? '';
+  const at = text.indexOf(': ');
+  return { outboxSeq: row.seq, code: at < 0 ? text : text.slice(0, at), error: at < 0 ? '' : text.slice(at + 2) };
+};
+
 async function flushInner(ctx: SyncContext): Promise<FlushResult> {
   const { db, transport, workspaceId: ws } = ctx;
   let sent = 0;
+  let afterSeq = 0;
+  const failedLinks: SkippedLinkRow[] = [];
+  const done = (): FlushResult => (failedLinks.length ? { status: 'DONE', sent, failedLinks } : { status: 'DONE', sent });
   for (;;) {
     const row = await db.get<OutboxRow>(
-      'select * from stella_outbox where workspace_id = ? order by seq limit 1', [ws]);
-    if (!row) return { status: 'DONE', sent };
+      'select * from stella_outbox where workspace_id = ? and seq > ? order by seq limit 1', [ws, afterSeq]);
+    if (!row) return done();
+    afterSeq = row.seq;
     if (row.status === 'CONFLICT') {
       return { status: 'CONFLICT', sent, outboxSeq: row.seq, conflicts: JSON.parse(row.conflicts ?? '[]') as PushConflict[] };
     }
     if (row.status === 'FAILED') {
+      // 거절된 연결 묶음은 남겨 두고(화면에서 버리거나 다시 만듦) 뒤 묶음을 계속 보냄.
+      // 예전에는 메모보다 먼저 간 메모↔프로젝트 연결(REFERENCE_NOT_FOUND) 하나가 그 뒤 저장을 전부 막았음
+      if (isLinkOnly(row)) { failedLinks.push(skippedOf(row)); continue; }
       return { status: 'BLOCKED', sent, outboxSeq: row.seq, code: (row.last_error ?? '').split(':')[0], error: row.last_error ?? '' };
     }
 
@@ -458,6 +481,7 @@ async function flushInner(ctx: SyncContext): Promise<FlushResult> {
             [`${err.code}: ${err.message}`, row.seq]);
           await rebuildAll(db, ws, touched([row]).values());
         });
+        if (isLinkOnly(row)) { failedLinks.push({ outboxSeq: row.seq, code: err.code, error: err.message }); continue; }
         return { status: 'BLOCKED', sent, outboxSeq: row.seq, code: err.code, error: err.message };
       }
       await db.run('update stella_outbox set attempts = attempts + 1, last_error = ? where seq = ?',

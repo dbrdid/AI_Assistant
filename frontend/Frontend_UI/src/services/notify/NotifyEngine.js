@@ -2,7 +2,7 @@
 // NotifyEngine.js — "언제 어떤 알림을 보낼지" 계산해서 예약하고, 알림함에 쌓는 부분
 // ============================================================
 // 만드는 알림 (설정 > 알림 설정 · AI 및 브리핑 설정 값을 따름)
-//   · 일정 알림     : 시간이 있는 일정의 [알림] 설정(정시/10분 전/1시간 전/2시간 전/하루 전)만큼 앞서서
+//   · 일정 알림     : [알림]을 설정하면 지정 시각에 앱·휴대폰 알림, '없음'이면 브리핑 시각 또는 1시간 전 앱 알림
 //   · 할 일 마감    : 시간이 없는 할 일·프로젝트 마감일의 [알림] 설정. 마감일 아침 9시 기준
 //   · 브리핑        : 일간 브리핑(설정한 시각) / 주간 브리핑(설정한 요일·시각)
 //   · 방해 금지 시간: 그 시간에 걸리면 끝나는 시각으로 미룸
@@ -19,6 +19,7 @@ import { getSettings, subscribeSettings, WEEKDAY_NAMES } from '../../data/settin
 import { getProjects, subscribeProjects } from '../../data/projects/ProjectStore';
 import { getAllTasks, subscribeTasks } from '../../data/tasks/TaskStore';
 import { cancelAll, ensurePermission, scheduleAll } from './Notify';
+import { inAppScheduleReminderAt } from './NotificationSchedule.mjs';
 import { onPushState, registerPush, serverRemindersActive } from './PushRegister';
 import { maybeRuntime } from '../../integration/runtime';
 
@@ -71,20 +72,38 @@ export function planNotifications(now = Date.now()) {
   const personal = new Set((maybeRuntime()?.store.getWorkspaces() ?? []).filter((w) => w.personal).map((w) => w.id));
 
   getAllTasks().forEach((t) => {
-    if ((serverOn && !personal.has(t.workspaceId)) || t.status === '완료') return;
     const off = OFFSET_MIN[t.alarm];
-    if (off == null) return;
-    if (t.start && s.notify.schedule) {
+    const isSchedule = t.kind === 'event' || Boolean(t.start);
+    const appOnlySchedule = isSchedule && off == null;
+    if ((serverOn && !personal.has(t.workspaceId) && !appOnlySchedule) || t.status === '완료') return;
+    if (isSchedule && s.notify.schedule) {
+      const eventAt = atOf(t.date, t.start || '09:00');
+      if (off == null) {
+        const briefingAt = s.ai.daily.on ? atOf(t.date, s.ai.daily.time) : null;
+        const reminderAt = inAppScheduleReminderAt(eventAt, briefingAt, !t.start);
+        push({
+          key: `sch-inapp:${t.id}:${t.date}:${t.start || 'all-day'}:${reminderAt}`,
+          kind: 'schedule',
+          title: t.title,
+          body: t.start ? `일정 시작 ${t.start}${t.place ? ` · ${t.place}` : ''}` : `오늘 일정${t.place ? ` · ${t.place}` : ''}`,
+          at: reminderAt,
+          route: ROUTES.TaskEdit,
+          params: { taskId: t.id, workspaceId: t.workspaceId },
+          native: false,
+        });
+        return;
+      }
+      const startLabel = t.start || '오전 9시';
       push({
         key: `sch:${t.id}:${t.date}:${t.start}:${t.alarm}`,
         kind: 'schedule',
         title: t.title,
-        body: off === 0 ? `지금 시작해요${t.place ? ` · ${t.place}` : ''}` : `${t.alarm}에 알려드려요 · ${t.start} 시작${t.place ? ` · ${t.place}` : ''}`,
-        at: atOf(t.date, t.start) - off * 60000,
+        body: off === 0 ? `지금 시작해요${t.place ? ` · ${t.place}` : ''}` : `${t.alarm}에 알려드려요 · ${startLabel} 시작${t.place ? ` · ${t.place}` : ''}`,
+        at: eventAt - off * 60000,
         route: ROUTES.TaskEdit,
         params: { taskId: t.id, workspaceId: t.workspaceId },
       });
-    } else if (!t.start && s.notify.due) {
+    } else if (!isSchedule && off != null && !t.start && s.notify.due) {
       push({
         key: `due:${t.id}:${t.date}:${t.alarm}`,
         kind: 'due',
@@ -147,8 +166,8 @@ export async function syncNotifications() {
     const plan = planNotifications(now);
     // 1) 이미 울릴 시각이 지난 것 → 알림함에 쌓기
     plan.filter((p) => p.at <= now).forEach((p) => addNotice({ key: p.key, kind: p.kind, title: p.title, body: p.body, at: p.at, route: p.route, params: p.params }));
-    // 2) 앞으로의 것 → 기기에 예약
-    await scheduleAll(plan.filter((p) => p.at > now).map((p) => ({ key: p.key, title: p.title, body: p.body, at: p.at, data: { route: p.route, params: p.params } })));
+    // 2) 앞으로의 휴대폰 알림만 기기에 예약 (알림을 설정하지 않은 일정은 앱 알림함 전용)
+    await scheduleAll(plan.filter((p) => p.native !== false && p.at > now).map((p) => ({ key: p.key, title: p.title, body: p.body, at: p.at, data: { route: p.route, params: p.params } })));
   } finally {
     busy = false;
   }

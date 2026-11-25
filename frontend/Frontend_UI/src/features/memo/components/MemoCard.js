@@ -8,6 +8,7 @@ import Svg, { Path } from 'react-native-svg';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { memoTitle } from '../../../data/memos/MemoStore';
 import { pointsToPath, visibleInkColor } from '../utils/InkUtils';
+import AccessibleFileImage from './AccessibleFileImage';
 import Icon from '../../../shared/components/Icon';
 import { IconTile, Tag } from '../../../shared/components/Ui';
 import SpaceTag from '../../../shared/components/SpaceTag';
@@ -51,7 +52,9 @@ function InkPreview({ strokes }) {
   );
 }
 
-function Thumb({ memo, photoUri, style }) {
+function Thumb({ memo, photoUri, photoFile, style }) {
+  // 기기에서 연결한 파일(참조)은 열 때마다 접근 권한을 받아야 해서 AccessibleFileImage로 그림
+  if (photoFile?.uri || photoFile?.fileReference) return <AccessibleFileImage file={photoFile} style={[styles.thumbBase, style]} resizeMode="cover" accessibilityLabel="붙인 사진" />;
   const hasInk = memo.strokes && memo.strokes.length > 0;
   if (photoUri) return <Image source={{ uri: photoUri }} style={[styles.thumbBase, style]} resizeMode="cover" accessibilityLabel="붙인 사진" />;
   if (hasInk) return <View style={[styles.thumbBase, styles.inkBox, style]}><InkPreview strokes={memo.strokes} /></View>;
@@ -76,9 +79,9 @@ function Check({ on, style }) {
   );
 }
 
-export default function MemoCard({ memo, mode, selecting, selected, highlighted, projectTitle, space, photoUri, onPress, onLongPress, onLayout }) {
+export default function MemoCard({ memo, mode, selecting, selected, highlighted, projectTitle, space, photoUri, photoFile, onPress, onLongPress, onLayout }) {
   const hasInk = !!(memo.strokes && memo.strokes.length > 0);
-  const hasThumb = !!photoUri || hasInk;
+  const hasThumb = !!photoUri || !!photoFile || hasInk;
   const body = (memo.body || '').trim();
   const photoCount = (memo.photos || []).length;
   const base = [styles.card, mode === 'grid' ? styles.gridCard : styles.listCard, highlighted && styles.focus, selected && styles.on];
@@ -119,7 +122,7 @@ export default function MemoCard({ memo, mode, selecting, selected, highlighted,
     >
       {mode === 'grid' ? (
         <>
-          {hasThumb && <Thumb memo={memo} photoUri={photoUri} style={styles.gridThumb} />}
+          {hasThumb && <Thumb memo={memo} photoUri={photoUri} photoFile={photoFile} style={styles.gridThumb} />}
           <View style={styles.gridText}>
             {titleRow(hasThumb ? 1 : 2)}
             {body.length > 0 && <Text style={styles.body} numberOfLines={hasThumb ? 2 : 5}>{body}</Text>}
@@ -136,7 +139,7 @@ export default function MemoCard({ memo, mode, selecting, selected, highlighted,
             {meta(false)}
           </View>
           {/* 오른쪽 타일: 사진이 있으면 사진 아이콘, 손글씨만 있으면 연필 아이콘 */}
-          {hasThumb && <IconTile icon={photoCount > 0 || photoUri ? 'image' : 'pencil'} size={68} iconSize={26} style={styles.listTile} />}
+          {hasThumb && <IconTile icon={photoCount > 0 || photoUri || photoFile ? 'image' : 'pencil'} size={68} iconSize={26} style={styles.listTile} />}
         </>
       )}
     </Pressable>

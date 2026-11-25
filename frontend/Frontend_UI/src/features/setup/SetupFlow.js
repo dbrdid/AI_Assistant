@@ -13,7 +13,7 @@ import Icon from '../../shared/components/Icon';
 import { CircleButton } from '../../shared/components/Ui';
 import { getTasks, tagText } from '../../data/tasks/TaskStore';
 import { getMemos } from '../../data/memos/MemoStore';
-import { updateSettings } from '../../data/settings/SettingsStore';
+import { setAiTransmission, updateSettings } from '../../data/settings/SettingsStore';
 import { PURPOSES, TIMEZONES, createStarterMemos, deviceTimezone, hasPurpose, markSetupDone, timezoneLabel, togglePurpose } from '../../data/setup/SetupStore';
 import { requestPermission } from '../../services/device/Permissions';
 import { ToggleRow } from '../../shared/components/SettingsUi';
@@ -34,7 +34,10 @@ export default function SetupFlow({ user, onDone }) {
   const [items, setItems] = useState({ schedule: true, task: true, due: true, note: true });
   const [contextual, setContextual] = useState(true);
   const [channels, setChannels] = useState({ app: true, voice: false, external: false });
-  const [perm, setPerm] = useState({ mic: 'idle', camera: 'idle', notification: 'idle' }); // idle | granted | denied
+  const [perm, setPerm] = useState({ mic: 'idle', camera: 'idle', media: 'idle', notification: 'idle' }); // idle | granted | denied | unavailable
+  const [aiConsentOpen, setAiConsentOpen] = useState(false);
+  const [aiConsentBusy, setAiConsentBusy] = useState(false);
+  const [aiConsentError, setAiConsentError] = useState('');
   const [denied, setDenied] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -47,7 +50,22 @@ export default function SetupFlow({ user, onDone }) {
   };
   const saveAi = () => {
     updateSettings('ai', { targets, autoSummary });
-    next();
+    setAiConsentError('');
+    setAiConsentOpen(true);   // 외부 AI 전송 동의를 여기서 한 번 묻고 다음 단계로
+  };
+  const finishAiConsent = async (allow) => {
+    if (aiConsentBusy) return;
+    setAiConsentBusy(true);
+    setAiConsentError('');
+    try {
+      if (allow) await setAiTransmission('external', true);
+      setAiConsentOpen(false);
+      next();
+    } catch (error) {
+      setAiConsentError(error?.message || '동의 내용을 저장하지 못했어요. 다시 시도해 주세요.');
+    } finally {
+      setAiConsentBusy(false);
+    }
   };
   const saveBrief = () => {
     updateSettings('brief', { items, contextual, channels });
@@ -63,7 +81,7 @@ export default function SetupFlow({ user, onDone }) {
   const start = async () => {
     setBusy(true);
     const r = {};
-    for (const k of ['mic', 'camera', 'notification']) r[k] = await requestPermission(k);
+    for (const k of ['mic', 'camera', 'media', 'notification']) r[k] = await requestPermission(k);
     setPerm(r);
     setBusy(false);
     if (r.notification === 'denied') {
@@ -201,6 +219,17 @@ export default function SetupFlow({ user, onDone }) {
           </View>
         </ScrollView>
         {footer('다음', saveAi)}
+        <Modal transparent visible={aiConsentOpen} animationType="fade" onRequestClose={() => { if (!aiConsentBusy) setAiConsentOpen(false); }}>
+          <View style={styles.backdrop}>
+            <View style={styles.sheet} accessibilityViewIsModal>
+              <Text style={styles.sheetTitle}>외부 AI 자료 전송 동의</Text>
+              <Text style={styles.cardSub}>동의하면 AI 기능을 사용할 때 선택한 자료와 질문에 필요한 일부 기록이 Supabase와 외부 AI 제공자에게 전송될 수 있어요. 동의하지 않아도 설정을 마칠 수 있고, 설정의 AI 및 브리핑에서 나중에 바꿀 수 있어요.</Text>
+              {!!aiConsentError && <Text accessibilityLiveRegion="polite" style={[styles.cardSub, { color: colors.coral }]}>{aiConsentError}</Text>}
+              <AuthButton label="동의하고 계속" onPress={() => finishAiConsent(true)} busy={aiConsentBusy} />
+              <AuthButton kind="ghost" label="동의하지 않고 계속" onPress={() => finishAiConsent(false)} disabled={aiConsentBusy} />
+            </View>
+          </View>
+        </Modal>
       </View>
     );
   }
@@ -259,9 +288,10 @@ export default function SetupFlow({ user, onDone }) {
   const PERMS = [
     ['mic', '마이크 (선택)', '음성 메모 및 음성 인식'],
     ['camera', '카메라 (선택)', '문서 스캔 및 텍스트 자동 추출'],
+    ['media', '사진과 동영상 (선택)', '기기 사진 보관함에서 사진과 동영상 불러오기'],
     ['notification', '알림 (필수)', '일정 마감 및 브리핑 알림'],
   ];
-  const stateText = { idle: '', granted: '허용됨', denied: '거부됨' };
+  const stateText = { idle: '', granted: '허용됨', denied: '거부됨', unavailable: 'Expo Go에서는 지원하지 않음' };
   return (
     <View style={styles.root}>
       {header('설정 (마무리)', false, true)}

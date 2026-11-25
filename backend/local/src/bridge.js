@@ -270,7 +270,17 @@ export function createBridge({
     let list;
     try { list = await workspaces.list(); } catch { return; }       // 연결 안 됨: 다음에
     const memberships = new Set();
-    for (const w of Array.isArray(list) ? list : []) {
+    const servers = Array.isArray(list) ? list : [];
+    // 휴대폰에서 만든 공유 공간이 서버 id 없이 남은 경우: 이름이 같은 서버 공간에 다시 연결 (새 공간을 하나 더 만들지 않게).
+    // 공간 이름은 겹칠 수 있으므로, 기기와 서버에 그 이름이 하나씩만 있을 때만 연결
+    const known = new Set(store.getWorkspaces().map(local => local.serverId).filter(Boolean));
+    for (const w of servers) {
+      if (known.has(w.id) || servers.filter(other => other.name === w.name).length !== 1) continue;
+      const unlinked = store.getWorkspaces().filter(local => !local.personal && !local.serverId && local.name === w.name);
+      if (unlinked.length !== 1) continue;
+      try { store.linkWorkspace(unlinked[0].id, w.id); known.add(w.id); } catch { /* 연결하지 못하면 아래에서 서버 공간으로 추가 */ }
+    }
+    for (const w of servers) {
       try {
         store.upsertServerWorkspace({
           id: w.id, name: w.name, description: w.description ?? '',

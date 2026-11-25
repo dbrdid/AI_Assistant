@@ -15,6 +15,7 @@ import { runtime, maybeRuntime } from '../../../integration/runtime';
 
 const MODES = [
   { id: 'confirm', title: '확인 후 저장', sub: '생성된 결과물을 사용자가 직접 확인하고 승인한 뒤에만 저장합니다' },
+  { id: 'auto', title: '자동 저장', sub: '원문 근거가 확인되고 날짜 누락, 중복, 시간 충돌이 없는 일정과 할 일만 저장합니다. 나머지와 요약은 작업 검토에 남습니다.' },
 ];
 
 // compact: AI 채팅의 오른쪽 창용. 사용 목적·시간대·브리핑·이용량은 빼고 AI 처리·확인 방식만

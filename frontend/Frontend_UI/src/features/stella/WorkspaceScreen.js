@@ -21,6 +21,19 @@ import { readMemoBlocks } from '../memo/utils/memoBlocks.mjs';
 import { readMemoReference } from '../memo/utils/memoReferences.mjs';
 import { palette as c, styles as s } from './theme';
 import { LOCAL_PREVIEW } from '../../integration/mode';
+import { useSettings } from '../../data/settings/SettingsStore';
+
+// 프로필 글자: 사용자의 성. 한글 이름은 첫 글자(유병욱 → 유), 영문 이름은 마지막 단어의 첫 글자(John Smith → S),
+// 이름 대신 이메일만 있으면 그 첫 글자. 이름이 없으면 S
+export function profileInitial(name) {
+  const text = String(name ?? '').trim();
+  if (!text) return 'S';
+  if (/^[가-힣]/.test(text)) return text[0];
+  const local = text.includes('@') ? text.split('@')[0] : text;
+  const words = local.split(/\s+/).filter(Boolean);
+  const pick = text.includes('@') ? words[0] : words[words.length - 1];
+  return (Array.from(pick ?? 'S')[0] ?? 'S').toUpperCase();
+}
 export function IconButton({
   name,
   label,
@@ -60,8 +73,9 @@ export function WorkspaceHeader({
   tabs
 }) {
   const insets = useInsets();
+  const initial = profileInitial(useSettings().profile?.name);
   if (tabs) return <View style={[s.navigationHeader, { paddingTop: insets.top + 10 }]}>
-    <Pressable accessibilityRole="button" accessibilityLabel={`작업 공간 메뉴 열기: ${title}`} hitSlop={{ left: 6, right: 6 }} onPress={onMenu} style={s.workspaceAvatar}><Text style={s.workspaceInitial}>S</Text></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel={`작업 공간 메뉴 열기: ${title}`} hitSlop={{ left: 6, right: 6 }} onPress={onMenu} style={s.workspaceAvatar}><Text style={s.workspaceInitial}>{initial}</Text></Pressable>
     {tabs}
   </View>;
   const headerStyle = [s.header, { paddingTop: insets.top + 8 }];
@@ -70,7 +84,7 @@ export function WorkspaceHeader({
     <Text numberOfLines={1} style={[s.brandTitle, { flexShrink: 1, maxWidth: '32%', textAlign: 'center' }]}>{title}</Text>
     <View style={[s.actions, { flex: 1, justifyContent: 'flex-end' }]}>{right || (onSearch && <IconButton name="search" label="문서 검색" onPress={onSearch} />)}</View>
   </View>;
-  return <View style={headerStyle}>{left}<Pressable accessibilityRole="button" accessibilityLabel="작업 공간 메뉴 열기" onPress={onMenu} style={s.brand}><Text style={s.brandMark}>S</Text><View style={{
+  return <View style={headerStyle}>{left}<Pressable accessibilityRole="button" accessibilityLabel="작업 공간 메뉴 열기" onPress={onMenu} style={s.brand}><Text style={s.brandMark}>{initial}</Text><View style={{
         flexShrink: 1
       }}><Text style={s.brandTitle} numberOfLines={1}>{title}</Text><Text style={s.brandSub}>Atria{LOCAL_PREVIEW ? ', 로컬 미리보기' : ''}</Text></View><Icon name="chevronDown" size={14} color={c.muted} /></Pressable><View style={s.actions}>{right || <>{onSearch && <IconButton name="search" label="문서 검색" onPress={onSearch} />}</>}</View></View>;
 }
@@ -296,7 +310,11 @@ export default function WorkspaceScreen({
   }
   const renderTab = (tab, i) => {
     const pages = tab.pages;
-    const subIndex = i === pagerIndex ? Math.max(0, pages.findIndex(p => p.route === route?.params?.subpage)) : 0;
+    // 탭 버튼으로 들어오면 첫 쪽. 다른 화면에서 그 탭의 경로로 바로 이동했으면(예: '할 일' 명령) 그 경로의 쪽을 연다.
+    // 홈은 앱을 처음 열 때도 같은 경로라 항상 첫 쪽(오늘)부터
+    const requested = pages.findIndex(p => p.route === route?.params?.subpage);
+    const direct = !route?.tab && tab.route !== ROUTES.Home ? pages.findIndex(p => p.route === route?.name) : -1;
+    const subIndex = i === pagerIndex ? Math.max(0, requested >= 0 ? requested : direct) : 0;
     const select = name => navigation.setParams({ subpage: name });
     return <PageRail index={subIndex} pages={pages} header={active => pages.length < 2 ? null :
       <View><ScrollView horizontal showsHorizontalScrollIndicator={false}

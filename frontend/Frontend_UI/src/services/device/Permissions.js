@@ -4,10 +4,18 @@
 
 import { Platform } from 'react-native';
 import { Camera } from 'expo-camera';
+import Constants, { AppOwnership } from 'expo-constants';
+import * as MediaLibrary from 'expo-media-library';
 import { ensurePermission } from '../notify/Notify';
 
 export async function requestPermission(kind) {
   try {
+    if (kind === 'media') {
+      if (Platform.OS === 'web') return 'granted';
+      if (Constants.appOwnership === AppOwnership.Expo) return 'unavailable';
+      const r = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
+      return r.granted ? 'granted' : 'denied';
+    }
     if (kind === 'camera') {
       const r = await Camera.requestCameraPermissionsAsync();
       return r.granted ? 'granted' : 'denied';

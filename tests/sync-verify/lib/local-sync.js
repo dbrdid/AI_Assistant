@@ -379,17 +379,35 @@ async function applyAccepted(db, ws, ops, results, at) {
         await putServer(db, ws, o.entity, r.id, r.revision ?? null, next);
     }
 }
+/** 연결(link·unlink)만 있는 묶음. 다른 기록이 연결에 기대지 않으므로, 거절돼도 뒤 묶음을 막지 않음 */
+function isLinkOnly(row) {
+    const changes = JSON.parse(row.intent);
+    return changes.length > 0 && changes.every((c) => c.kind === 'link' || c.kind === 'unlink');
+}
+const skippedOf = (row) => {
+    const text = row.last_error ?? '';
+    const at = text.indexOf(': ');
+    return { outboxSeq: row.seq, code: at < 0 ? text : text.slice(0, at), error: at < 0 ? '' : text.slice(at + 2) };
+};
 async function flushInner(ctx) {
     const { db, transport, workspaceId: ws } = ctx;
     let sent = 0;
+    let afterSeq = 0;
+    const failedLinks = [];
+    const done = () => (failedLinks.length ? { status: 'DONE', sent, failedLinks } : { status: 'DONE', sent });
     for (;;) {
-        const row = await db.get('select * from stella_outbox where workspace_id = ? order by seq limit 1', [ws]);
+        const row = await db.get('select * from stella_outbox where workspace_id = ? and seq > ? order by seq limit 1', [ws, afterSeq]);
         if (!row)
-            return { status: 'DONE', sent };
+            return done();
+        afterSeq = row.seq;
         if (row.status === 'CONFLICT') {
             return { status: 'CONFLICT', sent, outboxSeq: row.seq, conflicts: JSON.parse(row.conflicts ?? '[]') };
         }
         if (row.status === 'FAILED') {
+            if (isLinkOnly(row)) {
+                failedLinks.push(skippedOf(row));
+                continue;
+            }
             return { status: 'BLOCKED', sent, outboxSeq: row.seq, code: (row.last_error ?? '').split(':')[0], error: row.last_error ?? '' };
         }
         // 처음 보낼 때 ops를 만들어 고정 (보내기 "전에" 저장 → 응답을 못 받아도 재전송은 같은 내용)
@@ -421,6 +439,10 @@ async function flushInner(ctx) {
                     await db.run(`update stella_outbox set status = 'FAILED', attempts = attempts + 1, last_error = ? where seq = ?`, [`${err.code}: ${err.message}`, row.seq]);
                     await rebuildAll(db, ws, touched([row]).values());
                 });
+                if (isLinkOnly(row)) {
+                    failedLinks.push({ outboxSeq: row.seq, code: err.code, error: err.message });
+                    continue;
+                }
                 return { status: 'BLOCKED', sent, outboxSeq: row.seq, code: err.code, error: err.message };
             }
             await db.run('update stella_outbox set attempts = attempts + 1, last_error = ? where seq = ?', [`${err.code}: ${err.message}`, row.seq]);

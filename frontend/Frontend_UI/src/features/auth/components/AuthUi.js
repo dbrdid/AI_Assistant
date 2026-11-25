@@ -61,7 +61,7 @@ export function AuthField({ label, value, onChangeText, secure, hint, keyboardTy
 }
 
 // kind: 'primary'(진한 녹색) | 'ghost'(흰 바탕) | 'outline'(녹색 테두리) | 'kakao'(노랑)
-export function AuthButton({ label, onPress, kind = 'primary', disabled, busy, icon }) {
+export function AuthButton({ label, onPress, kind = 'primary', disabled, busy, icon, logo }) {
   const off = disabled || busy;
   const tone = BUTTON_TONES[kind] || BUTTON_TONES.ghost;
   return (
@@ -72,6 +72,7 @@ export function AuthButton({ label, onPress, kind = 'primary', disabled, busy, i
       onPress={onPress}
       style={({ pressed }) => [styles.btn, tone.box, pressed && { opacity: 0.85 }, off && { opacity: 0.5 }]}
     >
+      {!!logo && !busy && logo}
       {!!icon && !busy && <Icon name={icon} size={20} color={tone.text} />}
       <Text style={[styles.btnText, { color: tone.text }]}>{busy ? '잠시만요…' : label}</Text>
     </Pressable>
@@ -82,7 +83,9 @@ const BUTTON_TONES = {
   primary: { box: { backgroundColor: colors.action }, text: colors.onPrimary },
   ghost: { box: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line }, text: colors.ink },
   outline: { box: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.line }, text: colors.mintDark },
-  kakao: { box: { backgroundColor: colors.card }, text: colors.ink },
+  // 소셜 로그인: 각 회사 버튼 가이드 색 (Google 흰색, 카카오 노란색 #FEE500)
+  google: { box: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DADCE0' }, text: '#1F1F1F' },
+  kakao: { box: { backgroundColor: colors.kakao }, text: 'rgba(0,0,0,0.85)' },
 };
 
 // dialog: { icon, title, message } 또는 null

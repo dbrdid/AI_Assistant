@@ -22,9 +22,10 @@ export interface BriefingSetting { on: boolean; time: string }            // tim
 export interface WeeklyBriefingSetting extends BriefingSetting { day: number }   // 0(일) ~ 6(토)
 export interface NotificationSettings {
   push: boolean;        // 전체
-  workspace: boolean;   // 공간 소식 (새 멤버)
+  workspace: boolean;   // 공간 소식 (새 멤버, 내 역할 변경, 내보내짐, 공간 삭제)
   recording: boolean;   // 녹음 변환 끝
   reminders: boolean;   // 공유 기록 마감·시작 전
+  project?: boolean;    // 프로젝트 소식 (팀원 추가, 새 항목, 진행 상태·마감일, 할 일 담당) — 서버 20261125051502부터
   briefing_daily: BriefingSetting;
   briefing_weekly: WeeklyBriefingSetting;
 }
@@ -35,7 +36,9 @@ export type NotificationSettingsPatch = Partial<Omit<NotificationSettings, 'brie
 
 export type NotificationKind =
   | 'BRIEFING_DAILY' | 'BRIEFING_WEEKLY' | 'EVENT_REMINDER' | 'TASK_REMINDER' | 'PROJECT_REMINDER'
-  | 'WORKSPACE_JOINED' | 'RECORDING_DONE' | 'INVITE' | 'SYSTEM';
+  | 'WORKSPACE_JOINED' | 'RECORDING_DONE' | 'INVITE' | 'SYSTEM'
+  | 'WORKSPACE_ROLE_CHANGED' | 'WORKSPACE_REMOVED' | 'WORKSPACE_DELETED'
+  | 'PROJECT_MEMBER_ADDED' | 'PROJECT_UPDATED' | 'PROJECT_ITEM_ADDED' | 'TASK_ASSIGNED';
 
 export interface NotificationItem {
   id: string;
@@ -134,6 +137,7 @@ export function notificationTarget(data: Record<string, unknown> | null | undefi
     case 'projects': return { route: 'ProjectDetail', params: { workspaceId: d.workspace_id, id: d.id } };
     case 'workspace': return { route: 'Workspace', params: { workspaceId: d.workspace_id } };
     case 'recording': return { route: 'Notices', params: { recordingId: d.recording_id } };
+    case 'workspace_closed': return { route: 'Notices' };   // 내보내졌거나 삭제된 공간: 열 화면이 없어 알림함으로
     default: return { route: 'Notices' };
   }
 }

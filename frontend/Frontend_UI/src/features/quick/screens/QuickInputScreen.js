@@ -96,7 +96,10 @@ export default function QuickInputScreen({ navigation, route }) {
     setTaskIds([]);
     setProjectId(null);
     AsyncStorage.removeItem(scopedKey(DRAFT_KEY)).catch(() => {});
-    analyzeText({ sourceType: 'memo', sourceId: memo.id, sourceTitle: text.slice(0, 20), text }).then((r) => { if (r && r.added) notice.show(`메모를 저장했어요. AI 제안 ${r.added}건`); });
+    analyzeText({ sourceType: 'memo', sourceId: memo.id, sourceTitle: text.slice(0, 20), text }).then((r) => {
+      if (!r?.added) return;
+      notice.show(r.saved > 0 ? `메모를 저장했어요. ${r.saved}건 자동 저장${r.pending ? `, ${r.pending}건 확인 필요` : ''}` : `메모를 저장했어요. AI 제안 ${r.pending ?? r.added}건`);
+    });
     notice.show('메모를 저장했어요');
     leaving.current = setTimeout(navigation.goBack, 700);
   };
@@ -124,10 +127,10 @@ export default function QuickInputScreen({ navigation, route }) {
     for (const s of list) {
       patch(s.key, { status: 'uploading', reason: '' });
       try {
-        ids.push(await addAsset(s.asset, { taskIds }));
+        ids.push(await addAsset(s.asset, { taskIds }, { referenceOnly: true }));   // 원본은 그대로 두고 연결만
         patch(s.key, { status: 'done' });
       } catch (e) {
-        patch(s.key, { status: 'failed', reason: '올리지 못했어요', canRetry: true });
+        patch(s.key, { status: 'failed', reason: '연결하지 못했어요', canRetry: true });
       }
     }
     if (projectId && ids.length) linkItems(projectId, 'files', ids);
@@ -136,15 +139,15 @@ export default function QuickInputScreen({ navigation, route }) {
   const saveFiles = async () => {
     const todo = staged.filter((s) => s.status === 'ready');
     if (!todo.length) {
-      notice.show(staged.length ? '올릴 수 있는 파일이 없어요' : '사진이나 파일을 먼저 선택해 주세요');
+      notice.show(staged.length ? '연결할 수 있는 파일이 없어요' : '사진이나 파일을 먼저 선택해 주세요');
       return;
     }
     const n = await upload(todo);
-    notice.show(n === todo.length ? `${n}개 올렸어요` : `${n}개 올렸고, 실패한 파일이 있어요`);
+    notice.show(n === todo.length ? `${n}개 파일을 연결했어요` : `${n}개 파일을 연결했고, 실패한 파일이 있어요`);
   };
   const retry = async (s) => {
     const n = await upload([s]);
-    if (n) notice.show('올렸어요');
+    if (n) notice.show('파일을 연결했어요');
   };
 
   const onSave = tab === 'memo' ? saveMemo : saveFiles;
@@ -195,11 +198,11 @@ export default function QuickInputScreen({ navigation, route }) {
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={styles.fileName} numberOfLines={1}>{s.asset.name}</Text>
                     <Text style={[styles.fileState, s.status === 'failed' && { color: colors.coral }, s.status === 'done' && { color: colors.mintDark }]}>
-                      {s.status === 'ready' ? '올릴 준비됨' : s.status === 'uploading' ? '올리는 중…' : s.status === 'done' ? '업로드 완료' : s.reason}
+                      {s.status === 'ready' ? '연결할 준비됨' : s.status === 'uploading' ? '연결 중…' : s.status === 'done' ? '연결 완료' : s.reason}
                     </Text>
                   </View>
                   {s.status === 'failed' && s.canRetry && (
-                    <Pressable accessibilityRole="button" onPress={() => retry(s)} style={styles.miniBtn}><Text style={styles.miniText}>다시 올리기</Text></Pressable>
+                    <Pressable accessibilityRole="button" onPress={() => retry(s)} style={styles.miniBtn}><Text style={styles.miniText}>다시 연결</Text></Pressable>
                   )}
                   {(s.status === 'ready' || s.status === 'failed') && (
                     <Pressable accessibilityRole="button" accessibilityLabel={`${s.asset.name} 목록에서 빼기`} onPress={() => setStaged((c) => c.filter((x) => x.key !== s.key))} hitSlop={8}>

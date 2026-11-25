@@ -1,4 +1,5 @@
 import { runtime, runtimeSubscribe, useValue, readPreference, writePreference } from '../hooks';
+import { updatePassword } from '../../lib/stella/auth';
 import { grantConsent, hasConsent, revokeConsent, updateMyProfile } from '../../lib/stella/account';
 import { getSubscription } from '../../lib/stella/billing';
 import { supabase } from '../../lib/stella/supabase';
@@ -17,7 +18,6 @@ export const useSettings = () => useValue(getSettings);
 export const subscribeSettings = runtimeSubscribe;
 export function updateSettings(section, patch) {
   if (section === 'plan') throw new Error('요금제는 서버 구독 API에서만 변경할 수 있습니다');
-  if (section === 'ai' && patch.confirmMode === 'auto') throw new Error('통합 버전은 사용자 확인 후 저장만 지원합니다');
   const s = getSettings();
   return writePreference('settings', { ...s, [section]: { ...s[section], ...patch } });
 }
@@ -41,10 +41,12 @@ export async function setAiTransmission(route, enabled) {
 // This month's AI usage from the server: limits come from the plan catalog (FREE/PRO/TEAM), counts from
 // usage_counters (used + reserved for in-flight requests). The device counters (getUsage) are display-only.
 const USAGE_ITEMS = [
-  { key: 'query', metric: 'AI_QUERY', label: 'AI 채팅 질문' },
-  { key: 'ocr', metric: 'AI_OCR', label: '사진 글자 인식' },
-  { key: 'analyze', metric: 'AI_ANALYZE', label: '일정·할 일 추출' },
-  { key: 'organize', metric: 'AI_ORGANIZE', label: '메모 정리' },
+  { key: 'query', metric: 'AI_QUERY', label: 'AI 채팅 질문', unit: '회' },
+  { key: 'ocr', metric: 'AI_OCR', label: '사진과 손글씨 인식', unit: '회' },
+  { key: 'analyze', metric: 'AI_ANALYZE', label: '일정과 할 일 추출', unit: '회' },
+  { key: 'organize', metric: 'AI_ORGANIZE', label: '메모 정리', unit: '회' },
+  { key: 'agenda', metric: 'AI_AGENDA', label: '안건 비교', unit: '회' },
+  { key: 'stt_minutes', metric: 'AI_STT', label: '녹음 변환', unit: '분' },
 ];
 export async function loadAiUsage() {
   const own = runtime();
@@ -57,11 +59,11 @@ export async function loadAiUsage() {
   const limits = sub.plans?.[sub.plan]?.ai ?? {};
   return {
     plan: sub.plan === 'TEAM' ? 'team' : sub.plan === 'PRO' ? 'pro' : 'free',
-    items: USAGE_ITEMS.map(({ key, metric, label }) => {
+    items: USAGE_ITEMS.map(({ key, metric, label, unit }) => {
       const row = data.find(r => r.metric === metric);
       const used = Number(row?.used ?? 0) + Number(row?.reserved ?? 0);
       const limit = Number(limits[key] ?? 0);
-      return { key, label, used, limit, remaining: Math.max(0, limit - used) };
+      return { key, label, unit, used, limit, remaining: Math.max(0, limit - used) };
     }),
   };
 }
@@ -79,7 +81,8 @@ export const getUsage =() => readPreference('usage-display', { question: 0, summ
 // Display counters are not quota authority. Gateway and DB enforce real usage.
 export const addUsage = key => writePreference('usage-display', { ...getUsage(), [key]: (getUsage()[key] ?? 0) + 1 });
 export const limitOf = () => null;
-export const changePassword = async () => ({ ok: false, reason: 'reset-flow-required' });
+// 로그인한 상태에서 새 비밀번호로 바꿈 (규칙 검사와 로그인 잠금 해제는 lib/stella/auth.updatePassword)
+export const changePassword = newPassword => updatePassword(newPassword);
 export async function saveProfile(patch) {
   const own = runtime();
   const profile = await updateMyProfile({ display_name: patch.name, affiliation: patch.affiliation || null });

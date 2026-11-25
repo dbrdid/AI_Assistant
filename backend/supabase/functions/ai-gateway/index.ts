@@ -49,6 +49,7 @@ import {
   InputError, parseAgendaInput, parseAnswerInput, parsePlanInput, PLAN_INSTRUCTIONS, PLAN_SCHEMA, planInputText,
   validateAgenda, validateAnswer, validatePlan,
 } from "./assist.ts";
+import { parseHandwritingLines, parseInputToolsResponse, toInputToolsBody } from './handwriting.ts';
 
 const env = (k: string, d = "") => Deno.env.get(k) ?? d;
 
@@ -868,6 +869,118 @@ async function sha256Bytes(b: Uint8Array): Promise<string> {
   return Array.from(new Uint8Array(buf)).map((x) => x.toString(16).padStart(2, "0")).join("");
 }
 
+async function handleHandwriting(req: Request, userId: string): Promise<Response> {
+  const MAX_BODY_CHARS = 2 * 1024 * 1024;
+  const MAX_RESPONSE_CHARS = 512 * 1024;
+  if (Number(req.headers.get("content-length") ?? "0") > MAX_BODY_CHARS) {
+    return fail(413, "TOO_LARGE", "손글씨 데이터가 너무 큽니다");
+  }
+  let body: Record<string, unknown>;
+  try {
+    const raw = await req.text();
+    if (raw.length > MAX_BODY_CHARS) return fail(413, "TOO_LARGE", "손글씨 데이터가 너무 큽니다");
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("not object");
+    body = parsed as Record<string, unknown>;
+  } catch {
+    return fail(400, "INVALID_REQUEST", "JSON 본문이 필요합니다");
+  }
+
+  const clientRequestId = body.client_request_id;
+  const workspaceId = body.workspace_id ?? null;
+  const lines = parseHandwritingLines(body.lines);
+  if (typeof clientRequestId !== "string" || !UUID_RE.test(clientRequestId)) {
+    return fail(400, "INVALID_REQUEST", "client_request_id(UUID)가 필요합니다");
+  }
+  if (workspaceId !== null && (typeof workspaceId !== "string" || !UUID_RE.test(workspaceId))) {
+    return fail(400, "INVALID_REQUEST", "workspace_id 형식이 잘못됐습니다");
+  }
+  if (!lines) return fail(400, "INVALID_REQUEST", "손글씨 획 데이터 형식이 잘못됐습니다");
+
+  const inputHash = await sha256Hex(`handwriting\n${JSON.stringify(lines)}`);
+  const { data: begin, error: beginError } = await admin.rpc("ai_begin_request", {
+    p_account_id: userId,
+    p_client_request_id: clientRequestId,
+    p_endpoint: "ocr",
+    p_workspace_id: workspaceId,
+    p_input_hash: inputHash,
+    p_provider: "google",
+    p_model: "inputtools-handwriting",
+  });
+  if (beginError) {
+    console.error("ai_begin_request failed for handwriting");
+    return fail(500, "INTERNAL", "요청을 시작하지 못했습니다");
+  }
+  if (!begin?.ok) {
+    const map: Record<string, [number, string]> = {
+      FORBIDDEN: [403, "이 공간의 기록을 보낼 권한이 없습니다"],
+      CONSENT_REQUIRED: [403, "외부 AI 전송 동의가 필요합니다"],
+      IN_PROGRESS: [409, "같은 요청을 처리하고 있습니다. 잠시 후 다시 확인하세요"],
+      ALREADY_DONE: [409, "이미 처리된 요청입니다. 다시 변환해 주세요"],
+      REQUEST_ID_REUSED: [409, "같은 요청 ID에 다른 손글씨가 왔습니다"],
+      QUOTA_EXCEEDED: [429, "이번 달 글자 인식 한도를 모두 사용했습니다"],
+    };
+    const [status, message] = map[begin?.code] ?? [400, "요청을 처리할 수 없습니다"];
+    return fail(status, begin?.code ?? "REJECTED", message);
+  }
+
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 8000);
+  let response: Response;
+  try {
+    response = await fetch("https://inputtools.google.com/request?ime=handwriting&app=mobilesearch&cs=1&oe=UTF-8", {
+      method: "POST",
+      redirect: "error",
+      signal: controller.signal,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(toInputToolsBody(lines)),
+    });
+  } catch {
+    clearTimeout(timer);
+    await finishRequest({
+      p_request_id: begin.request_id,
+      p_status: timedOut ? "UNKNOWN" : "FAILED",
+      p_error_code: timedOut ? "PROVIDER_TIMEOUT" : "PROVIDER_UNREACHABLE",
+    });
+    return timedOut
+      ? fail(504, "PROVIDER_TIMEOUT", "손글씨 변환 응답이 늦습니다. 필기는 그대로 남아 있어요")
+      : fail(502, "PROVIDER_UNREACHABLE", "손글씨 변환 서버에 연결하지 못했습니다");
+  }
+  if (!response.ok) {
+    clearTimeout(timer);
+    await response.body?.cancel();
+    await finishRequest({ p_request_id: begin.request_id, p_status: "FAILED", p_error_code: "PROVIDER_ERROR" });
+    return fail(502, "PROVIDER_ERROR", "손글씨 변환에 실패했습니다");
+  }
+
+  let raw: string;
+  try {
+    raw = await response.text();
+    clearTimeout(timer);
+  } catch {
+    clearTimeout(timer);
+    await finishRequest({ p_request_id: begin.request_id, p_status: "UNKNOWN", p_error_code: "PROVIDER_RESPONSE_UNKNOWN" });
+    return fail(502, "PROVIDER_BAD_RESPONSE", "손글씨 변환 결과를 읽지 못했습니다");
+  }
+  if (raw.length > MAX_RESPONSE_CHARS) {
+    await finishRequest({ p_request_id: begin.request_id, p_status: "FAILED", p_error_code: "PROVIDER_RESPONSE_TOO_LARGE" });
+    return fail(502, "PROVIDER_BAD_RESPONSE", "손글씨 변환 결과가 너무 큽니다");
+  }
+
+  let payload: unknown;
+  try { payload = JSON.parse(raw); } catch { payload = null; }
+  const texts = parseInputToolsResponse(payload, lines.length);
+  if (!texts) {
+    await finishRequest({ p_request_id: begin.request_id, p_status: "FAILED", p_error_code: "PROVIDER_BAD_RESPONSE" });
+    return fail(502, "PROVIDER_BAD_RESPONSE", "손글씨 변환 결과를 이해하지 못했습니다");
+  }
+
+  await finishRequest({ p_request_id: begin.request_id, p_status: "SUCCEEDED" });
+  return reply(200, { ok: true, request_id: begin.request_id, texts, remaining: begin.remaining });
+}
+
+
 async function handleOcr(req: Request, userId: string): Promise<Response> {
   if (Number(req.headers.get("content-length") ?? "0") > OCR_LIMITS.maxBodyChars) {
     return fail(413, "TOO_LARGE", "사진이 너무 큽니다. 줄여서 보내 주세요 (한 장 5MB, 합계 10MB까지)");
@@ -1108,8 +1221,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
   let requestedRoute: AIRoute;
   try { requestedRoute = selectRoute(req.headers.get('x-ai-route')); }
   catch { return fail(400, 'INVALID_AI_ROUTE', '지원하지 않는 AI 처리 방식입니다'); }
+  // 손글씨는 Google 입력 도구로 변환하므로 OpenAI 키가 필요 없고, 자체 모델 경로에서는 지원하지 않음
+  const handwritingPath = new URL(req.url).pathname.replace(/\/+$/, '').endsWith('/handwriting');
+  if (requestedRoute === 'self_hosted' && handwritingPath) return fail(422, 'UNSUPPORTED_CAPABILITY', '손글씨 변환은 외부 AI 동의가 필요합니다');
   if (requestedRoute === 'self_hosted' && /\/(transcribe|ocr)(\/|$)/.test(new URL(req.url).pathname)) return fail(422, 'UNSUPPORTED_CAPABILITY', '자체 모델은 텍스트 처리만 지원합니다');
-  if (requestedRoute === 'external' && !OPENAI_API_KEY) return fail(503, 'NOT_CONFIGURED', '외부 AI가 설정되지 않았습니다');
+  if (requestedRoute === 'external' && !OPENAI_API_KEY && !handwritingPath) return fail(503, 'NOT_CONFIGURED', '외부 AI가 설정되지 않았습니다');
 
   // 로그인 사용자 확인 (anon/publishable 키만으로는 통과 못 함)
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
@@ -1125,8 +1241,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (path.endsWith("/organize")) return await handleOrganize(req, userData.user.id);
   if (path.endsWith("/analyze")) return await handleAnalyze(req, userData.user.id);
   if (path.endsWith("/ocr")) return await handleOcr(req, userData.user.id);
+  if (handwritingPath) return await handleHandwriting(req, userData.user.id);
   if (path.endsWith("/transcribe/prepare")) return await stt.prepare(req, userData.user.id);
   if (path.endsWith("/transcribe")) return await stt.transcribe(req, userData.user.id);
 
-  return fail(404, "NOT_FOUND", "지원하지 않는 경로입니다 (현재: /organize, /analyze, /ocr, /transcribe/prepare, /transcribe, /query/plan, /query/answer, /agenda/judge)");
+  return fail(404, "NOT_FOUND", "지원하지 않는 경로입니다 (현재: /organize, /analyze, /ocr, /handwriting, /transcribe/prepare, /transcribe, /query/plan, /query/answer, /agenda/judge)");
 });

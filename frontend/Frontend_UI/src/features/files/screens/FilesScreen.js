@@ -3,7 +3,7 @@
 // ============================================================
 
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { STORAGE_INFO } from '../../../data/memos/MemoStore';
@@ -94,11 +94,11 @@ export default function FilesScreen({ navigation, route }) {
             return <Chip key={key} label={STORAGE_INFO[key].label} active={on} onPress={() => setTab(key)} />;
           })}
         </View>
-        <Text style={styles.count}>{STORAGE_INFO[tab].desc}</Text>
+        <Text style={styles.count}>{tab === 'local' && Platform.OS !== 'web' ? '기기에서 고른 파일은 원본을 그대로 두고 연결만 해요. 처음 저장할 때 다운로드 폴더를 한 번 고르면 앱에서 만든 사진과 녹음이 그곳에 저장돼요.' : STORAGE_INFO[tab].desc}</Text>
 
         {(tab === 'local' || shared) && (
           <DashedButton
-            label={busy ? (tab === 'cloud' ? '올리는 중…' : '추가하는 중…') : tab === 'cloud' ? '클라우드에 올리기' : '파일 추가'}
+            label={busy ? (tab === 'cloud' ? '올리는 중…' : '연결하는 중…') : tab === 'cloud' ? '클라우드에 올리기' : '기기에서 파일 선택'}
             onPress={addFiles}
             style={busy && { opacity: 0.5 }}
           />
@@ -131,7 +131,7 @@ export default function FilesScreen({ navigation, route }) {
             <View style={styles.info}>
               <Text style={styles.name}>{f.name}</Text>
               <Text style={styles.meta}>
-                {[f.kind, sizeText(f.size), dateText(f.createdAt)].filter(Boolean).join(', ')}
+                {[f.referenceOnly ? '기기 파일 연결' : null, f.kind, sizeText(f.size), dateText(f.createdAt)].filter(Boolean).join(', ')}
               </Text>
               {f.text ? (
                 <Text style={styles.desc} numberOfLines={3}>{f.text.slice(0, 120)}</Text>
@@ -161,7 +161,7 @@ export default function FilesScreen({ navigation, route }) {
       <ConfirmDialog
         visible={delId !== null}
         title="파일을 삭제할까요?"
-        sub={delIsCloud ? '공간의 모든 멤버에게서 지워지고 복구할 수 없어요. 올린 사람이나 공간 주인만 지울 수 있어요.' : '이 기기에 저장된 파일이 지워지고 복구할 수 없어요.'}
+        sub={delIsCloud ? '공간의 모든 멤버에게서 지워지고 복구할 수 없어요. 올린 사람이나 공간 주인만 지울 수 있어요.' : getFiles('local').find((file) => file.id === delId)?.referenceOnly ? '파일 보관함에서 연결만 지워요. 기기의 원본 파일은 그대로 남아요.' : '이 기기에 저장된 파일이 지워지고 복구할 수 없어요.'}
         confirmText="삭제"
         danger
         onCancel={() => setDelId(null)}

@@ -4,13 +4,13 @@
 
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { deleteMemosForever, formatMD, memoTitle, restoreMemos, useTrashedMemos } from '../../../data/memos/MemoStore';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
-import { projectOf } from '../../../data/projects/ProjectStore';
+import { linkItems, projectOf, useProjects } from '../../../data/projects/ProjectStore';
 import Icon from '../../../shared/components/Icon';
 import { CircleButton, Tag } from '../../../shared/components/Ui';
 
@@ -36,6 +36,15 @@ export default function TrashScreen({ navigation }) {
   const allSelected = memos.length > 0 && ids.length === memos.length;
 
   const toggle = (id) => setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  // 휴지통에 둔 채로 프로젝트만 바꿈: 복구하면 그 프로젝트로 돌아옴
+  const projects = useProjects();
+  const [moving, setMoving] = useState(false);
+  const moveToProject = (projectId) => {
+    if (!linkItems(projectId, 'memos', ids)) return;
+    setMoving(false);
+    showNotice(`메모 ${ids.length}개를 프로젝트로 옮겼어요`);
+    exitSelect();
+  };
   const exitSelect = () => {
     setSelecting(false);
     setSelected([]);
@@ -138,7 +147,7 @@ export default function TrashScreen({ navigation }) {
           <Pressable
             accessibilityRole="button"
             disabled={none}
-            onPress={() => showNotice('프로젝트로 이동은 준비 중이에요')}
+            onPress={() => { if (ids.length) setMoving(true); }}
             style={[styles.barBtn, none && styles.off]}
           >
             <Text style={styles.barText}>이동</Text>
@@ -153,6 +162,25 @@ export default function TrashScreen({ navigation }) {
       )}
 
       {/* 복구 / 삭제 확인 창 (스토리보드 63·64장) */}
+      <Modal transparent visible={moving} animationType="fade" onRequestClose={() => setMoving(false)}>
+        <View style={styles.backdrop}>
+          <View style={styles.dialog} accessibilityViewIsModal>
+            <Text style={styles.dialogTitle}>옮길 프로젝트</Text>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 300 }} contentContainerStyle={{ gap: spacing.sm }}>
+              {projects.length === 0 && <Text style={styles.dialogSub}>이 공간에 프로젝트가 없어요.</Text>}
+              {projects.map((project) => (
+                <Pressable key={project.id} accessibilityRole="button" onPress={() => moveToProject(project.id)} style={styles.dialogOption}>
+                  <Text style={styles.dialogOptionText} numberOfLines={1}>{project.title}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            <Pressable accessibilityRole="button" onPress={() => setMoving(false)} style={styles.dialogOption}>
+              <Text style={[styles.dialogOptionText, { textAlign: 'center' }]}>취소</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <ConfirmDialog
         visible={confirm === 'restore'}
         title="메모를 복구하시겠습니까?"
@@ -174,6 +202,12 @@ export default function TrashScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.md },
+  dialogTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
+  dialogSub: { fontSize: font.body, color: colors.muted },
+  dialogOption: { minHeight: 46, justifyContent: 'center', paddingHorizontal: spacing.lg, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  dialogOptionText: { fontSize: font.bodyLg, color: colors.ink },
   root: { flex: 1, backgroundColor: colors.cream },
   list: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, gap: spacing.md },
   count: { fontSize: font.caption, color: colors.muted },

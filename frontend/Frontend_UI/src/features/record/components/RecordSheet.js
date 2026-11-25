@@ -9,7 +9,7 @@ import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import Svg, { Path, Rect } from 'react-native-svg';
 import Icon from '../../../shared/components/Icon';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
-import { newTranscribeJob, transcribeRecording } from '../../../services/ai/Transcribe';
+import { finishTranscription, newTranscribeJob, transcribeRecording } from '../../../services/ai/Transcribe';
 import { analyzeText } from '../../../services/ai/AiAnalyze';
 import { titleRecording } from '../../../services/ai/AiTitle';
 import { addMemo } from '../../../data/memos/MemoStore';
@@ -59,14 +59,15 @@ function Player({ uri }) {
 const memoTitleFor = (d = new Date()) =>
   `녹음 ${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
-export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, onOpenProposals }) {
+export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, onOpenProposals, onRetrySave }) {
   // phase: idle(처음) · upload(올리고 받아 적는 중) · analyze(일정·할 일 찾는 중) · done · error
   const [phase, setPhase] = useState('idle');
   const [error, setError] = useState(null); // { code, message }
   const [result, setResult] = useState(null); // { text, memoId, added, analyzeError }
   const job = useRef(null); // 녹음 하나의 변환 작업 (다시 시도할 때 업로드를 다시 하지 않도록 이어서 씀)
+  const [progress, setProgress] = useState('');   // 긴 녹음: 나누기, 구간 올리기, 서버 변환 진행 문구
   useEffect(() => {
-    setPhase('idle'); setError(null); setResult(null);
+    setPhase('idle'); setError(null); setResult(null); setProgress('');
     job.current = sheet?.uri ? newTranscribeJob(sheet.uri, sheet.seconds) : null;
   }, [sheet]);
   if (!sheet) return null;
@@ -76,7 +77,8 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
     if (busy || !job.current) return;
     setError(null);
     setPhase('upload');
-    const r = await transcribeRecording(job.current);
+    const r = await transcribeRecording(job.current, { onProgress: (p) => setProgress(p.text) });
+    setProgress('');
     job.current = r.job;
     if (!r.ok) { setError({ code: r.code, message: r.message }); setPhase('error'); return; }
     const text = r.text.trim();
@@ -85,11 +87,14 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
     let memoId = null;
     const timeTitle = memoTitleFor();
     try { memoId = addMemo({ title: timeTitle, body: text.slice(0, 100_000) })?.id ?? null; } catch { /* 저장 실패해도 글은 보여 줌 */ }
-    setResult({ text, memoId, added: 0, analyzeError: null });
+    // 메모로 저장했으면 서버의 임시 전사문을 지움 (긴 녹음). 빠진 구간이 있으면 다시 시도할 수 있게 남겨 둠
+    if (memoId && r.complete) void finishTranscription(r.job);
+    const missing = r.missing ?? 0;
+    setResult({ text, memoId, added: 0, missing, analyzeError: null });
     if (!memoId) { setPhase('done'); return; }
     setPhase('analyze');
     const a = await analyzeText({ sourceType: 'memo', sourceId: memoId, explicit: true });
-    setResult({ text, memoId, added: a.added ?? 0, analyzeError: a.error ?? null });
+    setResult({ text, memoId, missing, added: a.added ?? 0, saved: a.saved ?? 0, pending: a.pending ?? a.added ?? 0, analyzeError: a.error ?? null });
     setPhase('done');
     // 분석이 끝난 뒤 제목을 내용으로 바꿈 (분석 중에 제목이 바뀌면 분석이 원문 변경으로 멈추므로 순서를 지킴)
     titleRecording(memoId, timeTitle);
@@ -106,13 +111,22 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
     <Modal transparent visible animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.card} accessibilityViewIsModal>
-          {sheet.state === 'saved' && (
+          {(sheet.state === 'saved' || sheet.state === 'save_error') && (
             <>
               <View style={styles.titleRow}>
                 <View style={styles.titleIcon}><Icon name="mic" size={20} color={colors.mintDark} /></View>
-                <Text style={styles.title}>녹음을 저장했어요</Text>
+                <Text style={styles.title}>{sheet.state === 'saved' ? '녹음을 저장했어요' : '녹음 파일을 저장하지 못했어요'}</Text>
               </View>
               <Text style={styles.sub}>{fmt(sheet.seconds || 0)}{sheet.fileId ? ', 파일 보관함에 보관돼요' : ''}</Text>
+              {sheet.state === 'save_error' && (
+                <>
+                  <Text accessibilityLiveRegion="polite" style={styles.error}>{sheet.saveError || '저장 위치의 권한을 확인해 주세요.'}</Text>
+                  <Pressable accessibilityRole="button" disabled={sheet.saving || busy} onPress={onRetrySave} style={[styles.primary, (sheet.saving || busy) && { opacity: 0.5 }]}>
+                    {sheet.saving ? <ActivityIndicator color={colors.onPrimary} /> : null}
+                    <Text style={styles.primaryText}>{sheet.saving ? '저장 중…' : '저장 다시 시도'}</Text>
+                  </Pressable>
+                </>
+              )}
               <Player uri={sheet.uri} />
               {phase === 'done' && result ? (
                 <>
@@ -120,11 +134,12 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
                   <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={styles.textBox} contentContainerStyle={{ padding: spacing.md }}>
                     <Text style={styles.text} selectable>{result.text}</Text>
                   </ScrollView>
+                  {result.missing > 0 && <Text style={styles.error}>{result.missing}개 구간은 변환하지 못했어요. 글 안에 표시된 자리를 확인해 주세요.</Text>}
                   <Text style={styles.note}>
                     {result.memoId ? '메모로 저장했어요. ' : '메모로 저장하지 못했어요. 글을 길게 눌러 복사해 주세요. '}
-                    {result.memoId && (result.analyzeError ? '일정과 할 일은 찾지 못했어요.' : result.added > 0 ? `AI 제안 ${result.added}건을 만들었어요.` : '찾은 일정이나 할 일은 없어요.')}
+                    {result.memoId && (result.analyzeError ? '일정과 할 일은 찾지 못했어요.' : result.saved > 0 ? `${result.saved}건을 자동 저장했어요.${result.pending ? ` ${result.pending}건은 확인이 필요해요.` : ''}` : result.pending > 0 ? `AI 제안 ${result.pending}건을 만들었어요.` : '찾은 일정이나 할 일은 없어요.')}
                   </Text>
-                  {result.added > 0 && onOpenProposals && (
+                  {result.pending > 0 && onOpenProposals && (
                     <Pressable accessibilityRole="button" onPress={onOpenProposals} style={styles.primary}><Text style={styles.primaryText}>AI 제안 확인하기</Text></Pressable>
                   )}
                   {!!result.memoId && onOpenMemo && (
@@ -143,8 +158,9 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
                       <Text style={styles.primaryText}>{label}</Text>
                     </Pressable>
                   )}
+                  {busy && !!progress && <Text accessibilityLiveRegion="polite" style={styles.sub}>{progress}</Text>}
                   {!!error && <Text style={styles.error}>{error.message}</Text>}
-                  {phase === 'idle' && <Text style={styles.hint}>녹음을 외부 AI로 보내 글자로 바꾸고 메모로 저장해요. 변환이 끝나면 서버의 녹음은 바로 지워져요.</Text>}
+                  {phase === 'idle' && <Text style={styles.hint}>녹음을 외부 AI로 보내 글자로 바꾸고 메모로 저장해요. 10분이 넘는 녹음은 2분씩 나눠 보내고, 변환이 끝난 녹음은 서버에서 바로 지워져요.</Text>}
                 </>
               )}
               {!!sheet.fileId && <Pressable accessibilityRole="button" onPress={onOpenFiles} style={styles.ghost}><Text style={styles.ghostText}>파일 보관함 보기</Text></Pressable>}

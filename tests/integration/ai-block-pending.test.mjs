@@ -114,7 +114,7 @@ test('a replace answer keeps the original until accepted; reject restores the do
 });
 
 test('top tabs keep daily destinations; review, AI settings and tools stay reachable', () => {
-  assert.deepEqual(TABS.map(tab => tab.route), [ROUTES.Home, ROUTES.Memos, ROUTES.Tasks, ROUTES.Projects]);
+  assert.deepEqual(TABS.map(tab => tab.route), [ROUTES.Home, ROUTES.Tasks, ROUTES.Memos, ROUTES.Projects]);
   const more = MORE_SECTIONS.flatMap(section => section.items).map(item => item.route);
   for (const route of [ROUTES.LocalModel, ROUTES.Proposals, ROUTES.Relations, ROUTES.AdvancedMemos, ROUTES.Trash]) assert.ok(more.includes(route), route);
 });
