@@ -125,7 +125,7 @@ test('an npm .cmd wrapper resolves to its real target, not the optional bundled 
 test('init writes the config and prints the app link; the app keeps slash model IDs', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'bridge-init-'));
   const file = join(dir, 'config.json');
-  const out = execFileSync(process.execPath, [fileURLToPath(new URL('../../bridge/stella-bridge.mjs', import.meta.url)), 'init'], { env: { ...process.env, STELLA_BRIDGE_CONFIG: file }, encoding: 'utf8' });
+  const out = execFileSync(process.execPath, [fileURLToPath(new URL('../../bridge/atria-bridge.mjs', import.meta.url)), 'init'], { env: { ...process.env, ATRIA_BRIDGE_CONFIG: file }, encoding: 'utf8' });
   const config = JSON.parse(readFileSync(file, 'utf8'));
   const link = parseBridgeLink(out.trim().split('\n').at(-1));
   assert.equal(link.key, config.key);
@@ -140,4 +140,40 @@ test('init writes the config and prints the app link; the app keeps slash model 
   assert.equal(JSON.parse(sent[0].init.body).model, 'ollama/llama3:8b');
   assert.equal(sent[0].init.headers.authorization, 'Bearer ' + link.key);
   assert.ok(sent[0].url.endsWith('/v1/chat/completions'));
+});
+
+test('plugins: only enabled plugin files add models; broken or colliding files are reported, not fatal', async t => {
+  const { loadPlugins, sources } = await import('../../bridge/bridge.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'bridge-plugins-'));
+  writeFileSync(join(dir, 'echo.mjs'), `export default { id: 'echo', label: 'Echo', models: async ctx => ['default', ctx.settings.extra].filter(Boolean),
+    chat: async (model, req, ctx) => model + ':' + req.messages.at(-1).content + ':' + typeof ctx.signal };`);
+  writeFileSync(join(dir, 'off.mjs'), `export default { id: 'off', models: () => ['x'], chat: () => 'never' };`);
+  writeFileSync(join(dir, 'broken.mjs'), `export default { id: 'Bad Id' };`);
+  writeFileSync(join(dir, 'clash.mjs'), `export default { id: 'ollama', models: () => [], chat: () => '' };`);
+  writeFileSync(join(dir, 'notes.txt'), 'ignored');
+  const config = { key: KEY, local: { ollama: 'http://127.0.0.1:9' }, providers: {}, cli: { claude: { enabled: false }, codex: { enabled: false } },
+    plugins: { echo: { enabled: true, settings: { extra: 'big' } }, off: { enabled: false } } };
+  const plugins = await loadPlugins(config, dir);
+  assert.deepEqual(plugins.map(p => [p.id, !!p.error]), [['broken', true], ['clash', true], ['echo', false], ['off', false]]);
+
+  const { models, status } = await sources(config, 3000, plugins);
+  assert.deepEqual(models.filter(m => m.owned_by === 'echo').map(m => m.id), ['echo/default', 'echo/big']);
+  assert.ok(!models.some(m => m.id.startsWith('off/')));
+  assert.match(status.find(s => s.source === 'broken').state, /플러그인 오류/);
+  assert.equal(status.find(s => s.source === 'off').state, '플러그인 꺼짐');
+
+  const bridge = createBridge(config, { log: () => {}, timeoutMs: 3000, plugins });
+  const base = await listen(bridge);
+  t.after(() => bridge.close());
+  const call = model => fetch(base + '/v1/chat/completions', { method: 'POST', headers: { authorization: 'Bearer ' + KEY, 'content-type': 'application/json' },
+    body: JSON.stringify({ model, messages: [{ role: 'user', content: 'hi' }] }) });
+  const ok = await call('echo/default');
+  assert.equal(ok.status, 200);
+  assert.equal((await ok.json()).choices[0].message.content, 'default:hi:object');
+  assert.equal((await call('off/x')).status, 404);
+});
+
+test('a half-typed connection string is not split into address and key', () => {
+  assert.equal(parseBridgeLink('http://10.0.0.2:8787#key=' + 'a'.repeat(32)), null);
+  assert.deepEqual(parseBridgeLink('http://10.0.0.2:8787#key=' + 'a'.repeat(43)), { url: 'http://10.0.0.2:8787', key: 'a'.repeat(43) });
 });

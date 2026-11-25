@@ -1,16 +1,20 @@
-// Stella bridge core: one OpenAI-compatible API over the AI this machine can reach. Node 20+, standard library only.
+// Atria bridge core: one OpenAI-compatible API over the AI this machine can reach. Node 20+, standard library only.
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, chmodSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 
 // The single executable has no package.json beside it; build.mjs writes the version in place of this line.
 export const VERSION = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version;
 export const MAX_BODY_BYTES = 256 * 1024;
 export const TIMEOUT_MS = 120000;
-export const configPath = () => process.env.STELLA_BRIDGE_CONFIG || join(homedir(), '.stella-bridge', 'config.json');
+// STELLA_BRIDGE_CONFIG and ~/.stella-bridge are the pre-rename names; loadConfig still reads the old file once.
+export const configPath = () => process.env.ATRIA_BRIDGE_CONFIG || process.env.STELLA_BRIDGE_CONFIG || join(homedir(), '.atria-bridge', 'config.json');
+const legacyConfigPath = () => join(homedir(), '.stella-bridge', 'config.json');
 export const newKey = () => randomBytes(32).toString('base64url');
 
 export const DEFAULT_CONFIG = Object.freeze({
@@ -20,6 +24,8 @@ export const DEFAULT_CONFIG = Object.freeze({
   // API providers appear only after `add-key`. models: the IDs shown in the list (any name after the prefix is accepted).
   providers: {},
   cli: { claude: { enabled: false }, codex: { enabled: false } },
+  // Plugins found in <config folder>/plugins stay off until `enable-plugin`. { [id]: { enabled, settings } }
+  plugins: {},
 });
 export const PROVIDER_DEFAULTS = Object.freeze({
   openai: { type: 'openai', base: 'https://api.openai.com/v1', models: ['gpt-6.1-terra'] },
@@ -28,8 +34,53 @@ export const PROVIDER_DEFAULTS = Object.freeze({
 });
 
 export function loadConfig(file = configPath()) {
-  const saved = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
-  return { ...structuredClone(DEFAULT_CONFIG), ...saved, cli: { ...structuredClone(DEFAULT_CONFIG.cli), ...saved.cli } };
+  // First run after the rename: keep the old key so the app's saved connection keeps working. The next save writes the new path.
+  const source = existsSync(file) ? file : file === join(homedir(), '.atria-bridge', 'config.json') && existsSync(legacyConfigPath()) ? legacyConfigPath() : null;
+  const saved = source ? JSON.parse(readFileSync(source, 'utf8')) : {};
+  return { ...structuredClone(DEFAULT_CONFIG), ...saved, cli: { ...structuredClone(DEFAULT_CONFIG.cli), ...saved.cli }, plugins: { ...saved.plugins } };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Plugins: one .mjs file per plugin in <config folder>/plugins. Like Obsidian community plugins they run with this
+// PC's permissions, so each one stays off until the owner runs `enable-plugin <id>`.
+//   export default {
+//     id: 'my-ai',                                   // model prefix: my-ai/<model>
+//     label: 'My AI',
+//     async models(ctx) { return ['default']; },     // model names after the prefix
+//     async chat(model, request, ctx) { return 'reply text'; },
+//   };
+//   request: { messages: [{ role: 'system'|'user'|'assistant', content }], maxTokens, temperature }
+//   ctx: { settings (config.plugins[id].settings), timeoutMs, signal }
+// ---------------------------------------------------------------------------------------------------------------
+export const pluginDir = (file = configPath()) => join(dirname(file), 'plugins');
+const PLUGIN_ID = /^[a-z0-9-]{1,32}$/;
+
+/** Every plugin file in the folder: [{ id, label, file, plugin?, error? }]. Broken files are reported, never fatal. */
+export async function loadPlugins(config, dir = pluginDir()) {
+  if (!existsSync(dir)) return [];
+  const taken = new Set([...Object.keys(PROVIDER_DEFAULTS), ...Object.keys(config.local ?? {}), ...Object.keys(config.providers ?? {})]);
+  const found = [];
+  for (const name of readdirSync(dir).filter(n => n.endsWith('.mjs')).sort()) {
+    const file = join(dir, name);
+    try {
+      // The single executable's import() only reaches built-in modules; createRequire loads files from disk (require(esm), Node 22+).
+      const plugin = inSea ? createRequire(file)(file).default : (await import(pathToFileURL(file).href)).default;
+      if (!plugin || !PLUGIN_ID.test(plugin.id ?? '') || plugin.id.endsWith('-cli') || typeof plugin.models !== 'function' || typeof plugin.chat !== 'function')
+        throw new Error('id(소문자·숫자·-), models(), chat()이 필요합니다.');
+      if (taken.has(plugin.id)) throw new Error(`id "${plugin.id}"가 다른 공급원과 겹칩니다.`);
+      taken.add(plugin.id);
+      found.push({ id: plugin.id, label: String(plugin.label ?? plugin.id), file, plugin });
+    } catch (error) { found.push({ id: name.replace(/\.mjs$/, ''), label: name, file, error: error?.message ?? String(error) }); }
+  }
+  return found;
+}
+const enabledPlugins = (config, plugins) => (plugins ?? []).filter(p => p.plugin && config.plugins?.[p.id]?.enabled);
+const pluginCtx = (config, id, timeoutMs) => ({ settings: structuredClone(config.plugins?.[id]?.settings ?? {}), timeoutMs, signal: AbortSignal.timeout(timeoutMs) });
+async function withTimeout(promise, timeoutMs, label) {
+  let timer;
+  try {
+    return await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new HttpError(504, `${label} 응답 시간이 초과되었습니다.`)), timeoutMs); })]);
+  } finally { clearTimeout(timer); }
 }
 export function saveConfig(config, file = configPath()) {
   mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
@@ -163,7 +214,7 @@ function runCli(command, args, input, timeoutMs) {
 }
 
 /** Every reachable model: [{ id, owned_by, call(name, req) }] plus per-source status lines for `list`. */
-export async function sources(config, timeoutMs = TIMEOUT_MS) {
+export async function sources(config, timeoutMs = TIMEOUT_MS, plugins = []) {
   const status = [], models = [];
   const probe = async (prefix, base, key) => {
     try {
@@ -187,11 +238,30 @@ export async function sources(config, timeoutMs = TIMEOUT_MS) {
     status.push({ source: name + '-cli', state: !command ? '설치되지 않음' : entry.enabled ? '켜짐 (서버 주인 본인 구독)' : '꺼짐' });
     if (command && entry.enabled) models.push({ id: name + '-cli/default', owned_by: name + '-cli' });
   }
+  for (const p of plugins) {
+    if (p.error) { status.push({ source: p.id, state: `플러그인 오류: ${p.error}` }); continue; }
+    if (!config.plugins?.[p.id]?.enabled) { status.push({ source: p.id, state: '플러그인 꺼짐' }); continue; }
+    try {
+      const ids = await withTimeout(Promise.resolve(p.plugin.models(pluginCtx(config, p.id, Math.min(timeoutMs, 5000)))), Math.min(timeoutMs, 5000), p.label);
+      const names = (Array.isArray(ids) ? ids : []).filter(id => typeof id === 'string' && id);
+      status.push({ source: p.id, state: `플러그인 사용 가능 (${names.length}개)` });
+      models.push(...names.map(id => ({ id: p.id + '/' + id, owned_by: p.id })));
+    } catch { status.push({ source: p.id, state: '플러그인 응답 없음' }); }
+  }
   return { models, status };
 }
 
-async function complete(config, req, timeoutMs) {
+async function complete(config, req, timeoutMs, plugins = []) {
   const cut = req.model.indexOf('/'), prefix = req.model.slice(0, cut), name = req.model.slice(cut + 1);
+  const plugin = enabledPlugins(config, plugins).find(p => p.id === prefix);
+  if (plugin) {
+    if (!name) throw new HttpError(404, '사용할 수 없는 모델입니다.');
+    let text;
+    try { text = await withTimeout(Promise.resolve(plugin.plugin.chat(name, req, pluginCtx(config, plugin.id, timeoutMs))), timeoutMs, plugin.label); }
+    catch (error) { throw error instanceof HttpError ? error : new HttpError(502, `${plugin.label} 플러그인이 실패했습니다.`); }
+    if (typeof text !== 'string') throw new HttpError(502, `${plugin.label} 플러그인이 글자 응답을 돌려주지 않았습니다.`);
+    return text;
+  }
   const cli = prefix.endsWith('-cli') && CLI_ARGS[prefix.slice(0, -4)] ? prefix.slice(0, -4) : null;
   if (cli) {
     const entry = config.cli?.[cli] ?? {};
@@ -208,7 +278,7 @@ const digest = value => createHash('sha256').update(String(value)).digest();
 const sameKey = (given, key) => !!key && timingSafeEqual(digest(given), digest(key));
 
 /** The HTTP server. log receives one line per request: time, method, path, model, status, ms. Never prompts, replies or keys. */
-export function createBridge(config, { log = console.log, timeoutMs = TIMEOUT_MS } = {}) {
+export function createBridge(config, { log = console.log, timeoutMs = TIMEOUT_MS, plugins = [] } = {}) {
   if (!config.key) throw new Error('연결 키가 없습니다. 먼저 init을 실행하세요.');
   const server = createServer((req, res) => {
     const started = Date.now();
@@ -227,7 +297,7 @@ export function createBridge(config, { log = console.log, timeoutMs = TIMEOUT_MS
     const auth = /^Bearer (.+)$/.exec(req.headers.authorization ?? '');
     if (!auth || !sameKey(auth[1], config.key)) { req.resume(); return send(401, { error: { message: '연결 키가 올바르지 않습니다.' } }); }
     if (req.method === 'GET' && path === '/v1/models') {
-      return sources(config, timeoutMs).then(({ models: list }) => send(200, { object: 'list', data: list.map(m => ({ id: m.id, object: 'model', owned_by: m.owned_by })) }), fail);
+      return sources(config, timeoutMs, plugins).then(({ models: list }) => send(200, { object: 'list', data: list.map(m => ({ id: m.id, object: 'model', owned_by: m.owned_by })) }), fail);
     }
     if (req.method !== 'POST' || path !== '/v1/chat/completions') return send(404, { error: { message: '없는 경로입니다.' } });
     let size = 0, chunks = [];
@@ -240,7 +310,7 @@ export function createBridge(config, { log = console.log, timeoutMs = TIMEOUT_MS
         try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new HttpError(400, 'JSON 본문이 올바르지 않습니다.'); }
         const request = readRequest(body);
         model = request.model;
-        const content = await complete(config, request, timeoutMs);
+        const content = await complete(config, request, timeoutMs, plugins);
         send(200, { id: 'chatcmpl-' + randomUUID(), object: 'chat.completion', created: Math.floor(Date.now() / 1000), model: request.model,
           choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }] });
       } catch (error) { fail(error); }
