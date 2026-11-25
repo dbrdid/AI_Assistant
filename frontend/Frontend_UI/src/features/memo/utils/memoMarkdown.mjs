@@ -5,10 +5,24 @@ const untitledMarker = '<!-- stella:untitled -->';
 const firstHeadingPattern = /^# +([^\n]+)(?:\n+|$)/;
 export const MAX_MARKDOWN_BYTES = 4 * (LIMITS.body + LIMITS.memoTitle + 8);
 
+/** 내보낼 파일 이름(확장자 제외): 제목에서 파일 이름에 못 쓰는 글자를 바꾸고, 비거나 예약어면 '메모' */
+export function memoFileBase(title) {
+  const heading = String(title ?? '').trim().replace(/[\r\n]+/g, ' ');
+  const base = heading.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-').slice(0, 80).replace(/[. ]+$/g, '');
+  return !base || reservedFileName.test(base) ? '메모' : base;
+}
+
+/** JSON 내보내기: 제목, 본문, 손글씨를 그대로 담은 원본. 다른 프로그램이나 백업에서 다시 읽을 수 있게 형식과 버전을 적는다. */
+export function memoJson({ title, body, strokes }, exportedAt = new Date()) {
+  return {
+    name: `${memoFileBase(title)}.json`,
+    content: JSON.stringify({ format: 'atria-memo', version: 1, exportedAt: exportedAt.toISOString(), title: title ?? '', body: body ?? '', strokes: strokes ?? null }, null, 2) + '\n',
+  };
+}
+
 export function memoMarkdown({ title, body }) {
   const heading = title.trim().replace(/[\r\n]+/g, ' ');
-  let base = heading.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-').slice(0, 80).replace(/[. ]+$/g, '');
-  if (!base || reservedFileName.test(base)) base = '메모';
+  const base = memoFileBase(title);
   const needsUntitledMarker = firstHeadingPattern.test(body) || body.startsWith(untitledMarker);
   const header = heading ? `# ${heading}` : needsUntitledMarker ? untitledMarker : '';
   return {

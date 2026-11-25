@@ -60,6 +60,30 @@ export function createAIService({ store, gateway, getSession, getPolicy, newId }
       return { added: proposals.length, saved: 0, requestId: response.request_id, ...(blocked ? { blocked } : {}) };
     } finally { signal?.removeEventListener('abort', abort); active.delete(controller); }
   }
+  /**
+   * A title for the memo from its content (the gateway's organize draft, 40 characters at most). Same consent and
+   * route checks as analyzeMemo. Only the title is returned; the caller decides whether to use it.
+   */
+  async function suggestTitle(id, { signal } = {}) {
+    if (signal?.aborted) throw error('CANCELLED');
+    const session = getSession();
+    const source = store.getMemo(id);
+    if (!session || !source || source.deletedAt !== null || !source.body.trim()) throw error('SOURCE_CHANGED');
+    const policy = getPolicy(source);
+    requireTransmission(policy.route, [policy], policy.consent);
+    const controller = new AbortController(); active.add(controller);
+    const abort = () => controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    try {
+      // organize takes 8,000 characters; the opening of a long transcript is enough to name it.
+      const response = await gateway('organize', { client_request_id: newId(), text: source.body.slice(0, 8000), workspace_id: policy.workspaceId ?? null },
+        { route: policy.route, signal: controller.signal });
+      if (controller.signal.aborted || getSession()?.generation !== session.generation) throw error('CANCELLED');
+      const title = typeof response?.draft?.title === 'string' ? response.draft.title.replace(/\s+/g, ' ').trim().replace(/^["'「『]+|["'」』]+$/g, '').trim().slice(0, 40) : '';
+      if (!response?.ok || !title) throw error('INVALID_MODEL_OUTPUT');
+      return title;
+    } finally { signal?.removeEventListener('abort', abort); active.delete(controller); }
+  }
   function cancel() { for (const c of active) c.abort(); }
-  return { analyzeMemo, cancel };
+  return { analyzeMemo, suggestTitle, cancel };
 }

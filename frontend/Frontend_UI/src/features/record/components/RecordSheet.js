@@ -11,6 +11,7 @@ import Icon from '../../../shared/components/Icon';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { newTranscribeJob, transcribeRecording } from '../../../services/ai/Transcribe';
 import { analyzeText } from '../../../services/ai/AiAnalyze';
+import { titleRecording } from '../../../services/ai/AiTitle';
 import { addMemo } from '../../../data/memos/MemoStore';
 import { setAiTransmission } from '../../../data/settings/SettingsStore';
 
@@ -82,13 +83,16 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
     if (!text) { setError({ code: 'EMPTY', message: '녹음에서 알아들을 수 있는 말이 없었어요' }); setPhase('error'); return; }
     // 받아 적은 글은 메모로 남기고, 그 메모에서 일정·할 일을 찾아 AI 제안으로 만듦
     let memoId = null;
-    try { memoId = addMemo({ title: memoTitleFor(), body: text.slice(0, 100_000) })?.id ?? null; } catch { /* 저장 실패해도 글은 보여 줌 */ }
+    const timeTitle = memoTitleFor();
+    try { memoId = addMemo({ title: timeTitle, body: text.slice(0, 100_000) })?.id ?? null; } catch { /* 저장 실패해도 글은 보여 줌 */ }
     setResult({ text, memoId, added: 0, analyzeError: null });
     if (!memoId) { setPhase('done'); return; }
     setPhase('analyze');
     const a = await analyzeText({ sourceType: 'memo', sourceId: memoId, explicit: true });
     setResult({ text, memoId, added: a.added ?? 0, analyzeError: a.error ?? null });
     setPhase('done');
+    // 분석이 끝난 뒤 제목을 내용으로 바꿈 (분석 중에 제목이 바뀌면 분석이 원문 변경으로 멈추므로 순서를 지킴)
+    titleRecording(memoId, timeTitle);
   };
   // 외부 AI 보내기 동의 후 바로 다시 변환
   const allowAndConvert = async () => {

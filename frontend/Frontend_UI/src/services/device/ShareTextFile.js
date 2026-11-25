@@ -3,8 +3,8 @@ import { randomUUID } from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
 import { isAvailableAsync, shareAsync } from 'expo-sharing';
 
-export async function shareMarkdownFile({ name, content }) {
-  const mimeType = 'text/markdown';
+/** 글자 파일 하나를 공유 시트로 내보냄 (웹은 내려받기). mimeType과 UTI는 파일 형식에 맞게 */
+export async function shareTextFile({ name, content, mimeType, uti }) {
   if (Platform.OS === 'web') {
     const href = URL.createObjectURL(new Blob([content], { type: `${mimeType};charset=utf-8` }));
     const link = document.createElement('a');
@@ -25,5 +25,9 @@ export async function shareMarkdownFile({ name, content }) {
   const file = new File(folder, name);
   file.create();
   await file.write(content);
-  await shareAsync(file.uri, { mimeType, UTI: 'net.daringfireball.markdown', dialogTitle: '메모 내보내기' });
+  await shareAsync(file.uri, { mimeType, UTI: uti, dialogTitle: '메모 내보내기' });
 }
+
+export const shareMarkdownFile = ({ name, content }) => shareTextFile({ name, content, mimeType: 'text/markdown', uti: 'net.daringfireball.markdown' });
+export const shareHtmlFile = ({ name, content }) => shareTextFile({ name, content, mimeType: 'text/html', uti: 'public.html' });
+export const shareJsonFile = ({ name, content }) => shareTextFile({ name, content, mimeType: 'application/json', uti: 'public.json' });

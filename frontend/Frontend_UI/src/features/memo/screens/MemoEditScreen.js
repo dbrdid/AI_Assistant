@@ -36,9 +36,9 @@ import { addMemo, findMemoSyncConflict, getMemo, listMemoVersions, memoTitle, se
 import { rankSearchRows, searchTerms } from '../../../data/memos/memoSearch.mjs';
 import { useWorkspaceAccessClosed, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import { alertUser } from '../../../data/alert';
-import { shareMarkdownFile } from '../../../services/device/ShareTextFile';
-import { shareMemoPdf } from '../utils/shareMemoPdf';
-import { memoMarkdown } from '../utils/memoMarkdown.mjs';
+import { shareHtmlFile, shareJsonFile, shareMarkdownFile } from '../../../services/device/ShareTextFile';
+import { memoHtml, shareMemoPdf } from '../utils/shareMemoPdf';
+import { memoJson, memoMarkdown } from '../utils/memoMarkdown.mjs';
 import { projectOf, setItemProject, useProjects } from '../../../data/projects/ProjectStore';
 import { summarizeText } from '../../../services/ai/AiSummary';
 import { addUsage } from '../../../data/settings/SettingsStore';
@@ -695,6 +695,17 @@ export default function MemoEditScreen({ navigation, route }) {
       alertUser('PDF를 내보내지 못했어요', error.message);
     }
   };
+  // HTML(PDF와 같은 문서, 손글씨 포함)과 JSON(제목, 본문, 손글씨 원본)
+  const exportAs = async (format) => {
+    setExportOpen(false);
+    if (!canAccessCurrentPage()) return;
+    try {
+      if (format === 'html') await shareHtmlFile(memoHtml(latest.current));
+      else await shareJsonFile(memoJson(latest.current));
+    } catch (error) {
+      alertUser(`${format === 'html' ? 'HTML' : 'JSON'} 파일을 내보내지 못했어요`, error.message);
+    }
+  };
 
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -831,6 +842,8 @@ export default function MemoEditScreen({ navigation, route }) {
                 void exportMarkdown();
               }} />
             )}
+            <PillButton kind="ghost" label="HTML, 웹 페이지" onPress={() => void exportAs('html')} />
+            <PillButton kind="ghost" label="JSON, 원본 데이터" onPress={() => void exportAs('json')} />
             <PillButton kind="ghost" label="닫기" onPress={() => setExportOpen(false)} />
           </View>
         </View>

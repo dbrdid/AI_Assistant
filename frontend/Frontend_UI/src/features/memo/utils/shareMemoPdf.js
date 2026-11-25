@@ -4,6 +4,7 @@ import { isAvailableAsync, shareAsync } from 'expo-sharing';
 import { exportPdf, notePdfSection, renderPdfHtml } from '../../../lib/stella/pdf-export';
 import { readMemoBlocks } from './memoBlocks.mjs';
 import { readMemoReference } from './memoReferences.mjs';
+import { memoFileBase } from './memoMarkdown.mjs';
 
 export function memoPdfDocument({ title, body, strokes }) {
   const section = notePdfSection({ strokes });
@@ -27,6 +28,11 @@ export function memoPdfDocument({ title, body, strokes }) {
     title: title.trim() || '제목 없는 메모',
     sections: [{ blocks: [...blocks, ...section.blocks] }],
   };
+}
+
+/** HTML 내보내기: PDF와 같은 문서(본문 블록과 손글씨 그림)를 웹 페이지 파일로 */
+export function memoHtml(memo) {
+  return { name: `${memoFileBase(memo.title)}.html`, content: renderPdfHtml(memoPdfDocument(memo)) };
 }
 
 export async function shareMemoPdf(memo) {
