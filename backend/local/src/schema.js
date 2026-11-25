@@ -149,7 +149,22 @@ end;
 
 const V4 = `alter table memos add column server_revision integer;`;
 
-const STEPS = [V1, V2, V3, V4];
+// 기기 전용 AI 결과 피드백 (동기화·백업 안 함, 공간을 지우면 같이 지워짐)
+const V5 = `
+create table ai_feedback(
+  id integer primary key autoincrement,
+  workspace_id text not null references workspaces(id) on delete cascade,
+  surface text not null check(surface in ('block','command')),
+  decision text not null check(decision in ('accepted','rejected','failed')),
+  request text not null default '',
+  output text not null default '',
+  detail text not null default '',
+  created_at integer not null
+);
+create index ai_feedback_recent on ai_feedback(workspace_id, id);
+`;
+
+const STEPS = [V1, V2, V3, V4, V5];
 export const SCHEMA_VERSION = STEPS.length;
 
 export function createPersonal(db, { now, newId }) {

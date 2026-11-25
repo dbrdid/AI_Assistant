@@ -24,13 +24,14 @@ test('opening a version-3 SQLite file preserves existing memos, history and pend
     before.store.switchWorkspace(before.store.upsertServerWorkspace({ id: SERVER_WS, name: 'Team', role: 'EDITOR' }));
     shared = before.store.addMemo({ body: 'Waiting to send' });
     pending = before.store.peekOutbox();
-    before.db.execSync('alter table memos drop column server_revision; pragma user_version = 3');
+    before.db.execSync('drop table ai_feedback; alter table memos drop column server_revision; pragma user_version = 3');
   } finally {
     before.db.closeSync();
   }
   const after = setup({ path });
   try {
-    assert.equal(after.db.getFirstSync('pragma user_version').user_version, 4);
+    assert.equal(after.db.getFirstSync('pragma user_version').user_version, 5);
+    assert.deepEqual(after.store.getAiFeedback(), []);
     assert.equal(after.store.getMemo(shared.id).body, 'Waiting to send');
     assert.deepEqual(after.store.peekOutbox(), pending);
     after.store.switchWorkspace('personal');

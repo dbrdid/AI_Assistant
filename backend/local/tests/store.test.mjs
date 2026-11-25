@@ -17,6 +17,23 @@ test('opening migrates once, turns foreign keys on and refuses a database from a
   assert.throws(() => createLocalStore({ db: newer }), /Unsupported local database version/);
 });
 
+test('AI feedback stays on the device per workspace, keeps the latest 500 and is cleared with the account data', () => {
+  const t = setup();
+  const seen = [];
+  t.store.subscribe(areas => seen.push(areas.join(',')));
+  t.store.recordAiFeedback({ surface: 'block', decision: 'accepted', request: '요약해 줘', output: '요약' });
+  assert.throws(() => t.store.recordAiFeedback({ surface: 'chat', decision: 'accepted' }), e => e.code === 'invalid_input' && e.field === 'surface');
+  assert.throws(() => t.store.recordAiFeedback({ surface: 'command', decision: 'ok' }), e => e.code === 'invalid_input' && e.field === 'decision');
+  assert.deepEqual(t.store.getAiFeedback().map(f => [f.surface, f.decision, f.request, f.output]), [['block', 'accepted', '요약해 줘', '요약']]);
+  assert.deepEqual([seen, t.store.peekOutbox()], [[], []]);   // no screen refresh, never synced
+  const viewer = t.store.upsertServerWorkspace({ id: '99999999-9999-4999-8999-999999999999', name: 'Team', role: 'VIEWER' });
+  t.store.switchWorkspace(viewer);
+  for (let i = 0; i < 502; i++) t.store.recordAiFeedback({ surface: 'command', decision: 'failed', detail: String(i) });
+  const shared = t.store.getAiFeedback();
+  assert.deepEqual([shared.length, shared[0].detail, shared.at(-1).detail], [500, '501', '2']);
+  t.store.clearAll();
+  assert.equal(t.db.getFirstSync('select count(*) as n from ai_feedback').n, 0);
+});
 test('createLocalStore needs an expo-sqlite style database and sane clock and id functions', () => {
   assert.throws(() => createLocalStore({}), /openDatabaseSync/);
   assert.throws(() => createLocalStore({ db: { execSync() {} } }), /openDatabaseSync/);

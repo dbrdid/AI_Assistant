@@ -34,19 +34,27 @@ export default function AppCommandScreen({ navigation, route }) {
   };
   const planFor = (text, original) => planProjectCommand(projectTools, text, original) ?? planCommand(owner, text, memoId, randomUUID, original);
   function clear() { setPlan(null); setMessage(''); }
+  // Device-only evaluation record for untouched model commands; user-typed commands are not AI results.
+  const fromModel = useRef(false);
+  function feedback(decision, detail = '') {
+    if (!fromModel.current) return;
+    try { owner.store.recordAiFeedback({ surface: 'command', decision, request: route.params.originalRequest, output: route.params.command, detail }); } catch { /* never blocks the command */ }
+  }
   function preview() {
     clear();
+    fromModel.current = !!route.params?.originalRequest && input === route.params?.command;
     try {
       if (!canAccess) throw new Error('공간 접근이 변경되었습니다. 화면을 다시 열어 주세요.');
       // A command the user retyped is theirs; only the untouched model output is checked against the original request.
       const started = Date.now();
-      setPlan(planFor(input, input === route.params?.command ? route.params?.originalRequest : undefined));
+      setPlan(planFor(input, fromModel.current ? route.params.originalRequest : undefined));
       metrics?.record('approval_card', { ms: Date.now() - started });
-    } catch (error) { setMessage(error.message); }
+    } catch (error) { setMessage(error.message); feedback('failed', error.message); }
   }
   // Clear requests skip the model but keep the same verification, review and approval path.
   function interpret() {
     clear();
+    fromModel.current = false;
     const project = routeProjectCommand(input);
     const routed = project.command ? project : routeCommand(input);
     if (routed.clarify) { setMessage(routed.clarify); return; }
@@ -60,9 +68,10 @@ export default function AppCommandScreen({ navigation, route }) {
     clear();
     try {
       const result = plan.approve(maybeRuntime());
+      feedback('accepted');
       if (result?.route) navigation.navigate(result.route, result.params);
       else setMessage('승인한 변경을 저장했습니다.');
-    } catch (error) { setMessage(error.message); }
+    } catch (error) { setMessage(error.message); feedback('failed', error.message); }
   }
   function row(label, onPress) {
     return <Pressable accessibilityRole="button" onPress={onPress} style={s.menuRow}><Text style={s.menuLabel}>{label}</Text></Pressable>;

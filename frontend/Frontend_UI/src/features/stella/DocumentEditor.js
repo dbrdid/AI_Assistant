@@ -452,6 +452,8 @@ export default function DocumentEditor({
     try {
       const result = decide(latest.current.blocks, pendingBlocks, ids, accept);
       const proposals = result.entries.map(entry => entry.proposalId).filter(Boolean);
+      // Proposal outcomes are already kept in proposals; record only block answers for evaluation.
+      const answered = result.entries.filter(entry => !entry.proposalId).map(entry => latest.current.blocks.find(block => block.id === entry.id)).filter(Boolean);
       if (accept) {
         // reviewedRevision: this app moved the source revision on when it placed the block; the user approves what they see now.
         for (const id of proposals) approveProposal(id, {}, { reviewedRevision: getMemo(memo.id).revision });
@@ -468,6 +470,9 @@ export default function DocumentEditor({
       writePreference(pendingKey(memo.id), result.pending);
       setPending(result.pending);
       setStatus(accept ? 'AI 제안을 수용했습니다' : 'AI 제안을 거절했습니다');
+      if (answered.length) {
+        try { own.store.recordAiFeedback({ surface: 'block', decision: accept ? 'accepted' : 'rejected', output: blocksText(answered) }); } catch { /* feedback never blocks the decision */ }
+      }
     } catch (e) {
       setError(e.code === 'source_changed' || e.code === 'revision_conflict' ? '문서가 바뀌었습니다. 내용을 확인한 뒤 다시 검토해 주세요.' : e.message);
     }

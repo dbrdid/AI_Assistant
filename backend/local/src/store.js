@@ -4,6 +4,7 @@ import * as tasks from './tasks.js';
 import * as proposals from './proposals.js';
 import * as workspaces from './workspaces.js';
 import * as backup from './backup.js';
+import * as aiFeedback from './ai-feedback.js';
 import { applyServer, applyServerNoteParents, applyFavorites, sharedState } from './apply.js';
 import { createServerMap } from './server.js';
 import { fail } from './errors.js';
@@ -290,6 +291,9 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, timezo
     addProposals: items => edit(() => proposals.addProposals(ctx, items)),
     approveProposal: (proposalId, edits, options) => edit(() => proposals.approveProposal(ctx, proposalId, edits, options)),
     setProposalStatus: (proposalId, status) => edit(() => proposals.setProposalStatus(ctx, proposalId, status)),
+    // 기기 전용 AI 피드백: 화면 캐시·동기화와 무관하므로 알림 없이 기록
+    recordAiFeedback: entry => write(() => aiFeedback.recordAiFeedback(ctx, entry)),
+    getAiFeedback: () => aiFeedback.listAiFeedback(ctx),
     findDuplicate: fields => proposals.findDuplicate(ctx, fields),
     subscribeProposals: subscriber('proposals'),
 
