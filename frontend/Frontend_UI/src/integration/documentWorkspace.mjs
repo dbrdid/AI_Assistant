@@ -48,12 +48,26 @@ export function createDocumentWorkspace({ content, store, read, write, isActive 
     if (!memo) throw new Error('현재 공간에서 문서를 찾을 수 없습니다.');
     return memo;
   }
+  // Derived, rebuildable link index: bodies are parsed only when they change, and unchanged inputs reuse the result.
+  const references = new Map();
+  let linkSnapshot;
+  function referencesOf(doc) {
+    const cached = references.get(doc.id);
+    if (cached?.body === doc.body) return cached.ids;
+    const ids = memoReferenceIds(doc.body);
+    references.set(doc.id, { body: doc.body, ids });
+    return ids;
+  }
   function links() {
     const current = workspace();
-    const docs = listDocuments(), ids = new Set(docs.map(doc => doc.id));
-    const manual = Object.values(read(`stella-document-links:${current.id}`, EMPTY)).filter(link => ids.has(link.source) && ids.has(link.target));
-    const sources = docs.flatMap(doc => [...memoReferenceIds(doc.body)].filter(id => id !== doc.id && ids.has(id)).map(target => ({ source: doc.id, target, kind: 'source' })));
-    return [...sources, ...manual];
+    const docs = listDocuments(), stored = read(`stella-document-links:${current.id}`, EMPTY);
+    if (linkSnapshot?.docs === docs && linkSnapshot.stored === stored) return linkSnapshot.rows;
+    const ids = new Set(docs.map(doc => doc.id));
+    for (const id of references.keys()) if (!ids.has(id)) references.delete(id);
+    const manual = Object.values(stored).filter(link => ids.has(link.source) && ids.has(link.target));
+    const sources = docs.flatMap(doc => [...referencesOf(doc)].filter(id => id !== doc.id && ids.has(id)).map(target => ({ source: doc.id, target, kind: 'source' })));
+    linkSnapshot = { docs, stored, rows: [...sources, ...manual] };
+    return linkSnapshot.rows;
   }
   function savePosition(id, x, y) {
     const current = workspace(true);

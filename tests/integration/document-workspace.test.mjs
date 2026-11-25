@@ -31,6 +31,17 @@ test('source links survive removal of a manual link and trashed notes are hidden
   assert.equal(t.documents.links().length, 0);
   assert.throws(() => t.documents.savePosition(target.id, 1, 2));
 });
+test('link index is reused until a body or manual link changes', () => {
+  const t = fixture(), a = t.store.addMemo({ title: 'A' }), b = t.store.addMemo({ title: 'B' }), c = t.store.addMemo({ title: 'C', body: `[A](memo:${a.id})` });
+  const first = t.documents.links();
+  assert.strictEqual(t.documents.links(), first);
+  t.store.updateMemo(c.id, { body: `[B](memo:${b.id})` });
+  assert.deepEqual(t.documents.links().map(link => link.target), [b.id]);
+  t.documents.setLink(a.id, b.id, true);
+  assert.equal(t.documents.links().length, 2);
+  t.store.trashMemo(b.id);
+  assert.equal(t.documents.links().length, 0);
+});
 test('invalid positions and anchors cannot be persisted', () => {
   const t = fixture(), a = t.store.addMemo({ title: '검증 문서' }), b = t.store.addMemo({ title: '검증 문서' });
   assert.throws(() => t.documents.savePosition(a.id, NaN, 1));
