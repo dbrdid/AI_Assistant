@@ -21,7 +21,8 @@ deno test -A --no-check --config deno.test.json recordings_lib.test.ts   # 앱 �
 deno test -A --no-check --config deno.test.json transcribe_lib.test.ts   # 앱 모듈 transcribe.ts(올리기·변환·재시도 계획) ↔ /transcribe
 ./reset.sh ../migrations/*.sql && psql -h /tmp -p 54329 -U postgres -d stella -f test_ui_fields.sql | grep -E "TOTAL|FAIL"   # 공간 설명·화면 칸·손글씨 형식·메모 복구(RESTORE, 6.6은 #32에 맞춰 바꿈) 70개
 deno test -A --no-check --config deno.auth.test.json auth_rules_lib.test.ts   # 앱 모듈 login-rules.ts·auth.ts·invites.ts ↔ 화면 규칙 (비밀번호 규칙 40개 비교, 5회 잠금, 역할 이름. stubs/로 RN 대역, 가짜 Auth 포트 54333)
-./reset.sh ../migrations/*.sql && psql -h /tmp -p 54329 -U postgres -d stella -f test_billing.sql | grep -E "TOTAL|FAIL"   # 가짜 결제: 구독·결제 실패 시연·재시도·해지 예약·해지 취소·기간 끝(FREE/자동 연장)·권한·Team(9,900원·PRO↔TEAM 변경·초대 200회·공간 첨부 10GB/백업 1GB) 70개
+./reset.sh ../migrations/*.sql && psql -h /tmp -p 54329 -U postgres -d stella -f test_billing.sql | grep -E "TOTAL|FAIL"   # 가짜 결제: 구독·결제 실패 시연·재시도·해지 예약·해지 취소·기간 끝(FREE/자동 연장)·권한·Team(9,900원·PRO↔TEAM 변경·초대 200회·공간 첨부 10GB/백업 1GB)·공간 요금제 = 결제 주체(11/25, 9.7a~d) 73개
+./reset.sh ../migrations/*.sql && psql -h /tmp -p 54329 -U postgres -d stella -f test_workspace_billing.sql | grep -E "TOTAL|FAIL"   # 11/25 공간 결제 주체(만든 사람·가져가기·나가면 FREE·탈퇴)·멤버 만료(권한·검증·매분 처리·변경 기록)·감사 기록(OWNER만 읽기) 26개
 ./reset.sh ../migrations/*.sql && deno test -A --no-check --config deno.test.json billing_lib.test.ts   # 앱 모듈 billing.ts ↔ 결제 RPC (로컬 DB, RLS 그대로, Team 흐름·요금제 표 문구 포함)
 ./reset.sh ../migrations/*.sql && psql -h /tmp -p 54329 -U postgres -d stella -f test_project_team.sql | grep -E "TOTAL|FAIL"   # 프로젝트 팀원(만들기·수정·이동·삭제)·프로젝트 초대(메일·링크·한도·취소)·코드로 참여·팀장 준비(#30) 65개
 ./reset.sh ../migrations/*.sql && deno test -A --no-check --config deno.test.json project_team_lib.test.ts   # 앱 모듈 project-team.ts ↔ 화면 규칙·초대 RPC

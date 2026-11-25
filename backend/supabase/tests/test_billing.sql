@@ -219,13 +219,24 @@ select t.ok((:'k1'::jsonb -> 'subscription' -> 'price_krw' ->> 'TEAM')::int = 99
 select public.subscription_checkout('TEAM', gen_random_uuid()) as k2 \gset
 select t.ok(:'k2'::jsonb ->> 'action' = 'ALREADY_ACTIVE' and t.payments(:'u3') = 1, '9.5 이미 TEAM → ALREADY_ACTIVE, 결제 없음', :'k2');
 
--- 공간 용량: 공간 관리자 중 가장 높은 요금제
+-- 공간 용량: 공간 결제 주체(만든 OWNER)의 요금제 (11/25: 가장 높은 OWNER 규칙 → 결제 주체 규칙)
 :as_admin
 select t.ok(private.workspace_plan(:'tws') = 'TEAM' and private.workspace_plan(:'pws') = 'PRO',
-        '9.6 공간 요금제 = 관리자의 요금제 (u3 공간 TEAM, u2(8.7에서 PRO) 공간 PRO: u3는 EDITOR일 뿐)');
+        '9.6 공간 요금제 = 결제 주체의 요금제 (u3 공간 TEAM, u2(8.7에서 PRO) 공간 PRO: u3는 EDITOR일 뿐)');
 update public.workspace_members set role = 'OWNER' where workspace_id = :'pws' and account_id = :'u3';
-select t.ok(private.workspace_plan(:'pws') = 'TEAM', '9.7 관리자가 둘이면 높은 쪽 (u2 PRO + u3 TEAM → TEAM)');
+select t.ok(private.workspace_plan(:'pws') = 'PRO', '9.7a TEAM인 u3가 OWNER가 돼도 결제 주체(u2 PRO)가 그대로');
+:as_u3
+select public.claim_workspace_billing(:'pws') as cb \gset
+select t.ok(:'cb'::jsonb ->> 'plan' = 'TEAM', '9.7b u3가 결제 주체를 가져가면 공간 TEAM', :'cb');
+:as_admin
 update public.workspace_members set role = 'EDITOR' where workspace_id = :'pws' and account_id = :'u3';
+select t.ok(private.workspace_plan(:'pws') = 'FREE'
+        and (select billing_account_id from public.workspaces where id = :'pws') is null,
+        '9.7c 결제 주체가 OWNER에서 내려오면 비워지고 FREE (다른 OWNER 요금제로 조용히 바뀌지 않음)');
+:as_u2
+select public.claim_workspace_billing(:'pws') as cb2 \gset
+select t.ok(:'cb2'::jsonb ->> 'plan' = 'PRO', '9.7d u2가 다시 가져가면 PRO', :'cb2');
+:as_admin
 :as_svc
 select public.asset_prepare(:'u3', '00000000-0000-4000-8000-00000000f901', 'ATTACHMENT', :'tws', null, 'audio/mp4', 52428800, :'h1') \gset
 :as_admin
