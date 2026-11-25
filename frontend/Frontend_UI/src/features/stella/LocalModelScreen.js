@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Linking, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Keyboard, Linking, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 import { runtime, maybeRuntime, gateway, readPreference, writePreference, aiPolicy } from '../../integration/runtime';
 import { askMobileModel, cancelMobileModelDownload, installMobileModel, listMobileModels, pendingMobileModelDownload } from '../../integration/mobileModel';
@@ -34,7 +34,9 @@ const CARD_INFO = {
 // 블록에 자주 하는 요청 (Notion AI의 글 다듬기, 맞춤법, 짧게, 길게, 요약, 번역과 같은 자리)
 const QUICK_ACTIONS = ['더 간결하게 고쳐줘', '맞춤법 고쳐줘', '더 자세히 써줘', '한 문장으로 요약해줘', '영어로 번역해줘'];
 
-export default function LocalModelScreen({ navigation, route }) {
+// sheet: 문서 아래에서 반쯤 올라오는 블록 AI 시트로 쓸 때 { prepare() → { revision } | null, onPlaced(), onClose() }.
+// 시트에서는 답이 오면 바로 문서에 제안(바꾸기)으로 넣고, 사용자는 문서에서 보며 수용하거나 거절한다.
+export default function LocalModelScreen({ navigation, route, sheet = null }) {
   const commandMode = typeof route?.params?.commandRequest === 'string';
   const asking = canAsk(route?.params); // opened from the AI tab: connection settings only
   const target = route?.params?.block; // long-pressed block: { id, index, type, text }
@@ -116,6 +118,7 @@ export default function LocalModelScreen({ navigation, route }) {
   // 빠른 요청을 누르면 글자가 반영된 이 그리기에서 보냄 (ask는 그리기마다 새로 만들어져 최신 글자를 읽음)
   useEffect(() => { if (sendNext) { setSendNext(false); ask(); } }, [sendNext]); // eslint-disable-line react-hooks/exhaustive-deps
   async function ask() {
+    if (sheet) Keyboard.dismiss();
     if (controller.current || !(consent || consented[provider]) || !prompt.trim()) return;
     if (!consented[provider]) {
       const next = { ...consented, [provider]: true };
@@ -152,7 +155,11 @@ export default function LocalModelScreen({ navigation, route }) {
       // A rewrite of the long-pressed block comes back as the block's new text (preview, then replace or insert).
       const rewrite = !commandMode && target && parsed.command ? targetRewrite(parsed.command, target) : null;
       if (parsed.clarify) setError(parsed.clarify);
-      else setReply(rewrite ? { text: rewrite, model: result.model } : { ...parsed, model: result.model });
+      else {
+        const next = rewrite ? { text: rewrite, model: result.model } : { ...parsed, model: result.model };
+        if (sheet && target && next.text) useReply(true, next);
+        else setReply(next);
+      }
     } catch (e) {
       if (active.current && !request.signal.aborted) setError(e.message);
     } finally {
@@ -160,13 +167,17 @@ export default function LocalModelScreen({ navigation, route }) {
       if (active.current) setBusy('');
     }
   }
-  function useReply(replace = false) {
+  function useReply(replace = false, answer = reply) {
     try {
       if (!inScope()) throw new Error('계정 또는 공간이 바뀌었습니다. 다시 열어 주세요.');
-      if (reply.command) navigation.navigate(ROUTES.AppCommand, { command: reply.command, originalRequest: reviewRequest, memoId: route?.params?.memoId });
+      if (answer.command) { sheet?.onClose(); navigation.navigate(ROUTES.AppCommand, { command: answer.command, originalRequest: reviewRequest, memoId: route?.params?.memoId }); }
       else {
-        placeAnswer(owner, { memoId: route.params.memoId, revision: route.params.revision, blockId: target.id, text: reply.text, replace }, { read: readPreference, write: writePreference }, randomUUID);
-        navigation.goBack();
+        // 시트: 문서의 지금 판(편집 중인 내용을 먼저 저장)에 넣는다
+        const revision = sheet ? sheet.prepare()?.revision : route.params.revision;
+        if (revision === undefined) throw new Error('문서를 저장하지 못했습니다. 다시 시도해 주세요.');
+        placeAnswer(owner, { memoId: route.params.memoId, revision, blockId: target.id, text: answer.text, replace }, { read: readPreference, write: writePreference }, randomUUID);
+        if (sheet) { setReply(null); setPrompt(''); sheet.onPlaced(); }
+        else navigation.goBack();
       }
     } catch (e) { setError(e.message); }
   }
@@ -232,15 +243,15 @@ export default function LocalModelScreen({ navigation, route }) {
     })}
   </>;
 
-  return <View style={s.root}><WorkspaceHeader title={asking ? 'AI에게 요청' : 'AI 연결'} onBack={navigation.goBack} />
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.page}>
+  return <View style={sheet ? { flex: 1 } : s.root}>{!sheet && <WorkspaceHeader title={asking ? 'AI에게 요청' : 'AI 연결'} onBack={navigation.goBack} />}
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={sheet ? { paddingHorizontal: 20, paddingBottom: 16, gap: 12 } : s.page}>
       {commandMode && <Text accessibilityRole="header" style={s.title}>앱 작업 해석</Text>}
-      {!!target && <Text selectable style={s.aiTarget}>{targetLine(target)}</Text>}
+      {!!target && !sheet && <Text selectable style={s.aiTarget}>{targetLine(target)}</Text>}
       {!asking && <Text style={s.intro}>바뀌는 내용은 승인한 뒤에만 적용돼요.</Text>}
       {!asking && <View style={{ gap: 12, marginTop: 16 }}>{cards}</View>}
       {!asking && errorView}
       {asking && <>
-        <TextInput accessibilityLabel="AI에게 요청" value={prompt} onChangeText={value => { setPrompt(value); setReply(null); }} autoFocus
+        <TextInput accessibilityLabel="AI에게 요청" value={prompt} onChangeText={value => { setPrompt(value); setReply(null); }} autoFocus={!sheet}
           editable={!busy} placeholder={target ? '이 블록에 무엇을 할까요? 예: 더 간결하게 고쳐줘' : '질문이나 앱 작업을 입력하세요. 예: 회의록 문서 만들어줘'} placeholderTextColor={c.subtle} multiline maxLength={commandMode ? 2000 : 12000} style={s.promptBox} />
         {/* Notion AI처럼 블록에 자주 하는 요청은 한 번에 보냄 (입력 전에만 보임) */}
         {!!target && !prompt.trim() && !busy && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>

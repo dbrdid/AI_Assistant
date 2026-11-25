@@ -260,6 +260,39 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
 
   // 제목 줄 위치: 캘린더 화면은 상단 안전영역 아래, 홈 시트는 손잡이 막대 아래
   // 상단 탭 안에서는 탭 줄 바로 아래에 다른 하위 화면과 같은 왼쪽 큰 제목으로 둔다.
+  // 일정 패널 손잡이: 위로 끌면 패널이 달력을 덮으며 화면 전체로, 아래로 끌면 원래 자리로 (달력 크기는 그대로)
+  const lift = useRef(new Animated.Value(0)).current; // 0 = 제자리, -panelTop = 달력을 다 덮음
+  const panelTopRef = useRef(0);
+  const liftBase = useRef(0);
+  const [panelExpanded, setPanelExpanded] = useState(false);
+  const [panelDragging, setPanelDragging] = useState(false); // 끄는 동안 달력 스크롤을 멈춰 손잡이가 손가락을 따라가게
+  const movePanel = (expand) => {
+    const to = expand ? -panelTopRef.current : 0;
+    liftBase.current = to;
+    setPanelExpanded(expand);
+    Animated.spring(lift, { toValue: to, bounciness: 0, speed: 16, useNativeDriver: true }).start();
+  };
+  const panelPan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onStartShouldSetPanResponderCapture: () => true,
+    onPanResponderGrant: () => setPanelDragging(true),
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderTerminate: () => { setPanelDragging(false); movePanel(liftBase.current < 0); },
+    onPanResponderMove: (_, g) => lift.setValue(Math.min(0, Math.max(-panelTopRef.current, liftBase.current + g.dy))),
+    onPanResponderRelease: (_, g) => {
+      setPanelDragging(false);
+      const expanded = liftBase.current < 0;
+      if (Math.abs(g.dy) < 6 && Math.abs(g.dx) < 6) { movePanel(!expanded); return; } // 짧게 누르면 열고 닫기
+      // 높이의 1/4 이상 또는 빠르게 밀면 반대쪽으로 넘어감
+      const far = Math.abs(g.dy) > panelTopRef.current / 4 || Math.abs(g.vy) > 0.6;
+      movePanel(expanded ? !(far && g.dy > 0) : far && g.dy < 0);
+    },
+  })).current;
+  useEffect(() => {
+    if (!panelExpanded) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { movePanel(false); return true; });
+    return () => sub.remove();
+  }, [panelExpanded]);
   const headerActions = (
     <>
           {/* 오늘이 이미 선택되어 보이면 숨김 (Notion 캘린더의 오늘 버튼과 같은 동작) */}
@@ -348,10 +381,13 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
             highlight={searching ? highlight : undefined}
             onPickMonth={(yy, mm) => goToDate(new Date(yy, mm, 1))}
             actions={embedded ? headerActions : null}
+            scrollEnabled={!panelDragging}
           >
             {/* 선택한 날의 일정 / 검색 결과: 위쪽이 둥근 흰 시트 (아래 안전영역만큼 띄움) */}
-            <View style={[styles.panel, { paddingBottom: insets.bottom + spacing.xxl }]}>
-              <View style={styles.panelBarWrap}>
+            <Animated.View onLayout={(e) => { panelTopRef.current = e.nativeEvent.layout.y; if (liftBase.current < 0) { liftBase.current = -panelTopRef.current; lift.setValue(liftBase.current); } }}
+              style={[styles.panel, { paddingBottom: insets.bottom + spacing.xxl, transform: [{ translateY: lift }] }]}>
+              <View {...panelPan.panHandlers} accessible accessibilityRole="button" accessibilityLabel={panelExpanded ? '일정 목록 내리기' : '일정 목록 크게 보기'}
+                accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={() => movePanel(!panelExpanded)} style={styles.panelBarWrap}>
                 <View style={styles.bar} />
               </View>
               {searching ? (
@@ -392,7 +428,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
                   />
                 </>
               )}
-            </View>
+            </Animated.View>
           </MonthCalendar>
         </View>
 
@@ -473,7 +509,7 @@ const styles = StyleSheet.create({
 
   // 선택한 날의 일정 시트 (흰 바탕 + 둥근 위쪽 + 손잡이 막대)
   panel: {flexGrow:1,marginTop:spacing.xs,paddingHorizontal:20,backgroundColor:colors.cream,borderTopLeftRadius:0,borderTopRightRadius:0,shadowColor:'#000000',shadowOpacity:0,shadowRadius:12,shadowOffset:{width:0,height:-2},elevation:0,borderTopWidth:1,borderColor:colors.line},
-  panelBarWrap: {height:12,alignItems:'center',justifyContent:'center',marginBottom:spacing.xs},
+  panelBarWrap: { height: 28, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs },
   spaceChipsBar: { flexGrow: 0, flexShrink: 0, marginBottom: spacing.md },
   spaceChips: { gap: spacing.lg, alignItems: 'center' },
   spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, maxWidth: 160, paddingHorizontal: 4 },

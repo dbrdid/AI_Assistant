@@ -27,7 +27,8 @@ export default function MonthCalendar({
   onPrev,
   onNext,
   onPickMonth,
-  actions = null, // 달 이름 줄 오른쪽에 함께 둘 버튼 (탭 안 캘린더: 오늘, 검색)
+  actions = null,
+  scrollEnabled = true, // 달 이름 줄 오른쪽에 함께 둘 버튼 (탭 안 캘린더: 오늘, 검색)
   children,
 }) {
   // 이 달의 달력 표(주 단위 배열)를 계산
@@ -37,7 +38,7 @@ export default function MonthCalendar({
   const [pickYear, setPickYear] = useState(year);
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView scrollEnabled={scrollEnabled} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.grid}>
         {/* ---------- 1) 맨 위: 2026년 11월,  ‹ › ---------- */}
         <View style={styles.head}>

@@ -2,6 +2,7 @@
 //   top: 창의 위쪽 끝 (AI 채팅 머리글 바로 아래까지 올라오게 머리글 높이를 넘겨 받음)
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useDragClose } from '../../../shared/components/Motion';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import { CircleButton } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
@@ -31,6 +32,7 @@ export default function UpSheet({ visible, top = 0, title, onClose, children }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
+  const { drag, strip } = useDragClose(onClose);
   if (!mounted) return null;
   return (
     <Modal transparent visible animationType="none" onRequestClose={onClose}>
@@ -40,9 +42,10 @@ export default function UpSheet({ visible, top = 0, title, onClose, children }) 
         </Animated.View>
         <Animated.View
           accessibilityViewIsModal
-          style={[styles.sheet, { height, paddingBottom: insets.bottom + spacing.lg, transform: [{ translateY: y }] }]}
+          style={[styles.sheet, { height, paddingBottom: insets.bottom + spacing.lg, transform: [{ translateY: Animated.add(y, drag) }] }]}
         >
           <View style={styles.grip} />
+          {strip}
           <View style={styles.head}>
             <Text style={styles.title} accessibilityRole="header">{title}</Text>
             <CircleButton icon="x" label="닫기" onPress={onClose} size={36} iconSize={18} />

@@ -3,7 +3,8 @@
 // ============================================================
 
 import React, { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useDragClose } from '../../../shared/components/Motion';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import { colors, font, radius, spacing, FILL } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
@@ -12,6 +13,7 @@ import { switchWorkspace, useWorkspaces } from '../../../data/workspaces/Workspa
 
 export default function WorkspacePicker({ visible, onClose, navigation, onSwitched }) {
   const insets = useSafeAreaInsets();
+  const { drag, strip } = useDragClose(onClose);
   const { list, current } = useWorkspaces();
   const [busy, setBusy] = useState(false);
 
@@ -33,8 +35,9 @@ export default function WorkspacePicker({ visible, onClose, navigation, onSwitch
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.root}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="공간 선택 닫기" />
-        <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]} accessibilityViewIsModal>
+        <Animated.View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg, transform: [{ translateY: drag }] }]} accessibilityViewIsModal>
           <View style={styles.grip} />
+          {strip}
           <Text style={styles.title}>공간 선택</Text>
           <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={{ maxHeight: 320 }} contentContainerStyle={{ gap: spacing.sm }}>
             {list.map((w) => {
@@ -71,7 +74,7 @@ export default function WorkspacePicker({ visible, onClose, navigation, onSwitch
               <Text style={styles.linkText}>공간 관리</Text>
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
