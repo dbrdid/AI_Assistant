@@ -419,6 +419,26 @@ test('공간의 내 역할·멤버 수·이름을 맞춘다: 보기 전용으로
   assert.equal((await t.bridge.syncAll())[t.team].status, 'OK');
 });
 
+test('서버 id 없이 남은 공유 공간은 이름이 기기와 서버에 하나씩만 있을 때 그 서버 공간에 다시 연결한다', async () => {
+  const list = [{ id: SERVER_WS, name: '팀 공간', role: 'OWNER' }, { id: OTHER_WS, name: '휴대폰에서 만든 공간', role: 'OWNER' }];
+  const t = world({ account: ACCOUNT, bridgeOptions: { workspaces: { list: async () => list } } });
+  const orphan = t.store.createWorkspace({ name: '휴대폰에서 만든 공간' });   // 서버 id가 빠진 채 남은 공간
+  await t.bridge.syncAll();
+  const named = t.store.getWorkspaces().filter(w => w.name === '휴대폰에서 만든 공간');
+  assert.deepEqual(named.map(w => [w.id, w.serverId]), [[orphan, OTHER_WS]]);          // 새로 하나 더 만들지 않고 기존 공간에 연결
+});
+
+test('이름이 겹치면 추측해서 연결하지 않는다', async () => {
+  const list = [{ id: OTHER_WS, name: '같은 이름', role: 'OWNER' }];
+  const t = world({ account: ACCOUNT, bridgeOptions: { workspaces: { list: async () => list } } });
+  const a = t.store.createWorkspace({ name: '같은 이름' });
+  const b = t.store.createWorkspace({ name: '같은 이름' });
+  await t.bridge.syncAll();
+  const byId = id => t.store.getWorkspaces().find(w => w.id === id);
+  assert.deepEqual([byId(a).serverId ?? null, byId(b).serverId ?? null], [null, null]);  // 기기에 같은 이름이 둘: 둘 다 그대로
+  assert.ok(t.store.getWorkspaces().some(w => w.serverId === OTHER_WS && w.id !== a && w.id !== b));   // 서버 공간은 따로 추가
+});
+
 test('a closed workspace resumes only after the server confirms renewed membership', async () => {
   let memberships = [];
   let snapshotAttempts = 0;
