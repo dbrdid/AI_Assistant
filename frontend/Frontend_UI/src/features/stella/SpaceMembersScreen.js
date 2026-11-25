@@ -66,10 +66,10 @@ export default function SpaceMembersScreen({ navigation, route }) {
   const byId = Object.fromEntries(state.members.map(m => [m.account_id, m]));
   const who = accountId => !accountId ? '시스템' : accountId === me ? '나' : byId[accountId] ? nameOf(byId[accountId]) : '이전 멤버';
   const logText = entry => ({
-    BILLING_ASSIGNED: `${who(entry.target_id)}이(가) 결제 주체가 됨`,
-    BILLING_CLEARED: `${who(entry.target_id)}의 결제 주체가 해제됨 (공간 FREE)`,
-    MEMBER_EXPIRY_SET: entry.detail?.expires_at ? `${who(entry.target_id)} 만료 ${day(entry.detail.expires_at)}로 지정` : `${who(entry.target_id)} 만료 해제`,
-    MEMBER_EXPIRED: `${who(entry.target_id)} 만료되어 내보냄`,
+    BILLING_ASSIGNED: `결제 주체 지정 · ${who(entry.target_id)}`,
+    BILLING_CLEARED: `결제 주체 해제 · ${who(entry.target_id)} (공간 FREE)`,
+    MEMBER_EXPIRY_SET: entry.detail?.expires_at ? `접근 만료 ${day(entry.detail.expires_at)} 지정 · ${who(entry.target_id)}` : `접근 만료 해제 · ${who(entry.target_id)}`,
+    MEMBER_EXPIRED: `만료되어 내보냄 · ${who(entry.target_id)}`,
   })[entry.action] ?? entry.action;
 
   return <View style={s.root}>
