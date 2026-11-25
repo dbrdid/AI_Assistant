@@ -5,6 +5,7 @@ exports.saveLocal = saveLocal;
 exports.flushOutbox = flushOutbox;
 exports.resolveConflict = resolveConflict;
 exports.discardOutbox = discardOutbox;
+exports.listDiscardedOutbox = listDiscardedOutbox;
 exports.pullWorkspace = pullWorkspace;
 exports.resyncWorkspace = resyncWorkspace;
 exports.syncNow = syncNow;
@@ -81,6 +82,20 @@ async function setupLocalSync(db) {
       base         text                             -- ops를 고정할 때 서버 사본에 있던 값 (내가 바꾼 칸만). 충돌 때 합치는 기준
     );
     create index if not exists stella_outbox_ws on stella_outbox (workspace_id, seq);
+    -- 버린 보낼 묶음 보관 (거절·사용자 취소·서버 값 선택). 내 수정 원문을 잃지 않게 최근 것만 남김
+    create table if not exists stella_outbox_discarded (
+      seq          integer primary key,             -- 원래 stella_outbox.seq
+      workspace_id text not null,
+      operation_id text not null,
+      intent       text not null,
+      status       text not null,                   -- 버릴 때 상태: PENDING | CONFLICT | FAILED
+      last_error   text,
+      conflicts    text,
+      created_at   text not null,
+      reason       text not null,                   -- DISCARDED | USE_SERVER
+      discarded_at text not null
+    );
+    create index if not exists stella_outbox_discarded_ws on stella_outbox_discarded (workspace_id, seq);
     create table if not exists stella_handoffs (
       key          text primary key,                -- 기기 저장소가 넘긴 묶음의 표시 (saveLocal의 handoffKey)
       operation_id text not null,
@@ -453,6 +468,7 @@ async function resolveConflict(ctx, outboxSeq, choice) {
         if (!row || row.status !== 'CONFLICT')
             throw new errors_1.SyncError('NOT_FOUND', '충돌 상태인 보낼 묶음이 없습니다');
         if (choice === 'use_server') {
+            await archiveOutbox(ctx, row, 'USE_SERVER');
             await db.run('delete from stella_outbox where seq = ?', [row.seq]);
         }
         else {
@@ -503,9 +519,25 @@ async function discardOutbox(ctx, outboxSeq) {
         const row = await db.get('select * from stella_outbox where seq = ? and workspace_id = ?', [outboxSeq, ws]);
         if (!row)
             return;
+        await archiveOutbox(ctx, row, 'DISCARDED');
         await db.run('delete from stella_outbox where seq = ?', [row.seq]);
         await rebuildAll(db, ws, touched([row]).values());
     }));
+}
+const DISCARDED_KEEP = 200; // 공간마다 최근 버린 묶음 수
+async function archiveOutbox(ctx, row, reason) {
+    const { db, workspaceId: ws } = ctx;
+    await db.run(`insert or replace into stella_outbox_discarded
+       (seq, workspace_id, operation_id, intent, status, last_error, conflicts, created_at, reason, discarded_at)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [row.seq, ws, row.operation_id, row.intent, row.status, row.last_error ?? null, row.conflicts ?? null, row.created_at, reason, nowOf(ctx)]);
+    await db.run(`delete from stella_outbox_discarded where workspace_id = ? and seq not in
+       (select seq from stella_outbox_discarded where workspace_id = ? order by seq desc limit ?)`, [ws, ws, DISCARDED_KEEP]);
+}
+/** 이 공간에서 버린 보낼 묶음 (최근 것부터). 버린 수정 원문을 다시 확인·복사할 때 씀 */
+async function listDiscardedOutbox(ctx) {
+    const rows = await ctx.db.all('select * from stella_outbox_discarded where workspace_id = ? order by seq desc', [ctx.workspaceId]);
+    return rows.map(r => ({ seq: r.seq, operationId: r.operation_id, changes: JSON.parse(r.intent), status: r.status,
+        error: r.last_error, reason: r.reason, createdAt: r.created_at, discardedAt: r.discarded_at }));
 }
 // ---------------------------------------------------------------------
 // 3. 받기 · 전체 재동기화
@@ -995,7 +1027,7 @@ async function listConflicts(db, workspaceId) {
 // ---------------------------------------------------------------------
 // 5. 계정 (기기 DB는 한 계정 것)
 // ---------------------------------------------------------------------
-const SYNC_TABLES = ['stella_outbox', 'stella_records', 'stella_sync_state', 'stella_handoffs'];
+const SYNC_TABLES = ['stella_outbox', 'stella_outbox_discarded', 'stella_records', 'stella_sync_state', 'stella_handoffs'];
 async function wipe(db) {
     const n = await db.get('select count(*) as n from stella_outbox');
     for (const t of SYNC_TABLES)

@@ -196,6 +196,8 @@ test('충돌 합치기의 기준은 보낼 내용을 고정한 때의 서버 값
   await assert.rejects(engine.resolveConflict(b.ctx, r.flush.outboxSeq, 'merge'), e => e.code === 'CANNOT_MERGE');   // 둘 다 제목을 고쳤으므로 물어야 함
   await engine.resolveConflict(b.ctx, r.flush.outboxSeq, 'use_server');
   assert.equal((await b.note()).title, 'A의 제목');
+  const [overwritten] = await engine.listDiscardedOutbox(b.ctx);                      // 서버 값을 골라도 내 수정 원문은 보관
+  assert.deepEqual([overwritten.reason, overwritten.status, overwritten.changes[0].data.title], ['USE_SERVER', 'CONFLICT', 'B의 제목']);
 
   // 기준이 없는 예전 묶음(base 칸이 비어 있음): 스스로 합치지 않음
   await a.edit({ body: 'A의 본문' }); await a.sync();
@@ -270,4 +272,18 @@ test('글 합치기: 다른 줄은 둘 다, 같은 자리에 넣은 줄은 차�
     if (engine.mergeText(text(o), text(o), text(theirs)).text !== text(theirs)) bad++;
   }
   assert.equal(bad, 0);
+});
+
+test('버린 보낼 묶음은 원문을 보관하고, 다른 계정으로 바뀌면 함께 지운다', { skip: !available }, async () => {
+  const d = await device();
+  await engine.bindSyncAccount(d.db, ME);
+  const op = await engine.saveLocal(d.ctx, create());
+  const { seq } = await d.db.get('select seq from stella_outbox');
+  await engine.discardOutbox(d.ctx, seq);
+  assert.equal(await d.count('stella_outbox'), 0);
+  const [kept] = await engine.listDiscardedOutbox(d.ctx);
+  assert.deepEqual([kept.seq, kept.operationId, kept.reason, kept.status, kept.changes], [seq, op, 'DISCARDED', 'PENDING', create()]);
+  assert.deepEqual(await engine.listDiscardedOutbox({ ...d.ctx, workspaceId: '77777777-7777-4777-8777-777777777777' }), []);
+  await engine.bindSyncAccount(d.db, OTHER);
+  assert.equal(await d.count('stella_outbox_discarded'), 0);
 });
