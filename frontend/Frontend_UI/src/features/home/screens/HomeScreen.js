@@ -51,7 +51,7 @@ function SectionHead({ title, onAdd, addLabel }) {
   );
 }
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   // 상단 탭 안의 '오늘'에서는 탭 줄의 S 버튼과 겹치는 '나' 버튼과 상단 여백을 빼고 날짜를 제목으로 쓴다.
   const { embedded } = useScreenEntry();
@@ -152,6 +152,9 @@ export default function HomeScreen({ navigation }) {
   useEffect(() => {
     if (recording && seconds >= MAX_RECORDING_SECONDS) void toggleRef.current?.();
   }, [recording, seconds]);
+  // 하단 새로 만들기 > AI 노트: 오늘 화면으로 와서 바로 녹음 시작 (값은 누를 때마다 바뀌는 시각)
+  const startRequest = route?.params?.startRecording;
+  useEffect(() => { if (startRequest && !recording) toggleRecording(); }, [startRequest]); // eslint-disable-line react-hooks/exhaustive-deps
   const toggleRecording = async () => {
     if (recBusy.current) return;
     recBusy.current = true;

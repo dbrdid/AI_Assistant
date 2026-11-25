@@ -6,6 +6,7 @@ import TabBar from '../../navigation/TabBar';
 import { ScreenEntryProvider } from '../../navigation/ScreenEntry';
 import { useFiles } from '../../data/files/FileStore';
 import GraphCanvas from './GraphCanvas';
+import SearchDock from './SearchDock';
 import { runtime, useValue, readPreference, writePreference } from '../../data/hooks';
 import { randomUUID } from 'expo-crypto';
 import { isPlaced, placeProposal } from './aiPending.mjs';
@@ -258,12 +259,12 @@ export default function WorkspaceScreen({
   // 탭 안에 들어간 쪽은 아래 공통 하단(검색, AI에게 질문하기, 새 문서)을 쓰고 자체 하단을 그리지 않는다
   const embedded = pagerIndex !== undefined || bodyOnly;
   // Notion 모바일 하단과 같은 형식: 왼쪽 검색, 가운데 AI에게 질문하기, 오른쪽 새 문서
-  const askDock = <View style={[s.homeDock, { gap: 8, paddingBottom: Math.max(10, insets.bottom) }]}>
-    <IconButton name="search" label="검색" onPress={() => go(ROUTES.Search)} />
-    <Pressable accessibilityRole="button" accessibilityLabel="AI에게 질문하기" onPress={() => go(ROUTES.AiChat)} style={({ pressed }) => [s.askPill, pressed && { opacity: .6 }]}>
-      <Icon name="sparkles" size={17} color={c.muted} /><Text style={s.homeSearchText}>AI에게 질문하기</Text></Pressable>
-    <IconButton name="pencil" label="새 문서 작성" onPress={() => go(ROUTES.MemoEdit)} />
-  </View>;
+  // Notion 모바일과 같은 하단: 검색(펼쳐지는 검색창), AI에게 질문하기, 새로 만들기(AI 노트, 채팅, 페이지)
+  const titleOf = new Map(memos.map(memo => [memo.id, memoTitle(memo)]));
+  const parentOf = new Map(documents.map(document => [document.id, document.parentId]));
+  const searchDocs = memos.map(memo => ({ id: memo.id, title: memoTitle(memo), body: memo.body || '', updatedAt: memo.updatedAt, createdAt: memo.createdAt ?? memo.updatedAt, parent: titleOf.get(parentOf.get(memo.id)) || '' }));
+  const askDock = <SearchDock docs={searchDocs} bottomInset={insets.bottom} onOpen={id => go(ROUTES.MemoEdit, { memoId: id })} onAskAI={() => go(ROUTES.AiChat)}
+    onNew={kind => kind === 'note' ? go(ROUTES.Home, { subpage: ROUTES.Today, startRecording: Date.now() }) : go(kind === 'chat' ? ROUTES.AiChat : ROUTES.MemoEdit)} />;
   let content;
   if (mode === 'documents') {
     content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={list} keyExtractor={memo => memo.id} contentContainerStyle={s.page} keyboardShouldPersistTaps="handled" ListHeaderComponent={<>{intro}<View style={s.search}><Icon name="search" size={17} color={c.muted} /><TextInput autoFocus={requestSearch} accessibilityLabel="문서 검색" placeholder="제목이나 내용으로 검색" placeholderTextColor={c.subtle} value={query} onChangeText={setQuery} style={s.searchInput} />{query ? <IconButton name="x" label="검색어 지우기" onPress={() => setQuery('')} /> : null}</View><View style={s.filters}>{[['all', '모든 문서'], ['favorites', '즐겨찾기']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{
