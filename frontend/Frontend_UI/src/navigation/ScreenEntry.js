@@ -8,7 +8,8 @@
 import { createContext, useContext } from 'react';
 
 // tabRoot: 하단 탭으로 연 화면인지 · goBack: 내비게이터의 뒤로 가기 (화면이 넘긴 onBack 과 비교용)
-const ScreenEntry = createContext({ tabRoot: false, goBack: null });
+// embedded: 상단 탭의 하위 화면으로 끼워 넣은 경우. 탭이 이미 위치를 보여 주므로 머리글은 제목 줄만 남긴다.
+const ScreenEntry = createContext({ tabRoot: false, goBack: null, embedded: false });
 export const ScreenEntryProvider = ScreenEntry.Provider;
 export const useScreenEntry = () => useContext(ScreenEntry);
 
@@ -19,7 +20,8 @@ export const useScreenEntry = () => useContext(ScreenEntry);
  *   그 밖의 onBack(예: 선택 모드 끝내기)은 그대로 ‹.
  */
 export function useLeadAction(onBack) {
-  const { tabRoot, goBack } = useContext(ScreenEntry);
-  const hidden = !onBack || (tabRoot && onBack === goBack);
+  const { tabRoot, goBack, embedded } = useContext(ScreenEntry);
+  // 상단 탭 안의 하위 화면은 탭 줄이 위치를 보여 주므로 뒤로 가기를 두지 않는다.
+  const hidden = !onBack || embedded || (tabRoot && onBack === goBack);
   return { hidden, onPress: hidden ? null : onBack };
 }

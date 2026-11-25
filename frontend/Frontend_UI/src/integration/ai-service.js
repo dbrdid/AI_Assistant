@@ -1,4 +1,5 @@
 import { requireTransmission } from '../../../../shared/contracts/ai-policy.js';
+import { originalEvidence, sourceSpelling, statedTimes, verifiedStart } from './recordEvidence.mjs';
 
 /** I/O is injected so the exact mobile policy and stale-result path can be exercised without paid calls. */
 export function createAIService({ store, gateway, getSession, getPolicy, newId }) {
@@ -31,16 +32,32 @@ export function createAIService({ store, gateway, getSession, getPolicy, newId }
         if (typeof response.draft.summary !== 'string' || !response.draft.summary.trim()) throw error('INVALID_MODEL_OUTPUT');
         return { summary: response.draft.summary, sourceId: id, sourceRevision: snapshot.revision };
       }
-      const proposals = store.addProposals(store.serverMap.proposalsFromAnalyze(response.draft, {
+      const candidates = store.serverMap.proposalsFromAnalyze(response.draft, {
         sourceType: 'memo', sourceId: snapshot.id, sourceTitle: snapshot.title, sourceRevision: snapshot.revision,
-      }));
+      });
+      const planned = candidates.flatMap(proposal => {
+        const evidence = originalEvidence(snapshot.text, proposal.evidence);
+        // A task without a time keeps none: a time in its sentence may belong to another event.
+        const timeSource = statedTimes(evidence).length ? evidence : candidates.length === 1 ? snapshot.text : '';
+        const start = proposal.kind === 'task' && !proposal.start ? '' : verifiedStart(proposal.start, timeSource);
+        if (start === null) return [];
+        return [{ ...proposal, evidence, start, end: !proposal.endDate && proposal.end && proposal.end < start ? '' : proposal.end,
+          title: sourceSpelling(snapshot.text, proposal.title), body: sourceSpelling(snapshot.text, proposal.body) }];
+      });
+      const proposals = store.addProposals(planned);
+      const stored = saved => planned.some(item => ['kind', 'title', 'date', 'start', 'evidence'].every(key => saved[key] === item[key]));
+      if (!proposals.every(stored)) {
+        for (const proposal of proposals) store.setProposalStatus(proposal.id, 'rejected');
+        throw error('INVALID_MODEL_OUTPUT');
+      }
+      const blocked = candidates.length - planned.length;
       // Summary is a separate pending memo proposal: it is never silently written into the source.
       if (typeof response.draft.summary === 'string' && response.draft.summary.trim()) {
         proposals.push(...store.addProposals([{ kind: 'memo', title: `${snapshot.title || '메모'} 요약`.slice(0, 200),
           body: response.draft.summary, sourceType: 'memo', sourceId: snapshot.id,
           sourceTitle: snapshot.title, sourceRevision: snapshot.revision }]));
       }
-      return { added: proposals.length, saved: 0, requestId: response.request_id };
+      return { added: proposals.length, saved: 0, requestId: response.request_id, ...(blocked ? { blocked } : {}) };
     } finally { signal?.removeEventListener('abort', abort); active.delete(controller); }
   }
   function cancel() { for (const c of active) c.abort(); }

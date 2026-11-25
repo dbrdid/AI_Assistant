@@ -7,11 +7,12 @@ export const ROUTES = {
   AdvancedMemoEdit: 'AdvancedMemoEdit',
   AdvancedMemos: 'AdvancedMemos',
   LocalModel: 'LocalModel',
+  AppCommand: 'AppCommand',
   Today: 'Today',
   Relations: 'Relations',           // 홈
   Search: 'Search',       // 검색
   Calendar: 'Calendar',   // 캘린더
-  Ai: 'Ai',               // AI 채팅
+  Ai: 'Ai',               // 예전 'AI 채팅' 이름. 앱 명령 호환을 위해 AI 연결 화면으로 엽니다
   Projects: 'Projects',   // 프로젝트 목록
   ProjectDetail: 'ProjectDetail', // 프로젝트 화면 (연결된 항목)
   ProjectEdit: 'ProjectEdit',     // 프로젝트 추가/편집
@@ -60,17 +61,15 @@ export const TABS = [
     { route: ROUTES.QuickInput, label: '빠른 입력' },
   ] },
   { route: ROUTES.Memos, label: '문서', icon: 'file', pages: [
-    { route: ROUTES.Memos, label: '문서 목록' }, { route: ROUTES.Relations, label: '문서 관계' },
-    { route: ROUTES.Favorites, label: '즐겨찾기' }, { route: ROUTES.Files, label: '파일 보관함' },
-    { route: ROUTES.AdvancedMemos, label: '가져오기 / 내보내기' }, { route: ROUTES.Trash, label: '휴지통' },
+    { route: ROUTES.Memos, label: '문서 목록' }, { route: ROUTES.Favorites, label: '즐겨찾기' },
+    { route: ROUTES.Files, label: '파일 보관함' },
   ] },
   { route: ROUTES.Tasks, label: '업무', icon: 'checkSquare', pages: [
     { route: ROUTES.Tasks, label: '할 일 / 일정' }, { route: ROUTES.Calendar, label: '캘린더' },
-    { route: ROUTES.Projects, label: '프로젝트' }, { route: ROUTES.Spaces, label: '공유 공간' },
   ] },
-  { route: ROUTES.Proposals, label: 'AI', icon: 'sparkles', pages: [
-    { route: ROUTES.Proposals, label: '제안 검토' }, { route: ROUTES.Ai, label: 'AI 채팅' },
-    { route: ROUTES.LocalModel, label: '로컬 AI' },
+  // 문서와 할 일을 묶는 프로젝트는 매일 쓰는 단위라 상단에 둔다. 작업 검토·AI 연결·공유 공간·휴지통은 공간 메뉴로 옮겼다.
+  { route: ROUTES.Projects, label: '프로젝트', icon: 'folder', pages: [
+    { route: ROUTES.Projects, label: '프로젝트' },
   ] },
 ];
 // '나' 화면(홈 왼쪽 위 프로필)의 목록. 묶음(section)마다 한 카드로 보입니다
@@ -79,15 +78,17 @@ export const MORE_SECTIONS = [
     title: 'AI',
     items: [
       { route: ROUTES.Proposals, label: 'AI 제안 확인', icon: 'sparkles' },
-      { route: ROUTES.Ai, label: 'AI 채팅', icon: 'message' },
+      { route: ROUTES.LocalModel, label: 'AI 연결', icon: 'sparkles' },
     ],
   },
   {
     title: '도구',
     items: [
       { route: ROUTES.Search, label: '검색', icon: 'search' },
+      { route: ROUTES.Relations, label: '문서 관계', icon: 'link' },
+      { route: ROUTES.AdvancedMemos, label: '가져오기 / 내보내기', icon: 'arrowUp' },
       { route: ROUTES.AgendaCompare, label: '안건 비교', icon: 'compare' },
-      { route: ROUTES.QuickInput, label: '사진 · 문서 올리기', icon: 'arrowUp', params: { tab: 'file' } },
+      { route: ROUTES.QuickInput, label: '사진, 문서 올리기', icon: 'arrowUp', params: { tab: 'file' } },
       { route: ROUTES.Favorites, label: '즐겨찾기', icon: 'star' },
       { route: ROUTES.Files, label: '파일 보관함', icon: 'paperclip' },
       { route: ROUTES.Trash, label: '휴지통', icon: 'trash' },
@@ -96,10 +97,10 @@ export const MORE_SECTIONS = [
   {
     title: '계정',
     items: [
-      { route: ROUTES.Backup, label: '백업 · 복원', icon: 'cloud' },
+      { route: ROUTES.Backup, label: '백업 및 복원', icon: 'cloud' },
       { route: ROUTES.Settings, label: '설정', icon: 'settings' },
     ],
   },
 ];
 
-export const ROUTE_LABELS = { ...Object.fromEntries([...TABS, ...MORE_SECTIONS.flatMap((s) => s.items)].map((i) => [i.route, i.label])), [ROUTES.More]: '나' };
+export const ROUTE_LABELS = { ...Object.fromEntries([...TABS, ...MORE_SECTIONS.flatMap((s) => s.items)].map((i) => [i.route, i.label])), [ROUTES.More]: '모든 도구' };

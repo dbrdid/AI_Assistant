@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   timeEnd: { fontSize: 13, color: colors.muted },
   bar: { width: 3, alignSelf: 'stretch', borderRadius: 4, minHeight: 36 },
   textCol: { flex: 1, gap: 4 },
-  itemTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
+  itemTitle: { fontSize: 15, fontWeight: '500', color: colors.ink },
   itemTitleDone: { color: colors.muted, textDecorationLine: 'line-through' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   itemMeta: { flex: 1, fontSize: 13, color: colors.muted },
@@ -205,8 +205,8 @@ const styles = StyleSheet.create({
 
   actions: { flexDirection: 'row', gap: spacing.sm },
   actionBtn: { flex: 1, minHeight: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  editBtn: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  editText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
+  editBtn: { backgroundColor: 'transparent', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.actionBorder },
+  editText: { fontSize: 14, fontWeight: '500', color: colors.ink },
   delBtn: { backgroundColor: colors.coralSoft },
   delText: { fontSize: font.body, fontWeight: '700', color: colors.onPrimary },
 });

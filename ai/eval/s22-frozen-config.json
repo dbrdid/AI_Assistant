@@ -1,0 +1,102 @@
+{
+  "schema": "s22-frozen-config-v1",
+  "status": "최종 후보 미정, 300문항 미실행; device results NOT_RUN",
+  "sourceBase": "8c5c099 + uncommitted working tree",
+  "target": {
+    "device": "Galaxy S22 8GB",
+    "platform": "android",
+    "defaultModel": "Q4_K_M"
+  },
+  "model": {
+    "repository": "bartowski/Qwen_Qwen3.5-4B-GGUF",
+    "revision": "4168f45a16a1290d65a4ec0fa312ae917a4c15d6",
+    "files": {
+      "Q4_K_M": {
+        "bytes": 3013027808,
+        "sha256": "13c16f426047e2de38cd075bdade4a7bcbc8c774384876f677740cda65f8a983"
+      },
+      "Q5_K_M": {
+        "bytes": 3443763168,
+        "sha256": "21c4643259ce62ffd979848e5819ce03823fd9e9902279ab54cc0d572d83d33e"
+      }
+    },
+    "architecture": "qwen35",
+    "embeddedChatTemplateSha256": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715"
+  },
+  "runtime": {
+    "package": "llama.rn",
+    "version": "0.13.0-rc.12"
+  },
+  "load": {
+    "n_ctx": 4096,
+    "n_batch": 128,
+    "n_ubatch": 64,
+    "n_gpu_layers": 0,
+    "use_mmap": true,
+    "use_mlock": false,
+    "ctx_shift": false,
+    "n_threads": "unset; runtime default min(4, cores) without Hexagon",
+    "no_extra_bufts": "unset; runtime default false (weight repacking on)"
+  },
+  "chat": {
+    "jinja": true,
+    "enable_thinking": false,
+    "systemPrompt": "none passed by app",
+    "stop": [
+      "template additional_stops",
+      "<|im_end|>",
+      "<|endoftext|>"
+    ],
+    "grammar": "app commands only: GBNF commandGrammar; general requests unconstrained"
+  },
+  "sampling": {
+    "temperature": 0.2,
+    "seed": "unset; runtime -1 (not reproducible)",
+    "top_k": "unset; runtime default 40",
+    "top_p": "unset; runtime default 0.95",
+    "min_p": "unset; runtime default 0.05",
+    "penalty_repeat": "unset; runtime default 1.0"
+  },
+  "outputLimits": {
+    "generalMaxTokens": 512,
+    "commandOverheadTokens": 64,
+    "commandFormula": "min(general, requestTokens + overhead)",
+    "onLimit": "reject; never reviewed or saved"
+  },
+  "prompts": {
+    "commandPromptFile": "frontend/Frontend_UI/src/features/stella/appCommands.mjs",
+    "commandPromptFileSha256": "9c9b0735336489817d06e98690fa69bbe7960dbab2e2718d34ded64af84443ed",
+    "commandPromptRenderedSha256": "f41f2657edbf8f959d1edcebdf090a3842f0923a77d01f19ee5f9dfc23cfb526",
+    "renderedWith": "{{input}}",
+    "commandGrammarSha256": "75c43a1caf94943da1feda3e14cbc31ebb52f87d04d57aef175ae9823ac5c8f9"
+  },
+  "evaluationSampling": {
+    "temperature": 0.2,
+    "seed": 42,
+    "maxTokens": "app outputLimits",
+    "scope": "evaluation runs only; app runtime seed stays unset"
+  },
+  "inputLimits": {
+    "commandMaxChars": 2000,
+    "generalMaxChars": 12000,
+    "heavyInputTokens": 512,
+    "commandDocumentBlocksSent": 0
+  },
+  "deviceLimits": {
+    "appliesTo": "input above heavyInputTokens",
+    "thermal": "Android THERMAL_STATUS_SEVERE or higher; iOS serious or critical",
+    "memory": "Android MemoryInfo.lowMemory",
+    "unreadable": "restricted"
+  },
+  "calibration": {
+    "file": "ai/eval/s22-calibration.json",
+    "sha256": "a0acd4916992e9612aecd063f32fc02219f140663663a959abcea8b14540cb34",
+    "items": 40,
+    "scoredItems": 38,
+    "evidenceThreshold": 0.84,
+    "highestClarifyCoverage": 0.6666666666666666,
+    "lowestExecuteCoverage": 1,
+    "devSetFile": "ai/eval/s22-command-dev.json",
+    "devSetSha256": "2f609af67988510ce0c1a0760026ad90ea483459e70fb6abfb00d1d74cfb66f7"
+  }
+}

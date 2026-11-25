@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and below. With no include rule, everything except the model folder keeps its default backup. -->
+<full-backup-content>
+  <exclude domain="file" path="qwen35/" />
+</full-backup-content>

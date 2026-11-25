@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12 and above. With no include rule, everything except the model folder keeps its default cloud backup. -->
+<data-extraction-rules>
+  <cloud-backup>
+    <exclude domain="file" path="qwen35/" />
+  </cloud-backup>
+</data-extraction-rules>

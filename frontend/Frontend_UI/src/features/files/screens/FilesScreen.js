@@ -87,11 +87,11 @@ export default function FilesScreen({ navigation, route }) {
     <View style={styles.root}>
       <ScreenHeader title="파일 보관함" onBack={navigation.goBack} />
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} ref={scrollRef} contentContainerStyle={styles.list}>
-        {/* 로컬 / 클라우드 탭 (칩 안의 숫자 = 그 위치의 파일 개수) */}
+        {/* 로컬 / 클라우드 탭 */}
         <View style={styles.tabs}>
           {['local', 'cloud'].map((key) => {
             const on = tab === key;
-            return <Chip key={key} label={`${STORAGE_INFO[key].label} ${getFiles(key).length}`} active={on} onPress={() => setTab(key)} />;
+            return <Chip key={key} label={STORAGE_INFO[key].label} active={on} onPress={() => setTab(key)} />;
           })}
         </View>
         <Text style={styles.count}>{STORAGE_INFO[tab].desc}</Text>
@@ -177,13 +177,14 @@ export default function FilesScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   list: {padding:spacing.lg,gap:12,paddingBottom:spacing.xxl,paddingHorizontal:20},
-  count: { fontSize: font.body, color: colors.muted },
+  count: { fontSize: 12, color: colors.muted },
   // 탭
   tabs: { flexDirection: 'row', gap: spacing.sm },
   // 파일이 없을 때 안내
-  empty: {alignItems:'flex-start',paddingTop:50,paddingHorizontal:4,gap:spacing.sm},
-  emptyTitle: {fontSize:22,fontWeight:'600',color:colors.ink,textAlign:'left'},
-  emptySub: {fontSize:14,color:colors.muted,textAlign:'left',lineHeight:24},
+  // 빈 상태는 큰 제목 대신 Stella 문서 목록처럼 낮은 대비의 안내 두 줄
+  empty: {alignItems:'flex-start',paddingTop:24,paddingHorizontal:4,gap:4},
+  emptyTitle: {fontSize:15,fontWeight:'500',color:colors.ink,textAlign:'left'},
+  emptySub: {fontSize:13,color:colors.muted,textAlign:'left',lineHeight:21},
   card: {flexDirection:'row',gap:spacing.md,backgroundColor:colors.cream,borderRadius:0,borderWidth:0,borderColor:colors.line,padding:spacing.lg,borderBottomWidth:1,paddingHorizontal:0,paddingVertical:18},
   cardFocus: { borderColor: colors.mint, borderWidth: 2, backgroundColor: colors.mintSoft },
   icon: {width:32,height:36,borderRadius:0,backgroundColor:'transparent',alignItems:'center',justifyContent:'center'},

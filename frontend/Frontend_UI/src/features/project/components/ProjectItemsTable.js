@@ -6,12 +6,17 @@ import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { colors, font, spacing } from '../../../shared/theme/theme';
 import { alertUser } from '../../../data/alert';
 import { DEFAULT_TABLE_VIEW, PROPERTY_TYPES, parsePropertyValue, projectTableRows, removeProjectProperty } from './projectTableView.mjs';
+import Icon from '../../../shared/components/Icon';
+// 마지막 글자의 받침에 맞춰 조사를 고른다(예: 종류로, 상태로, 메모가, 할 일이).
+const hasBatchim = word => { const code = String(word).trim().slice(-1).charCodeAt(0) - 0xac00; return code >= 0 && code <= 11171 && code % 28 !== 0; };
+const withRo = word => `${word}${hasBatchim(word) && (String(word).trim().slice(-1).charCodeAt(0) - 0xac00) % 28 !== 8 ? '으로' : '로'}`;
+
 
 const columns = [
-  { key: 'title', label: '이름', width: 235 },
-  { key: 'type', label: '종류', width: 80 },
-  { key: 'status', label: '상태', width: 98 },
-  { key: 'date', label: '날짜', width: 124 },
+  { key: 'title', label: '이름', width: 138 },
+  { key: 'type', label: '종류', width: 56 },
+  { key: 'status', label: '상태', width: 66 },
+  { key: 'date', label: '날짜', width: 64 },
 ];
 
 export default function ProjectItemsTable({ initialSettings, onSaveSettings, sharedTable, canEditSharedTable, onSaveSharedTable, onFindCellConflict, sections, onOpen }) {
@@ -41,7 +46,7 @@ export default function ProjectItemsTable({ initialSettings, onSaveSettings, sha
   const filterValue = filterField ? parsePropertyValue(filterField.type, filterDraft.input) : undefined;
   const hasFilterValue = filterValue !== null && filterValue !== undefined;
   const activeFilterField = fields.find(field => field.key === view.propertyFilter?.key);
-  const tableColumns = [...columns, ...fields.map(field => ({ ...field, width: 140 }))];
+  const tableColumns = [...columns, ...fields.map(field => ({ ...field, width: field.type === 'checkbox' ? 72 : 120 }))];
   const statuses = [...new Set(sections.flatMap(section => section.items.map(item => item.status)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
   if (status && !statuses.includes(status)) statuses.push(status);
   const saveSettings = (next) => {
@@ -193,7 +198,7 @@ export default function ProjectItemsTable({ initialSettings, onSaveSettings, sha
                   <Pressable
                     key={key}
                     accessibilityRole="button"
-                    accessibilityLabel={active ? `${label}, ${direction}` : `${label}으로 정렬`}
+                    accessibilityLabel={active ? `${label}, ${direction}` : `${withRo(label)} 정렬`}
                     onPress={() => updateView({ sortKey: key, descending: active && !descending })}
                     style={[styles.cell, { width }]}
                   >
@@ -212,19 +217,25 @@ export default function ProjectItemsTable({ initialSettings, onSaveSettings, sha
                 >
                   {columns.map(({ key, width }) => (
                     <View key={key} style={[styles.cell, { width }]}>
-                      <Text numberOfLines={1} style={[styles.value, key === 'title' && styles.title]}>{item[key] || '—'}</Text>
+                      <Text numberOfLines={1} style={[styles.value, key === 'title' && styles.title]}>{(key === 'date' && item.date ? item.date.slice(5).replace('-', '/') : item[key]) || '—'}</Text>
                     </View>
                   ))}
                 </Pressable>
                 {tableColumns.slice(columns.length).map(field => {
                   const value = properties[item.rowKey]?.[field.key];
                   const display = value == null ? '—' : field.type === 'checkbox' ? (value ? '체크됨' : '체크 안 됨') : String(value);
+                  const direct = field.type === 'checkbox' && !hasSharedTable;
                   return (
-                    <Pressable key={field.key} disabled={!canEditProperties} accessibilityRole={canEditProperties ? 'button' : undefined} accessibilityLabel={`${item.title}, ${field.label}, ${display}`} style={[styles.cell, styles.propertyCell, { width: field.width }]} onPress={() => {
+                    <Pressable key={field.key} disabled={!canEditProperties} accessibilityRole={canEditProperties ? 'button' : undefined} accessibilityLabel={`${item.title}, ${field.label}, ${display}`} accessibilityState={field.type === 'checkbox' ? { checked: !!value } : undefined} style={[styles.cell, styles.propertyCell, { width: field.width }]} onPress={() => {
+                      if (direct) {
+                        const values = { ...properties[item.rowKey], [field.key]: !value };
+                        void saveProperties({ ...settings, fields, properties: { ...properties, [item.rowKey]: values } });
+                        return;
+                      }
                       setPropertyInput(value == null ? '' : String(value));
                       openProperty({ ...field, rowKey: item.rowKey, mode: 'edit' });
                     }}>
-                      <Text numberOfLines={1} style={styles.value}>{display}</Text>
+                      {field.type === 'checkbox' ? <Icon name={value ? 'checkSquare' : 'square'} size={18} color={value ? colors.ink : colors.muted} /> : <Text numberOfLines={1} style={styles.value}>{display}</Text>}
                     </Pressable>
                   );
                 })}

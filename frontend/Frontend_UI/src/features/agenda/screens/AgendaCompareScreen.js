@@ -17,12 +17,12 @@ import { judgeDiscussion } from '../../../services/ai/AgendaJudge';
 import { diffExcerpt, longDateKey, shortDateKey } from '../utils/AgendaUtils';
 
 const STATUS = {
-  added: { label: '추가됨', color: '#b8cbb3', bg: '#26372c' },
+  added: { label: '추가됨', color: '#e6e6e3', bg: '#2f3134' },
   changed: { label: '내용 바뀜', color: '#e8cc84', bg: '#3b3523' },
   removed: { label: '삭제됨', color: '#f0abab', bg: '#38282a' },
 };
 const JUDGE = {
-  discussed: { label: '논의됨', color: '#b8cbb3', bg: '#26372c' },
+  discussed: { label: '논의됨', color: '#e6e6e3', bg: '#2f3134' },
   open: { label: '미논의', color: '#f0abab', bg: '#38282a' },
 };
 const KIND = { memo: '메모', task: '일정/할 일', file: '파일' };
@@ -222,7 +222,7 @@ function Diff({ label, before, after }) {
     <View style={styles.diff}>
       <Text style={styles.diffLabel}>{label}</Text>
       <View style={[styles.diffBox, { backgroundColor: '#38282a' }]}><Text style={styles.diffText}>이전  {before || '(비어 있음)'}</Text></View>
-      <View style={[styles.diffBox, { backgroundColor: '#26372c' }]}><Text style={styles.diffText}>이후  {after || '(비어 있음)'}</Text></View>
+      <View style={[styles.diffBox, { backgroundColor: '#2f3134' }]}><Text style={styles.diffText}>이후  {after || '(비어 있음)'}</Text></View>
     </View>
   );
 }

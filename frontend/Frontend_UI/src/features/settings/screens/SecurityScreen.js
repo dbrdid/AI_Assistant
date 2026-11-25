@@ -74,7 +74,7 @@ export default function SecurityScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
-  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.md },
   dialogTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   policy: { fontSize: font.body, color: colors.ink, lineHeight: 22 },

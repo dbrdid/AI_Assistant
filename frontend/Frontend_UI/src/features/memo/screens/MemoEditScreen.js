@@ -1216,7 +1216,7 @@ const styles = StyleSheet.create({
   toolSub: { fontSize: font.caption, color: colors.muted },
 
   // 삭제 확인 창
-  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.sm },
   dialogTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
   dialogSub: { fontSize: font.body, color: colors.muted },

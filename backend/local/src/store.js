@@ -288,7 +288,7 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, timezo
     getProposals: () => (cache.proposals ??= Object.freeze(proposals.listProposals(ctx))),
     getProposal: proposalId => proposals.getProposal(ctx, proposalId),
     addProposals: items => edit(() => proposals.addProposals(ctx, items)),
-    approveProposal: (proposalId, edits) => edit(() => proposals.approveProposal(ctx, proposalId, edits)),
+    approveProposal: (proposalId, edits, options) => edit(() => proposals.approveProposal(ctx, proposalId, edits, options)),
     setProposalStatus: (proposalId, status) => edit(() => proposals.setProposalStatus(ctx, proposalId, status)),
     findDuplicate: fields => proposals.findDuplicate(ctx, fields),
     subscribeProposals: subscriber('proposals'),

@@ -102,7 +102,7 @@ export function TimePickerModal({ visible, value, title, onPick, onClear, onClos
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md },
   navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   nav: { fontSize: 28, color: colors.ink, paddingHorizontal: spacing.sm },

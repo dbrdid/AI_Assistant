@@ -7,7 +7,7 @@ export const palette = {
   muted: '#aaa',
   subtle: '#969a9c',
   line: '#2d3032',
-  accent: '#b8cbb3',
+  accent: '#d9d9d6', // 강조색은 무채색으로 통일(녹색 사용 안 함)
   danger: '#f0abab'
 };
 const c = palette;
@@ -36,6 +36,47 @@ export const styles = StyleSheet.create({
   homeSearch: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, paddingHorizontal: 8 },
   homeSearchText: { color: c.muted, fontSize: 14 },
   recentBody:{color:c.muted,fontSize:12,lineHeight:18},
+  // 본문 아래 하위·연결 문서: Notion 페이지 링크처럼 낮은 대비의 행, 누를 때만 면 표시
+  pageLinks: { marginTop: 32, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  pageLinksLabel: { color: c.subtle, fontSize: 12, marginBottom: 4 },
+  pageLink: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, paddingHorizontal: 8, marginHorizontal: -8, borderRadius: 6 },
+  pageLinkPressed: { backgroundColor: c.surface },
+  pageLinkTitle: { flex: 1, color: c.text, fontSize: 15, textDecorationLine: 'underline', textDecorationColor: '#55595c' },
+  pageLinkKind: { color: c.subtle, fontSize: 11 },
+  // 문서 작업 메뉴의 바로가기 묶음(Notion 작업 시트의 둥근 묶음 행)
+  menuGroup: { backgroundColor: c.surface, borderRadius: 10, marginTop: 10, paddingHorizontal: 12, overflow: 'hidden' },
+  menuGroupRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 46 },
+  menuDivider: { height: StyleSheet.hairlineWidth, backgroundColor: c.line, marginLeft: 34 },
+  menuGroupLabel: { color: c.subtle, fontSize: 12, marginTop: 18, marginBottom: 2, paddingHorizontal: 4 },
+  menuIcon: { width: 22, alignItems: 'center' },
+  // AI 요청 화면
+  promptBox: { color: c.text, fontSize: 15, lineHeight: 23, minHeight: 104, maxHeight: 240, marginTop: 16, padding: 14, backgroundColor: c.surface, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: '#3a3d40', textAlignVertical: 'top' },
+  aiTarget: { color: c.muted, fontSize: 13, lineHeight: 20, paddingLeft: 10, borderLeftWidth: 2, borderLeftColor: c.accent },
+  aiActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 12 },
+  aiSend: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: '#35373a' },
+  aiSendText: { color: c.text, fontSize: 14, fontWeight: '600' },
+  aiGhost: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, borderColor: '#45494c' },
+  aiGhostText: { color: c.text, fontSize: 13 },
+  aiConsent: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, marginTop: 6 },
+  aiReply: { marginTop: 20, padding: 14, backgroundColor: c.surface, borderRadius: 10 },
+  aiReplyLabel: { color: c.subtle, fontSize: 12, marginBottom: 8 },
+  aiConnection: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, marginTop: 22, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  aiConnectionText: { flex: 1, color: c.subtle, fontSize: 12 },
+  // AI 연결 카드(Orca 에이전트 연결 화면 참고): 낮은 대비의 면, 옅은 테두리, 오른쪽 상태 배지
+  connCard: { padding: 14, gap: 8, backgroundColor: c.surface, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: '#2e3134' },
+  connCardOn: { borderColor: '#4a4e52' },
+  connHead: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  connName: { flex: 1, color: c.text, fontSize: 15, fontWeight: '600' },
+  connBadge: { color: c.subtle, fontSize: 11, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: '#45494c', overflow: 'hidden' },
+  connBadgeOn: { color: c.text, backgroundColor: '#35373a', borderColor: '#35373a' },
+  connBadgeReady: { color: c.text, borderColor: '#55595c' },
+  connDesc: { color: c.muted, fontSize: 12, lineHeight: 18 },
+  connDetails: { gap: 8, marginTop: 4, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  connRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
+  connRowLabel: { color: c.muted, fontSize: 13, width: 44 },
+  connRowValue: { flex: 1, color: c.text, fontSize: 14 },
+  connInput: { color: c.text, fontSize: 14, minHeight: 44, paddingHorizontal: 12, backgroundColor: c.background, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: '#3a3d40' },
+  connNote: { color: c.subtle, fontSize: 12, lineHeight: 18 },
   emptyInline:{color:c.subtle,fontSize:13,lineHeight:22,paddingVertical:12},
   root: {
     flex: 1,

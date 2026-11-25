@@ -8,7 +8,7 @@ export const getWorkspaces = () => runtime().store.getWorkspaces();
 export const switchWorkspace = id => runtime().store.switchWorkspace(id);
 
 // 공간 색: 개인 공간은 민트, 팀 공간은 목록 순서대로 아래 색 (같은 기기에서는 늘 같은 색)
-const TEAM_COLORS = ['#7F77DD', '#E0A030', '#378ADD', '#D4537E', '#639922', '#D85A30'];
+const TEAM_COLORS = ['#7F77DD', '#E0A030', '#378ADD', '#D4537E', '#8a8f94', '#D85A30'];
 export function spaceInfoOf(list) {
   const out = {};
   let n = 0;

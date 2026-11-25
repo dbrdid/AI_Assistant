@@ -125,6 +125,6 @@ const styles = StyleSheet.create({
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   ghost: { width: '100%', minHeight: 52, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
-  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   card: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, alignItems: 'center' },
 });

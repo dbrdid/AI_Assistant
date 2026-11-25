@@ -138,8 +138,8 @@ export default function TasksScreen({ navigation }) {
       />
       <View>
         <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-          <Chip label={`진행 중 ${open.length}`} active={tab === 'open'} onPress={() => setTab('open')} />
-          <Chip label={`완료 ${done.length}`} active={tab === 'done'} onPress={() => setTab('done')} />
+          <Chip label="진행 중" active={tab === 'open'} onPress={() => setTab('open')} />
+          <Chip label="완료" active={tab === 'done'} onPress={() => setTab('done')} />
           {!!myName && <Chip label="내 담당" active={mineOnly} onPress={() => setMineOnly((v) => !v)} />}
         </ScrollView>
         {/* 공간 칩: 모든 공간 또는 한 공간만 */}

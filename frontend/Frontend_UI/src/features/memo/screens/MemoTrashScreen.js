@@ -75,7 +75,7 @@ export default function TrashScreen({ navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}>
         <Text style={styles.count}>
-          메모 {memos.length}개{selecting ? `  /  ${ids.length}개 선택` : '  /  복구하거나 완전히 삭제할 수 있어요'}
+          {selecting ? `${ids.length}개 선택` : '복구하거나 완전히 삭제할 수 있어요'}
         </Text>
 
         {memos.length === 0 ? (

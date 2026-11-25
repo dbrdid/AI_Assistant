@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   ghost: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   note: { fontSize: font.caption, color: colors.muted },
-  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.sm },
   dialogTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink, marginBottom: spacing.sm },
   option: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },

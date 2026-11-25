@@ -672,7 +672,7 @@ const CSS = `
 .graph-grid{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.graph-world{position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0}
 .graph-lines{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
 .graph-line{fill:none;stroke:#929d96;stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round;pointer-events:none}.graph-line.is-hierarchy{stroke:#7e8985}.graph-line.is-selected{stroke:#d4e6cc;stroke-width:2.5}
-.graph-line-hit{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:pointer}.graph-line-hit:focus{outline:none;stroke:#b8cbb333;stroke-width:12}
+.graph-line-hit{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:pointer}.graph-line-hit:focus{outline:none;stroke:#d9d9d633;stroke-width:12}
 .graph-preview{fill:none;stroke:#c0d8b6;stroke-width:2;stroke-dasharray:6 4;pointer-events:none}
 .graph-node{position:absolute;background:#242729;border:1px solid #3d4540;border-radius:4px}.graph-node:hover{border-color:#9ca99e}.graph-node.is-selected{border:2px solid #c4d8b9}.graph-node.is-target{border-color:#c4d8b9;background:#303a32}
 .graph-node-body{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;width:100%;height:100%;padding:11px 17px;background:transparent;border:0;text-align:left;border-radius:4px;cursor:grab!important}

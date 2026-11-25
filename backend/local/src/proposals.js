@@ -123,8 +123,10 @@ function resultOf(ctx, row) {
  * with the proposal's status. A proposal from a memo is refused with source_changed when the memo was edited or
  * deleted after the analysis. Approving again returns the item saved the first time instead of a second copy.
  * Returns the saved item with kind 'task' or 'memo'.
+ * options.reviewedRevision: the source revision the user approved from, when the app itself added the proposal
+ * to the source document as a block waiting for acceptance (that insertion moves the revision on).
  */
-export function approveProposal(ctx, proposalId, edits = {}) {
+export function approveProposal(ctx, proposalId, edits = {}, { reviewedRevision } = {}) {
   id(proposalId);
   if (!isPlainObject(edits)) fail('invalid_input', 'edits');
   const row = ctx.db.getFirstSync(`select ${COLUMNS} from proposals where workspace_id=? and id=?`, [ctx.ws(), proposalId]) ?? fail('not_found');
@@ -139,7 +141,7 @@ export function approveProposal(ctx, proposalId, edits = {}) {
   let source = null;
   if (p.sourceType === 'memo') {
     source = memoRow(ctx, p.sourceId);
-    if (!source || source.revision !== p.sourceRevision) fail('source_changed');
+    if (!source || source.revision !== (reviewedRevision ?? p.sourceRevision)) fail('source_changed');
   }
 
   let saved;

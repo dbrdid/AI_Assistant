@@ -4,7 +4,7 @@
 - The approved Notion-inspired UI is implemented in frontend/Frontend_UI/src/features/stella/WorkspaceScreen.js, theme.js, GraphCanvas.web.js and src/navigation/TabBar.js. Keep the expanding top tabs, restrained dark surfaces, collapsible home sections, compact cards and bottom editor tools. Do not restore the old bottom navigation or old mint/card styling.
 - src/integration/documentWorkspace.mjs reads the existing parentMemoId and Markdown links. Diagram positions and manual links are device preferences. Do not add a competing parent hierarchy or claim diagram preferences synchronize to the cloud.
 - Before finishing UI work: run node --test backend/local/tests/*.test.mjs tests/integration/*.test.mjs and export web/Android from frontend/Frontend_UI with npx expo export --platform web --platform android. Check 320px and 390px layouts and real save/navigation paths. A bundle is not real-device or hosted collaboration acceptance.
-- Preserve user changes. Use minimal correct changes, existing components and dependencies. Honor reduced motion, accessible labels, workspace permissions and data preservation. Do not publish, deploy, push or merge without a user request.
+- Preserve user changes. Use minimal correct changes, existing components and dependencies. Honor accessible labels, workspace permissions and data preservation. Do not publish, deploy, push or merge without a user request. Do not add an in-app reduced-motion integration: the user removed it on 2026-11-24 (see 디자인/Stella_모바일_UI_직접_지시_정리.md).
 
 ## Mandatory UI authority (2026-11-20)
 

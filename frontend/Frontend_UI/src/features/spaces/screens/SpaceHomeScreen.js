@@ -1,7 +1,7 @@
 // ============================================================
 // SpaceHomeScreen.js — 공간 하나의 홈 (노션의 팀스페이스처럼)
 // ============================================================
-// 위에서부터: 멤버 · 초대 / 회의 안건 · 파일 · AI에게 묻기 / 진행 중 프로젝트 / 다가오는 일정·할 일 / 최근 메모
+// 위에서부터: 멤버 · 초대 / 회의 안건 · 파일 / 진행 중 프로젝트 / 다가오는 일정·할 일 / 최근 메모
 // 들어오면 이 공간을 "현재 공간"으로 바꿔서, 프로젝트·파일·안건처럼 공간별 화면이 이 공간 것을 보여 줍니다.
 
 import React, { useEffect, useState } from 'react';
@@ -20,7 +20,7 @@ import { toKey } from '../../calendar/utils/DateUtils';
 import { SpaceTile } from './SpacesScreen';
 
 const ROLE = { OWNER: '관리자', EDITOR: '멤버', VIEWER: '보기 전용' };
-const AVATAR_BG = ['#E1F5EE', '#EEEDFE', '#FAEEDA', '#E6F1FB', '#FBEAF0'];
+const AVATAR_BG = ['#EEEEEC', '#EEEDFE', '#FAEEDA', '#E6F1FB', '#FBEAF0'];
 const AVATAR_FG = ['#085041', '#3C3489', '#633806', '#0C447C', '#72243E'];
 
 function Avatar({ name, i, size = 30 }) {
@@ -182,7 +182,6 @@ export default function SpaceHomeScreen({ navigation, route }) {
           {[
             { icon: 'compare', label: '회의 안건', route: ROUTES.AgendaCompare },
             { icon: 'paperclip', label: '파일', route: ROUTES.Files },
-            { icon: 'sparkles', label: 'AI에게 묻기', route: ROUTES.Ai },
           ].map((q) => (
             <Pressable key={q.label} accessibilityRole="button" onPress={() => go(q.route)} style={({ pressed }) => [styles.quickBtn, pressed && { backgroundColor: colors.mintSoft }]}>
               <Icon name={q.icon} size={18} color={colors.mintDark} />
@@ -358,7 +357,7 @@ const styles = StyleSheet.create({
   itemBody: { flex: 1, minHeight: 44, justifyContent: 'center', gap: 2 },
   itemTitle: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
   when: { fontSize: font.caption, color: colors.muted },
-  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.4)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 400, gap: spacing.md, padding: spacing.xl, borderRadius: radius.card, backgroundColor: colors.cream },
   dialogTitle: { fontSize: font.title, fontWeight: '800', color: colors.ink },
   code: { fontSize: 28, fontWeight: '800', letterSpacing: 2, color: colors.mintDark, textAlign: 'center', paddingVertical: spacing.sm },

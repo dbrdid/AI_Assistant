@@ -30,7 +30,7 @@ const HOME_BAR = 16;     // 홈 시트 맨 위 손잡이 막대 영역 높이
 const HALF_VISIBLE = 560; // "중간" 단계에서 화면에 보이는 시트 높이 (달력 한 달이 들어갈 정도)
 const FLING_MS = 150;    // 손을 뗄 때의 속도로 "150ms 뒤 위치"를 미리 계산 → 휙 던지면 더 멀리 가게 함
 
-export default function CalendarSheet({ calendar, startFull = false, onReachTop, onClose, onAddTask, onEditTask, lead }) {
+export default function CalendarSheet({ calendar, startFull = false, onReachTop, onClose, onAddTask, onEditTask, lead, embedded = false }) {
   // ---------- 1) 크기 계산 ----------
   const windowH = useWindowDimensions().height; // 기기가 알려 주는 화면 높이 (폰에 따라 실제 그려지는 영역과 다를 수 있음)
   const [parentH, setParentH] = useState(0);      // 시트가 놓인 곳의 "실제로 그려지는 높이" (아래 probe View 로 잼)
@@ -259,7 +259,8 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
   const toggle = () => (level === 'closed' ? snapTo(startFull ? 'full' : 'half') : snapTo('closed'));
 
   // 제목 줄 위치: 캘린더 화면은 상단 안전영역 아래, 홈 시트는 손잡이 막대 아래
-  const headTop = startFull ? insets.top + spacing.sm : HOME_BAR;
+  // 상단 탭 안에서는 탭 줄 바로 아래에 다른 하위 화면과 같은 왼쪽 큰 제목으로 둔다.
+  const headTop = embedded ? 14 : startFull ? insets.top + spacing.sm : HOME_BAR;
   // '이번 주' 띠가 덮고 있을 때는 그 아래 제목 줄을 화면 읽기에서 숨김
   const hideHead = showPeek ? { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' } : {};
 
@@ -297,8 +298,8 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
               <View style={styles.bar} />
             </View>
           )}
-          <View style={styles.headerRow}>
-            <Text style={styles.headerTitle}>캘린더</Text>
+          <View style={[styles.headerRow, embedded && styles.headerRowEmbedded]}>
+            <Text style={[styles.headerTitle, embedded && styles.headerTitleEmbedded]}>캘린더</Text>
           </View>
         </View>
         {/* 제목 줄 왼쪽 버튼 (캘린더 화면의 ☰ 또는 ‹). 손잡이 위에 겹쳐 그려서 눌림을 먼저 받음 */}
@@ -445,7 +446,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
 
 const styles = StyleSheet.create({
   // 시트 본체: 화면 맨 아래에 붙여 두고(position absolute + bottom 0) 위쪽 모서리를 둥글게
-  sheet: {position:'absolute',left:0,right:0,bottom:0,backgroundColor:colors.cream,borderTopLeftRadius:4,borderTopRightRadius:4,shadowColor:'#263935',shadowOpacity:0,shadowRadius:14,shadowOffset:{width:0,height:-3},elevation:0},
+  sheet: {position:'absolute',left:0,right:0,bottom:0,backgroundColor:colors.cream,borderTopLeftRadius:4,borderTopRightRadius:4,shadowColor:'#000000',shadowOpacity:0,shadowRadius:14,shadowOffset:{width:0,height:-3},elevation:0},
   // 캘린더 화면: 화면 전체를 덮으므로 모서리를 둥글게 하지 않음
   sheetFull: { borderTopLeftRadius: 0, borderTopRightRadius: 0 },
   grab: { paddingBottom: spacing.md },
@@ -454,6 +455,8 @@ const styles = StyleSheet.create({
   // 제목 줄: 가운데 '캘린더', 양옆 버튼은 absolute 로 겹쳐 그림
   headerRow: { height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: {fontSize:17,fontWeight:'600',color:colors.ink},
+  headerRowEmbedded: { alignItems: 'flex-start', paddingHorizontal: 20 },
+  headerTitleEmbedded: { fontSize: 24, letterSpacing: -0.4 },
   side: { position: 'absolute', height: 40, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   sideLeft: { left: spacing.lg },
   sideRight: { right: spacing.lg },
@@ -462,7 +465,7 @@ const styles = StyleSheet.create({
   searchOn: { backgroundColor: colors.mintSoft, borderColor: colors.mint },
 
   // 선택한 날의 일정 시트 (흰 바탕 + 둥근 위쪽 + 손잡이 막대)
-  panel: {flexGrow:1,marginTop:spacing.xs,paddingHorizontal:20,backgroundColor:colors.cream,borderTopLeftRadius:0,borderTopRightRadius:0,shadowColor:'#263935',shadowOpacity:0,shadowRadius:12,shadowOffset:{width:0,height:-2},elevation:0,borderTopWidth:1,borderColor:colors.line},
+  panel: {flexGrow:1,marginTop:spacing.xs,paddingHorizontal:20,backgroundColor:colors.cream,borderTopLeftRadius:0,borderTopRightRadius:0,shadowColor:'#000000',shadowOpacity:0,shadowRadius:12,shadowOffset:{width:0,height:-2},elevation:0,borderTopWidth:1,borderColor:colors.line},
   panelBarWrap: {height:12,alignItems:'center',justifyContent:'center',marginBottom:spacing.xs},
   spaceChipsBar: { flexGrow: 0, flexShrink: 0, marginBottom: spacing.md },
   spaceChips: { gap: spacing.sm, alignItems: 'center' },

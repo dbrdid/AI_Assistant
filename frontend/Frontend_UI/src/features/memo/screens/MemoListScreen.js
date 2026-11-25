@@ -369,7 +369,7 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
 
         <View style={styles.countRow}>
           <Text style={styles.count}>
-            {searching ? `검색 결과 ${memos.length}개` : `메모 ${memos.length}개`}{!selecting && memos.length > 0 && !searching ? ' · 꾹 눌러 선택' : ''}
+            {searching ? `검색 결과 ${memos.length}개` : !selecting && memos.length > 0 ? '꾹 눌러 여러 개 선택' : ''}
           </Text>
           {!selecting && (
             <View style={styles.tools}>
@@ -744,7 +744,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cream,
   },
   proj: { fontSize: font.caption, fontWeight: '700', color: colors.mintDark },
-  dialogBackdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  dialogBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialogBox: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.md },
   dialogTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
   projOpt: { minHeight: 44, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, paddingHorizontal: spacing.lg, justifyContent: 'center' },
@@ -756,7 +756,7 @@ const styles = StyleSheet.create({
   off: { opacity: 0.35 },
 
   // ⋮ 메뉴
-  menuBackdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.2)' },
+  menuBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.2)' },
   menu: {
     position: 'absolute',
     right: spacing.lg,

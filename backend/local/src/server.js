@@ -220,7 +220,7 @@ export function createServerMap({ timezone = 'Asia/Seoul', labels = {} } = {}) {
         });
       }
       for (const e of draft.events) {
-        const timed = !e.all_day && !!e.start_time;
+        const timed = !!e.start_time;   // 모델이 종일로 표시해도 명시된 시각은 잃지 않음
         items.push({
           kind: 'event', title: e.title ?? '', date: e.date ?? '', endDate: e.end_date && e.end_date !== e.date ? e.end_date : '',
           start: timed ? e.start_time : '', end: timed ? e.end_time ?? '' : '', place: e.location ?? '',

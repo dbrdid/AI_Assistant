@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
   previewText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink, lineHeight: 24 },
   previewSub: { fontSize: font.body, color: colors.muted },
   permState: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },
-  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   sheet: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.md },
   sheetTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   opt: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, paddingHorizontal: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },

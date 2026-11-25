@@ -61,6 +61,17 @@ export function quoteFound(quote: string, text: string): boolean {
   return normalizeForMatch(text).includes(q);
 }
 
+/** 답변 인용 확인: 띄어쓰기만 다른 구절도 찾되 숫자끼리는 붙이지 않음. 표시 표기는 앱이 원문으로 복원 */
+export function spacedQuoteFound(quote: string, text: string): boolean {
+  const q = normalizeForMatch(quote);
+  if (q.length < 2) return false;
+  const parts = q.split(" ");
+  const pattern = parts.reduce((all, part, i) => all
+    + (i ? (/\d$/.test(parts[i - 1]) && /^\d/.test(part) ? " " : " ?") : "")
+    + part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "");
+  return new RegExp(pattern, "u").test(normalizeForMatch(text));
+}
+
 export function isRealDate(s: unknown): s is string {
   if (typeof s !== "string" || !DATE_RE.test(s)) return false;
   const d = new Date(`${s}T00:00:00Z`);
@@ -367,7 +378,7 @@ export function validateAnswer(raw: unknown, sources: AnswerSource[]): QueryAnsw
     if (typeof source_id !== "string" || typeof quote !== "string") return null;
     const s = byAlias.get(source_id.trim());
     // 없는 자료를 가리키거나, 원문에 없는 구절이면 버림 (만들어 낸 인용 방지)
-    if (!s || !quoteFound(quote, `${s.title}\n${s.text}`)) {
+    if (!s || !spacedQuoteFound(quote, `${s.title}\n${s.text}`)) {
       dropped++;
       continue;
     }

@@ -10,7 +10,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ROUTES } from '../../navigation/routes';
 import { approveProposal, findDuplicate, setProposalStatus } from '../../data/proposals/ProposalStore';
+import { getMemo } from '../../data/memos/MemoStore';
 import { findOverlap } from '../../data/tasks/TaskStore';
+import { unstatedTimeWarning } from '../../integration/recordEvidence.mjs';
 import { useSnackbar } from '../../shared/components/Snackbar';
 
 const UNDO_MS = 4000;
@@ -20,6 +22,8 @@ export function reviewReason(p) {
   if (p.kind === 'memo') return null;
   if (!p.date) return '날짜를 정해 주세요';
   try {
+    const unstated = p.sourceType === 'memo' ? unstatedTimeWarning(p, getMemo(p.sourceId)?.body) : '';
+    if (unstated) return unstated;
     const dup = findDuplicate(p);
     if (dup) return `이미 있는 “${dup.title}”와 같아요`;
     const clash = p.start ? findOverlap(p) : null;

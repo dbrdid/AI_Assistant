@@ -13,7 +13,6 @@ import { supabase } from '../lib/stella/supabase';
 import { listMyWorkspaces } from '../lib/stella/workspaces';
 import { listNoteFavorites, setNoteFavorites } from '../lib/stella/favorites';
 import { createAIService } from './ai-service';
-import { CHAT_LIMITS, answerQuery, askAssistant, excerptFor, planQuery, rankRecords, toSources, todayIn } from '../lib/stella/ai-chat';
 import { requireTransmission } from '../../../../shared/contracts/ai-policy.js';
 import { retryPlan, transcribeErrorMessage, transcribeUploaded, uploadRecording } from '../lib/stella/transcribe';
 import { agendaJudgeErrorMessage, judgeAgendaDiscussion } from '../lib/stella/agenda-judge';
@@ -46,9 +45,28 @@ export function aiPolicy(source) {
     excluded: s.ai?.transmissionDisabled !== false || Boolean(source && readPreference(`ai-excluded:${source.id}`, false)) };
 }
 
+// Web only: if browser storage is cleared while the app runs, the open DB handle turns empty.
+// Reopen once through a page reload; a repeat within 30 seconds surfaces the original error.
+function reloadAfterLostWebStorage(error) {
+  if (Platform.OS !== 'web' || !String(error?.message).includes('no such table: integration_preferences')) return false;
+  try {
+    const key = 'planner.web.storageRecoveryAt';
+    if (Date.now() - Number(sessionStorage.getItem(key) || 0) < 30000) return false;
+    sessionStorage.setItem(key, String(Date.now()));
+    location.reload();
+    return true;
+  } catch { return false; }
+}
+
 export function readPreference(key, fallback) {
   if (preferenceCache.has(key)) return preferenceCache.get(key);
-  const r = current?.db.getFirstSync('select value from integration_preferences where key=?', [key]);
+  let r;
+  try {
+    r = current?.db.getFirstSync('select value from integration_preferences where key=?', [key]);
+  } catch (error) {
+    if (reloadAfterLostWebStorage(error)) return fallback;
+    throw error;
+  }
   const value = r ? JSON.parse(r.value) : fallback;
   if (current) preferenceCache.set(key, value);
   return value;
@@ -357,85 +375,6 @@ export async function judgeAgendaForDevice({ changes, discussions, projectTitle,
   return r;
 }
 export { agendaJudgeErrorMessage };
-
-// Chat title from the conversation (gateway "organize" makes a ≤40-char title). Same consent gate as chat;
-// counts toward the monthly organize limit. Only the question and answer text are sent, not the sources.
-export async function titleForChat(question, answer, signal) {
-  const own = runtime();
-  const policy = aiPolicy();
-  requireTransmission(policy.route, [policy], policy.consent);
-  const text = `채팅 대화의 제목을 정하기 위한 내용입니다.\n\n질문: ${question}\n\n답변: ${answer}`.slice(0, 4000);
-  const r = await gateway('organize', { client_request_id: randomUUID(), text, workspace_id: policy.workspaceId }, { route: policy.route, signal });
-  if (current !== own || signal?.aborted) throw new Error('요청이 취소됐습니다');
-  return String(r.draft?.title ?? '').trim();
-}
-
-// Attachments (already turned into text on this device) go first; device records found by the planner follow.
-function mergeSources(attached, ranked, keywords) {
-  const out = [];
-  let total = 0;
-  for (const a of attached.slice(0, 3)) {
-    const text = excerptFor(a.text, keywords, CHAT_LIMITS.sourceChars);
-    out.push({ id: a.id, type: 'file', title: a.title.slice(0, 200), date: null, text, workspace_id: a.workspaceId ?? null });
-    total += a.title.length + text.length;
-  }
-  for (const s of toSources(ranked, keywords)) {
-    if (out.length >= CHAT_LIMITS.sources || total + s.title.length + s.text.length > CHAT_LIMITS.sourcesTotalChars) break;
-    out.push(s); total += s.title.length + s.text.length;
-  }
-  return out;
-}
-
-export async function askFromDevice(question, signal, { history = [], attachments = [] } = {}) {
-  const own = runtime(); const generation = own.session.generation;
-  const ws = own.store.getCurrentWorkspace().id;
-  const policy = aiPolicy();
-  requireTransmission(policy.route, [policy], policy.consent);
-  const records = [
-    ...own.store.getMemos().map(m => ({ id: m.id, type: 'memo', title: m.title, text: m.body, revision: m.revision, date: new Date(m.updatedAt).toISOString() })),
-    ...own.store.getTasks().map(t => ({ id: t.id, type: t.kind, title: t.title, text: t.desc, revision: t.revision, date: t.date, status: t.status === '완료' ? 'done' : 'open' })),
-  ].filter(r => !aiPolicy(r).excluded).map(r => ({ ...r, workspaceId: policy.workspaceId }));
-  const checkSnapshot = () => {
-    if (signal?.aborted || current !== own || own.session.generation !== generation) throw new Error('요청이 취소됐습니다');
-    if (own.store.getCurrentWorkspace().id !== ws) throw new Error('작업 공간이 바뀌었습니다');
-    requireTransmission(policy.route, [aiPolicy()], aiPolicy().consent);
-    for (const record of records) {
-      const now = record.type === 'memo' ? own.store.getMemo(record.id) : own.store.getTask(record.id);
-      if (!now || now.deletedAt || now.revision !== record.revision) throw new Error('검색 대상 기록이 바뀌었습니다. 다시 질문해 주세요');
-      requireTransmission(policy.route, [aiPolicy(now)], aiPolicy().consent);
-    }
-  };
-  const client = { functions: { invoke: async (name, options) => {
-    // Recheck before each hop: the query planner may finish after consent or a source changes.
-    checkSnapshot();
-    return { data: await gateway(name.replace(/^ai-gateway\//, ''), options.body, { route: policy.route, signal }), error: null };
-  } } };
-  const turns = history.filter(t => t.text && (t.role === 'user' || t.role === 'assistant'));
-  const attached = attachments.filter(a => a.text).map(a => ({ id: a.id, title: a.name, text: a.text, workspaceId: policy.workspaceId }));
-  let answer;
-  if (!attached.length) {
-    answer = await askAssistant(client, { question, history: turns, newId: randomUUID, timezone: policy.timezone, findRecords: async () => records });
-  } else {
-    // The user handed over material: answer from it even when the planner sees no record search in the question.
-    const plan = await planQuery(client, { clientRequestId: randomUUID(), question, history: turns, timezone: policy.timezone });
-    const ranked = plan.intent === 'search' ? rankRecords(records, plan, { today: todayIn(policy.timezone) }) : [];
-    const sources = mergeSources(attached, ranked, plan.keywords ?? []);
-    const { answer: a } = await answerQuery(client, { clientRequestId: randomUUID(), question, history: turns, timezone: policy.timezone, sources });
-    const byId = new Map(sources.map(s => [s.id, s]));
-    answer = { text: a.answer, sources: a.used_source_ids.filter(id => byId.has(id)).map(id => ({ id, type: byId.get(id).type, title: byId.get(id).title || '(제목 없음)' })) };
-  }
-  checkSnapshot();
-  if (signal?.aborted || current !== own || own.session.generation !== generation) throw new Error('요청이 취소됐습니다');
-  if (own.store.getCurrentWorkspace().id !== ws) throw new Error('작업 공간이 바뀌었습니다');
-  const attachedIds = new Set(attached.map(a => a.id));
-  for (const ref of answer.sources) {
-    if (attachedIds.has(ref.id)) continue; // attachments are not device records
-    const before = records.find(r => r.id === ref.id); const after = before?.type === 'memo' ? own.store.getMemo(ref.id) : own.store.getTask(ref.id);
-    if (!after || after.revision !== before.revision || aiPolicy(after).excluded) throw new Error('답변에 사용한 원본이 바뀌었습니다. 다시 질문해 주세요');
-  }
-  requireTransmission(policy.route, [aiPolicy()], aiPolicy().consent);
-  return { ...answer, sources: answer.sources.map(s => ({ ...s, route: attachedIds.has(s.id) ? null : s.type === 'memo' ? 'MemoEdit' : 'TaskEdit' })) };
-}
 
 // After account withdrawal: erase this account's device data (personal records live only here), then close.
 export async function wipeSessionData() {

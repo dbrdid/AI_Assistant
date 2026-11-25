@@ -1,0 +1,11 @@
+﻿{"model":"0.8B","rep":1,"id":"d01","outcome":"safe_refusal","formatValid":true,"neighborChanges":0,"error":"요청 원문에 없는 값은 저장할 수 없습니다. 다시 확인해 주세요."}
+{"model":"4B","rep":1,"id":"d01","outcome":"correct_execute","formatValid":true,"neighborChanges":0}
+{"model":"4B","rep":1,"id":"d02","outcome":"incomplete"}
+{"model":"0.8B","rep":1,"id":"d02","outcome":"safe_refusal","formatValid":true,"neighborChanges":0,"error":"요청 원문에 없는 값은 저장할 수 없습니다. 다시 확인해 주세요."}
+{"model":"0.8B","rep":1,"id":"d03","outcome":"safe_refusal","formatValid":true,"neighborChanges":0,"error":"요청 원문에 없는 값은 저장할 수 없습니다. 다시 확인해 주세요."}
+{"model":"4B","rep":1,"id":"d03","outcome":"safe_refusal","formatValid":true,"neighborChanges":0,"error":"요청한 작업 또는 블록 내용과 해석 결과가 다릅니다. 다시 확인해 주세요."}
+{"model":"4B","rep":1,"id":"d04","outcome":"correct_execute","formatValid":true,"neighborChanges":0}
+{"model":"0.8B","rep":1,"id":"d04","outcome":"safe_refusal","formatValid":true,"neighborChanges":0,"error":"요청 원문에 없는 값은 저장할 수 없습니다. 다시 확인해 주세요."}
+{"model":"0.8B","rep":1,"id":"d05","outcome":"safe_refusal","formatValid":true,"neighborChanges":0,"error":"요청 원문에 없는 값은 저장할 수 없습니다. 다시 확인해 주세요."}
+{"model":"4B","rep":1,"id":"d05","outcome":"incomplete"}
+{"model":"4B","rep":1,"id":"d06","outcome":"correct_execute","formatValid":true,"neighborChanges":0}

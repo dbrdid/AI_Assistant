@@ -1,5 +1,5 @@
 import { SheetModal } from "../../shared/components/Motion";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { runtime } from '../../integration/runtime';
 import { getMemo } from '../../data/memos/MemoStore';
@@ -20,7 +20,9 @@ export default function EditorTools({
   favorite,
   onFavorite,
   editorMode,
-  onToggleEditor
+  onToggleEditor,
+  request,
+  onRequestHandled
 }) {
   const own = runtime();
   const [panel, setPanel] = useState('menu');
@@ -28,6 +30,12 @@ export default function EditorTools({
   const [selectedVersion, setSelectedVersion] = useState(null);
   const [confirmation, setConfirmation] = useState(null);
   const [, update] = useState(0);
+  // 문서 작업 메뉴에서 바로 고른 '옮기기'·'휴지통으로 이동'을 해당 화면이나 확인 창으로 연다.
+  useEffect(() => {
+    if (!request) return;
+    if (request === 'trash') setConfirmation('trash'); else setPanel(request);
+    onRequestHandled?.();
+  }, [request]);
   const memo = visible && memoId ? getMemo(memoId) : null;
   const docs = own.documents.listDocuments();
   const current = docs.find(document => document.id === memo?.id);
@@ -127,7 +135,7 @@ export default function EditorTools({
             const index = siblings.findIndex(document => document.id === saved.id);
             if (index < siblings.length - 1) own.documents.moveDocument(saved.id, current?.parentId, siblings[index + 2]?.id ?? null);
           }))}<Text style={s.note}>아래 문서의 하위로 이동</Text>{docs.filter(document => document.id !== memo?.id).map(document => row(document.title || '제목 없는 문서', 'file', () => run(saved => own.documents.moveDocument(saved.id, document.id))))}</>}
-    {panel === 'links' && <><Text style={s.note}>선택한 문서와 연결합니다. 연결은 관계도에 표시됩니다.</Text>{docs.filter(document => document.id !== memo?.id).map(document => {
+    {panel === 'links' && <><Text style={s.note}>선택한 문서와 연결합니다. 연결은 문서 본문 아래와 문서 관계에 표시됩니다.</Text>{docs.filter(document => document.id !== memo?.id).map(document => {
             const linked = links.some(link => [link.source, link.target].includes(memo?.id) && [link.source, link.target].includes(document.id));
             return <Pressable key={document.id} accessibilityRole="checkbox" accessibilityState={{
               checked: linked

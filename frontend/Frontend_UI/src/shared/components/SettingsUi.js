@@ -34,7 +34,8 @@ export function Group({ children, style }) {
 
 // 줄 위쪽 구분선: 아이콘이 있으면 아이콘 다음부터 시작
 function Divider({ icon }) {
-  return <View pointerEvents="none" style={[styles.divider, { left: icon ? spacing.lg + 20 + spacing.md : spacing.lg }]} />;
+  // 구분선은 글자 시작점부터: 아이콘 열(14 + 18 + 12)을 비워 둔다.
+  return <View pointerEvents="none" style={[styles.divider, { left: icon ? 14 + 18 + 12 : 14 }]} />;
 }
 
 function useRowFrame() {
@@ -52,19 +53,19 @@ export function Row({ label, value, onPress, danger, sub, icon }) {
     <>
       {!first && <Divider icon={icon} />}
       {!!icon && (
-        <Icon name={icon} size={20} color={danger ? colors.coral : colors.muted}/>
+        <Icon name={icon} size={18} color={danger ? colors.coral : colors.muted}/>
       )}
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={[styles.rowLabel, danger && { color: colors.coral }]}>{label}</Text>
         {!!sub && <Text style={styles.rowSub}>{sub}</Text>}
       </View>
       {value !== undefined && <Text style={styles.rowValue}>{value}</Text>}
-      {onPress && <Icon name="chevronRight" size={18} color={colors.muted} />}
+      {onPress && <Icon name="chevronRight" size={14} color={colors.muted} />}
     </>
   );
   if (!onPress) return <View style={[styles.row, frame]}>{body}</View>;
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.row, frame, pressed && { backgroundColor: colors.mintSoft }]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.row, frame, pressed && { backgroundColor: colors.raised }]}>
       {body}
     </Pressable>
   );
@@ -75,7 +76,7 @@ export function ToggleRow({ label, sub, value, onValueChange, disabled, icon }) 
   return (
     <View style={[styles.row, frame, disabled && { opacity: 0.5 }]}>
       {!first && <Divider icon={icon} />}
-      {!!icon && <Icon name={icon} size={20} color={colors.muted}/>}
+      {!!icon && <Icon name={icon} size={18} color={colors.muted}/>}
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={styles.rowLabel}>{label}</Text>
         {!!sub && <Text style={styles.rowSub}>{sub}</Text>}
@@ -135,17 +136,18 @@ export function useNotice() {
 export const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 const styles = StyleSheet.create({
-  sectionTitle: { fontSize: font.caption, fontWeight: '700', color: colors.muted, marginTop: spacing.md, marginLeft: spacing.xs },
-  group: { backgroundColor: colors.cream, borderRadius: radius.md, borderWidth: 0, borderColor: colors.line, overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 58, paddingHorizontal: spacing.lg, paddingVertical: 10 },
+  // Stella 메뉴와 같은 묶음: 낮은 대비의 둥근 면 안에 같은 높이의 행, 묶음 제목은 작고 흐리게
+  sectionTitle: { fontSize: 12, fontWeight: '400', color: colors.muted, marginTop: 18, marginBottom: 2, marginLeft: 4 },
+  group: { backgroundColor: colors.card, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 50, paddingHorizontal: 14, paddingVertical: 10 },
   // 혼자 있는 줄: 그대로 카드 모양
-  rowAlone: { borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  rowAlone: { borderRadius: 12, backgroundColor: colors.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline },
   // Group 안의 줄: 카드는 Group 이 그림
-  rowGrouped: { backgroundColor: colors.cream },
-  divider: { position: 'absolute', top: 0, right: 0, height: 1, backgroundColor: colors.line },
-  rowLabel: { fontSize: font.body, fontWeight: '400', color: colors.ink },
+  rowGrouped: { backgroundColor: 'transparent' },
+  divider: { position: 'absolute', top: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: colors.line },
+  rowLabel: { fontSize: 15, fontWeight: '400', color: colors.ink },
   rowSub: { fontSize: font.caption, color: colors.muted, lineHeight: 17 },
-  rowValue: { fontSize: font.body, color: colors.muted },
+  rowValue: { fontSize: 13, color: colors.muted },
   radio: { borderWidth: 2, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   save: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
   saveText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },

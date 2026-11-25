@@ -175,7 +175,7 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   card: { width: '100%', maxWidth: 360, backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, padding: spacing.xl, gap: spacing.md },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   titleIcon: { width: 36, height: 36, borderRadius: 4, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center' },

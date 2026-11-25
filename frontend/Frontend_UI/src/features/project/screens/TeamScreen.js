@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   barDanger: { backgroundColor: colors.coralSoft, borderColor: colors.coral },
   barText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
   off: { opacity: 0.4 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.lg, gap: spacing.md },
   dialogTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   label: { fontSize: font.body, fontWeight: '700', color: colors.ink },

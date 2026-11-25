@@ -11,7 +11,9 @@ import { CircleButton } from '../../../shared/components/Ui';
 import Icon from '../../../shared/components/Icon';
 import { WEEKDAYS, isSameDay, monthMatrix, toKey } from '../utils/DateUtils';
 
-const OUTSIDE = '#B9C5C1'; // 이번 달이 아닌 날짜 (아주 흐린 글자)
+const OUTSIDE = '#4f5356'; // 이번 달이 아닌 날짜: 어두운 배경에서 한 단계 물러난 회색
+const WEEKEND = '#d79b9b'; // 일요일·공휴일: 코랄을 낮춘 색(강조보다 구분용)
+const TODAY = '#ffffff'; // 오늘: 가장 밝은 글자 + 굵게(녹색 없이 구분)
 
 export default function MonthCalendar({
   year,
@@ -59,9 +61,9 @@ export default function MonthCalendar({
         </View>
 
         {/* ---------- 2) 요일 줄 (일요일만 코랄) ---------- */}
-        <View style={styles.weekRow}>
+        <View style={[styles.weekRow, styles.weekHead]}>
           {WEEKDAYS.map((w, i) => (
-            <Text key={w} style={[styles.weekday, i === 0 && { color: colors.coral }]}>
+            <Text key={w} style={[styles.weekday, i === 0 && { color: WEEKEND }]}>
               {w}
             </Text>
           ))}
@@ -112,9 +114,9 @@ export default function MonthCalendar({
                     <Text
                       style={[
                         styles.dayText,
-                        (di === 0 || holiday) && { color: colors.coral }, // 일요일·공휴일은 코랄
-                        isToday && !isSelected && { color: colors.mintDark },
-                        isSelected && { color: colors.onPrimary }, // 선택되면 흰 글씨
+                        (di === 0 || holiday) && { color: WEEKEND }, // 일요일·공휴일
+                        isToday && styles.todayText,
+                        isSelected && styles.selectedText,
                       ]}
                     >
                       {d.getDate()}
@@ -179,26 +181,32 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1 },
   grid: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   // 맨 위 줄: 왼쪽 달 이름, 오른쪽 ‹ › 버튼
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 40, marginBottom: spacing.md, paddingLeft: spacing.xs },
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, marginBottom: spacing.sm, paddingLeft: spacing.xs },
   monthBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  month: { fontSize: 23, fontWeight: '600', color: colors.ink },
-  monthNav: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  month: { fontSize: 18, fontWeight: '600', letterSpacing: -0.3, color: colors.ink },
+  monthNav: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   // 한 주(7칸)를 가로로 나란히
   weekRow: { flexDirection: 'row' },
+  weekHead: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line, marginBottom: 6 },
   // flex: 1 → 7칸이 폭을 똑같이 나눠 가짐
-  weekday: { flex: 1, textAlign: 'center', fontSize: 13, fontWeight: '700', color: colors.muted, paddingVertical: spacing.xs },
-  cell: { flex: 1, height: 52, alignItems: 'center', justifyContent: 'center' },
-  dayCircle: { width: 36, height: 36, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
-  hitCircle: { backgroundColor: colors.mintSoft },
-  todayRing: { borderWidth: 1.5, borderColor: colors.mintDark },
-  selectedCircle: { backgroundColor: colors.action, borderColor: colors.actionBorder },
-  dayText: { fontSize: 15, fontWeight: '700', color: colors.ink },
-  outsideText: { color: OUTSIDE, fontWeight: '600' },
-  dots: { flexDirection: 'row', gap: 3, height: 5, marginTop: 3, alignItems: 'center' },
+  // 요일 줄: 작고 흐리게, 아래 옅은 선으로 날짜와 구분
+  weekday: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '500', letterSpacing: 0.4, color: '#7d8184', paddingTop: 2, paddingBottom: 10 },
+  cell: { flex: 1, height: 48, alignItems: 'center', justifyContent: 'center' },
+  // 날짜: 얇은 글자, 선택은 낮은 대비의 채운 원, 오늘은 강조색 글자만(테두리 없음)
+  // Android: 나중에 배경이 생기면 둥근 모서리가 빠지므로 처음부터 투명 배경과 잘라내기를 둔다.
+  dayCircle: { width: 34, height: 34, borderRadius: 17, overflow: 'hidden', backgroundColor: 'rgba(58,61,64,0)', alignItems: 'center', justifyContent: 'center' },
+  hitCircle: { backgroundColor: '#26292b' },
+  todayRing: {},
+  selectedCircle: { backgroundColor: '#3a3d40' },
+  dayText: { fontSize: 14, fontWeight: '400', color: colors.ink, fontVariant: ['tabular-nums'] },
+  todayText: { color: TODAY, fontWeight: '700' },
+  selectedText: { color: colors.ink, fontWeight: '600' },
+  outsideText: { color: OUTSIDE, fontWeight: '400' },
+  dots: { flexDirection: 'row', gap: 3, height: 4, marginTop: 2, alignItems: 'center' },
   dot: { width: 4, height: 4, borderRadius: 2 },
 
   // 연·월 고르기 창
-  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.lg },
   yearRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pickYear: { fontSize: font.title, fontWeight: '600', color: colors.ink },
@@ -207,15 +215,15 @@ const styles = StyleSheet.create({
     width: '23%',
     flexGrow: 1,
     minHeight: 44,
-    borderRadius: radius.md,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
+    borderRadius: radius.pill,
+    backgroundColor: 'transparent',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.hairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  monthBtnOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
-  monthBtnText: { fontSize: font.bodyLg, color: colors.ink, fontWeight: '600' },
-  closeBtn: { minHeight: 44, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
+  monthBtnOn: { backgroundColor: colors.raised, borderColor: colors.raised },
+  monthBtnText: { fontSize: 15, color: colors.ink, fontWeight: '500' },
+  closeBtn: { minHeight: 44, borderRadius: radius.pill, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
   closeText: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
 });

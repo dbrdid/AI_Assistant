@@ -1,0 +1,20 @@
+{
+    "checkedAt":  "2026-11-24 16:08:29",
+    "lead":  "claude",
+    "claude":  {
+                   "session":  36,
+                   "weekly":  33,
+                   "sessionReset":  "2026-11-24 20:00",
+                   "weeklyReset":  "2026-11-25 07:00",
+                   "ageMinutes":  0,
+                   "mode":  "normal"
+               },
+    "gpt":  {
+                "session":  10.0,
+                "weekly":  76.0,
+                "sessionReset":  "2026-11-24 17:20",
+                "weeklyReset":  "2026-11-29 22:22",
+                "ageMinutes":  138.5,
+                "mode":  "unknown"
+            }
+}

@@ -8,6 +8,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
+import { useScreenEntry } from '../../../navigation/ScreenEntry';
 import Bell from '../../notice/components/Bell';
 import RecordSheet from '../../record/components/RecordSheet';
 import ProposalCard from '../../proposal/components/ProposalCard';
@@ -50,6 +51,8 @@ function SectionHead({ title, onAdd, addLabel }) {
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  // 상단 탭 안의 '오늘'에서는 탭 줄의 S 버튼과 겹치는 '나' 버튼과 상단 여백을 빼고 날짜를 제목으로 쓴다.
+  const { embedded } = useScreenEntry();
   const go = (route, params) => navigation.navigate(route, params);
   const settings = useSettings();
   const myName = settings.profile?.name?.trim() || '';
@@ -168,15 +171,14 @@ export default function HomeScreen({ navigation }) {
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* ---------- 머리: 나 · 날짜 · AI · 검색 · 알림 ---------- */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="나  /  설정" onPress={() => go(ROUTES.More)} hitSlop={6} style={({ pressed }) => [styles.me, pressed && { opacity: 0.7 }]}>
+      <View style={[styles.header, { paddingTop: embedded ? 18 : insets.top + spacing.sm }]}>
+        {!embedded && <Pressable accessibilityRole="button" accessibilityLabel="나  /  설정" onPress={() => go(ROUTES.More)} hitSlop={6} style={({ pressed }) => [styles.me, pressed && { opacity: 0.7 }]}>
           <Text style={styles.meText}>{myName ? myName.charAt(0) : '나'}</Text>
-        </Pressable>
+        </Pressable>}
         <View style={{ flex: 1 }}>
           <Text style={styles.date} accessibilityRole="header" numberOfLines={1}>{dateText}</Text>
           {multi && <Text style={styles.scope}>모든 공간  /  개인 + 팀 {teams.length}개</Text>}
         </View>
-        <CircleButton icon="sparkles" label="AI 채팅" color={colors.mintDark} onPress={() => go(ROUTES.Ai)} />
         <CircleButton icon="search" label="검색" onPress={() => go(ROUTES.Search)} />
         <Bell onPress={() => go(ROUTES.Notices)} />
       </View>
@@ -270,7 +272,7 @@ export default function HomeScreen({ navigation }) {
       </ScrollView>
 
       {/* ---------- 입력줄 ---------- */}
-      <View style={styles.capture}>
+      <View style={[styles.capture, { paddingBottom: 10 + insets.bottom }]}>
         {recording ? (
           <>
             <View style={styles.recDot} />
@@ -359,57 +361,57 @@ export default function HomeScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
-  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
-  me: { width: 40, height: 40, borderRadius: 4, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: 20, paddingBottom: spacing.sm },
+  me: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   meText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
-  date: { fontSize: font.title, fontWeight: '600', color: colors.ink },
+  date: { fontSize: 24, fontWeight: '600', letterSpacing: -0.4, color: colors.ink },
   scope: { fontSize: font.caption, color: colors.muted },
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl * 2, gap: spacing.sm },
+  content: { paddingHorizontal: 20, paddingTop: spacing.sm, paddingBottom: spacing.xxl * 2, gap: spacing.sm },
 
   aiBox: { backgroundColor: colors.mintSoft, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm, marginBottom: spacing.xs },
   aiHead: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
   aiTitle: { flex: 1, fontSize: font.body, fontWeight: '600', color: colors.mintDark },
   aiMore: { fontSize: font.caption, fontWeight: '700', color: colors.mintDark },
 
-  teamCard: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  teamCard: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   teamTitle: { fontSize: font.caption, fontWeight: '600', color: colors.muted, marginBottom: 2 },
   teamRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 38 },
   teamName: { maxWidth: '40%', fontSize: font.body, fontWeight: '600', color: colors.ink },
   teamText: { flex: 1, fontSize: font.caption, color: colors.muted },
 
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md },
-  sectionTitle: { fontSize: font.body, fontWeight: '600', color: colors.muted },
+  sectionTitle: { fontSize: 12, fontWeight: '400', color: colors.muted },
   addLink: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 28 },
-  addLinkText: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
-  empty: { fontSize: font.body, color: colors.muted, paddingVertical: spacing.xs },
+  addLinkText: { fontSize: font.caption, fontWeight: '500', color: colors.muted },
+  empty: { fontSize: 13, color: colors.subtle ?? colors.muted, paddingVertical: spacing.xs },
 
   eventRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   eventTime: { width: 44, fontSize: font.body, fontWeight: '600' },
   allDay: { fontSize: font.caption, color: colors.muted },
-  eventCard: { flex: 1, minHeight: 48, justifyContent: 'center', gap: 3, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderLeftWidth: 3, borderRadius: radius.md },
+  eventCard: { flex: 1, minHeight: 48, justifyContent: 'center', gap: 3, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, borderLeftWidth: 3, borderRadius: radius.md },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   itemTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   itemSub: { flexShrink: 1, fontSize: font.caption, color: colors.muted },
 
-  todoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md, minHeight: 50, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md },
+  todoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md, minHeight: 50, backgroundColor: colors.card, borderRadius: radius.lg },
   todoBody: { flex: 1, minHeight: 46, justifyContent: 'center', gap: 2 },
-  todoTitle: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  todoTitle: { fontSize: 15, fontWeight: '500', color: colors.ink },
   todoDone: { color: colors.muted, textDecorationLine: 'line-through' },
   mine: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
   late: { fontSize: font.caption, fontWeight: '700', color: colors.coral },
 
-  capture: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, minHeight: CAPTURE_HEIGHT, paddingHorizontal: spacing.lg, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.cream },
-  inputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: 42, borderRadius: 4, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, paddingLeft: 6 },
-  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 110, height: 30, paddingHorizontal: 8, borderRadius: 4, backgroundColor: colors.mintSoft },
+  capture: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, minHeight: CAPTURE_HEIGHT, paddingHorizontal: spacing.lg, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line, backgroundColor: colors.cream },
+  inputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: 42, borderRadius: 21, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, backgroundColor: colors.card, paddingLeft: 6 },
+  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 110, height: 30, paddingHorizontal: 10, borderRadius: 15, backgroundColor: colors.mintSoft },
   spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
   input: { flex: 1, minHeight: 40, maxHeight: 120, paddingHorizontal: spacing.md, paddingTop: 8, paddingBottom: 8, fontSize: font.bodyLg, lineHeight: 22, color: colors.ink },
-  round: { width: 42, height: 42, borderRadius: 4, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
+  round: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   ghost: { borderWidth: 0, backgroundColor: 'transparent', marginBottom: 2 },
   stop: { backgroundColor: colors.coralSoft },
-  recDot: { width: 10, height: 10, borderRadius: 2, backgroundColor: colors.coral, alignSelf: 'center' },
+  recDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.coral, alignSelf: 'center' },
   recText: { flex: 1, alignSelf: 'center', fontSize: font.bodyLg, fontWeight: '600', color: colors.coral },
 
-  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.4)', justifyContent: 'flex-end' },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.48)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xs },
   sheetTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink, marginBottom: spacing.sm },
   sheetRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 50, paddingHorizontal: spacing.md, borderRadius: radius.md },

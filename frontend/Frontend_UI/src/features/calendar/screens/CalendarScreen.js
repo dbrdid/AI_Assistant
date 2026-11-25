@@ -5,7 +5,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import CalendarSheet from '../components/CalendarSheet';
-import { useLeadAction } from '../../../navigation/ScreenEntry';
+import { useLeadAction, useScreenEntry } from '../../../navigation/ScreenEntry';
 import { CircleButton } from '../../../shared/components/Ui';
 import { colors } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
@@ -14,6 +14,7 @@ import { enterSpace } from '../../../data/workspaces/WorkspaceStore';
 export default function CalendarScreen({ navigation, calendar }) {
   // 왼쪽 위: 탭으로 열었으면 버튼 없음, 다른 화면에서 왔으면 ‹
   const lead = useLeadAction(navigation.goBack);
+  const { embedded } = useScreenEntry();
 
   return (
     // 화면 전체. 시트가 이 안을 꽉 채우며 올라와 있는 상태로 보입니다.
@@ -21,6 +22,7 @@ export default function CalendarScreen({ navigation, calendar }) {
       <CalendarSheet
         calendar={calendar}
         startFull // 처음부터 끝까지 올라온 상태
+        embedded={embedded}
         onAddTask={(date) => navigation.navigate(ROUTES.TaskEdit, { date, kind: 'event' })}
         onEditTask={(t) => {
           enterSpace(t.workspaceId); // 그 항목의 공간에서 편집 (프로젝트 등이 그 공간 것)

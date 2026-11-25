@@ -51,7 +51,7 @@ export default function ProposalCard({ p, actions, showHold = true, tone = 'card
       {!!when && <Text style={styles.when}>{when}</Text>}
       {!!p.evidence && <Text style={styles.evidence} numberOfLines={2}>“{p.evidence}”</Text>}
       {!!reason && (
-        <View style={styles.reason}>
+        <View style={styles.reason} accessible accessibilityRole="alert" accessibilityLabel={`경고: ${reason}`}>
           <Icon name="alert" size={14} color={colors.coral} />
           <Text style={styles.reasonText}>{reason}</Text>
         </View>

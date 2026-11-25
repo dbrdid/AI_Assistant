@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   box: { fontSize: 24, color: colors.muted },
   termText: { fontSize: font.body, color: colors.ink, fontWeight: '600', flexShrink: 1 },
   view: { fontSize: font.body, color: colors.mintDark, fontWeight: '600', paddingHorizontal: spacing.sm },
-  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   sheet: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.md },
   sheetTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   sheetBody: { fontSize: font.body, color: colors.ink, lineHeight: 22 },

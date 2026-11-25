@@ -2,9 +2,12 @@ import { SheetModal } from "../../shared/components/Motion";
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Animated, Easing, Platform, FlatList, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import TabBar from '../../navigation/TabBar';
+import { ScreenEntryProvider } from '../../navigation/ScreenEntry';
 import { useFiles } from '../../data/files/FileStore';
 import GraphCanvas from './GraphCanvas';
-import { runtime, useValue } from '../../data/hooks';
+import { runtime, useValue, readPreference, writePreference } from '../../data/hooks';
+import { randomUUID } from 'expo-crypto';
+import { isPlaced, placeProposal } from './aiPending.mjs';
 import Icon from '../../shared/components/Icon';
 import { useInsets } from '../../shared/hooks/useInsets';
 import { useMemos, memoTitle } from '../../data/memos/MemoStore';
@@ -89,7 +92,7 @@ function DocumentRow({ memo, onPress, hasChildren, collapsed, onToggle, compact 
     {onToggle &&
       <Pressable accessibilityRole="button" accessibilityLabel={`${expanded ? '접기' : '펼치기'}: ${title}`}
           accessibilityState={{ expanded }} onPress={hasChildren ? onToggle : () => setShowEmpty(open => !open)} style={s.iconButton}>
-          <Icon name={expanded ? 'chevronDown' : 'chevronLeft'} size={18} color={c.muted} />
+          <Icon name={expanded ? 'chevronDown' : 'chevronRight'} size={18} color={c.muted} />
         </Pressable>}
     </View>
     {onToggle && !hasChildren && expanded && <Text style={{ marginLeft: 38, marginBottom: 6, fontSize: 12, color: c.muted }}>하위 문서 없음</Text>}
@@ -123,7 +126,10 @@ function RecentDocument({ memo, photo, onPress }) {
     </View>
   </Pressable>;
 }
-const SPACE_TOOLS = [[ROUTES.Backup, '백업 및 복원', 'file'], [ROUTES.Settings, '설정', 'settings'], [ROUTES.More, '모든 도구', 'grid']];
+// Notion처럼 공간 단위 항목(검토·AI 연결·공유·휴지통·설정)은 좌상단 작업 공간 메뉴에 모은다.
+const SPACE_TOOLS = [[ROUTES.Spaces, '공유 공간 관리', 'users', '공간'], [ROUTES.Proposals, '작업 검토', 'checkSquare', 'AI'], [ROUTES.LocalModel, 'AI 연결', 'sparkles', 'AI'],
+  [ROUTES.Trash, '휴지통', 'trash', '관리'], [ROUTES.Backup, '백업 및 복원', 'cloud', '관리'], [ROUTES.Settings, '설정', 'settings', '관리'], [ROUTES.More, '모든 도구', 'grid', '관리']];
+const EMBEDDED_ENTRY = { tabRoot: true, goBack: null, embedded: true };
 const DOCUMENT_MODES = { [ROUTES.Memos]: 'documents', [ROUTES.Relations]: 'relations', [ROUTES.Proposals]: 'review' };
 
 // Web overflow:hidden can scroll focused descendants in addition to the pager transform.
@@ -194,11 +200,17 @@ export default function WorkspaceScreen({
   const current = spaces.current;
   useEffect(() => setCollapsed(new Set()), [current?.id]);
   const parentIds = new Set(documents.map(document => document.parentId).filter(Boolean));
-  const waiting = proposals.filter(p => p.status === 'pending' && !actions.hidden.has(p.id));
+  const shown = p => !actions.hidden.has(p.id) && !isPlaced(p, readPreference);
+  const waiting = proposals.filter(p => p.status === 'pending' && shown(p));
   const go = (name, params) => {
     setMenu(false);
     navigation.navigate(name, params);
   };
+  const tool = ([name, label, icon]) => ({ key: name, label, icon, chevron: true, count: name === ROUTES.Proposals ? waiting.length : 0, onPress: () => go(name) });
+  function place(p) {
+    try { go(ROUTES.MemoEdit, { memoId: placeProposal(runtime(), p, { read: readPreference, write: writePreference }, randomUUID) }); }
+    catch (e) { actions.snack.show(e.code === 'source_changed' ? '원본 문서가 바뀌었습니다. 다시 분석해 주세요.' : e.message); }
+  }
   const open = memo => go(ROUTES.MemoEdit, {
     memoId: memo.id
   });
@@ -219,10 +231,11 @@ export default function WorkspaceScreen({
   const title = mode === 'documents' ? '문서' : mode === 'relations' ? '문서 관계' : mode === 'review' ? '작업 검토' : '작업 공간';
   const requestSearch = route?.params?.search === true;
   const selectedTab = { home: ROUTES.Home, documents: ROUTES.Memos, relations: ROUTES.Relations, review: ROUTES.Proposals }[mode];
-  const header = (highlight = selectedTab) => <><WorkspaceHeader title={current?.name || '나의 작업 공간'} onMenu={() => setMenu(true)} tabs={!favoritesOnly && <TabBar current={highlight} onSelect={navigation.selectTab || navigation.navigate} />} onSearch={mode === "documents" ? undefined : () => go(ROUTES.Memos, {
+  const standalone = pagerIndex === undefined && (mode === 'review' || mode === 'relations');
+  const header = (highlight = selectedTab) => standalone ? <WorkspaceHeader title={title} onBack={() => navigation.goBack()} /> : <><WorkspaceHeader title={current?.name || '나의 작업 공간'} onMenu={() => setMenu(true)} tabs={!favoritesOnly && <TabBar current={highlight} onSelect={navigation.selectTab || navigation.navigate} />} onSearch={mode === "documents" ? undefined : () => go(ROUTES.Memos, {
       search: true
     })} />{error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}</>;
-  const intro = <><View style={s.titleRow}><Text accessibilityRole="header" style={s.title}>{title}</Text>{mode === 'documents' ? <IconButton name="plus" label="새 문서 작성" onPress={() => go(ROUTES.MemoEdit)} /> : null}</View></>;
+  const intro = standalone ? null : <><View style={s.titleRow}><Text accessibilityRole="header" style={s.title}>{title}</Text>{mode === 'documents' ? <IconButton name="plus" label="새 문서 작성" onPress={() => go(ROUTES.MemoEdit)} /> : null}</View></>;
   let content;
   if (mode === 'documents') {
     content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={list} keyExtractor={memo => memo.id} contentContainerStyle={s.page} keyboardShouldPersistTaps="handled" ListHeaderComponent={<>{intro}<View style={s.search}><Icon name="search" size={17} color={c.muted} /><TextInput autoFocus={requestSearch} accessibilityLabel="문서 검색" placeholder="제목이나 내용으로 검색" placeholderTextColor={c.subtle} value={query} onChangeText={setQuery} style={s.searchInput} />{query ? <IconButton name="x" label="검색어 지우기" onPress={() => setQuery('')} /> : null}</View><View style={s.filters}>{[['all', '모든 문서'], ['favorites', '즐겨찾기']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{
@@ -237,7 +250,7 @@ export default function WorkspaceScreen({
       return next;
     })} />} ListEmptyComponent={<Text style={s.empty}>{query ? '검색 결과가 없습니다.' : filter === 'favorites' ? '즐겨찾기한 문서가 없습니다.' : '아직 문서가 없습니다.\n새 문서에서 첫 생각을 기록하세요.'}</Text>} />;
   } else if (mode === 'review') {
-    const items = proposals.filter(p => p.status === reviewTab && !actions.hidden.has(p.id));
+    const items = proposals.filter(p => p.status === reviewTab && shown(p));
     content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={items} keyExtractor={p => p.id} contentContainerStyle={s.page} ListHeaderComponent={<>{intro}<View style={s.filters}>{[['pending', '확인 대기'], ['hold', '보류']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{
           selected: reviewTab === key
         }} onPress={() => setReviewTab(key)} style={[s.filter, reviewTab === key && s.filterOn]}><Text style={[s.filterText, reviewTab === key && {
@@ -250,10 +263,10 @@ export default function WorkspaceScreen({
         marginTop: 9
       }]}>{p.title}</Text><Text selectable style={s.proposalBody}>{p.body || p.evidence || [p.date, p.start, p.place].filter(Boolean).join('  /  ')}</Text>{p.sourceType === 'memo' && p.sourceId ? <Pressable accessibilityRole="button" onPress={() => go(ROUTES.MemoEdit, {
         memoId: p.sourceId
-      })} style={s.link}><Icon name="file" size={14} color={c.muted} /><Text style={s.linkText} numberOfLines={1}>출처: {p.sourceTitle || '원본 문서'}</Text></Pressable> : null}{reviewReason(p) ? <Text style={s.note}>{reviewReason(p)}</Text> : null}<View style={[s.actions, {
+      })} style={s.link}><Icon name="file" size={14} color={c.muted} /><Text style={s.linkText} numberOfLines={1}>출처: {p.sourceTitle || '원본 문서'}</Text></Pressable> : null}{reviewReason(p) ? <Text style={s.note} accessibilityRole="alert" accessibilityLabel={`경고: ${reviewReason(p)}`}>{reviewReason(p)}</Text> : null}<View style={[s.actions, {
         marginTop: 14,
         gap: 8
-      }]}><Pressable accessibilityRole="button" onPress={() => actions.hold(p)} style={s.secondary}><Text style={s.secondaryText}>보류</Text></Pressable><Pressable accessibilityRole="button" onPress={() => actions.dismiss(p)} style={s.secondary}><Text style={s.secondaryText}>무시</Text></Pressable><PrimaryButton label={reviewReason(p) ? '내용 확인' : '확인 후 저장'} icon="check" onPress={() => actions.edit(p)} /></View></View>} ListEmptyComponent={<Text style={s.empty}>{reviewTab === 'hold' ? '보류한 작업이 없습니다.' : '검토할 제안이 없습니다.'}</Text>} />;
+      }]}><Pressable accessibilityRole="button" onPress={() => actions.hold(p)} style={s.secondary}><Text style={s.secondaryText}>보류</Text></Pressable><Pressable accessibilityRole="button" onPress={() => actions.dismiss(p)} style={s.secondary}><Text style={s.secondaryText}>무시</Text></Pressable>{(p.kind === 'memo' || (p.sourceType === 'memo' && p.sourceId && !reviewReason(p))) && <Pressable accessibilityRole="button" onPress={() => place(p)} style={s.secondary}><Text style={s.secondaryText}>문서에 넣기</Text></Pressable>}<PrimaryButton label={reviewReason(p) ? '내용 확인' : '확인 후 저장'} icon="check" onPress={() => actions.edit(p)} /></View></View>} ListEmptyComponent={<Text style={s.empty}>{reviewTab === 'hold' ? '보류한 작업이 없습니다.' : '검토할 제안이 없습니다.'}</Text>} />;
   } else if (mode === 'relations') {
     content = <GraphCanvas key={current?.id} navigation={navigation} />;
   } else {
@@ -280,7 +293,7 @@ export default function WorkspaceScreen({
     const pages = tab.pages;
     const subIndex = i === pagerIndex ? Math.max(0, pages.findIndex(p => p.route === route?.params?.subpage)) : 0;
     const select = name => navigation.setParams({ subpage: name });
-    return <PageRail index={subIndex} pages={pages} header={active =>
+    return <PageRail index={subIndex} pages={pages} header={active => pages.length < 2 ? null :
       <View><ScrollView horizontal showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, gap: 16, alignItems: 'center' }}>
         {pages.map(page => {
@@ -297,21 +310,25 @@ export default function WorkspaceScreen({
         const mode = DOCUMENT_MODES[page.route];
         if (mode) return <WorkspaceScreen bodyOnly mode={mode} navigation={navigation} route={i === pagerIndex ? route : undefined} />;
         const Tool = screens[page.route];
-        return <Tool bodyOnly calendar={calendar} navigation={j === 0 ? navigation : { ...navigation, goBack: () => select(pages[0].route) }}
-          route={{ name: page.route, params: i === pagerIndex ? route?.params ?? {} : {} }} />;
+        return <ScreenEntryProvider value={EMBEDDED_ENTRY}><Tool bodyOnly calendar={calendar} navigation={j === 0 ? navigation : { ...navigation, goBack: () => select(pages[0].route) }}
+          route={{ name: page.route, params: i === pagerIndex ? route?.params ?? {} : {} }} /></ScreenEntryProvider>;
       }} />;
   };  return <View style={s.root}>{pagerIndex !== undefined
     ? <PageRail index={pagerIndex} pages={TABS} keepVisited header={tab => header(tab.route)} renderPage={renderTab} />
-    : <>{!bodyOnly && header()}{content}</>}{actions.snack.view}<SheetModal visible={menu} onClose={() => setMenu(false)} label="작업 공간 메뉴"><View style={s.handle} /><View style={s.titleRow}><Text style={s.sectionTitle}>나의 작업 공간</Text><IconButton name="x" label="메뉴 닫기" onPress={() => setMenu(false)} /></View><ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>{spaces.list.map(space => <Pressable accessibilityRole="button" key={space.id} onPress={() => {
-          try {
-            switchWorkspace(space.id);
-            setMenu(false);
-            setError('');
-          } catch (e) {
-            setError(e.message);
-            setMenu(false);
-          }
-        }} style={s.menuRow}><Icon name={space.personal ? 'home' : 'users'} size={18} color={c.muted} /><Text style={s.menuLabel}>{space.name}</Text>{space.id === current?.id && <Icon name="check" size={17} color={c.accent} />}</Pressable>)}<Text style={[s.meta, {
-          marginTop: 20
-        }]}>공통 설정</Text>{SPACE_TOOLS.map(([name, label, icon]) => <Pressable accessibilityRole="button" key={name} onPress={() => go(name)} style={s.menuRow}><Icon name={icon} size={18} color={c.muted} /><Text style={s.menuLabel}>{label}</Text><Icon name="chevronRight" size={14} color={c.subtle} /></Pressable>)}</ScrollView></SheetModal></View>;
+    : <>{!bodyOnly && header()}{content}</>}{actions.snack.view}<SheetModal visible={menu} onClose={() => setMenu(false)} label="작업 공간 메뉴"><View style={s.handle} /><View style={s.titleRow}><Text style={s.sectionTitle}>나의 작업 공간</Text><IconButton name="x" label="메뉴 닫기" onPress={() => setMenu(false)} /></View><ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4 }}>
+      {/* 공간 / AI / 관리 세 묶음. 묶음마다 둥근 면 안에 같은 높이의 행, 아이콘 열과 글자 시작점을 맞춘다. */}
+      {[['공간', [...spaces.list.map(space => ({ key: space.id, label: space.name, icon: space.personal ? 'home' : 'users', checked: space.id === current?.id, onPress: () => {
+          try { switchWorkspace(space.id); setMenu(false); setError(''); } catch (e) { setError(e.message); setMenu(false); }
+        } })), ...SPACE_TOOLS.filter(([, , , group]) => group === '공간').map(tool)]],
+        ['AI', SPACE_TOOLS.filter(([, , , group]) => group === 'AI').map(tool)],
+        ['관리', SPACE_TOOLS.filter(([, , , group]) => group === '관리').map(tool)]].map(([group, items]) => <View key={group}>
+        <Text style={s.menuGroupLabel}>{group}</Text>
+        <View style={s.menuGroup}>{items.map((item, i) => <View key={item.key}>{i > 0 && <View style={s.menuDivider} />}
+          <Pressable accessibilityRole="button" accessibilityState={item.checked ? { selected: true } : undefined} onPress={item.onPress} style={({ pressed }) => [s.menuGroupRow, pressed && { opacity: .6 }]}>
+            <View style={s.menuIcon}><Icon name={item.icon} size={18} color={c.muted} /></View>
+            <Text style={s.menuLabel}>{item.label}</Text>
+            {item.count > 0 && <Text style={s.linkText}>{item.count}</Text>}
+            {item.checked ? <Icon name="check" size={17} color={c.accent} /> : item.chevron && <Icon name="chevronRight" size={14} color={c.subtle} />}
+          </Pressable></View>)}</View>
+      </View>)}</ScrollView></SheetModal></View>;
 }

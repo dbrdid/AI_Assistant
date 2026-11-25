@@ -24,7 +24,7 @@ export function CircleButton({ icon, onPress, label, size = 40, iconSize = 20, c
       disabled={disabled}
       onPress={onPress}
       hitSlop={6}
-      style={({ pressed }) => [styles.circle, { width: size, height: size, borderRadius: 4 }, pressed && { backgroundColor: colors.mintSoft }, disabled && { opacity: 0.4 }, style]}
+      style={({ pressed }) => [styles.circle, { width: size, height: size, borderRadius: size / 2 }, pressed && { backgroundColor: colors.mintSoft }, disabled && { opacity: 0.4 }, style]}
     >
       {children || <Icon name={icon} size={iconSize} color={color} />}
       {!!badge && <View style={styles.badgeDot} />}
@@ -72,7 +72,7 @@ export function Chip({ label, active, onPress, style }) {
       onPress={onPress}
       style={[styles.chip, active && styles.chipActive, style]}
     >
-      <Text style={[styles.chipText, active && { color: colors.onPrimary }]} numberOfLines={1}>{label}</Text>
+      <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>{label}</Text>
     </Pressable>
   );
 }
@@ -97,7 +97,7 @@ export function IconTile({ icon, size = 36, iconSize = 20, color = colors.mintDa
 export function DashedButton({ label, onPress, style }) {
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.dashed, pressed && { backgroundColor: colors.mintSoft }, style]}>
-      <Icon name="plus" size={18} color={colors.mintDark} />
+      <Icon name="plus" size={17} color={colors.muted} />
       <Text style={styles.dashedText}>{label}</Text>
     </Pressable>
   );
@@ -128,22 +128,25 @@ export const uiStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   circle: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.line },
   badgeDot: { position: 'absolute', top: 7, right: 8, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.coral, borderWidth: 1, borderColor: colors.white },
-  pill: { minHeight: 40, paddingHorizontal: 18, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  pill: { minHeight: 44, paddingHorizontal: 18, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   pillPrimary: { backgroundColor: colors.action },
-  pillGhost: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  pillText: { fontSize: font.body, fontWeight: '600' },
-  card: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, padding: spacing.lg },
-  chip: { minHeight: 36, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  chipActive: { backgroundColor: colors.action, borderColor: colors.actionBorder },
-  chipText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
+  pillGhost: { backgroundColor: 'transparent', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.actionBorder },
+  pillText: { fontSize: 14, fontWeight: '600' },
+  card: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, padding: spacing.lg },
+  // 선택 전 칩은 면 없이 흐린 글자, 선택된 칩만 낮은 대비의 면으로 표시한다(밝은 채움 금지).
+  chip: { minHeight: 34, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
+  chipActive: { backgroundColor: colors.raised, borderColor: colors.raised },
+  chipText: { fontSize: 13, fontWeight: '500', color: colors.muted },
+  chipTextActive: { color: colors.ink },
   tag: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, backgroundColor: colors.mintSoft },
   tagOutline: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.pill },
   tagMuted: { backgroundColor: colors.raised, borderRadius: radius.pill },
   tagText: { fontSize: font.caption, fontWeight: '700', color: colors.mintDark },
   tile: { alignItems: 'center', justifyContent: 'center' },
-  dashed: { flexDirection: 'row', gap: 6, minHeight: 50, borderRadius: radius.card, paddingHorizontal: spacing.md, alignItems: 'center', justifyContent: 'flex-start' },
-  dashedText: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },
-  stat: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 48, paddingHorizontal: spacing.md, borderRadius: 4, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.cream },
+  // '+ 추가' 행: Notion의 새 페이지 행처럼 흐린 글자, 누를 때만 면 표시
+  dashed: { flexDirection: 'row', gap: 8, minHeight: 44, borderRadius: radius.md, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'flex-start' },
+  dashedText: { fontSize: 14, fontWeight: '500', color: colors.muted },
+  stat: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 48, paddingHorizontal: spacing.md, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, backgroundColor: colors.card },
   statLabel: { flex: 1, fontSize: font.body, color: colors.muted },
   statValue: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
 });

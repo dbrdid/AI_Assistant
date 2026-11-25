@@ -21,6 +21,8 @@ import ProjectItemsTable from '../components/ProjectItemsTable';
 import ProjectTaskBoard from '../components/ProjectTaskBoard';
 import { projectTableKey, projectViewKey } from '../../../data/projects/projectTablePreferences.mjs';
 
+// 받침이 있으면 '이', 없으면 '가'(메모가, 할 일이, 파일이, 일정이)
+const hasBatchim = word => { const code = String(word).trim().slice(-1).charCodeAt(0) - 0xac00; return code >= 0 && code <= 11171 && code % 28 !== 0; };
 export default function ProjectDetailScreen({ navigation, route }) {
   const projectId = route?.params?.projectId;
   const projects = useProjects(); // 바뀌면 다시 그리기 위해 구독
@@ -154,12 +156,12 @@ export default function ProjectDetailScreen({ navigation, route }) {
           return (
             <View key={s.key} style={styles.section}>
               <Pressable accessibilityRole="button" accessibilityState={{ expanded: isOpen }} onPress={() => setOpen((o) => ({ ...o, [s.key]: !o[s.key] }))} style={styles.sectionHead}>
-                <Text style={styles.sectionTitle}>{s.label} {s.items.length}{s.unit}</Text>
+                <Text style={styles.sectionTitle}>{s.label}{s.items.length > 0 && <Text style={styles.sectionCount}>  {s.items.length}</Text>}</Text>
                 <Icon name="chevronDown" size={18} color={colors.muted} style={isOpen ? styles.flip : undefined} />
               </Pressable>
               {isOpen && (
                 <View style={{ gap: spacing.sm }}>
-                  {s.items.length === 0 && <Text style={styles.none}>연결된 {s.label}이(가) 없어요</Text>}
+                  {s.items.length === 0 && <Text style={styles.none}>연결된 {s.label}{hasBatchim(s.label) ? '이' : '가'} 없어요</Text>}
                   {s.items.map((x) => {
                     const k = keyOf(s, x.id);
                     const on = picked.includes(k);
@@ -359,7 +361,8 @@ const styles = StyleSheet.create({
   viewControls: { flexDirection: 'row', gap: spacing.sm },
   section: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, padding: spacing.lg, gap: spacing.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 32 },
-  sectionTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
+  sectionCount: { fontSize: 13, fontWeight: '400', color: colors.muted },
+  sectionTitle: { fontSize: 15, fontWeight: '600', color: colors.ink },
   flip: { transform: [{ rotate: '180deg' }] },
   none: { fontSize: font.body, color: colors.muted },
   item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.cream, borderWidth: 1, borderColor: colors.line, minHeight: 48 },
@@ -380,7 +383,7 @@ const styles = StyleSheet.create({
   barBtn: { flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.cream, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   barDanger: { backgroundColor: colors.coralSoft, borderColor: colors.coral, flex: 1.4 },
   barText: { fontSize: font.body, fontWeight: '700', color: colors.ink },
-  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.lg, gap: spacing.md },
   dialogTitle: { fontSize: font.bodyLg, fontWeight: '800', color: colors.ink },
   dialogRow: { flexDirection: 'row', gap: spacing.sm },

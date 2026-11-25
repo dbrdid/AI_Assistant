@@ -1,0 +1,13 @@
+{
+  "name": "stella-bridge",
+  "version": "0.1.0",
+  "description": "Stella 앱에서 이 PC나 서버의 AI를 OpenAI 호환 API 하나로 쓰게 하는 브리지",
+  "type": "module",
+  "bin": { "stella-bridge": "stella-bridge.mjs" },
+  "files": ["bridge.mjs", "stella-bridge.mjs"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "node build.mjs",
+    "prepublishOnly": "node -e \"console.error('stella-bridge는 레지스트리에 배포하지 않습니다. npm run build로 만든 .tgz를 쓰세요.'); process.exit(1)\""
+  }
+}

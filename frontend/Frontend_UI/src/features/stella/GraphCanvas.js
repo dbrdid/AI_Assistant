@@ -7,6 +7,7 @@ import Icon from '../../shared/components/Icon';
 import { ROUTES } from '../../navigation/routes';
 import { palette as c, styles as s } from './theme';
 import { connectorPath } from './model.mjs';
+import { useInsets } from '../../shared/hooks/useInsets';
 const WIDTH = 190,
   HEIGHT = 72;
 function GraphNode({
@@ -104,7 +105,7 @@ function GraphNode({
     minHeight: HEIGHT,
     backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: node.kind === 'memo' ? '#7f9382' : '#45494c',
+    borderColor: node.kind === 'memo' ? '#6a6e72' : '#45494c',
     borderRadius: 4,
     touchAction: 'none'
   }}><Pressable accessibilityRole="button" accessibilityLabel={`${node.kind === 'memo' ? '문서' : '할 일 / 일정'}: ${node.title}`} onPress={() => {
@@ -113,12 +114,13 @@ function GraphNode({
       paddingHorizontal: 13,
       paddingVertical: 11,
       minHeight: HEIGHT
-    }}><Text style={s.rowTitle} numberOfLines={1}>{node.title}</Text><Text style={s.meta}>{node.kind === 'memo' ? '문서' : node.kind === 'event' ? '일정' : '할 일'}  /  드래그로 이동</Text></Pressable></View>;
+    }}><Text style={s.rowTitle} numberOfLines={1}>{node.title}</Text><Text style={s.meta}>{node.kind === 'memo' ? '문서' : node.kind === 'event' ? '일정' : '할 일'}</Text></Pressable></View>;
 }
 export default function GraphCanvas({
   navigation
 }) {
   const own = runtime();
+  const insets = useInsets();
   const documents = useValue(() => own.documents.listDocuments());
   const tasks = useTasks();
   const taskPositionKey = `stella-graph-tasks:${own.store.getCurrentWorkspace().id}`;
@@ -238,7 +240,7 @@ export default function GraphCanvas({
       paddingHorizontal: 22,
       paddingTop: 25,
       paddingBottom: 16
-    }}><Text accessibilityRole="header" style={s.title}>문서 관계</Text><Text style={s.intro}>문서를 연결하고, 생각의 흐름을 살펴보세요.</Text></View>{error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}<View {...Platform.OS === 'web' ? webPan : pan.panHandlers} accessibilityLabel="문서 관계 캔버스  /  빈 공간을 드래그해 이동" style={{
+    }}><Text style={[s.intro, { marginTop: 0 }]}>문서를 연결하고, 생각의 흐름을 살펴보세요.</Text></View>{error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}<View {...Platform.OS === 'web' ? webPan : pan.panHandlers} accessibilityLabel="문서 관계 캔버스  /  빈 공간을 드래그해 이동" style={{
       flex: 1,
       minHeight: 320,
       overflow: 'hidden',
@@ -298,7 +300,7 @@ export default function GraphCanvas({
         padding: 25
       }}><Text style={s.empty}>문서를 작성하면 여기에 나타납니다.</Text></View>}<View onPointerDown={Platform.OS === 'web' ? event => event.stopPropagation() : undefined} style={{
         position: 'absolute',
-        bottom: 15,
+        bottom: 15 + insets.bottom,
         right: 15,
         flexDirection: 'row',
         backgroundColor: c.surface,
@@ -310,6 +312,7 @@ export default function GraphCanvas({
           y: 24,
           zoom: .75
         })], ['확대', 'plus', () => changeZoom(.1)]].map(([label, icon, onPress]) => <Pressable key={label} accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={s.iconButton}>{label === '보기 초기화' ? <Text style={s.meta}>{Math.round(view.zoom * 100)}%</Text> : <Icon name={icon} size={18} color={c.text} />}</Pressable>)}</View></View><View style={{
-      padding: 15
+      padding: 15,
+      paddingBottom: 15 + insets.bottom
     }}><Text style={s.note}>빈 공간은 화면 이동  /  문서는 위치 이동  /  누르면 열기</Text></View></View>;
 }

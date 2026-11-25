@@ -13,6 +13,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError } from '@supabase/supabase-js';
 import { AiError } from './errors';
+import { guardPlan, originalEvidence } from '../../integration/recordEvidence.mjs';
 
 export const CHAT_LIMITS = {
   questionChars: 2000,
@@ -125,7 +126,7 @@ export async function planQuery(client: SupabaseClient, p: {
     client_request_id: p.clientRequestId, question, history: trimHistory(p.history),
     timezone: p.timezone ?? 'Asia/Seoul', today: p.today ?? null,
   });
-  return r.draft;
+  return guardPlan(r.draft, question, p.history);
 }
 
 // ---------------------------------------------------------------------
@@ -275,10 +276,14 @@ export async function askAssistant(client: SupabaseClient, p: {
   history?: ChatTurn[];
   newId: () => string;
   findRecords: (plan: QueryPlan) => Promise<ChatRecord[]> | ChatRecord[];
+  locateFile?: (plan: QueryPlan) => Pick<AssistantReply, 'text' | 'sources'> | null;
   timezone?: string;
   today?: string;
 }): Promise<AssistantReply> {
   const plan = await planQuery(client, { clientRequestId: p.newId(), question: p.question, history: p.history, timezone: p.timezone, today: p.today });
+  const fileLocation = p.locateFile?.(plan);
+  if (fileLocation) return { ...fileLocation, kind: fileLocation.sources.length ? 'answer' : 'not_found',
+    insufficient: !fileLocation.sources.length, followUps: [], plan, remaining: null };
   if (plan.intent !== 'search') {
     return { text: plan.reply ?? '', sources: [], kind: 'direct', insufficient: false, followUps: [], plan, remaining: null };
   }
@@ -292,7 +297,10 @@ export async function askAssistant(client: SupabaseClient, p: {
     clientRequestId: p.newId(), question: p.question, history: p.history, timezone: p.timezone, today: p.today, sources,
   });
   const byId = new Map(ranked.map((r) => [r.id, r]));
-  const quoteOf = (id: string) => answer.citations.find((c) => c.source_id === id)?.quote;
+  const quoteOf = (id: string) => {
+    const record = byId.get(id)!;
+    return answer.citations.filter((c) => c.source_id === id).map((c) => originalEvidence(`${record.title}\n${record.text}`, c.quote)).find(Boolean);
+  };
   return {
     text: answer.answer,
     sources: answer.used_source_ids.filter((id) => byId.has(id)).map((id) => ({ id, type: byId.get(id)!.type, title: byId.get(id)!.title || '(제목 없음)', quote: quoteOf(id) })),

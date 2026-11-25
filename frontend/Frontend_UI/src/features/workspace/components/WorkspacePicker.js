@@ -79,7 +79,7 @@ export default function WorkspacePicker({ visible, onClose, navigation, onSwitch
 
 const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...FILL, backgroundColor: 'rgba(38,57,53,0.4)' },
+  backdrop: { ...FILL, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 4, borderTopRightRadius: 4, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.md },
   grip: { alignSelf: 'center', width: 40, height: 4, borderRadius: 4, backgroundColor: colors.line, marginBottom: spacing.xs },
   title: { fontSize: font.title, fontWeight: '600', color: colors.ink },

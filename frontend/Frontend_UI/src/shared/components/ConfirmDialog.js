@@ -33,7 +33,7 @@ export default function ConfirmDialog({ visible, title, sub, confirmText = '확�
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   // 시안: 흰 카드 + 얇은 테두리, 알약 모양 버튼
   dialog: { width: '100%', maxWidth: 340, backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, padding: spacing.xl, gap: spacing.sm },
   title: { fontSize: font.header, fontWeight: '600', color: colors.ink },

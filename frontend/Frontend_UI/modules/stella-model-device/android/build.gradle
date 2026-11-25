@@ -1,0 +1,7 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+group = 'expo.modules.stellamodeldevice'
+version = '1.0.0'
+android { namespace "expo.modules.stellamodeldevice" }

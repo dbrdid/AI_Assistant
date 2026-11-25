@@ -1,4 +1,5 @@
 import DocumentEditor from '../features/stella/DocumentEditor';
+import AppCommandScreen from '../features/stella/AppCommandScreen';
 import LocalModelScreen from '../features/stella/LocalModelScreen';
 // ============================================================
 // AppNavigator.js — "어떤 화면을 보여줄지" 를 정하는 직접 만든 간단한 화면 이동기
@@ -18,7 +19,6 @@ import SpaceHomeScreen from '../features/spaces/screens/SpaceHomeScreen';
 import { enterSpace } from '../data/workspaces/WorkspaceStore';
 import PlaceholderScreen from '../shared/components/PlaceholderScreen';
 import CalendarScreen from '../features/calendar/screens/CalendarScreen';
-import AiChatScreen from '../features/ai/screens/AiChatScreen';
 import SearchScreen from '../features/search/screens/SearchScreen';
 import MemosScreen from '../features/memo/screens/MemoListScreen';
 import TrashScreen from '../features/memo/screens/MemoTrashScreen';
@@ -95,10 +95,11 @@ const REAL_SCREENS = {
   [ROUTES.WorkspaceCreate]: WorkspaceCreateScreen, // 새 워크스페이스 만들기
   [ROUTES.WorkspaceInvite]: WorkspaceInviteScreen, // 초대 수락 / 만료
   [ROUTES.Calendar]: CalendarScreen, // 사이드 메뉴 "캘린더" + 홈 시트를 끝까지 올렸을 때
-  [ROUTES.Ai]: AiChatScreen,         // 사이드 메뉴 "AI 채팅"
+  [ROUTES.Ai]: LocalModelScreen,     // 예전 AI 채팅 경로 (appCommands.mjs 화면 열기 호환)
   [ROUTES.Search]: SearchScreen,     // 사이드 메뉴 "검색"
   [ROUTES.Memos]: props => <StellaWorkspaceScreen {...props} mode="documents" />,       // 사이드 메뉴 "메모" + 검색/AI 결과에서 이동
   [ROUTES.MemoEdit]: DocumentEditor,
+  [ROUTES.AppCommand]: AppCommandScreen,
   [ROUTES.AdvancedMemoEdit]: MemoEditScreen,
   [ROUTES.AdvancedMemos]: MemosScreen,
   [ROUTES.LocalModel]: LocalModelScreen, // 메모 작성/편집 (메모 화면의 ＋ 버튼, 메모 카드)
@@ -156,10 +157,6 @@ export default function AppNavigator() {
 
   // ---------- 화면 이동 ----------
   const navigate = useCallback((route, params, { push = false } = {}) => {
-    if (route === ROUTES.Relations) {
-      params = { ...params, subpage: route };
-      route = ROUTES.Memos;
-    }
     setHistory((prev) => {
       const top = prev[prev.length - 1];
 
@@ -244,7 +241,7 @@ export default function AppNavigator() {
   const navigation = useMemo(() => ({ navigate, goBack, setParams, registerHardwareBackGuard, selectTab }), [navigate, goBack, setParams, registerHardwareBackGuard, selectTab]);
   const onHome = currentRoute === ROUTES.Home;
   // 탭 첫 화면(홈 포함)에서만 하단 탭을 보여 줌. 그 안에서 들어간 화면(편집 등)은 탭 없이 ‹ 로 돌아옴
-  const tabRoot = onHome || !!current.tab || [ROUTES.Memos, ROUTES.Relations, ROUTES.Proposals].includes(currentRoute);
+  const tabRoot = onHome || !!current.tab || [ROUTES.Memos].includes(currentRoute);
   const entry = useMemo(() => ({ tabRoot, goBack }), [tabRoot, goBack]);
   // 지금 화면에 맞는 컴포넌트 선택: 등록된 진짜 화면이 있으면 그것, 없으면 임시 화면
   const tabIndex = TABS.findIndex(tab => tab.route === currentRoute);

@@ -7,13 +7,14 @@
 
 // 색상표 (스토리보드의 Mint · Ink · Cream · Coral 디자인 시스템)
 export const colors = {
-  mint: '#b8cbb3',      // 밝은 민트 (강조선 등)
+  mint: '#d9d9d6',      // 강조색: 녹색 없이 밝은 무채색 (강조선 등)
   mintDark: '#f0f0ee',  // 진한 녹색 (주요 버튼, 선택된 날짜)
   mintSoft: '#2b2c2e',  // 아주 연한 민트 (메뉴에서 선택된 항목 배경)
   ink: '#f0f0ee',       // 글자 기본색 (거의 검정에 가까운 짙은 녹색)
   muted: '#aaa',     // 흐린 글자색 (보조 설명)
   cream: '#191a1b',     // 화면 배경색 (따뜻한 흰색)
   line: '#2d3032',      // 얇은 구분선 색
+  hairline: '#2a2c2e',  // 카드 테두리처럼 거의 보이지 않아야 하는 선
   coral: '#f0abab',     // 포인트 색 (일요일 글자 등)
   coralSoft: '#38282a', // 아주 연한 코랄 (회원탈퇴 아이콘 배경 등)
   card: '#222325',      // 카드 배경 (Figma 시안: 흰 카드 + 얇은 테두리)
@@ -30,7 +31,8 @@ export const colors = {
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 
 // 모서리 둥글기. 클수록 더 동그랗습니다.
-export const radius = { sm: 4, md: 6, lg: 8, card: 6, pill: 4 };
+// Stella 화면과 같은 부드러운 모서리: 입력·카드 10, 알약 버튼·칩은 완전한 둥근 끝.
+export const radius = { sm: 6, md: 8, lg: 10, card: 10, pill: 999 };
 
 // 글자 크기
 export const font = { caption: 12, body: 15, bodyLg: 16, header: 17, title: 22, headline: 28 };

@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application
+    android:fullBackupContent="@xml/stella_model_backup_rules"
+    android:dataExtractionRules="@xml/stella_model_extraction_rules" />
+</manifest>

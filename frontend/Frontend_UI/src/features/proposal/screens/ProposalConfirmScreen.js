@@ -9,7 +9,9 @@ import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { approveProposal, findDuplicate, getProposal, setProposalStatus } from '../../../data/proposals/ProposalStore';
+import { getMemo } from '../../../data/memos/MemoStore';
 import { getSettings } from '../../../data/settings/SettingsStore';
+import { unstatedTimeWarning } from '../../../integration/recordEvidence.mjs';
 import { fromKey } from '../../calendar/utils/DateUtils';
 import { DatePickerModal, TimePickerModal } from '../../../shared/components/DateTimePicker';
 import { useNotice } from '../../../shared/components/SettingsUi';
@@ -39,6 +41,9 @@ export default function ProposalConfirmScreen({ navigation, route }) {
   const set = (k) => (v) => setF((s) => ({ ...s, [k]: v }));
   const isMemo = f.kind === 'memo';
   const paid = getSettings().plan && getSettings().plan !== 'free';
+  // Only the model's untouched values warn; a time the user picked is the user's decision.
+  const timeWarning = !isMemo && p.sourceType === 'memo'
+    ? unstatedTimeWarning({ start: f.start === p.start ? f.start : '', end: f.end === p.end ? f.end : '' }, getMemo(p.sourceId)?.body) : '';
 
   const finish = (msg) => { done.current = true; completion.current=msg; notice.show(msg); finishTimer.current=setTimeout(navigation.goBack, 600); };
   const doSave = () => {
@@ -79,10 +84,12 @@ export default function ProposalConfirmScreen({ navigation, route }) {
             <Text style={styles.label}>일시</Text>
             <View style={styles.rowGap}>
               <Pressable accessibilityRole="button" onPress={() => setPicker('date')} style={[styles.input, styles.pick]}><Text style={styles.pickText}>{dateLabel(f.date)}</Text></Pressable>
-              {f.kind === 'event' && (
+              {!!f.end && <Pressable accessibilityRole="button" accessibilityLabel={`종료 시간 ${f.end}`} onPress={() => setPicker('end')} style={[styles.input, styles.pick]}><Text style={styles.pickText}>{f.end}</Text></Pressable>}
+              {(f.kind === 'event' || !!f.start) && (
                 <Pressable accessibilityRole="button" onPress={() => setPicker('start')} style={[styles.input, styles.pick]}><Text style={styles.pickText}>{f.start || '시간'}</Text></Pressable>
               )}
             </View>
+            {!!timeWarning && <Text style={styles.warning} accessibilityRole="alert" accessibilityLabel={`경고: ${timeWarning}`}>{timeWarning}</Text>}
             <Text style={styles.label}>장소</Text>
             <TextInput style={styles.input} value={f.place} onChangeText={set('place')} placeholder="장소" placeholderTextColor={colors.muted} accessibilityLabel="장소" />
             <Text style={styles.label}>담당자</Text>
@@ -115,6 +122,7 @@ export default function ProposalConfirmScreen({ navigation, route }) {
 
       <DatePickerModal visible={picker === 'date'} value={f.date} onPick={(k) => { set('date')(k); setPicker(null); }} onClose={() => setPicker(null)} />
       <TimePickerModal visible={picker === 'start'} value={f.start} title="시작 시간" onPick={(v) => { set('start')(v); setPicker(null); }} onClear={() => { set('start')(''); setPicker(null); }} onClose={() => setPicker(null)} />
+      <TimePickerModal visible={picker === 'end'} value={f.end} title="종료 시간" onPick={(v) => { set('end')(v); setPicker(null); }} onClear={() => { set('end')(''); setPicker(null); }} onClose={() => setPicker(null)} />
       <ConfirmDialog visible={!!dup} title="이미 비슷한 일정이 있어요" sub={dup ? `“${dup.title}” (${dup.start || '종일'})와 겹쳐요. 그래도 저장할까요?` : ''} confirmText="그래도 저장" onCancel={() => setDup(null)} onConfirm={() => { setDup(null); doSave(); }} />
       {notice.view}
     </View>
@@ -135,6 +143,7 @@ const styles = StyleSheet.create({
   rowGap: { flexDirection: 'row', gap: spacing.sm },
   pick: { flex: 1, justifyContent: 'center' },
   pickText: { fontSize: font.bodyLg, color: colors.ink },
+  warning: { fontSize: 13, fontWeight: '700', color: colors.coral },
   locked: { minHeight: 72, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.line, backgroundColor: colors.card, padding: spacing.md, justifyContent: 'center', gap: 4, marginTop: spacing.sm },
   lockedTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   lockedSub: { fontSize: font.body, color: colors.muted },

@@ -7,7 +7,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../hooks/useInsets';
 import { colors, font, spacing } from '../theme/theme';
-import { useLeadAction } from '../../navigation/ScreenEntry';
+import { useLeadAction, useScreenEntry } from '../../navigation/ScreenEntry';
 import { CircleButton } from './Ui';
 
 export default function ScreenHeader({ title, onBack, right, titleRightInset, lead: leadOverride }) {
@@ -15,6 +15,15 @@ export default function ScreenHeader({ title, onBack, right, titleRightInset, le
   const insets = useSafeAreaInsets();
   // 왼쪽 버튼: 하단 탭으로 연 화면이면 없음, 다른 화면에서 들어왔으면 ‹(onBack)
   const lead = useLeadAction(onBack);
+  const { embedded } = useScreenEntry();
+  // 상단 탭 안에서는 뒤로 가기·가운데 제목·구분선을 반복하지 않고 Stella 문서 화면처럼 왼쪽 제목 + 오른쪽 동작만 둔다.
+  if (embedded) return (
+    <View style={styles.embedded}>
+      {leadOverride}
+      <Text style={styles.embeddedTitle} numberOfLines={1} accessibilityRole="header">{title}</Text>
+      <View style={[styles.side, styles.right]}>{right}</View>
+    </View>
+  );
 
   return (
     <View style={[styles.bar, { paddingTop: insets.top + spacing.sm }]}>
@@ -50,6 +59,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cream,
     minHeight: 40,
   },
+  embedded: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 6, minHeight: 56, backgroundColor: colors.cream },
+  embeddedTitle: { flex: 1, color: colors.ink, fontSize: 24, fontWeight: '600', letterSpacing: -0.4, lineHeight: 34 },
   titleWrap: { position: 'absolute', left: 64, right: 64, height: 40, alignItems: 'center', justifyContent: 'center' },
   side: { minWidth: 40, minHeight: 40, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   right: { justifyContent: 'flex-end' },

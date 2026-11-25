@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   btn: { flexDirection: 'row', gap: spacing.sm, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
   btnPrimary: { backgroundColor: colors.action },
   btnText: { fontSize: font.bodyLg, fontWeight: '500' },
-  backdrop: { flex: 1, backgroundColor: 'rgba(38,57,53,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.md },
   dTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   dMsg: { fontSize: font.body, color: colors.muted, lineHeight: 21 },

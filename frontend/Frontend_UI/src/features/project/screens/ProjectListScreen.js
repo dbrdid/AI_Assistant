@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   list: {paddingHorizontal:20,paddingTop:spacing.xs,gap:12,paddingBottom:spacing.xxl},
   empty: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: spacing.xl, gap: spacing.sm },
-  emptyTitle: { fontSize: font.bodyLg, fontWeight: '700', color: colors.ink },
+  emptyTitle: { fontSize: 15, fontWeight: '500', color: colors.ink },
   hint: { fontSize: font.caption, color: colors.muted },
   card: {flexDirection:'row',alignItems:'center',gap:spacing.md,padding:spacing.lg,borderRadius:0,backgroundColor:colors.cream,borderWidth:0,borderColor:colors.line,borderBottomWidth:1,paddingHorizontal:0,paddingVertical:20},
   cardOn: { borderColor: colors.mint, backgroundColor: colors.mintSoft },
@@ -140,6 +140,6 @@ const styles = StyleSheet.create({
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   meta: { fontSize: 13, color: colors.muted },
   bar: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, backgroundColor: colors.cream, borderTopWidth: 1, borderTopColor: colors.line },
-  barBtn: {flex:1,minHeight:42,borderRadius:4,backgroundColor:colors.card,borderWidth:0,borderColor:colors.line,alignItems:'center',justifyContent:'center'},
+  barBtn: {flex:1,minHeight:42,borderRadius:21,backgroundColor:colors.card,borderWidth:0,borderColor:colors.line,alignItems:'center',justifyContent:'center'},
   barText: {fontSize:14,fontWeight:'500',color:colors.ink},
 });

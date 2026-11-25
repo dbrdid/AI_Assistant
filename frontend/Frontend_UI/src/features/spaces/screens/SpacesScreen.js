@@ -40,7 +40,8 @@ export default function SpacesScreen({ navigation }) {
     const left = mine.filter((t) => t.status !== '완료').length;
     const todayN = mine.filter((t) => t.status !== '완료' && occursOn(t, today)).length;
     const memoN = memos.filter((m) => m.workspaceId === id).length;
-    return [`메모 ${memoN}`, `남은 할 일 ${left}`, todayN ? `오늘 ${todayN}` : ''].filter(Boolean).join('  /  ');
+    // 디자인 지시: 화면에 건수 장식을 상시 노출하지 않는다. 오늘 할 일이 있을 때만 알려 준다.
+    return todayN ? '오늘 할 일이 있어요' : '';
   };
 
   return (
@@ -63,7 +64,7 @@ export default function SpacesScreen({ navigation }) {
                 <Text style={styles.sub} numberOfLines={1}>
                   {w.personal ? '나만 보는 메모  /  일정  /  이 기기에만 저장' : `${w.role}  /  멤버 ${w.members}명${w.serverId ? '' : '  /  서버 연결 전'}`}
                 </Text>
-                <Text style={styles.stats} numberOfLines={1}>{statsOf(w.id)}</Text>
+                {!!statsOf(w.id) && <Text style={styles.stats} numberOfLines={1}>{statsOf(w.id)}</Text>}
               </View>
               <Icon name="chevronRight" size={18} color={colors.muted} />
             </Pressable>
@@ -72,7 +73,7 @@ export default function SpacesScreen({ navigation }) {
 
         <View style={styles.actions}>
           <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.WorkspaceCreate)} style={({ pressed }) => [styles.action, styles.actionNew, pressed && { opacity: 0.7 }]}>
-            <Icon name="plus" size={16} color={colors.mintDark} strokeWidth={2.4} />
+            <Icon name="plus" size={16} color={colors.ink} />
             <Text style={styles.actionNewText}>새 공간 만들기</Text>
           </Pressable>
           <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.WorkspaceInvite)} style={({ pressed }) => [styles.action, pressed && { opacity: 0.7 }]}>
@@ -92,16 +93,16 @@ export default function SpacesScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
-  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: 14, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline },
   tile: { alignItems: 'center', justifyContent: 'center' },
   tileText: { fontWeight: '600' },
   name: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   sub: { fontSize: font.caption, color: colors.muted },
-  stats: { fontSize: font.caption, fontWeight: '700', color: colors.mintDark },
+  stats: { fontSize: font.caption, fontWeight: '500', color: colors.mint },
   actions: { flexDirection: 'row', gap: spacing.sm },
-  action: { flex: 1, flexDirection: 'row', gap: 6, minHeight: 48, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  actionNew: { borderStyle: 'dashed', borderWidth: 1.5, borderColor: colors.mint, backgroundColor: 'transparent' },
-  actionNewText: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },
-  actionText: { fontSize: font.body, fontWeight: '600', color: colors.ink },
+  action: { flex: 1, flexDirection: 'row', gap: 6, minHeight: 44, borderRadius: radius.pill, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.actionBorder, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
+  actionNew: { backgroundColor: colors.action, borderColor: colors.action },
+  actionNewText: { fontSize: 14, fontWeight: '600', color: colors.ink },
+  actionText: { fontSize: 14, fontWeight: '500', color: colors.ink },
   hint: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
 });
