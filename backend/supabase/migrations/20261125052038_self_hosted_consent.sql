@@ -7,6 +7,7 @@ alter table public.consents add constraint consents_consent_type_check
 do $migration$
 declare d text; old text := $fragment$c.consent_type = 'EXTERNAL_AI'$fragment$;
 begin
+  -- 20261114115314_stt_minute_quota가 p_units integer를 더해 8개 인자로 바꿈 (7개짜리는 없음)
   d := pg_get_functiondef('public.ai_begin_request(uuid,uuid,text,uuid,text,text,text,integer)'::regprocedure);
   if (length(d) - length(replace(d, old, ''))) / length(old) <> 1 then
     raise exception 'Self-hosted consent migration: unexpected ai_begin_request definition';

@@ -31,9 +31,9 @@ npm run web        # 브라우저에서 실행
 
 서버의 적용 이력을 확인한 뒤, `backend/supabase/migrations/`의 새 협업 마이그레이션을 다음 순서로 적용합니다.
 
-1. `20261119090000_note_hierarchy.sql`
-2. `20261119100000_project_table_properties.sql`
-3. `20261119110000_validate_project_table_properties.sql`
+1. `20261125113607_note_hierarchy.sql`
+2. `20261125113617_project_table_properties.sql`
+3. `20261125113630_validate_project_table_properties.sql`
 
 서버에 적용한 뒤 `EXPO_PUBLIC_SHARED_PAGE_HIERARCHY=true`로 다시 빌드하면 공유 페이지 계층을 사용할 수 있습니다. 개인 페이지 계층은 기본 제공됩니다.
 

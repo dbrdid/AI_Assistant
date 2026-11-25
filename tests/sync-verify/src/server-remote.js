@@ -34,8 +34,8 @@ async function remoteUser(url, key, email, password) {
 
 async function checkCollaborationSchema(client) {
   const requirements = [
-    ['notes', 'parent_note_id', '20261119090000_note_hierarchy.sql'],
-    ['projects', 'table_properties', '20261119100000_project_table_properties.sql'],
+    ['notes', 'parent_note_id', '20261125113607_note_hierarchy.sql'],
+    ['projects', 'table_properties', '20261125113617_project_table_properties.sql'],
   ];
   const missing = [];
   for (const [table, column, migration] of requirements) {

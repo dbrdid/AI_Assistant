@@ -52,7 +52,7 @@ flowchart LR
 ## 실행 준비
 
 1. `frontend/Frontend_UI`에서 `npm ci`. `.env`에 `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_KEY`를 대상 테스트 프로젝트 값으로 지정한다. 기존 config 기본 주소가 있으므로 실행 전 반드시 대상을 확인한다. secret/service_role 키를 앱 환경 변수에 넣지 않는다.
-2. Supabase 테스트 프로젝트에서 기존 migration 전체와 `20261116090000_self_hosted_consent.sql`을 순서대로 재생하고 기존 RPC 테스트를 실행한다. 새 migration은 실제 DB에 적용하지 않았다. 함수 정의가 예상과 다르면 의도적으로 중단한다. 운영 DB에 바로 적용하지 않는다.
+2. Supabase 테스트 프로젝트에서 기존 migration 전체와 `20261125052038_self_hosted_consent.sql`을 순서대로 재생하고 기존 RPC 테스트를 실행한다. 함수 정의가 예상과 다르면 의도적으로 중단한다. (11/25 갱신: 처음 파일 `20261116090000`은 11/14에 8개 인자로 바뀐 `ai_begin_request`를 7개 인자로 찾아 적용되지 않았다. 인자를 고쳐 운영 DB에 적용했고 서버 버전에 맞춰 파일 이름을 바꿨다. 확인: `tests/test_self_hosted_consent.sql`)
 3. 이메일 인증 템플릿/redirect를 기존 클라우드 문서에 맞춰 설정한다. OAuth 앱 scheme은 `ai-assistant-planner`, callback은 `auth/callback`이다. 실제 `makeRedirectUri` 결과를 확인하여 Supabase allowlist에 등록한다. Expo Go와 개발 빌드의 URI는 다를 수 있다.
 4. `backend/cloud`에서 `npm ci`, 환경 설정 후 `npm start`. 자체 호스트에 `AI_GATEWAY_SECRET`(최소 32자), `OLLAMA_BASE_URL`, `OLLAMA_MODEL`을 지정한다. Gateway 전용 실행은 기존 `AI_AUTH_TOKENS`를 비워 둘 수 있다. Ollama 모델은 별도 설치가 필요하며 모델 이름·라이선스·토큰 적합성·필요 메모리는 아직 확정하지 않았다.
 5. Gateway 서버 secret에 `SELF_HOSTED_URL`(원격은 HTTPS origin), `SELF_HOSTED_SECRET`(호스트와 동일), `SELF_HOSTED_MODEL`(호스트와 동일)을 지정한다. 외부 API를 시험할 때만 기존 외부 provider 설정을 별도로 사용한다. 브라우저/앱에 서비스 secret을 배포하지 않는다.
