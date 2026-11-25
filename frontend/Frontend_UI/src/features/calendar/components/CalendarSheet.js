@@ -260,6 +260,28 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
 
   // 제목 줄 위치: 캘린더 화면은 상단 안전영역 아래, 홈 시트는 손잡이 막대 아래
   // 상단 탭 안에서는 탭 줄 바로 아래에 다른 하위 화면과 같은 왼쪽 큰 제목으로 둔다.
+  const headerActions = (
+    <>
+          {/* 오늘이 이미 선택되어 보이면 숨김 (Notion 캘린더의 오늘 버튼과 같은 동작) */}
+          {(selectedKey !== todayKey || cursor.year !== today.getFullYear() || cursor.month !== today.getMonth()) && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="오늘로 이동"
+              onPress={goToday}
+              hitSlop={6}
+              style={({ pressed }) => [styles.todayBtn, pressed && { backgroundColor: colors.mintSoft }]}
+            >
+              <Text style={styles.todayText}>오늘</Text>
+            </Pressable>
+          )}
+          <CircleButton
+            icon={searching ? 'x' : 'search'}
+            label={searching ? '검색 닫기' : '일정 검색'}
+            onPress={() => (searching ? closeSearch() : setSearching(true))}
+            style={searching ? styles.searchOn : null}
+          />
+    </>
+  );
   const headTop = embedded ? 14 : startFull ? insets.top + spacing.sm : HOME_BAR;
   // '이번 주' 띠가 덮고 있을 때는 그 아래 제목 줄을 화면 읽기에서 숨김
   const hideHead = showPeek ? { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' } : {};
@@ -291,7 +313,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
           accessibilityHint={hint}
           accessibilityActions={[{ name: 'activate' }]}
           onAccessibilityAction={toggle}
-          style={[styles.grab, { paddingTop: startFull ? headTop : 0 }]}
+          style={[styles.grab, { paddingTop: startFull && !embedded ? headTop : 0 }]}
         >
           {!startFull && (
             <View style={styles.barWrap}>
@@ -299,7 +321,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
             </View>
           )}
           <View style={[styles.headerRow, embedded && styles.headerRowEmbedded]}>
-            <Text style={[styles.headerTitle, embedded && styles.headerTitleEmbedded]}>캘린더</Text>
+            {!embedded && <Text style={styles.headerTitle}>캘린더</Text>}
           </View>
         </View>
         {/* 제목 줄 왼쪽 버튼 (캘린더 화면의 ☰ 또는 ‹). 손잡이 위에 겹쳐 그려서 눌림을 먼저 받음 */}
@@ -308,24 +330,8 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
             {lead}
           </View>
         ) : null}
-        {/* 제목 줄 오른쪽: '오늘' 알약 + 검색 */}
-        <View {...hideHead} style={[styles.side, styles.sideRight, { top: headTop }]}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="오늘로 이동"
-            onPress={goToday}
-            hitSlop={6}
-            style={({ pressed }) => [styles.todayBtn, pressed && { backgroundColor: colors.mintSoft }]}
-          >
-            <Text style={styles.todayText}>오늘</Text>
-          </Pressable>
-          <CircleButton
-            icon={searching ? 'x' : 'search'}
-            label={searching ? '검색 닫기' : '일정 검색'}
-            onPress={() => (searching ? closeSearch() : setSearching(true))}
-            style={searching ? styles.searchOn : null}
-          />
-        </View>
+        {/* 제목 줄 오른쪽: '오늘' 알약 + 검색. 탭 안에서는 빈 제목 줄 대신 달 이름 줄 오른쪽에 둔다 */}
+        {!embedded && <View {...hideHead} style={[styles.side, styles.sideRight, { top: headTop }]}>{headerActions}</View>}
 
         {/* 달력 본문 */}
         <View style={{ flex: 1 }}>
@@ -341,6 +347,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
             holidays={holidays}
             highlight={searching ? highlight : undefined}
             onPickMonth={(yy, mm) => goToDate(new Date(yy, mm, 1))}
+            actions={embedded ? headerActions : null}
           >
             {/* 선택한 날의 일정 / 검색 결과: 위쪽이 둥근 흰 시트 (아래 안전영역만큼 띄움) */}
             <View style={[styles.panel, { paddingBottom: insets.bottom + spacing.xxl }]}>
@@ -361,7 +368,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
                   {spaceList.length > 1 && (
                     <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} style={styles.spaceChipsBar} contentContainerStyle={styles.spaceChips}>
                       <Pressable accessibilityRole="button" accessibilityState={{ selected: hiddenSpaces.size === 0 }} onPress={() => setHiddenSpaces(new Set())} style={[styles.spaceChip, hiddenSpaces.size === 0 && styles.spaceChipAll]}>
-                        <Text style={[styles.spaceChipText, hiddenSpaces.size === 0 && { color: colors.onPrimary }]}>모두</Text>
+                        <Text style={[styles.spaceChipText, hiddenSpaces.size !== 0 && { color: colors.muted }]}>모두</Text>
                       </Pressable>
                       {spaceList.map((w) => {
                         const on = !hiddenSpaces.has(w.id);
@@ -455,8 +462,8 @@ const styles = StyleSheet.create({
   // 제목 줄: 가운데 '캘린더', 양옆 버튼은 absolute 로 겹쳐 그림
   headerRow: { height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: {fontSize:17,fontWeight:'600',color:colors.ink},
-  headerRowEmbedded: { alignItems: 'flex-start', paddingHorizontal: 20 },
-  headerTitleEmbedded: { fontSize: 24, letterSpacing: -0.4 },
+  headerRowEmbedded: { height: 8 },
+
   side: { position: 'absolute', height: 40, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   sideLeft: { left: spacing.lg },
   sideRight: { right: spacing.lg },
@@ -468,11 +475,11 @@ const styles = StyleSheet.create({
   panel: {flexGrow:1,marginTop:spacing.xs,paddingHorizontal:20,backgroundColor:colors.cream,borderTopLeftRadius:0,borderTopRightRadius:0,shadowColor:'#000000',shadowOpacity:0,shadowRadius:12,shadowOffset:{width:0,height:-2},elevation:0,borderTopWidth:1,borderColor:colors.line},
   panelBarWrap: {height:12,alignItems:'center',justifyContent:'center',marginBottom:spacing.xs},
   spaceChipsBar: { flexGrow: 0, flexShrink: 0, marginBottom: spacing.md },
-  spaceChips: { gap: spacing.sm, alignItems: 'center' },
-  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
-  spaceChipAll: { backgroundColor: colors.action, borderColor: colors.actionBorder },
-  spaceChipOff: { backgroundColor: colors.cream },
-  spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.ink },
+  spaceChips: { gap: spacing.lg, alignItems: 'center' },
+  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, maxWidth: 160, paddingHorizontal: 4 },
+  spaceChipAll: {},
+  spaceChipOff: {},
+  spaceChipText: { flexShrink: 1, fontSize: 12, color: colors.ink },
 
   // 홈의 '이번 주' 띠 (흰 바탕, 시트와 같은 둥근 위쪽)
   peek: {

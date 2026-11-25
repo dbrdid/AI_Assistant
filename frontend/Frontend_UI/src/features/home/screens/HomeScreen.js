@@ -11,7 +11,7 @@ import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets'
 import { useScreenEntry } from '../../../navigation/ScreenEntry';
 import Bell from '../../notice/components/Bell';
 import RecordSheet from '../../record/components/RecordSheet';
-import ProposalCard from '../../proposal/components/ProposalCard';
+import { styles as st } from '../../stella/theme';
 import { useProposalActions } from '../../proposal/useProposalActions';
 import { useRecorder } from '../../../services/device/Recorder';
 import { analyzeText } from '../../../services/ai/AiAnalyze';
@@ -211,24 +211,20 @@ export default function HomeScreen({ navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* ---------- AI 제안: 가장 먼저 확인할 것 하나 ---------- */}
+        {/* 홈 개요와 같은 한 줄 (카드 안 카드, 강조색 버튼 없이). 추가, 수정, 무시는 작업 검토 화면에서 */}
         {waiting.length > 0 && (
-          <View style={styles.aiBox}>
-            <View style={styles.aiHead}>
-              <Icon name="sparkles" size={18} color={colors.mintDark} />
-              <Text style={styles.aiTitle}>AI가 찾은 항목 {waiting.length}건</Text>
-              <Pressable accessibilityRole="button" onPress={() => go(ROUTES.Proposals)} hitSlop={8} style={styles.addLink}>
-                <Text style={styles.aiMore}>모두 보기</Text>
-                <Icon name="chevronRight" size={14} color={colors.mintDark} />
-              </Pressable>
-            </View>
-            <ProposalCard p={waiting[0]} actions={actions} showHold={false} tone="soft" />
-          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel={`검토할 작업 ${waiting.length}개`} onPress={() => go(ROUTES.Proposals)} style={({ pressed }) => [st.homeReview, pressed && { opacity: 0.6 }]}>
+            <Icon name="checkSquare" size={18} color={colors.muted} />
+            <Text style={[st.rowTitle, { flex: 1 }]} numberOfLines={1}>검토할 작업</Text>
+            <Text style={st.linkText}>{waiting.length}</Text>
+            <Icon name="chevronRight" size={14} color={colors.subtle ?? colors.muted} />
+          </Pressable>
         )}
 
-        {/* ---------- 팀 공간 요약 ---------- */}
+        {/* ---------- 팀 공간 요약 (섹션 이름 + 줄, 상자 없이) ---------- */}
         {multi && (
-          <View style={styles.teamCard}>
-            <Text style={styles.teamTitle}>팀 공간</Text>
+          <View>
+            <Text style={[styles.sectionTitle, { marginTop: spacing.md }]} accessibilityRole="header">팀 공간</Text>
             {teamSummary.map(({ w, text: summary, alert }) => (
               <Pressable key={w.id} accessibilityRole="button" accessibilityLabel={`${w.name} 공간, ${summary}`} onPress={() => go(ROUTES.SpaceHome, { workspaceId: w.id })} style={({ pressed }) => [styles.teamRow, pressed && { opacity: 0.6 }]}>
                 <SpaceDot color={spaces[w.id]?.color} />
@@ -399,13 +395,7 @@ const styles = StyleSheet.create({
   scope: { fontSize: font.caption, color: colors.muted },
   content: { paddingHorizontal: 20, paddingTop: spacing.sm, paddingBottom: spacing.xxl * 2, gap: spacing.sm },
 
-  aiBox: { backgroundColor: colors.mintSoft, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm, marginBottom: spacing.xs },
-  aiHead: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
-  aiTitle: { flex: 1, fontSize: font.body, fontWeight: '600', color: colors.mintDark },
-  aiMore: { fontSize: font.caption, fontWeight: '500', color: colors.mintDark },
 
-  teamCard: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  teamTitle: { fontSize: font.caption, fontWeight: '600', color: colors.muted, marginBottom: 2 },
   teamRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 38 },
   teamName: { maxWidth: '40%', fontSize: font.body, fontWeight: '600', color: colors.ink },
   teamText: { flex: 1, fontSize: font.caption, color: colors.muted },
@@ -419,7 +409,7 @@ const styles = StyleSheet.create({
   eventRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   eventTime: { width: 44, fontSize: font.body, fontWeight: '600' },
   allDay: { fontSize: font.caption, color: colors.muted },
-  eventCard: { flex: 1, minHeight: 48, justifyContent: 'center', gap: 3, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, borderLeftWidth: 3, borderRadius: radius.md },
+  eventCard: { flex: 1, minHeight: 44, justifyContent: 'center', gap: 3, paddingHorizontal: spacing.md, paddingVertical: 6, borderLeftWidth: 2 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   itemTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   itemSub: { flexShrink: 1, fontSize: font.caption, color: colors.muted },

@@ -27,6 +27,7 @@ export default function MonthCalendar({
   onPrev,
   onNext,
   onPickMonth,
+  actions = null, // 달 이름 줄 오른쪽에 함께 둘 버튼 (탭 안 캘린더: 오늘, 검색)
   children,
 }) {
   // 이 달의 달력 표(주 단위 배열)를 계산
@@ -55,6 +56,7 @@ export default function MonthCalendar({
             <Icon name="chevronDown" size={16} color={colors.muted} />
           </Pressable>
           <View style={styles.monthNav}>
+            {actions}
             <CircleButton icon="chevronLeft" label="이전 달" onPress={onPrev} size={34} iconSize={18} />
             <CircleButton icon="chevronRight" label="다음 달" onPress={onNext} size={34} iconSize={18} />
           </View>

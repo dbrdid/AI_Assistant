@@ -7,8 +7,10 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
+import { useScreenEntry } from '../../../navigation/ScreenEntry';
+import { styles as st } from '../../stella/theme';
 import Icon from '../../../shared/components/Icon';
-import { BottomCreate, Chip, Tag } from '../../../shared/components/Ui';
+import { BottomCreate, Tag } from '../../../shared/components/Ui';
 import { useSnackbar } from '../../../shared/components/Snackbar';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
@@ -50,6 +52,7 @@ function whenText(t, today, group) {
 }
 
 export default function TasksScreen({ navigation }) {
+  const { embedded } = useScreenEntry();
   const allTasks = useAllTasks(); // 모든 공간
   useProjects(); // 프로젝트 이름이 바뀌면 꼬리표도 다시 그리기
   const snack = useSnackbar();
@@ -129,40 +132,50 @@ export default function TasksScreen({ navigation }) {
     );
   };
 
+  const addTask = () => navigation.navigate(ROUTES.TaskEdit, { date: today, kind: 'task', ...(space !== 'all' ? { workspaceId: space } : {}) });
   return (
     <View style={styles.root}>
       <ScreenHeader
         title="할 일"
         onBack={navigation.goBack}
       />
-      <View>
-        <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-          <Chip label="진행 중" active={tab === 'open'} onPress={() => setTab('open')} />
-          <Chip label="완료" active={tab === 'done'} onPress={() => setTab('done')} />
-          {!!myName && <Chip label="내 담당" active={mineOnly} onPress={() => setMineOnly((v) => !v)} />}
-        </ScrollView>
-        {/* 공간 칩: 모든 공간 또는 한 공간만 */}
-        {multi && (
-          <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-            {[{ id: 'all', name: '모든 공간' }, ...spaceList.map((w) => ({ id: w.id, name: spaces[w.id]?.name, color: spaces[w.id]?.color }))].map((s) => {
-              const on = space === s.id;
-              return (
-                <Pressable key={s.id} accessibilityRole="button" accessibilityState={{ selected: on }} onPress={() => setSpace(s.id)} style={[styles.spaceChip, on && styles.spaceChipOn]}>
-                  {!!s.color && <SpaceDot color={s.color} />}
-                  <Text style={[styles.spaceChipText, on && { color: colors.mintDark }]} numberOfLines={1}>{s.name}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+      {/* 문서 목록과 같은 밑줄 탭 한 줄. 오른쪽에 공간 바꾸기와 추가 (동그란 칩 두 줄 대신) */}
+      <View style={[st.filters, styles.filterRow]}>
+        {[['open', '진행 중'], ['done', '완료']].map(([key, label]) => (
+          <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: tab === key }} onPress={() => setTab(key)} style={[st.filter, tab === key && st.filterOn]}>
+            <Text style={[st.filterText, tab === key && { color: colors.ink }]}>{label}</Text>
+          </Pressable>
+        ))}
+        {!!myName && (
+          <Pressable accessibilityRole="tab" accessibilityState={{ selected: mineOnly }} onPress={() => setMineOnly((v) => !v)} style={[st.filter, mineOnly && st.filterOn]}>
+            <Text style={[st.filterText, mineOnly && { color: colors.ink }]}>내 담당</Text>
+          </Pressable>
+        )}
+        <View style={{ flex: 1 }} />
+        {multi && (() => {
+          const options = [{ id: 'all', name: '모든 공간' }, ...spaceList.map((w) => ({ id: w.id, name: spaces[w.id]?.name, color: spaces[w.id]?.color }))];
+          const current = options.find((o) => o.id === space) ?? options[0];
+          const next = options[(options.indexOf(current) + 1) % options.length];
+          return (
+            <Pressable accessibilityRole="button" accessibilityLabel={`공간 ${current.name}, 눌러서 ${next.name}(으)로 바꾸기`} onPress={() => setSpace(next.id)} hitSlop={6} style={styles.spacePick}>
+              {!!current.color && <SpaceDot color={current.color} />}
+              <Text style={st.filterText} numberOfLines={1}>{current.name}</Text>
+              <Icon name="chevronDown" size={12} color={colors.muted} />
+            </Pressable>
+          );
+        })()}
+        {embedded && (
+          <Pressable accessibilityRole="button" accessibilityLabel="할 일 추가" onPress={addTask} hitSlop={6} style={styles.spacePick}>
+            <Icon name="plus" size={14} color={colors.muted} />
+            <Text style={st.filterText}>추가</Text>
+          </Pressable>
         )}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.list}>
         {tab === 'open' ? (
           open.length === 0 ? (
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyTitle}>남은 할 일이 없어요</Text>
-            </View>
+            <Text style={styles.empty}>남은 할 일이 없어요</Text>
           ) : (
             <>
               {GROUPS.filter((g) => groups[g.id].length).map((g) => (
@@ -177,12 +190,12 @@ export default function TasksScreen({ navigation }) {
             </>
           )
         ) : done.length === 0 ? (
-          <Text style={[styles.empty, { textAlign: 'center', paddingVertical: spacing.xl }]}>아직 완료한 항목이 없어요</Text>
+          <Text style={styles.empty}>아직 완료한 항목이 없어요</Text>
         ) : (
           <View style={styles.group}>{done.map((t) => row(t, 'done'))}</View>
         )}
       </ScrollView>
-      <BottomCreate label="할 일 추가" onPress={() => navigation.navigate(ROUTES.TaskEdit, { date: today, kind: 'task', ...(space !== 'all' ? { workspaceId: space } : {}) })} />
+      {!embedded && <BottomCreate label="할 일 추가" onPress={addTask} />}
       {snack.view}
     </View>
   );
@@ -190,10 +203,8 @@ export default function TasksScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
-  chips: { flexDirection: 'row', paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.md },
-  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, maxWidth: 160, paddingHorizontal: 12, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
-  spaceChipOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
-  spaceChipText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.ink },
+  filterRow: { marginTop: 0, marginHorizontal: 20, alignItems: 'center' },
+  spacePick: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 44, maxWidth: 140 },
   list: {paddingHorizontal:20,paddingBottom:96,gap:20},
   group: { gap: spacing.sm },
   groupTitle: {fontSize:13,fontWeight:'500',color:colors.muted,marginLeft:4},
@@ -203,8 +214,6 @@ const styles = StyleSheet.create({
   titleDone: { color: colors.muted, textDecorationLine: 'line-through' },
   tags: { flexDirection: 'row', gap: 6 },
   when: { fontSize: font.caption, color: colors.muted },
-  emptyBox: { alignItems: 'center', gap: 6, paddingVertical: spacing.xxl },
-  emptyTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
-  empty: { fontSize: font.body, color: colors.muted },
+  empty: { fontSize: 13, color: colors.subtle ?? colors.muted, paddingVertical: spacing.sm },
   hint: { fontSize: font.caption, color: colors.muted, textAlign: 'center' },
 });

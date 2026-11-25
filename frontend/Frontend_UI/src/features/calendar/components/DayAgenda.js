@@ -11,12 +11,15 @@ import Icon from '../../../shared/components/Icon';
 import { Card } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { WEEKDAYS_LONG, toKey } from '../utils/DateUtils';
+import { relativeTime } from '../utils/relativeTime.mjs';
 import { classify, deleteTask, occursOn, shortDate, taskIn, toggleDone } from '../../../data/tasks/TaskStore';
 
 // spaces: 여러 공간을 합쳐 볼 때 { 공간 id: { name, color } } (색 막대·공간 이름에 씀). 한 공간뿐이면 null
 export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarText, onAdd, onEdit }) {
   const key = toKey(selected);
-  const todayKey = toKey(new Date());
+  const now = new Date();
+  const todayKey = toKey(now);
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const items = tasks.filter((t) => occursOn(t, key)); // 이미 시간순으로 정렬되어 들어옴 (여러 날 일정은 걸친 날마다)
 
   const [actionId, setActionId] = useState(null);   // 꾹 눌러서 [편집][삭제] 가 열린 항목
@@ -73,8 +76,10 @@ export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarT
           const subIcon = isEvent ? (t.place ? 'pin' : 'calendar') : 'checkCircle';
           const span = t.endDate ? `${shortDate(t.date)}~${shortDate(t.endDate)}` : null; // 여러 날 일정
           const space = spaces ? spaces[t.workspaceId] : null;
+          // 오늘 일정: 시작까지 남은 시간 또는 진행 중 남은 시간 (Notion 캘린더의 예정, 남음 표시)
+          const rel = isEvent && !done && key === todayKey ? relativeTime(t.start, t.end, nowMinutes) : null;
           const subText = isEvent
-            ? [space?.name, span, t.place || (span || space ? null : '일정'), t.project].filter(Boolean).join(', ')
+            ? [rel, space?.name, span, t.place || (span || space || rel ? null : '일정'), t.project].filter(Boolean).join(', ')
             : [space?.name ?? '할 일', done ? '완료' : t.project, c === 'overdue' ? '초과' : null].filter(Boolean).join(', ');
           // 색 막대: 여러 공간이면 공간 색, 아니면 일정 = 민트 · 할 일 = 진녹색
           const barColor = done ? colors.line : space ? space.color : isEvent ? colors.mint : colors.mintDark;

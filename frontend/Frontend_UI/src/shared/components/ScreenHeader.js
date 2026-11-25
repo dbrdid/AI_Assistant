@@ -17,10 +17,11 @@ export default function ScreenHeader({ title, onBack, right, titleRightInset, le
   const lead = useLeadAction(onBack);
   const { embedded } = useScreenEntry();
   // 상단 탭 안에서는 뒤로 가기·가운데 제목·구분선을 반복하지 않고 Stella 문서 화면처럼 왼쪽 제목 + 오른쪽 동작만 둔다.
-  if (embedded) return (
+  // 위 탭 이름(캘린더, 할 일 등)이 이미 제목 역할을 하므로 큰 제목을 다시 쓰지 않는다 (홈 개요와 같이). 동작이 없으면 줄도 없음.
+  if (embedded) return !right && !leadOverride ? null : (
     <View style={styles.embedded}>
       {leadOverride}
-      <Text style={styles.embeddedTitle} numberOfLines={1} accessibilityRole="header">{title}</Text>
+      <View style={{ flex: 1 }} />
       <View style={[styles.side, styles.right]}>{right}</View>
     </View>
   );
@@ -59,8 +60,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cream,
     minHeight: 40,
   },
-  embedded: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 6, minHeight: 56, backgroundColor: colors.cream },
-  embeddedTitle: { flex: 1, color: colors.ink, fontSize: 24, fontWeight: '600', letterSpacing: -0.4, lineHeight: 34 },
+  embedded: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: 20, paddingTop: 4, minHeight: 44, backgroundColor: colors.cream },
   titleWrap: { position: 'absolute', left: 64, right: 64, height: 40, alignItems: 'center', justifyContent: 'center' },
   side: { minWidth: 40, minHeight: 40, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   right: { justifyContent: 'flex-end' },
