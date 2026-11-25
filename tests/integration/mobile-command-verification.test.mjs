@@ -11,8 +11,14 @@ import { planCommand } from '../../frontend/Frontend_UI/src/features/stella/appC
 import { guardPlan, locateFile, originalEvidence, unstatedTimeWarning } from '../../frontend/Frontend_UI/src/integration/recordEvidence.mjs';
 
 // errors.ts uses parameter properties, which Node's type stripping rejects; ai-chat only needs the class.
-registerHooks({ resolve: (specifier, context, next) => specifier === './errors' && context.parentURL?.endsWith('/ai-chat.ts')
-  ? { url: 'data:text/javascript,export class AiError extends Error {}', shortCircuit: true } : next(specifier, context) });
+// ai-chat also takes three error classes from @supabase/supabase-js. CI installs no frontend packages and the tests pass
+// a fake client, so those classes come from a stand-in instead of the package.
+const AI_CHAT_STUBS = {
+  './errors': 'export class AiError extends Error {}',
+  '@supabase/supabase-js': 'export class FunctionsFetchError extends Error {} export class FunctionsHttpError extends Error {} export class FunctionsRelayError extends Error {}',
+};
+registerHooks({ resolve: (specifier, context, next) => AI_CHAT_STUBS[specifier] && context.parentURL?.endsWith('/ai-chat.ts')
+  ? { url: 'data:text/javascript,' + encodeURIComponent(AI_CHAT_STUBS[specifier]), shortCircuit: true } : next(specifier, context) });
 const { askAssistant } = await import('../../frontend/Frontend_UI/src/lib/stella/ai-chat.ts');
 
 function fixture(t) {
