@@ -20,6 +20,17 @@ export const canAsk = params => !!params?.block || typeof params?.commandRequest
 /** The long-press request as the rule router and the review check read it: "N번 블록 <input>". */
 export const blockRequest = (block, prompt) => `${block.index + 1}번 블록 ${prompt}`;
 
+/**
+ * "N번 블록을 X로 수정" for the long-pressed block is the AI's rewrite of that block, not an app command: X is the
+ * model's own text, which the command check (values must come from the request) always refuses. It is returned as
+ * the block's proposed text so the user previews it and chooses to replace or insert. Other commands stay commands.
+ */
+export function targetRewrite(command, block) {
+  const m = /^(\d+)\s*번\s*블록(?:을|를)?\s*([\s\S]+?)(?:으)?로\s*(?:수정|바꿔\s*줘)$/.exec(String(command ?? '').trim());
+  if (!m || !block || Number(m[1]) !== block.index + 1) return null;
+  return m[2].trim().replace(/^["“'‘]|["”'’]$/g, '').trim() || null;
+}
+
 /** Paragraph blocks from an AI answer, one per non-empty paragraph. */
 function answerBlocks(text, newId) {
   const parts = String(text ?? '').split(/\r?\n\s*\r?\n/).map(part => part.trim()).filter(Boolean);

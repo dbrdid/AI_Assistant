@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { setup } from '../../backend/local/tests/helpers.mjs';
 import { createStellaDocumentStore } from '../../backend/local/src/stella-documents.js';
 import { createDocumentWorkspace } from '../../frontend/Frontend_UI/src/integration/documentWorkspace.mjs';
-import { blockRequest, canAsk, decide, isPlaced, livePending, pendingDocKey, pendingKey, placeAnswer, placeProposal, saveBlocks, targetLine } from '../../frontend/Frontend_UI/src/features/stella/aiPending.mjs';
+import { blockRequest, canAsk, decide, isPlaced, livePending, pendingDocKey, pendingKey, placeAnswer, placeProposal, saveBlocks, targetLine, targetRewrite } from '../../frontend/Frontend_UI/src/features/stella/aiPending.mjs';
 import { gatewayMessages } from '../../frontend/Frontend_UI/src/integration/aiGateway.mjs';
 import { ROUTES, TABS, MORE_SECTIONS } from '../../frontend/Frontend_UI/src/navigation/routes.js';
 import { planCommand, routeCommand, screens } from '../../frontend/Frontend_UI/src/features/stella/appCommands.mjs';
@@ -117,4 +117,13 @@ test('top tabs keep daily destinations; review, AI settings and tools stay reach
   assert.deepEqual(TABS.map(tab => tab.route), [ROUTES.Home, ROUTES.Memos, ROUTES.Tasks, ROUTES.Projects]);
   const more = MORE_SECTIONS.flatMap(section => section.items).map(item => item.route);
   for (const route of [ROUTES.LocalModel, ROUTES.Proposals, ROUTES.Relations, ROUTES.AdvancedMemos, ROUTES.Trash]) assert.ok(more.includes(route), route);
+});
+
+test('an AI rewrite of the long-pressed block becomes that block\'s proposed text, not a refused app command', () => {
+  const block = { id: 'b1', index: 0, type: 'paragraph', text: 'Budget review meeting with Kim tomorrow at 3pm.' };
+  assert.equal(targetRewrite('1번 블록을 Kim budget review tomorrow at 3pm로 수정', block), 'Kim budget review tomorrow at 3pm');
+  assert.equal(targetRewrite('1번 블록을 "더 짧은 문장"으로 수정', block), '더 짧은 문장');
+  assert.equal(targetRewrite('2번 블록을 다른 내용으로 수정', block), null); // another block stays a command for review
+  assert.equal(targetRewrite('1번 블록 삭제', block), null);
+  assert.equal(targetRewrite('1번 블록을 X로 수정', null), null);
 });

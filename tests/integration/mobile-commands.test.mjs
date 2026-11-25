@@ -4,7 +4,7 @@ import { setup } from '../../backend/local/tests/helpers.mjs';
 import { createStellaDocumentStore } from '../../backend/local/src/stella-documents.js';
 import { createDocumentWorkspace } from '../../frontend/Frontend_UI/src/integration/documentWorkspace.mjs';
 import { planCommand, screens } from '../../frontend/Frontend_UI/src/features/stella/appCommands.mjs';
-import { originalEvidence, locateFile } from '../../frontend/Frontend_UI/src/integration/recordEvidence.mjs';
+import { originalEvidence, locateFile, statedTimes, verifiedStart, unstatedTimeWarning } from '../../frontend/Frontend_UI/src/integration/recordEvidence.mjs';
 import { ROUTES } from '../../frontend/Frontend_UI/src/navigation/routes.js';
 
 function fixture(t) {
@@ -103,4 +103,13 @@ test('only a unique live target can be linked or selected as the parent', t => {
   assert.throws(() => stale.approve(rt), /바뀌/);
   rt.store.addMemo({ title: '다른 이름' });
   assert.throws(() => plan('상위 문서 변경: 다른 이름'), /특정/);
+});
+
+test('English 12-hour times count as stated times, once each', () => {
+  assert.deepEqual(statedTimes('Budget review tomorrow at 3pm'), [['15:00']]);
+  assert.deepEqual(statedTimes('standup 10:30am, lunch 12 p.m.'), [['10:30'], ['12:00']]);
+  assert.deepEqual(statedTimes('step 3 meeting'), []);
+  assert.deepEqual(statedTimes('오후 3시 회의'), [['15:00']]);
+  assert.equal(verifiedStart('22:30', 'standup at 10:30am'), '10:30');
+  assert.equal(unstatedTimeWarning({ start: '15:00', end: '' }, 'meeting with Kim at 3pm'), '');
 });

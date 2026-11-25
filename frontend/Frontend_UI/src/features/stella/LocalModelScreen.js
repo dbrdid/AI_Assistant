@@ -12,7 +12,7 @@ import Icon from '../../shared/components/Icon';
 import { SheetModal } from '../../shared/components/Motion';
 import { commandGrammar, routeCommand } from './appCommands.mjs';
 import { routeProjectCommand } from './projectCommands.mjs';
-import { blockRequest, canAsk, placeAnswer, targetLine } from './aiPending.mjs';
+import { blockRequest, canAsk, placeAnswer, targetLine, targetRewrite } from './aiPending.mjs';
 
 const native = Platform.OS === 'android' || Platform.OS === 'ios';
 const CONSENT = {
@@ -143,8 +143,10 @@ export default function LocalModelScreen({ navigation, route }) {
       });
       if (!active.current || request.signal.aborted || !inScope()) return;
       const parsed = readReply(result.text, mode);
+      // A rewrite of the long-pressed block comes back as the block's new text (preview, then replace or insert).
+      const rewrite = !commandMode && target && parsed.command ? targetRewrite(parsed.command, target) : null;
       if (parsed.clarify) setError(parsed.clarify);
-      else setReply({ ...parsed, model: result.model });
+      else setReply(rewrite ? { text: rewrite, model: result.model } : { ...parsed, model: result.model });
     } catch (e) {
       if (active.current && !request.signal.aborted) setError(e.message);
     } finally {

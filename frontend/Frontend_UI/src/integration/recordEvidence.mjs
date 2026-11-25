@@ -18,7 +18,7 @@ export const sourceSpelling = (text, value) => typeof value !== 'string' ? value
 // Each stated time becomes its possible HH:MM values; a bare "3시" stays ambiguous between 03:00 and 15:00.
 export function statedTimes(text) {
   const times = [];
-  for (const m of text.matchAll(/(오전|새벽|아침|오후|낮|저녁|밤)?\s*(?:(?<!\d)(\d{1,2})\s*시(?!간|즌|리즈)(?:\s*(반)|\s*(\d{1,2})\s*분)?|(?<![\d:])(\d{1,2}):(\d{2})(?![\d:]))/gu)) {
+  for (const m of text.matchAll(/(오전|새벽|아침|오후|낮|저녁|밤)?\s*(?:(?<!\d)(\d{1,2})\s*시(?!간|즌|리즈)(?:\s*(반)|\s*(\d{1,2})\s*분)?|(?<![\d:])(\d{1,2}):(\d{2})(?![\d:])(?!\s*[ap]\.?\s*m\b))/gu)) {
     const hour = Number(m[2] ?? m[5]), minute = m[3] ? 30 : Number(m[4] ?? m[6] ?? 0);
     if (hour > 24 || minute > 59) continue;
     const format = h => String(h % 24).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
@@ -27,6 +27,13 @@ export function statedTimes(text) {
     else if (/오전|새벽|아침/.test(m[1]) || (m[1] === '밤' && (hour <= 5 || hour === 12))) times.push([format(hour % 12)]);
     else if (m[1] === '낮' && hour >= 10) times.push([format(hour)]);
     else times.push([format(hour % 12 + 12)]);
+  }
+  // English 12-hour times: "3pm", "3 p.m.", "10:30am". am/pm fixes the hour.
+  for (const m of text.matchAll(/(?<![\d:])(\d{1,2})(?::(\d{2}))?\s*([ap])\.?\s*m\b\.?/gi)) {
+    const hour = Number(m[1]), minute = Number(m[2] ?? 0);
+    if (hour < 1 || hour > 12 || minute > 59) continue;
+    const h = /p/i.test(m[3]) ? hour % 12 + 12 : hour % 12;
+    times.push([String(h).padStart(2, '0') + ':' + String(minute).padStart(2, '0')]);
   }
   return times;
 }
