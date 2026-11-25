@@ -31,6 +31,9 @@ const CARD_INFO = {
   anthropic: { name: 'Anthropic', icon: 'globe', desc: '본인 계정에서 발급한 API 키로 연결합니다. Claude 구독 로그인은 다른 앱에서 쓸 수 없습니다.' },
 };
 
+// 블록에 자주 하는 요청 (Notion AI의 글 다듬기, 맞춤법, 짧게, 길게, 요약, 번역과 같은 자리)
+const QUICK_ACTIONS = ['더 간결하게 고쳐줘', '맞춤법 고쳐줘', '더 자세히 써줘', '한 문장으로 요약해줘', '영어로 번역해줘'];
+
 export default function LocalModelScreen({ navigation, route }) {
   const commandMode = typeof route?.params?.commandRequest === 'string';
   const asking = canAsk(route?.params); // opened from the AI tab: connection settings only
@@ -41,6 +44,7 @@ export default function LocalModelScreen({ navigation, route }) {
   const [deviceModel, setDeviceModel] = useState(DEFAULT_DEVICE_MODEL);
   const [keyDraft, setKeyDraft] = useState('');
   const [prompt, setPrompt] = useState(route?.params?.commandRequest ?? '');
+  const [sendNext, setSendNext] = useState(false); // 빠른 요청: 글자가 채워진 다음 그리기에서 보냄
   const [reply, setReply] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
@@ -109,6 +113,8 @@ export default function LocalModelScreen({ navigation, route }) {
     controller.current?.abort();
   }
 
+  // 빠른 요청을 누르면 글자가 반영된 이 그리기에서 보냄 (ask는 그리기마다 새로 만들어져 최신 글자를 읽음)
+  useEffect(() => { if (sendNext) { setSendNext(false); ask(); } }, [sendNext]); // eslint-disable-line react-hooks/exhaustive-deps
   async function ask() {
     if (controller.current || !(consent || consented[provider]) || !prompt.trim()) return;
     if (!consented[provider]) {
@@ -236,6 +242,11 @@ export default function LocalModelScreen({ navigation, route }) {
       {asking && <>
         <TextInput accessibilityLabel="AI에게 요청" value={prompt} onChangeText={value => { setPrompt(value); setReply(null); }} autoFocus
           editable={!busy} placeholder={target ? '이 블록에 무엇을 할까요? 예: 더 간결하게 고쳐줘' : '질문이나 앱 작업을 입력하세요. 예: 회의록 문서 만들어줘'} placeholderTextColor={c.subtle} multiline maxLength={commandMode ? 2000 : 12000} style={s.promptBox} />
+        {/* Notion AI처럼 블록에 자주 하는 요청은 한 번에 보냄 (입력 전에만 보임) */}
+        {!!target && !prompt.trim() && !busy && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {QUICK_ACTIONS.map(text => <Pressable key={text} accessibilityRole="button" onPress={() => { setPrompt(text); setReply(null); setSendNext(true); }} style={s.aiGhost}>
+            <Text style={s.aiGhostText}>{text}</Text></Pressable>)}
+        </View>}
         {!consented[provider] && <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: consent }} disabled={!!busy} onPress={() => setConsent(!consent)} style={s.aiConsent}>
           <Icon name={consent ? 'checkSquare' : 'square'} size={19} color={consent ? c.text : c.muted} /><Text style={[s.menuLabel, { color: c.muted }]}>{CONSENT[provider]} (처음 한 번)</Text></Pressable>}
         <View style={s.aiActions}>
