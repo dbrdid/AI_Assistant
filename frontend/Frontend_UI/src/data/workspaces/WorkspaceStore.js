@@ -5,7 +5,17 @@ import { colors } from '../../shared/theme/theme';
 export const useWorkspaces = () => useValue(() => runtime().store.getWorkspaceState());
 export const useWorkspaceAccessClosed = id => useValue(() => runtime().closedSpaces.has(id));
 export const getWorkspaces = () => runtime().store.getWorkspaces();
-export const switchWorkspace = id => runtime().store.switchWorkspace(id);
+// 공유 공간으로 바꾸면 기다리지 않고 바로 동기화를 요청 (다른 기기에서 바뀐 기록이 곧 보이게)
+function syncAfterSwitch(own) {
+  const ws = own.store.getCurrentWorkspace();
+  if (ws && !ws.personal && ws.serverId) own.bridge.requestSync(0);
+}
+export const switchWorkspace = id => {
+  const own = runtime();
+  const result = own.store.switchWorkspace(id);
+  syncAfterSwitch(own);
+  return result;
+};
 
 // 공간 색: 개인 공간은 민트, 팀 공간은 목록 순서대로 아래 색 (같은 기기에서는 늘 같은 색)
 const TEAM_COLORS = ['#7F77DD', '#E0A030', '#378ADD', '#D4537E', '#8a8f94', '#D85A30'];
@@ -24,8 +34,10 @@ export function useSpaceInfo() {
 }
 /** 그 공간의 화면(편집·프로젝트 등)을 열기 전에: 현재 공간이 아니면 바꿈 */
 export function enterSpace(workspaceId) {
-  const own = runtime().store;
-  if (workspaceId && own.getCurrentWorkspace().id !== workspaceId) own.switchWorkspace(workspaceId);
+  const own = runtime();
+  if (!workspaceId || own.store.getCurrentWorkspace().id === workspaceId) return;
+  own.store.switchWorkspace(workspaceId);
+  syncAfterSwitch(own);
 }
 // 화면을 다시 열 때 깜빡이지 않도록 마지막 결과를 계정·공간별로 기억 (앱이 켜져 있는 동안만)
 const recent = new Map();

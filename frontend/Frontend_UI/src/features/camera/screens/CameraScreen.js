@@ -2,17 +2,32 @@
 // CameraScreen.js — 카메라
 // ============================================================
 
-import React, { useRef, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { IconTile } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
-import { addMemo, attachPhoto } from '../../../data/memos/MemoStore';
+import { addMemo, getMemo, updateMemo } from '../../../data/memos/MemoStore';
 import { addPhoto } from '../../../data/files/FileStore';
 import { linkItems } from '../../../data/projects/ProjectStore';
 import { recommendTargets } from '../../../services/ai/PhotoMatch';
+import { describe, extract } from '../../../services/ai/ChatAttachments';
+import { recommendMemoForPhoto, runtime } from '../../../integration/runtime';
+import AccessibleFileImage from '../../memo/components/AccessibleFileImage';
+
+function photoAnalysisError(error) {
+  const messages = {
+    CONSENT_REQUIRED: 'AI 설정에서 클라우드 AI 전송을 허용하면 사진을 분석할 수 있어요.',
+    TRANSMISSION_DENIED: 'AI 설정에서 사진과 메모의 AI 분석을 허용해 주세요.',
+    ROUTE_UNSUPPORTED: '사진 분석은 클라우드 AI에서 사용할 수 있어요.',
+    INPUT_TOO_LONG: '메모와 사진 내용이 길어 한 번에 정리할 수 없어요.',
+    SOURCE_CHANGED: '메모가 바뀌었어요. 사진을 다시 분석해 주세요.',
+    NETWORK: '인터넷 연결을 확인한 뒤 다시 시도해 주세요.',
+  };
+  return messages[error?.code] || error?.message || '사진을 분석하지 못했어요.';
+}
 
 export default function CameraScreen({ navigation }) {
   const [perm, requestPerm] = useCameraPermissions();
@@ -20,10 +35,52 @@ export default function CameraScreen({ navigation }) {
   const [facing, setFacing] = useState('back');
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [shot, setShot] = useState(null); // { fileId, uri, recs }
+  const [shot, setShot] = useState(null);
   const [done, setDone] = useState(''); // 방금 한 일 안내 글자
   const [count, setCount] = useState(0); // 이번에 찍은 장 수
+  const analysisAbort = useRef(null);
+
+  useEffect(() => () => analysisAbort.current?.abort(), []);
+
+  const updateShot = (fileId, patch) => setShot(current => current?.fileId === fileId ? { ...current, ...patch } : current);
+
+  const analyzeShot = async (saved, controller) => {
+    try {
+      const item = describe({ uri: saved.uri, name: saved.name, mimeType: saved.mimeType });
+      const extracted = await extract(item, controller.signal);
+      if (controller.signal.aborted) return;
+      if (extracted.status !== 'ready') throw new Error(extracted.error || '사진에서 글자를 읽지 못했어요');
+      updateShot(saved.fileId, { status: 'matching', extractedText: extracted.text });
+
+      const match = await recommendMemoForPhoto(extracted.text, controller.signal);
+      if (controller.signal.aborted) return;
+      if (!match) {
+        updateShot(saved.fileId, { status: 'no_match' });
+        return;
+      }
+
+      const draft = await runtime().ai.mergePhotoTextIntoMemo(match.memoId, extracted.text, {
+        sourceRevision: match.revision,
+        sessionId: match.sessionId,
+        sessionGeneration: match.sessionGeneration,
+        workspaceId: match.workspaceId,
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      updateShot(saved.fileId, {
+        status: 'ready',
+        match,
+        mergedBody: draft.body,
+        sourceRevision: draft.sourceRevision,
+      });
+    } catch (e) {
+      if (!controller.signal.aborted) {
+        updateShot(saved.fileId, { status: 'error', analysisError: photoAnalysisError(e) });
+      }
+    }
+  };
 
   const take = async () => {
     if (!camRef.current || busy || !ready) return;
@@ -31,30 +88,73 @@ export default function CameraScreen({ navigation }) {
     setError('');
     try {
       const pic = await camRef.current.takePictureAsync({ quality: 0.7 });
-      const fileId = (await addPhoto({ uri: pic.uri })).id; // 저장이 끝난 뒤의 파일 id (메모·프로젝트 연결에 씀)
+      const saved = await addPhoto({ uri: pic.uri, name: '사진.jpg', mimeType: 'image/jpeg' });
       setCount((n) => n + 1);
       setDone('');
-      setShot({ fileId, uri: pic.uri, recs: recommendTargets(new Date()) });
+      const controller = new AbortController();
+      analysisAbort.current = controller;
+      setShot({
+        fileId: saved.id,
+        uri: saved.uri,
+        name: saved.name,
+        mimeType: saved.mimeType,
+        saveDirectoryReference: saved.saveDirectoryReference,
+        status: 'reading',
+        extractedText: '',
+        projectRecs: recommendTargets(new Date()).filter(rec => rec.type === 'project'),
+      });
+      void analyzeShot(saved, controller);
     } catch (e) {
-      setError('사진을 찍지 못했어요. 다시 시도해 주세요.');
+      setError(e?.message || '사진 파일을 저장하지 못했어요. 다시 시도해 주세요.');
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   };
 
   const finish = (msg) => {
+    analysisAbort.current?.abort();
+    analysisAbort.current = null;
     setShot(null);
     setDone(msg);
   };
-  const putInto = (rec) => {
-    if (rec.type === 'memo') attachPhoto(rec.id, shot.fileId);
-    else linkItems(rec.id, 'files', [shot.fileId]);
-    finish(rec.type === 'memo' ? `'${rec.title}' 메모에 넣었어요` : `'${rec.title}' 프로젝트에 넣었어요`);
+  const putIntoProject = (rec) => {
+    linkItems(rec.id, 'files', [shot.fileId]);
+    finish(`'${rec.title}' 프로젝트에 넣었어요`);
   };
   const putIntoNewMemo = () => {
-    const m = addMemo({ title: '사진 메모', body: '' });
-    attachPhoto(m.id, shot.fileId);
+    const body = shot.extractedText ? `사진에서 읽은 내용\n\n${shot.extractedText}` : '';
+    const m = addMemo({ title: '사진 메모', body, photos: [shot.fileId] });
+    analysisAbort.current?.abort();
+    analysisAbort.current = null;
     setShot(null);
     navigation.navigate(ROUTES.MemoEdit, { memoId: m.id });
+  };
+  const applyMemoDraft = () => {
+    if (!shot || shot.status !== 'ready' || saving) return;
+    const active = runtime();
+    if (active.session.id !== shot.match.sessionId
+      || active.session.generation !== shot.match.sessionGeneration
+      || active.store.getCurrentWorkspace().id !== shot.match.workspaceId) {
+      updateShot(shot.fileId, { status: 'error', analysisError: '계정이나 워크스페이스가 바뀌었어요. 사진은 기기에 저장되어 있어요.' });
+      return;
+    }
+    const memo = getMemo(shot.match.memoId);
+    if (!memo || memo.deletedAt || memo.revision !== shot.sourceRevision) {
+      updateShot(shot.fileId, { status: 'error', analysisError: '메모가 바뀌었어요. 사진을 다시 분석해 주세요.' });
+      return;
+    }
+    setSaving(true);
+    try {
+      updateMemo(memo.id, {
+        body: shot.mergedBody,
+        photos: memo.photos.includes(shot.fileId) ? memo.photos : [...memo.photos, shot.fileId],
+      }, { expectedRevision: shot.sourceRevision });
+      finish(`'${shot.match.title}' 메모를 업데이트했어요`);
+    } catch (e) {
+      updateShot(shot.fileId, { status: 'error', analysisError: e?.message || '메모에 반영하지 못했어요' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ---- 권한 확인 중 / 안내 ----
@@ -73,7 +173,6 @@ export default function CameraScreen({ navigation }) {
         <View style={styles.center}>
           <IconTile icon="camera" size={72} iconSize={34} />
           <Text style={styles.title}>카메라 권한이 필요해요</Text>
-          
           {perm.canAskAgain ? (
             <Pressable accessibilityRole="button" onPress={requestPerm} style={styles.primary}>
               <Text style={styles.primaryText}>권한 허용하기</Text>
@@ -121,29 +220,69 @@ export default function CameraScreen({ navigation }) {
         </View>
       </View>
 
-      {/* 찍은 직후: 어울리는 곳 추천 */}
-      <Modal transparent visible={!!shot} animationType="slide" onRequestClose={() => finish('보관함에 저장했어요')}>
+      {/* 사진은 먼저 기기에 저장하고, AI 결과는 승인 전까지 초안으로만 둡니다. */}
+      <Modal transparent visible={!!shot} animationType="slide" onRequestClose={() => finish('사진을 기기에 저장했어요')}>
         <View style={styles.backdrop}>
           <View style={styles.sheet} accessibilityViewIsModal>
-            {shot && <Image source={{ uri: shot.uri }} style={styles.preview} resizeMode="cover" accessibilityLabel="방금 찍은 사진" />}
-            <Text style={styles.sheetTitle}>사진을 저장했어요</Text>
-            <Text style={styles.sheetSub}>{shot && shot.recs.length ? '이 사진이 어울릴 것 같은 곳이에요' : '어울리는 곳을 찾지 못했어요. 새 메모에 넣거나 보관함에 둘 수 있어요.'}</Text>
-            {shot && shot.recs.map((r) => (
-              <Pressable key={`${r.type}${r.id}`} accessibilityRole="button" accessibilityLabel={`${r.title}에 넣기. ${r.reason}`} onPress={() => putInto(r)} style={styles.rec}>
-                <Text style={styles.recIcon}>{r.type === 'memo' ? '📝' : '📁'}</Text>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={styles.recTitle} numberOfLines={1}>{r.title}</Text>
-                  <Text style={styles.recReason}>{r.reason}</Text>
-                </View>
-                <Text style={styles.recGo}>넣기</Text>
+            <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
+              {shot && <AccessibleFileImage file={shot} style={styles.preview} resizeMode="cover" accessibilityLabel="방금 찍은 사진" />}
+              <Text style={styles.sheetTitle}>사진을 기기에 저장했어요</Text>
+              {shot?.status === 'reading' && <View style={styles.progress}><ActivityIndicator color={colors.mintDark} /><Text style={styles.sheetSub}>AI가 사진 내용을 읽고 있어요…</Text></View>}
+              {shot?.status === 'matching' && <View style={styles.progress}><ActivityIndicator color={colors.mintDark} /><Text style={styles.sheetSub}>관련 메모를 찾고 내용을 배치하고 있어요…</Text></View>}
+              {shot?.status === 'ready' && (
+                <>
+                  <Text style={styles.sectionTitle}>관련 메모 추천</Text>
+                  <View style={styles.rec}>
+                    <Text style={styles.recIcon}>📝</Text>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={styles.recTitle} numberOfLines={1}>{shot.match.title}</Text>
+                      {!!shot.match.reason && <Text style={styles.recReason}>{shot.match.reason}</Text>}
+                    </View>
+                  </View>
+                  <Text style={styles.sheetSub}>AI가 기존 내용과 사진 내용을 합친 초안이에요. 확인하고 수정한 뒤 반영하세요.</Text>
+                  <TextInput
+                    accessibilityLabel="메모 반영 미리보기"
+                    multiline
+                    value={shot.mergedBody}
+                    onChangeText={value => updateShot(shot.fileId, { mergedBody: value })}
+                    style={styles.draftInput}
+                    textAlignVertical="top"
+                  />
+                  <Pressable accessibilityRole="button" disabled={saving} onPress={applyMemoDraft} style={[styles.applyButton, saving && { opacity: 0.5 }]}>
+                    <Text style={styles.applyButtonText}>{saving ? '반영 중…' : '확인하고 메모에 반영'}</Text>
+                  </Pressable>
+                </>
+              )}
+              {shot?.status === 'no_match' && (
+                <Text style={styles.sheetSub}>관련 메모를 찾지 못했어요. 사진은 기기에 저장되어 있으니 나중에 연결할 수 있어요.</Text>
+              )}
+              {shot?.status === 'error' && (
+                <Text style={[styles.sheetSub, { color: colors.coral }]}>
+                  {shot.analysisError || 'AI 분석을 완료하지 못했어요. 사진은 기기에 저장되어 있어요.'}
+                </Text>
+              )}
+              {!!shot?.projectRecs?.length && (
+                <>
+                  <Text style={styles.sectionTitle}>프로젝트에 사진 첨부</Text>
+                  {shot.projectRecs.map((r) => (
+                    <Pressable key={r.id} accessibilityRole="button" accessibilityLabel={`${r.title} 프로젝트에 사진 첨부`} onPress={() => putIntoProject(r)} style={styles.rec}>
+                      <Text style={styles.recIcon}>📁</Text>
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Text style={styles.recTitle} numberOfLines={1}>{r.title}</Text>
+                        <Text style={styles.recReason}>{r.reason}</Text>
+                      </View>
+                      <Text style={styles.recGo}>첨부</Text>
+                    </Pressable>
+                  ))}
+                </>
+              )}
+              <Pressable accessibilityRole="button" onPress={putIntoNewMemo} style={styles.ghost}>
+                <Text style={styles.ghostText}>{shot?.extractedText ? '추출한 내용으로 새 메모 만들기' : '새 메모에 사진 넣기'}</Text>
               </Pressable>
-            ))}
-            <Pressable accessibilityRole="button" onPress={putIntoNewMemo} style={styles.ghost}>
-              <Text style={styles.ghostText}>새 메모에 넣기</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => finish('보관함에 저장했어요')} style={styles.ghost}>
-              <Text style={styles.ghostText}>보관함에만 두고 계속 찍기</Text>
-            </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => finish('사진을 기기에 저장했어요')} style={styles.ghost}>
+                <Text style={styles.ghostText}>보관함에만 두고 계속 찍기</Text>
+              </Pressable>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -171,7 +310,13 @@ const styles = StyleSheet.create({
   flip: { width: 52, height: 52, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   flipText: { fontSize: 22 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.xl, gap: spacing.md },
+  sheet: { maxHeight: '90%', backgroundColor: colors.cream, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.xl },
+  sheetBody: { gap: spacing.md, paddingBottom: spacing.md },
+  progress: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
+  sectionTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink, marginTop: spacing.sm },
+  draftInput: { minHeight: 180, maxHeight: 320, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, padding: spacing.md, fontSize: font.body, color: colors.ink, lineHeight: 20 },
+  applyButton: { minHeight: 48, borderRadius: radius.md, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md },
+  applyButtonText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   preview: { width: '100%', height: 160, borderRadius: radius.md, backgroundColor: colors.line },
   sheetTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   sheetSub: { fontSize: font.body, color: colors.muted, lineHeight: 20 },

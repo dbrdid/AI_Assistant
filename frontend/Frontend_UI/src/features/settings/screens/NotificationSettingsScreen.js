@@ -3,7 +3,7 @@
 // ============================================================
 
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { colors, font, spacing } from '../../../shared/theme/theme';
 import { getSettings, updateSettings } from '../../../data/settings/SettingsStore';
@@ -21,7 +21,8 @@ const KINDS = [
 // 서버 알림 (공유 공간 · 휴대폰). 브리핑·개인 알림은 위의 기기 알림이 보내요.
 const SERVER_KINDS = [
   { id: 'reminders', label: '공유 공간 마감과 시작 알림', sub: '다른 멤버가 바꾼 일정, 할 일, 프로젝트도 알려 줘요' },
-  { id: 'workspace', label: '새 멤버 소식' },
+  { id: 'workspace', label: '공간 소식', sub: '새 멤버, 내 역할 변경, 공간에서 내보내짐, 공간 삭제' },
+  { id: 'project', label: '프로젝트 소식', sub: '팀원 추가, 새 할 일과 일정, 메모, 진행 상태와 마감일 변경, 할 일 담당' },
   { id: 'recording', label: '녹음 변환 끝' },
 ];
 
@@ -38,6 +39,18 @@ export default function NotificationSettingsScreen({ navigation }) {
   const setServer = (patch) => setN((p) => ({ ...p, server: { ...p.server, ...patch } }));
   const unavailable = pushUnavailableReason();
   const pushStatus = unavailable || (!n.server.on ? '꺼져 있어요' : push.ready ? '이 휴대폰으로 서버 알림을 받고 있어요' : push.reason || '저장하면 이 휴대폰을 등록해요');
+  // 등록에 실패했을 때(권한 거절 뒤 허용, 네트워크 문제) 저장을 다시 하지 않고 바로 다시 연결
+  const retryPush = async () => {
+    setSaving(true);
+    try {
+      const result = await registerPush({ ask: true });
+      notice.show(result.ok ? '이 휴대폰에 서버 알림을 연결했어요' : result.reason);
+    } catch (error) {
+      notice.show(error?.message || '서버 알림을 등록하지 못했어요');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -57,6 +70,7 @@ export default function NotificationSettingsScreen({ navigation }) {
           {n.dndOn && <Row label="끝" value={n.dndEnd} onPress={() => setPicker('dndEnd')} />}
         </Group>
         {n.dndOn && <Text style={styles.note}>시작이 끝보다 늦으면 다음 날 아침까지로 계산해요 (예: 22:00 ~ 06:30)</Text>}
+        <Text style={styles.note}>일정이나 할 일에서 알림 시각을 고르면 휴대폰 알림이 예약돼요. 알림을 고르지 않은 일정은 일간 브리핑 시간(없으면 1시간 전)에 앱 알림함에 표시돼요.</Text>
         
 
         <SectionTitle>서버 알림 (공유 공간)</SectionTitle>
@@ -67,6 +81,11 @@ export default function NotificationSettingsScreen({ navigation }) {
           ))}
         </Group>
         <Text style={styles.note}>앱을 열지 않아도 공유 공간 소식을 받아요.</Text>
+        {n.server.on && !unavailable && !push.ready && (
+          <Pressable accessibilityRole="button" disabled={saving} onPress={retryPush} style={[styles.retry, saving && { opacity: 0.5 }]}>
+            <Text style={styles.retryText}>{saving ? '연결 중…' : '서버 알림 다시 연결'}</Text>
+          </Pressable>
+        )}
 
         <SaveButton
           disabled={saving || same(n, saved)}
@@ -101,4 +120,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   note: { fontSize: font.caption, color: colors.muted, lineHeight: 18, marginHorizontal: spacing.xs },
+  retry: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md, borderRadius: 4, backgroundColor: colors.mintSoft },
+  retryText: { fontSize: font.body, color: colors.mintDark },
 });

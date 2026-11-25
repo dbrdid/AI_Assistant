@@ -12,6 +12,7 @@ export const ROUTES = {
   Relations: 'Relations',           // 홈
   Search: 'Search',       // 검색
   Calendar: 'Calendar',   // 캘린더
+  AiChat: 'AiChat',       // AI 채팅 (기기 기록과 첨부 파일로 묻고 답하기)
   Ai: 'Ai',               // 예전 'AI 채팅' 이름. 앱 명령 호환을 위해 AI 연결 화면으로 엽니다
   Projects: 'Projects',   // 프로젝트 목록
   ProjectDetail: 'ProjectDetail', // 프로젝트 화면 (연결된 항목)
@@ -58,15 +59,17 @@ export const ROUTES = {
 // 상단 영역과 그 안에서 이동할 화면을 표시 순서대로 정의합니다.
 export const TABS = [
   { route: ROUTES.Home, label: '홈', icon: 'home', pages: [
-    { route: ROUTES.Home, label: '개요' }, { route: ROUTES.Today, label: '오늘' },
+    // 홈을 열면 첫 번째 쪽이 보임: 오늘(일정, 할 일, 메모와 녹음 입력줄)을 먼저, 문서 개요는 그다음
+    { route: ROUTES.Today, label: '오늘' }, { route: ROUTES.Home, label: '개요' },
     { route: ROUTES.QuickInput, label: '빠른 입력' },
+  ] },
+  // 업무를 문서보다 앞에 둔다. 업무 탭을 누르면 캘린더가 먼저 보임 (할 일 목록은 두 번째 쪽)
+  { route: ROUTES.Tasks, label: '업무', icon: 'checkSquare', pages: [
+    { route: ROUTES.Calendar, label: '캘린더' }, { route: ROUTES.Tasks, label: '할 일' },
   ] },
   { route: ROUTES.Memos, label: '문서', icon: 'file', pages: [
     { route: ROUTES.Memos, label: '문서 목록' }, { route: ROUTES.Favorites, label: '즐겨찾기' },
     { route: ROUTES.Files, label: '파일 보관함' },
-  ] },
-  { route: ROUTES.Tasks, label: '업무', icon: 'checkSquare', pages: [
-    { route: ROUTES.Tasks, label: '할 일' }, { route: ROUTES.Calendar, label: '캘린더' },
   ] },
   // 문서와 할 일을 묶는 프로젝트는 매일 쓰는 단위라 상단에 둔다. 작업 검토·AI 연결·공유 공간·휴지통은 공간 메뉴로 옮겼다.
   { route: ROUTES.Projects, label: '프로젝트', icon: 'folder', pages: [
@@ -78,6 +81,7 @@ export const MORE_SECTIONS = [
   {
     title: 'AI',
     items: [
+      { route: ROUTES.AiChat, label: 'AI 채팅', icon: 'message' },
       { route: ROUTES.Proposals, label: 'AI 제안 확인', icon: 'sparkles' },
       { route: ROUTES.LocalModel, label: 'AI 연결', icon: 'sparkles' },
     ],

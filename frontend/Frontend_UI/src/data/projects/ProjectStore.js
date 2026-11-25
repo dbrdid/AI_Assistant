@@ -11,7 +11,7 @@ import {
 import * as engine from '../../lib/stella/local-sync';
 import { supabase } from '../../lib/stella/supabase';
 import {
-  LEADER_ROLE, canManageProject, createProjectInvite, getProjectInviteQuota, isLeaderConflict, newProjectChanges,
+  LEADER_ROLE, canManageProject, projectFileChanges, projectFilesOf, projectOfFile, createProjectInvite, getProjectInviteQuota, isLeaderConflict, newProjectChanges,
   pendingInvites, projectInviteShareText, teamChanges, teamErrorMessage, wouldRemoveAllLeaders,
 } from '../../lib/stella/project-team';
 import { inviteMailErrorMessage, sendInviteMail } from '../../lib/stella/invite-mail';
@@ -22,7 +22,7 @@ export const isEmail = value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 const EMPTY = Object.freeze([]);
 const EMPTY_LINKS = Object.freeze({ memos: Object.freeze({}), files: Object.freeze({}) });
-const EMPTY_SHARED = Object.freeze({ projects: EMPTY, members: EMPTY, invites: EMPTY, noteLinks: EMPTY, mark: '' });
+const EMPTY_SHARED = Object.freeze({ projects: EMPTY, members: EMPTY, invites: EMPTY, noteLinks: EMPTY, projectFiles: EMPTY, mark: '' });
 const FIELDS = ['title', 'due', 'priority', 'status', 'alarm', 'assignee', 'place', 'desc'];
 const KIND = { memo: 'memos', memos: 'memos', task: 'tasks', tasks: 'tasks', file: 'files', files: 'files' };
 const kindOf = kind => KIND[kind] ?? (() => { throw new Error(`알 수 없는 항목 종류: ${kind}`); })();
@@ -45,7 +45,7 @@ function sharedEntry(rt, serverId) {
 
 async function readShared(rt, serverId) {
   const out = {};
-  for (const [key, entity] of [['projects', 'projects'], ['members', 'project_members'], ['invites', 'project_invites'], ['noteLinks', 'note_projects']]) {
+  for (const [key, entity] of [['projects', 'projects'], ['members', 'project_members'], ['invites', 'project_invites'], ['noteLinks', 'note_projects'], ['projectFiles', 'project_files']]) {
     out[key] = (await engine.listLocal(rt.syncDb, serverId, entity)).map(r => r.data);
   }
   return out;
@@ -124,7 +124,11 @@ function buildShared(rt, entry, tasks, links) {
       links: {
         memos: entry.noteLinks.filter(l => l.project_id === row.id).map(l => l.note_id),
         tasks: byTask[row.id] ?? EMPTY,
-        files: keysFor(links.files, row.id),
+        // 공유 프로젝트의 클라우드 파일(project_files, 멤버 모두와 동기화) + 이 기기에서만 연결한 파일
+        files: [...new Set([
+          ...projectFilesOf(entry.projectFiles.map(data => ({ data })), row.id).map(file => file.asset_id),
+          ...keysFor(links.files, row.id),
+        ])],
       },
     }));
 }
@@ -364,6 +368,29 @@ function setLinks(projectId, kind, ids) {
 export const linkItems = (projectId, kind, ids) => safely(() => setLinks(projectId, kind, ids), false);
 export const unlinkItems = (kind, ids) => safely(() => setLinks(null, kind, ids), false);
 export const setItemProject = (kind, id, projectId) => safely(() => setLinks(projectId || null, kind, [id]), false);
+
+// 공유 프로젝트의 클라우드 파일 연결 (project_files). 서버에 먼저 맞춘 뒤 보내고, 실패하면 오류를 던짐
+function guardLink(ws) {
+  guardShared(ws);
+  if (ws.roleCode !== 'OWNER' && ws.roleCode !== 'EDITOR') throw new Error('연결 권한이 있는 공간 멤버만 할 수 있어요');
+}
+export async function linkProjectFiles(projectId, assetIds) {
+  const { rt, ws } = current();
+  if (ws.personal) throw new Error('공유 프로젝트에서만 클라우드 파일을 연결할 수 있어요');
+  guardLink(ws);
+  const rows = await engine.listLocal(rt.syncDb, ws.serverId, 'project_files');
+  const changes = [...new Set(assetIds)].flatMap(id => projectFileChanges.move(id, projectOfFile(rows, id), projectId));
+  await pushShared(rt, ws, changes, { before: true });
+}
+export async function unlinkProjectFiles(projectId, assetIds) {
+  const { rt, ws } = current();
+  if (ws.personal) throw new Error('공유 프로젝트에서만 클라우드 파일 연결을 해제할 수 있어요');
+  guardManage(rt, ws, projectId);
+  const rows = await engine.listLocal(rt.syncDb, ws.serverId, 'project_files');
+  const linked = new Set(projectFilesOf(rows, projectId).map(file => file.asset_id));
+  const changes = [...new Set(assetIds)].filter(id => linked.has(id)).flatMap(id => projectFileChanges.unlink(projectId, id));
+  await pushShared(rt, ws, changes, { before: true });
+}
 
 // ---------------------------------------------------------------------
 // Team members

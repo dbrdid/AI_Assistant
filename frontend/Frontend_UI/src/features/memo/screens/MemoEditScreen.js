@@ -413,7 +413,7 @@ export default function MemoEditScreen({ navigation, route }) {
     }
     setConverting(true);
     try {
-      const text = await recognizeStrokes(targetStrokes);
+      const text = await recognizeStrokes(targetStrokes, { sourceId: savedId.current });
       addUsage('convert'); // 설정 > AI 이용량 집계
       if (!text) {
         showNotice('글자를 알아보지 못했어요. 또박또박 써 보세요');
@@ -426,7 +426,29 @@ export default function MemoEditScreen({ navigation, route }) {
       chooseMode('keyboard'); // 바로 글자를 고칠 수 있게 키보드 모드로
       showNotice('글자로 바꿨어요. 틀린 글자는 직접 고쳐 주세요');
     } catch (e) {
-      setErrView({ kind: classifyError(e), retry: () => convert(targetStrokes) }); // 필기는 그대로 남아 있음
+      if (e?.code === 'CONSENT_REQUIRED' || e?.code === 'TRANSMISSION_DENIED') {
+        showNotice('AI 설정에서 외부 AI 전송을 허용한 뒤 다시 시도해 주세요');
+      } else if (e?.code === 'ROUTE_UNSUPPORTED') {
+        showNotice('손글씨 변환은 클라우드 AI를 선택해야 사용할 수 있어요');
+      } else if (e?.code === 'SOURCE_CHANGED') {
+        showNotice('메모가 바뀌었습니다. 손글씨를 다시 변환해 주세요');
+      } else if (e?.code === 'NOT_FOUND') {
+        showNotice('손글씨 변환 서버가 아직 배포되지 않았어요. 서버 배포가 끝나면 다시 사용할 수 있어요');
+      } else if (e?.code === 'NOT_CONFIGURED') {
+        showNotice('손글씨 변환 서버 설정이 아직 완료되지 않았어요');
+      } else if (e?.code === 'QUOTA_EXCEEDED') {
+        showNotice('이번 달 사진과 손글씨 인식 한도를 모두 사용했어요');
+      } else if (e?.code === 'NETWORK' || e?.code === 'PROVIDER_UNREACHABLE' || e?.code === 'PROVIDER_TIMEOUT') {
+        showNotice('손글씨 변환 서버에 연결되지 않았어요. 인터넷과 서버 상태를 확인한 뒤 다시 시도해 주세요');
+      } else if (e?.code === 'PROVIDER_ERROR' || e?.code === 'PROVIDER_BAD_RESPONSE') {
+        showNotice('손글씨 변환 서버가 결과를 처리하지 못했어요. 필기는 그대로 남아 있어요');
+      } else if (e?.code === 'INVALID_REQUEST' || e?.code === 'TOO_LARGE') {
+        showNotice(e?.message || '손글씨를 줄이거나 영역을 나눠서 다시 시도해 주세요');
+      } else if (e?.code === 'CANCELLED') {
+        // 요청 취소는 사용자가 이미 다른 동작을 시작한 경우이므로 별도 안내하지 않습니다.
+      } else {
+        setErrView({ kind: classifyError(e), retry: () => convert(targetStrokes) }); // 필기는 그대로 남아 있음
+      }
     } finally {
       setConverting(false);
     }

@@ -13,7 +13,7 @@ import { PLANS, setServerPlan } from '../../../data/settings/SettingsStore';
 import { PaymentFailedDialog } from '../../error/components/ErrorViews';
 import { useNotice } from '../../../shared/components/SettingsUi';
 import { supabase } from '../../../lib/stella/supabase';
-import { billingErrorMessage, cancelSubscription, changePlan, getSubscription, nextPaymentText, planId, planOptionText } from '../../../lib/stella/billing';
+import { billingErrorMessage, cancelSubscription, changePlan, getSubscription, nextPaymentText, planId, planOptionText, serverPlan, storageText } from '../../../lib/stella/billing';
 
 const DONE = {
   SUBSCRIBED: '요금제를 시작했어요',
@@ -23,6 +23,21 @@ const DONE = {
   CANCEL_SCHEDULED: '다음 결제일부터 무료 요금제로 바뀌어요',
   ALREADY_FREE: '이미 무료 요금제예요',
 };
+
+const PLAN_IDS = ['free', 'pro', 'team'];
+// 요금제 비교표의 줄 (서버 요금제 표의 값 그대로)
+const BENEFITS = [
+  { label: '녹음 변환', value: p => `${p.ai.stt_minutes}분` },
+  { label: 'AI 요약과 추출', value: p => `${p.ai.analyze}회` },
+  { label: 'AI 질문', value: p => `${p.ai.query}회` },
+  { label: '메모 정리', value: p => `${p.ai.organize}회` },
+  { label: '사진 글자 인식', value: p => `${p.ai.ocr}회` },
+  { label: '안건 비교', value: p => `${p.ai.agenda}회` },
+  { label: '프로젝트 초대', value: p => `${p.project_invites_per_month}회` },
+  { label: '클라우드 저장', value: p => storageText(p.workspace_storage_bytes) },
+  { label: '백업 저장', value: p => storageText(p.backup_storage_bytes) },
+];
+const won = value => `${Math.round(Number(value)).toLocaleString('ko-KR')}원`;
 
 export default function SubscriptionScreen({ navigation, route }) {
   const [sub, setSub] = useState(null);      // 서버 구독 (get_my_subscription)
@@ -126,6 +141,26 @@ export default function SubscriptionScreen({ navigation, route }) {
         {sub && !paid && (
           <Text style={styles.note}>{sub.state === 'CANCELING' ? '해지 예약 중이에요. 같은 요금제를 다시 고르면 해지가 취소돼요.' : '이용 중인 유료 요금제가 없어요.'}</Text>
         )}
+        {sub && PLAN_IDS.every(id => sub.plans?.[serverPlan(id)]) && (
+          <View accessibilityLabel="요금제 비교" style={styles.table}>
+            <Text style={styles.label}>요금제 비교 (월 제공량)</Text>
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, styles.tableFeature]} />
+              {PLAN_IDS.map(id => { const plan = sub.plans[serverPlan(id)]; return (
+                <View key={id} style={styles.tableCell}>
+                  <Text style={[styles.tableHead, id === current && { color: colors.ink }]}>{PLANS[id].name}</Text>
+                  <Text style={styles.tableValue}>{plan.price_krw === 0 ? '무료' : won(plan.price_krw)}</Text>
+                </View>
+              ); })}
+            </View>
+            {BENEFITS.map(benefit => (
+              <View key={benefit.label} style={[styles.tableRow, styles.tableLine]}>
+                <Text style={[styles.tableCell, styles.tableFeature]}>{benefit.label}</Text>
+                {PLAN_IDS.map(id => <Text key={id} style={[styles.tableCell, styles.tableValue, id === current && { color: colors.ink }]}>{benefit.value(sub.plans[serverPlan(id)])}</Text>)}
+              </View>
+            ))}
+          </View>
+        )}
         <Text style={styles.note}>시연용 결제예요. 실제로 돈이 결제되지 않아요.</Text>
       </ScrollView>
       {notice.view}
@@ -174,6 +209,13 @@ export default function SubscriptionScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  table: { gap: spacing.xs, marginTop: spacing.sm },
+  tableRow: { flexDirection: 'row', alignItems: 'center', minHeight: 36 },
+  tableLine: { borderTopWidth: 1, borderTopColor: colors.line },
+  tableCell: { flex: 1, textAlign: 'right' },
+  tableFeature: { flex: 1.4, textAlign: 'left', fontSize: font.caption, color: colors.muted },
+  tableHead: { fontSize: font.body, fontWeight: '500', color: colors.muted, textAlign: 'right' },
+  tableValue: { fontSize: font.caption, color: colors.muted, textAlign: 'right' },
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   card: { padding: spacing.xl, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, gap: spacing.xs },
