@@ -500,7 +500,7 @@ export const inviteQuotaLoaded = () => quota !== null;
 // Re-renders when the server quota arrives: { limit, used, remaining } or null while loading
 export const useInviteQuota = () => useValue(() => { if (!quota) loadQuota(); return quota; });
 
-export async function addInvite(projectId, { email, method }) {
+export async function addInvite(projectId, { email, method, maxUses = 1 }) {
   const { rt, ws } = current();
   if (ws.personal) throw new Error('개인 공간의 프로젝트는 이 기기에만 있어서 초대할 수 없어요. 공유 공간에서 프로젝트를 만들어 주세요');
   guardManage(rt, ws, projectId);
@@ -509,7 +509,7 @@ export async function addInvite(projectId, { email, method }) {
   const record = await engine.getLocal(rt.syncDb, ws.serverId, 'projects', projectId);
   if (!record || record.pending) throw new Error('프로젝트가 아직 서버에 저장되지 않았어요. 인터넷 연결을 확인한 뒤 다시 시도해 주세요');
   let invite;
-  try { invite = await createProjectInvite(supabase, projectId, { method, email }); }
+  try { invite = await createProjectInvite(supabase, projectId, { method, email, maxUses }); }
   catch (error) { throw new Error(messageOf(error)); }
   quota = invite.quota ?? quota;
   let mailed = false;

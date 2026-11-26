@@ -30,6 +30,7 @@ export default function InviteScreen({ navigation, route }) {
   const project = getProject(projectId);
   const [email, setEmail] = useState('');
   const [method, setMethod] = useState('메일');
+  const [uses, setUses] = useState(10);   // 링크 초대: 이 코드로 들어올 수 있는 인원
   const [error, setError] = useState('');
   const [sent, setSent] = useState(null); // 만든 초대 { code, shareText, mailed, mailError }
   const [busy, setBusy] = useState(false);
@@ -47,7 +48,7 @@ export default function InviteScreen({ navigation, route }) {
     setError('');
     setBusy(true);
     try {
-      setSent(await addInvite(projectId, { email: method === '메일' ? email.trim() : '', method }));
+      setSent(await addInvite(projectId, { email: method === '메일' ? email.trim() : '', method, maxUses: method === '링크' ? uses : 1 }));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -83,6 +84,16 @@ export default function InviteScreen({ navigation, route }) {
           <View style={styles.field}>
             <Text style={styles.label}>이메일</Text>
             <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="name@example.com" placeholderTextColor={colors.muted} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} accessibilityLabel="초대할 이메일" />
+          </View>
+        )}
+
+        {method === '링크' && (
+          <View style={styles.field}>
+            <Text style={styles.label}>몇 명까지</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[1, 5, 10, 50].map((n) => <Chip key={n} label={`${n}명`} active={uses === n} onPress={() => setUses(n)} style={styles.chip} />)}
+            </View>
+            <Text style={styles.left}>링크 하나를 단체방에 공유하면 {uses}명까지 이 프로젝트에 들어올 수 있어요.</Text>
           </View>
         )}
 

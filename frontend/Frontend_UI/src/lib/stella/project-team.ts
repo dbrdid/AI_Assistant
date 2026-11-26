@@ -235,13 +235,15 @@ const METHOD: Record<string, 'EMAIL' | 'LINK'> = { 메일: 'EMAIL', 링크: 'LIN
 export async function createProjectInvite(
   client: SupabaseClient,
   projectId: string,
-  opts: { method: '메일' | '링크' | 'EMAIL' | 'LINK'; email?: string | null; expiresInHours?: number },
+  opts: { method: '메일' | '링크' | 'EMAIL' | 'LINK'; email?: string | null; expiresInHours?: number; maxUses?: number },
 ): Promise<CreatedProjectInvite> {
   const method = METHOD[opts.method];
   if (!method) throw new SyncError('INVALID_REQUEST', '초대 방법은 메일 또는 링크입니다');
   const { data, error } = await client.rpc('create_project_invite', {
     p_project_id: projectId, p_method: method, p_email: method === 'EMAIL' ? (opts.email ?? '') : null,
     p_expires_in_hours: opts.expiresInHours ?? 168,
+    // 링크 초대는 코드 하나를 여러 명이 (서버 1~50명, 20261126120000_project_invite_multi_use). 메일은 1명
+    ...(method === 'LINK' && opts.maxUses && opts.maxUses > 1 ? { p_max_uses: opts.maxUses } : {}),
   });
   if (error) throw toSyncError(error);
   return data as CreatedProjectInvite;

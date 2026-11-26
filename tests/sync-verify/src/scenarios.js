@@ -779,6 +779,33 @@ async function runScenarios(env, report) {
   }
 
   // -------------------------------------------------------------------
+  group('11-5. 프로젝트 링크 초대를 여러 명이 (11/26)');
+  if (A.client && B.client) {
+    const PM = id(), MA5 = id();
+    await S.saveLocal(ctxA, Team.newProjectChanges(PM, { name: '여러 명 초대' }, { accountId: A.accountId, name: '검증A', memberId: MA5 }));
+    await S.flushOutbox(ctxA);
+    const fail = async (fn) => { try { await fn(); return null; } catch (e) { return e; } };
+    let inv = null, invErr = null;
+    try { inv = await A.rpc('create_project_invite', { p_project_id: PM, p_method: 'LINK', p_max_uses: 3 }); } catch (e) { invErr = e; }
+    if (inv) {
+      const j1 = await B.rpc('join_with_invite', { p_code: inv.code });
+      const j2 = await B.rpc('join_with_invite', { p_code: inv.code });   // 같은 사람이 다시: 자리를 쓰지 않음
+      const pi = (await A.select('project_invites', 'id', inv.project_invite_id))[0];
+      await S.pullWorkspace(ctxA);
+      const members = Team.membersOf(await S.listLocal(devA.db, ws, 'project_members'), PM).filter((m) => m.account_id === B.accountId);
+      check('링크 초대 3명: B가 참여해도 초대는 대기로 남고(다른 사람이 계속 사용), 같은 코드를 다시 써도 팀원은 한 번만',
+        j1.projects?.length === 1 && j2.projects?.length === 1 && pi?.status === 'PENDING' && members.length === 1,
+        `초대 ${pi?.status} · B 팀원 ${members.length}명`);
+    } else {
+      check('여러 명 링크 초대 — 이번 달 초대 횟수를 다 써서 건너뜀', invErr?.code === 'INVITE_LIMIT', invErr?.message);
+    }
+    const mailMany = await fail(() => A.rpc('create_project_invite', { p_project_id: PM, p_method: 'EMAIL', p_email: 'nobody@stella.test', p_max_uses: 2 }));
+    check('메일 초대는 한 명만 (여러 명이면 거절)', /사용 인원|INVALID_REQUEST|INVITE_LIMIT/.test(`${mailMany?.code} ${mailMany?.message}`), mailMany?.message);
+  } else {
+    check('여러 명 링크 초대 — 원격 서버에서만 확인', true, '건너뜀');
+  }
+
+  // -------------------------------------------------------------------
   group('12. 공간에서 빠지면 기기에서 닫힘');
   if (env.collaborationOnly) {
     const parentId = id();
