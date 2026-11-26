@@ -494,9 +494,6 @@ function loadQuota() {
     .catch(error => console.warn('[projects] 초대 횟수를 불러오지 못했습니다', error))
     .finally(() => { quotaLoading = false; });
 }
-export function invitesLeft() { if (!quota) loadQuota(); return quota?.remaining ?? 0; }
-export function monthlyInvites() { if (!quota) loadQuota(); return quota?.limit ?? 0; }
-export const inviteQuotaLoaded = () => quota !== null;
 // Re-renders when the server quota arrives: { limit, used, remaining } or null while loading
 export const useInviteQuota = () => useValue(() => { if (!quota) loadQuota(); return quota; });
 

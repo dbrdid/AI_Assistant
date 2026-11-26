@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
-import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import { colors, font, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { PLANS, useSettings } from '../../../data/settings/SettingsStore';
 import { signOut } from '../../../data/auth/AuthStore';

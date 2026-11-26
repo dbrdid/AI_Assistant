@@ -5,7 +5,7 @@
 
 import React, { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import { colors, font, spacing } from '../../../shared/theme/theme';
 import { LOCAL_AI_AVAILABLE, PLANS, WEEKDAY_NAMES, getSettings, setAiRoute, setAiTransmission, updateSettings } from '../../../data/settings/SettingsStore';
 import { TimePickerModal } from '../../../shared/components/DateTimePicker';
 import { PURPOSES, TIMEZONES, hasPurpose, timezoneLabel, togglePurpose } from '../../../data/setup/SetupStore';
