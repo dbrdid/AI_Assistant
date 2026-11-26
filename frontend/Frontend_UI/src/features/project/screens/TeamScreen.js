@@ -10,7 +10,9 @@ import Icon from '../../../shared/components/Icon';
 import { Chip, CircleButton, Tag } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
-import { getProject, moveMembers, removeMembers, updateMember, useProjects } from '../../../data/projects/ProjectStore';
+import {
+  GROUP_ACCESS, GROUP_COLORS, deleteGroup, getProject, moveMembers, removeMembers, saveGroup, setGroupMember, updateMember, useProjects,
+} from '../../../data/projects/ProjectStore';
 
 export default function TeamScreen({ navigation, route }) {
   const projectId = route?.params?.projectId;
@@ -25,6 +27,13 @@ export default function TeamScreen({ navigation, route }) {
   const [moving, setMoving] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [notice, setNotice] = useState('');
+  // 그룹 창: null(닫힘) · { id: null } 새 그룹 · { id } 기존 그룹
+  const [groupEdit, setGroupEdit] = useState(null);
+  const [groupName, setGroupName] = useState('');
+  const [groupColor, setGroupColor] = useState(GROUP_COLORS[0]);
+  const [groupBusy, setGroupBusy] = useState(false);
+  const [groupError, setGroupError] = useState('');
+  const [confirmGroupDel, setConfirmGroupDel] = useState(false);
 
   if (!project) {
     return (
@@ -36,6 +45,20 @@ export default function TeamScreen({ navigation, route }) {
   }
 
   const members = project.members;
+  const groups = project.groups ?? [];
+  const editingGroup = groupEdit?.id ? groups.find((g) => g.id === groupEdit.id) : null;
+  const openGroup = (g) => {
+    setGroupEdit({ id: g?.id ?? null });
+    setGroupName(g?.name ?? '');
+    setGroupColor(g?.color ?? GROUP_COLORS[groups.length % GROUP_COLORS.length]);
+    setGroupError('');
+  };
+  // 서버에 바로 저장 (서버가 권한 확인). 실패하면 창 안에 이유를 보여 줌
+  const runGroup = async (fn) => {
+    setGroupBusy(true); setGroupError('');
+    try { return await fn(); } catch (e) { setGroupError(e?.message ?? '저장하지 못했어요'); return null; } finally { setGroupBusy(false); }
+  };
+  const accessOf = (memberId) => editingGroup?.members.find((x) => x.memberId === memberId)?.access ?? null;
   const others = projects.filter((p) => p.id !== project.id);
   const toggle = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   const exit = () => {
@@ -104,6 +127,27 @@ export default function TeamScreen({ navigation, route }) {
                 <Text style={styles.inviteText} numberOfLines={1}>{i.email || '링크 초대'}</Text>
                 <Text style={styles.inviteMeta}>{i.method}</Text>
               </View>
+            ))}
+          </View>
+        )}
+
+        {/* 그룹: 그룹별로 볼 수 있는 문서·할 일과 권한(보기·편집·관리)을 나눔 */}
+        {!selecting && (
+          <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
+            <View style={styles.topRow}>
+              <Text style={styles.count}>그룹 {groups.length}개</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="그룹 추가" onPress={() => openGroup(null)} hitSlop={8}>
+                <Text style={styles.selectText}>+ 그룹</Text>
+              </Pressable>
+            </View>
+            {groups.length === 0 && <Text style={styles.sub}>그룹을 만들면 문서·할 일을 그룹에만 보여 줄 수 있어요.</Text>}
+            {groups.map((g) => (
+              <Pressable key={g.id} accessibilityRole="button" accessibilityLabel={`${g.name} 그룹, ${g.members.length}명`} onPress={() => openGroup(g)} style={styles.row}>
+                <View style={[styles.dot, { backgroundColor: g.color }]} />
+                <Text style={styles.name} numberOfLines={1}>{g.name}</Text>
+                <Text style={styles.inviteMeta}>{g.members.length}명</Text>
+                <Icon name="chevronRight" size={18} color={colors.muted} />
+              </Pressable>
             ))}
           </View>
         )}
@@ -189,6 +233,74 @@ export default function TeamScreen({ navigation, route }) {
         </View>
       </Modal>
 
+      {/* 그룹 만들기·고치기: 이름·색은 저장 버튼으로, 멤버 권한은 고르면 바로 저장 */}
+      <Modal transparent visible={groupEdit !== null && !confirmGroupDel} animationType="fade" onRequestClose={() => setGroupEdit(null)}>
+        <View style={styles.backdrop}>
+          <View style={styles.dialog} accessibilityViewIsModal>
+            <Text style={styles.dialogTitle}>{groupEdit?.id ? '그룹' : '새 그룹'}</Text>
+            <TextInput style={styles.input} value={groupName} onChangeText={setGroupName} placeholder="그룹 이름 (예: 디자인팀)" placeholderTextColor={colors.muted} accessibilityLabel="그룹 이름" maxLength={20} />
+            <View style={styles.chipRow}>
+              {GROUP_COLORS.map((col) => (
+                <Pressable key={col} accessibilityRole="radio" accessibilityState={{ checked: groupColor === col }} accessibilityLabel={`색 ${col}`} onPress={() => setGroupColor(col)}
+                  style={[styles.swatch, { backgroundColor: col }, groupColor === col && styles.swatchOn]} />
+              ))}
+            </View>
+            {editingGroup && (
+              <ScrollView style={{ maxHeight: 280 }} contentContainerStyle={{ gap: spacing.sm }}>
+                {members.map((m) => {
+                  const access = accessOf(m.id);
+                  return (
+                    <View key={m.id} style={{ gap: 6 }}>
+                      <Text style={styles.label} numberOfLines={1}>{m.name}{m.accountId ? '' : ' (계정 없음)'}</Text>
+                      <View style={styles.chipRow}>
+                        {[[null, '없음'], ...GROUP_ACCESS].map(([key, label]) => (
+                          <Chip key={label} label={label} active={access === key}
+                            onPress={() => !groupBusy && access !== key && runGroup(() => setGroupMember(editingGroup.id, m.id, key))} />
+                        ))}
+                      </View>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
+            {!!groupError && <Text style={[styles.sub, { color: colors.coral }]}>{groupError}</Text>}
+            <View style={styles.dialogRow}>
+              {editingGroup && (
+                <Pressable accessibilityRole="button" onPress={() => setConfirmGroupDel(true)} style={[styles.dBtn, styles.ghost]}>
+                  <Text style={[styles.barText, { color: colors.coral }]}>삭제</Text>
+                </Pressable>
+              )}
+              <Pressable accessibilityRole="button" onPress={() => setGroupEdit(null)} style={[styles.dBtn, styles.ghost]}><Text style={styles.barText}>닫기</Text></Pressable>
+              <Pressable
+                accessibilityRole="button"
+                disabled={groupBusy || !groupName.trim()}
+                onPress={async () => {
+                  const saved = await runGroup(() => saveGroup(project.id, { id: groupEdit?.id ?? null, name: groupName.trim(), color: groupColor }));
+                  if (saved && !groupEdit?.id) setGroupEdit({ id: saved.id });   // 새 그룹이면 이어서 멤버를 고르게
+                }}
+                style={[styles.dBtn, { backgroundColor: colors.action }, (groupBusy || !groupName.trim()) && styles.off]}
+              >
+                <Text style={[styles.barText, { color: colors.onPrimary }]}>{groupBusy ? '저장 중' : '저장'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <ConfirmDialog
+        visible={confirmGroupDel}
+        title={`'${editingGroup?.name ?? ''}' 그룹을 삭제할까요?`}
+        sub="이 그룹에만 공개한 문서·할 일은 다시 프로젝트 모두에게 보여요."
+        confirmText="삭제"
+        danger
+        onCancel={() => setConfirmGroupDel(false)}
+        onConfirm={async () => {
+          const id = editingGroup?.id;
+          setConfirmGroupDel(false);
+          if (id && (await runGroup(() => deleteGroup(id))) !== null) setGroupEdit(null);
+        }}
+      />
+
       <ConfirmDialog
         visible={confirmDel}
         title={`선택한 ${picked.length}명을 삭제할까요?`}
@@ -239,4 +351,7 @@ const styles = StyleSheet.create({
   dialogRow: { flexDirection: 'row', gap: spacing.sm },
   dBtn: { flex: 1, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   ghost: { backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
+  dot: { width: 10, height: 10, borderRadius: 5 },
+  swatch: { width: 28, height: 28, borderRadius: 14 },
+  swatchOn: { borderWidth: 3, borderColor: colors.ink },
 });

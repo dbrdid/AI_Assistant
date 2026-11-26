@@ -45,7 +45,8 @@ function sharedEntry(rt, serverId) {
 
 async function readShared(rt, serverId) {
   const out = {};
-  for (const [key, entity] of [['projects', 'projects'], ['members', 'project_members'], ['invites', 'project_invites'], ['noteLinks', 'note_projects'], ['projectFiles', 'project_files']]) {
+  for (const [key, entity] of [['projects', 'projects'], ['members', 'project_members'], ['invites', 'project_invites'], ['noteLinks', 'note_projects'], ['projectFiles', 'project_files'],
+    ['groups', 'project_groups'], ['groupMembers', 'project_group_members'], ['itemAccess', 'item_group_access']]) {
     out[key] = (await engine.listLocal(rt.syncDb, serverId, entity)).map(r => r.data);
   }
   return out;
@@ -119,6 +120,12 @@ function buildShared(rt, entry, tasks, links) {
       members: entry.members.filter(m => m.project_id === row.id)
         .sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || String(a.name).localeCompare(String(b.name)))
         .map(m => ({ id: m.id, name: m.name, role: m.role, accountId: m.account_id })),
+      // 그룹: 이 프로젝트의 그룹과 소속 멤버(권한 view·edit·manage)
+      groups: (entry.groups ?? EMPTY).filter(g => g.project_id === row.id && !g.deleted_at)
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+        .map(g => ({ id: g.id, name: g.name, color: g.color,
+          members: (entry.groupMembers ?? EMPTY).filter(gm => gm.group_id === g.id && !gm.deleted_at)
+            .map(gm => ({ memberId: gm.member_id, access: gm.access })) })),
       invites: pendingInvites(entry.invites.map(data => ({ data })), row.id)
         .map(i => ({ id: i.id, email: i.email ?? '', method: METHOD_LABEL[i.method] ?? i.method, expiresAt: i.expires_at })),
       links: {
@@ -140,6 +147,40 @@ function wsCanEditTable(rt, serverId, projectId, members) {
 }
 
 let view = { deps: null, value: EMPTY };
+
+// ---- 그룹 (서버 함수로 저장하고 서버가 권한을 확인. 바뀐 내용은 동기화로 다른 기기에 전달) ----
+export const GROUP_ACCESS = [['view', '보기'], ['edit', '편집'], ['manage', '관리']];
+export const GROUP_COLORS = ['#8B8BF5', '#E07A5F', '#81B29A', '#F2CC8F', '#5FA8D3', '#C77DFF'];
+async function groupCall(name, args) {
+  const { rt, ws } = current();
+  if (ws.personal) throw new Error('그룹은 공유 공간의 프로젝트에서만 쓸 수 있어요');
+  guardShared(ws);
+  await rt.bridge.syncWorkspace(ws.id);   // 프로젝트·문서가 서버에 먼저 있어야 함
+  const { data, error } = await supabase.rpc(name, { p_workspace_id: ws.serverId, ...args });
+  if (error) throw new Error(messageOf(error));
+  await rt.bridge.syncWorkspace(ws.id);   // 바뀐 그룹(과 권한이 바뀌면 전체 다시 받기)
+  await refreshShared(ws.serverId);
+  emitRuntime();
+  return data;
+}
+export const saveGroup = (projectId, { id = null, name, color = null }) =>
+  groupCall('save_project_group', { p_project_id: projectId, p_name: name, p_color: color, p_group_id: id });
+export const deleteGroup = groupId => groupCall('delete_project_group', { p_group_id: groupId });
+/** access: 'view'·'edit'·'manage', null이면 그룹에서 뺌 */
+export const setGroupMember = (groupId, memberId, access) =>
+  groupCall('set_group_member', { p_group_id: groupId, p_member_id: memberId, p_access: access });
+/** 문서('memo')·할 일('task')을 볼 수 있는 그룹. 빈 목록이면 모두에게 */
+export const setItemGroups = (kind, id, groupIds) =>
+  groupCall('set_item_groups', { p_entity: kind === 'task' ? 'tasks' : 'notes', p_key: id, p_group_ids: groupIds });
+/** 이 문서·할 일을 볼 수 있는 그룹 id 목록 (빈 목록 = 모두) */
+export function itemGroupsOf(kind, id) {
+  const rt = maybeRuntime();
+  const ws = rt?.store.getCurrentWorkspace();
+  if (!ws?.serverId) return EMPTY;
+  const entity = kind === 'task' ? 'tasks' : 'notes';
+  return (sharedEntry(rt, ws.serverId).itemAccess ?? EMPTY)
+    .filter(a => a.entity === entity && a.entity_key === id && !a.deleted_at).map(a => a.group_id);
+}
 export function getProjects() {
   const rt = maybeRuntime();
   if (!rt) return EMPTY;

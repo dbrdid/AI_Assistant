@@ -258,6 +258,10 @@ export interface Snapshot {
   meetings: Row<'meetings'>[];
   agenda_items: Row<'agenda_items'>[];
   agenda_transitions: Row<'agenda_transitions'>[];
+  // 프로젝트 그룹 (20261126060000_project_groups). 이전 서버는 보내지 않음
+  project_groups?: Record<string, unknown>[];
+  project_group_members?: Record<string, unknown>[];
+  item_group_access?: Record<string, unknown>[];
 }
 
 // ---------------------------------------------------------------------

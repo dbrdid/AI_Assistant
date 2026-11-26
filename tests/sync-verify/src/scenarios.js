@@ -718,6 +718,67 @@ async function runScenarios(env, report) {
   }
 
   // -------------------------------------------------------------------
+  group('11-4. 프로젝트 그룹 권한 (서버에서 막기, 11/26)');
+  if (A.client && B.client) {
+    await S.pullWorkspace(ctxA); await S.pullWorkspace(ctxB);
+    const PG = id(), MGA = id(), MGB = id(), NG = id(), TG = id();
+    await S.saveLocal(ctxA, [
+      ...Team.newProjectChanges(PG, { name: '그룹 검증' }, { accountId: A.accountId, name: '검증A', memberId: MGA }),
+      ...Team.teamChanges.add(MGB, PG, { name: '검증B', accountId: B.accountId }),
+      { kind: 'create', entity: 'notes', id: NG, data: { title: '디자인팀 전용 문서', body: '비공개 내용' } },
+      { kind: 'create', entity: 'tasks', id: TG, data: { title: '디자인팀 전용 할 일' } },
+    ]);
+    await S.flushOutbox(ctxA); await S.pullWorkspace(ctxB);
+    check('처음: 제한 없는 문서·할 일은 B에게 보임', !!(await note(devB, ws, NG)) && !!(await task(devB, ws, TG)));
+
+    const err = async (fn) => { try { await fn(); return null; } catch (e) { return e; } };
+    const g = await A.rpc('save_project_group', { p_workspace_id: ws, p_project_id: PG, p_name: '디자인팀', p_color: '#E07A5F' });
+    const bMake = await err(() => B.rpc('save_project_group', { p_workspace_id: ws, p_project_id: PG, p_name: 'B가 만든 그룹' }));
+    check('팀장 A는 그룹을 만들고, 팀원 B는 못 만듦 (FORBIDDEN)', g?.name === '디자인팀' && /FORBIDDEN/.test(`${bMake?.code} ${bMake?.message}`),
+      `${g?.name} · B: ${bMake?.message ?? '만들어짐'}`);
+
+    await A.rpc('set_item_groups', { p_workspace_id: ws, p_entity: 'notes', p_key: NG, p_group_ids: [g.id] });
+    await A.rpc('set_item_groups', { p_workspace_id: ws, p_entity: 'tasks', p_key: TG, p_group_ids: [g.id] });
+    const r1 = await S.pullWorkspace(ctxB);
+    const direct = await B.select('notes', 'id', NG);
+    check('디자인팀에만 공개 → B 기기에서 사라짐(전체 다시 받기), 표를 직접 읽어도 안 보임(RLS)',
+      r1.status === 'RESYNCED' && !(await note(devB, ws, NG)) && !(await task(devB, ws, TG)) && direct.length === 0,
+      `${r1.status} · 직접 읽기 ${direct.length}행`);
+    const r1b = await S.pullWorkspace(ctxB);
+    check('그 뒤 받기는 정상 (안 보이는 변경 때문에 되풀이하지 않음)', r1b.status === 'OK', JSON.stringify(r1b));
+
+    await A.rpc('set_group_member', { p_workspace_id: ws, p_group_id: g.id, p_member_id: MGB, p_access: 'view' });
+    await S.pullWorkspace(ctxB);
+    const seen = await note(devB, ws, NG);
+    await S.saveLocal(ctxB, [{ kind: 'update', entity: 'notes', id: NG, data: { body: 'B가 고침(보기 권한)' } }]);
+    const fv = await S.flushOutbox(ctxB);
+    if (fv.status === 'BLOCKED' || fv.status === 'FAILED') await S.discardOutbox(ctxB, fv.outboxSeq);
+    if (fv.status === 'CONFLICT') await S.resolveConflict(ctxB, fv.outboxSeq, 'use_server');
+    const srvView = (await A.select('notes', 'id', NG))[0];
+    check('B를 디자인팀(보기)에 넣으면 보이지만, 고치기는 서버가 거절', !!seen && fv.status !== 'DONE' && srvView?.body === '비공개 내용',
+      `보임=${!!seen} · 보내기 ${fv.status}${fv.error ? `(${fv.error})` : ''} · 서버 본문 "${srvView?.body}"`);
+
+    await A.rpc('set_group_member', { p_workspace_id: ws, p_group_id: g.id, p_member_id: MGB, p_access: 'edit' });
+    await S.pullWorkspace(ctxB);
+    await S.saveLocal(ctxB, [{ kind: 'update', entity: 'notes', id: NG, data: { body: 'B가 고침(편집 권한)' } }]);
+    const fe = await S.flushOutbox(ctxB);
+    const srvEdit = (await A.select('notes', 'id', NG))[0];
+    check('편집 권한으로 바꾸면 B가 고칠 수 있음', fe.status === 'DONE' && srvEdit?.body === 'B가 고침(편집 권한)', `${fe.status} · "${srvEdit?.body}"`);
+
+    await A.rpc('set_group_member', { p_workspace_id: ws, p_group_id: g.id, p_member_id: MGB, p_access: null });
+    await S.pullWorkspace(ctxB);
+    check('그룹에서 빼면 다시 안 보임', !(await note(devB, ws, NG)));
+
+    await A.rpc('delete_project_group', { p_workspace_id: ws, p_group_id: g.id });
+    await S.pullWorkspace(ctxB);
+    const groupsB = (await S.listLocal(devB.db, ws, 'project_groups')).filter((r) => r.data.id === g.id && !r.data.deleted_at);
+    check('그룹을 지우면 그 그룹에만 공개된 항목이 다시 모두에게 보이고, 그룹도 B 기기에서 사라짐',
+      !!(await note(devB, ws, NG)) && !!(await task(devB, ws, TG)) && groupsB.length === 0);
+  } else {
+    check('프로젝트 그룹 권한 — 원격 서버에서만 확인', true, '건너뜀');
+  }
+
+  // -------------------------------------------------------------------
   group('12. 공간에서 빠지면 기기에서 닫힘');
   if (env.collaborationOnly) {
     const parentId = id();

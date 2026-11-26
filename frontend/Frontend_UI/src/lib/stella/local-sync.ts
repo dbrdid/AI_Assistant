@@ -635,6 +635,7 @@ async function applyChange(db: SqlDb, ws: string, ch: ChangeItem, me: string | n
 const SNAPSHOT_TABLES = [
   'projects', 'project_members', 'project_invites', 'project_participants', 'input_sources', 'source_text_versions', 'notes', 'note_projects',
   'note_attachments', 'project_files', 'assets', 'tasks', 'events', 'meetings', 'agenda_items', 'agenda_transitions',
+  'project_groups', 'project_group_members', 'item_group_access',
 ] as const;
 
 function snapshotKey(entity: string, row: Json): string {

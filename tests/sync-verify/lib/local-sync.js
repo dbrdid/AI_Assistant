@@ -578,6 +578,7 @@ async function applyChange(db, ws, ch, me) {
 const SNAPSHOT_TABLES = [
     'projects', 'project_members', 'project_invites', 'project_participants', 'input_sources', 'source_text_versions', 'notes', 'note_projects',
     'note_attachments', 'project_files', 'assets', 'tasks', 'events', 'meetings', 'agenda_items', 'agenda_transitions',
+    'project_groups', 'project_group_members', 'item_group_access',
 ];
 function snapshotKey(entity, row) {
     const f = LINK_FIELDS[entity];

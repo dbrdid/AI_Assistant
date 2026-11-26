@@ -17,6 +17,7 @@ import { WEEKDAYS_LONG, fromKey, toKey } from '../../calendar/utils/DateUtils';
 import { ALARMS, PRIORITIES, STATUSES, addTask, deleteTask, findOverlap, getTask, shiftKey, updateTask } from '../../../data/tasks/TaskStore';
 import { DatePickerModal, TimePickerModal } from '../../../shared/components/DateTimePicker';
 import { projectOf, setItemProject, useProjects } from '../../../data/projects/ProjectStore';
+import GroupAccessRow from '../../project/components/GroupAccessRow';
 import { enterSpace, useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import { SpaceDot } from '../../../shared/components/SpaceTag';
 import {SheetModal} from '../../../shared/components/Motion';
@@ -282,6 +283,7 @@ export default function TaskEditScreen({ navigation, route }) {
                 </View>
               )}
             </View>
+            {!isEvent && existing && <GroupAccessRow kind="task" id={existing.id} />}
             {!isEvent && <FieldLine icon="pin" label="장소" value={f.place} onChangeText={set('place')} />}
             <FieldLine icon="users" label="담당자" value={f.assignee} onChangeText={set('assignee')} />
             <Chips label="중요도" options={PRIORITIES} value={f.priority} onChange={set('priority')} />
