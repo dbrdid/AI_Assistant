@@ -7,7 +7,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { Group, Row, SectionTitle } from '../../../shared/components/SettingsUi';
 import Icon from '../../../shared/components/Icon';
-import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import { colors, spacing } from '../../../shared/theme/theme';
 import { MORE_SECTIONS, ROUTES } from '../../../navigation/routes';
 import { useProposals } from '../../../data/proposals/ProposalStore';
 import { PLANS, useSettings } from '../../../data/settings/SettingsStore';

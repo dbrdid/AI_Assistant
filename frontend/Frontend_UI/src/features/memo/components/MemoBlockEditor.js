@@ -1,6 +1,6 @@
 import { SheetModal } from '../../../shared/components/Motion';
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { BLOCK_TYPES, readMemoBlocks, splitEditedBlock, writeMemoBlocks } from '../utils/memoBlocks.mjs';
 

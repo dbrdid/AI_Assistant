@@ -550,7 +550,7 @@ export default function AiChatScreen({ navigation }) {
                   if (action === 'cancel') form = { ...form, cancelled: true };
                   if (action === 'create') {
                     const row = addProject({ ...form.values, desc: '' });
-                    if (!row?.id) return setBanner('프로젝트를 만들지 못했어요. 공간 권한을 확인해 주세요');
+                    if (!row?.id) return; // 실패 안내는 addProject가 띄움
                     form = { ...form, created: true, createdId: row.id };
                   }
                   dirty.current = true;

@@ -6,7 +6,7 @@
 //   할 일 : 기한 · 시간(선택) · 알림
 // 중요도 · 상태 · 담당자 · 프로젝트 · 설명(할 일은 장소도)은 '더보기' 안에 접혀 있습니다.
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
@@ -98,6 +98,8 @@ const Toggle = ({ value, onValueChange, label }) => (
 export default function TaskEditScreen({ navigation, route }) {
   const params = route?.params || {};
   const existing = params.taskId ? getTask(params.taskId) : null;
+  // 연 순간의 판(revision). 편집 중 다른 곳(팀원, 다른 기기)이 먼저 바꾸면 저장할 때 덮어쓰지 않고 알린다
+  const openedRevision = useRef(existing?.revision).current;
   // 공간: 새 항목은 저장할 공간을 고름 (고르면 그 공간으로 바뀌어 프로젝트 목록도 그 공간 것). 편집은 항목의 공간 그대로
   const { list: spaceList, current: currentSpace } = useWorkspaces();
   const spaces = useSpaceInfo();
@@ -154,13 +156,14 @@ export default function TaskEditScreen({ navigation, route }) {
     const v = { ...fields, project: projects.find((p) => p.id === projectId)?.title ?? '' };
     try {
       if (existing) {
-        updateTask(existing.id, v);
+        updateTask(existing.id, v, openedRevision ? { expectedRevision: openedRevision } : undefined);
         setItemProject('tasks', existing.id, projectId);
       } else {
         const t = addTask({ ...v, kind });
         if (projectId) setItemProject('tasks', t.id, projectId);
       }
     } catch (e) {
+      if (e.code === 'revision_conflict') return setError('다른 곳에서 이 항목이 먼저 바뀌었어요. 입력한 내용을 확인한 뒤 화면을 다시 열어 주세요.');
       return setError(e.code === 'read_only' ? '보기 전용 공간이라 저장할 수 없어요. 다른 공간을 골라 주세요.' : '저장하지 못했어요. 입력한 내용을 확인해 주세요.');
     }
     navigation.goBack();

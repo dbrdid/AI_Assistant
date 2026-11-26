@@ -21,7 +21,7 @@ import { ROUTES } from '../../../navigation/routes';
 import { linkItems, projectOf, unlinkItems, useProjects } from '../../../data/projects/ProjectStore';
 import Icon from '../../../shared/components/Icon';
 import { Chip, CircleButton } from '../../../shared/components/Ui';
-import { colors, font, radius, shadow, spacing } from '../../../shared/theme/theme';
+import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { alertUser } from '../../../data/alert';
 import { maybeRuntime } from '../../../data/hooks';
 import { pickMemoMarkdown } from '../utils/pickMemoMarkdown';

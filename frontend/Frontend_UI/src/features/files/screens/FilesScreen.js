@@ -12,7 +12,7 @@ import {
   recognizeFile, useCloudFiles, useFiles,
 } from '../../../data/files/FileStore';
 import { alertUser } from '../../../data/alert';
-import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import { colors, font, spacing } from '../../../shared/theme/theme';
 import Icon from '../../../shared/components/Icon';
 import { Chip, DashedButton } from '../../../shared/components/Ui';
 

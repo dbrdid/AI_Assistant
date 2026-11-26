@@ -13,7 +13,7 @@ import Icon from '../../../shared/components/Icon';
 import { SheetModal } from '../../../shared/components/Motion';
 import { BottomCreate, Tag } from '../../../shared/components/Ui';
 import { useSnackbar } from '../../../shared/components/Snackbar';
-import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import { colors, font, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { toKey } from '../../calendar/utils/DateUtils';
 import { lastDate, occursOn, shiftKey, shortDate, taskIn, useAllTasks } from '../../../data/tasks/TaskStore';

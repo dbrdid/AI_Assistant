@@ -26,7 +26,9 @@ export function shiftKey(key, n) {
   const d = new Date(Number(key.slice(0,4)), Number(key.slice(5,7)) - 1, Number(key.slice(8,10)) + n);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-export function classify(t, today = new Date().toISOString().slice(0,10)) {
+// 오늘은 현지 날짜 (toISOString은 UTC라 한국에서 오전 9시 전에는 어제가 됨)
+const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+export function classify(t, today = localToday()) {
   if (t.status === '완료') return 'done'; if (lastDate(t) < today) return 'overdue'; if (occursOn(t, today)) return 'today';
   return (Date.parse(t.date) - Date.parse(today)) / 86400000 <= 3 ? 'soon' : 'upcoming';
 }

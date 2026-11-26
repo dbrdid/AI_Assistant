@@ -13,7 +13,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
-import { colors, font, radius, spacing, FILL } from '../../../shared/theme/theme';
+import { colors, font, spacing, FILL } from '../../../shared/theme/theme';
 import { CircleButton } from '../../../shared/components/Ui';
 import MonthCalendar from './MonthCalendar';
 import DayAgenda from './DayAgenda';

@@ -10,7 +10,7 @@ import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { useScreenEntry } from '../../../navigation/ScreenEntry';
 import Icon from '../../../shared/components/Icon';
 import { BottomCreate, Tag } from '../../../shared/components/Ui';
-import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import { colors, font, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { deleteProject, useProjects } from '../../../data/projects/ProjectStore';

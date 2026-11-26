@@ -7,7 +7,7 @@ import { DEFAULT_DEVICE_MODEL, deviceModels } from '../../integration/mobileMode
 import { DEFAULT_CONNECTION, PROVIDERS, gatewayMessages, hasSessionKey, listServerModels, parseBridgeLink, readReply, sendToProvider, setSessionKey } from '../../integration/aiGateway.mjs';
 import { ROUTES } from '../../navigation/routes';
 import { palette as c, styles as s } from './theme';
-import { WorkspaceHeader, PrimaryButton, IconButton } from './WorkspaceScreen';
+import { WorkspaceHeader, IconButton } from './WorkspaceScreen';
 import Icon from '../../shared/components/Icon';
 import { SheetModal } from '../../shared/components/Motion';
 import { commandGrammar, routeCommand } from './appCommands.mjs';
