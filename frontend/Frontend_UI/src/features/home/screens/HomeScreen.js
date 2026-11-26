@@ -8,6 +8,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
+import { useKeyboardHeight } from '../../../shared/hooks/useKeyboardHeight';
 import { useScreenEntry } from '../../../navigation/ScreenEntry';
 import Bell from '../../notice/components/Bell';
 import RecordSheet from '../../record/components/RecordSheet';
@@ -54,6 +55,7 @@ function SectionHead({ title, onAdd, addLabel }) {
 
 export default function HomeScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
+  const keyboard = useKeyboardHeight(); // 메모 입력줄을 키보드 위로
   // 상단 탭 안의 '오늘'에서는 탭 줄의 S 버튼과 겹치는 '나' 버튼과 상단 여백을 빼고 날짜를 제목으로 쓴다.
   const { embedded } = useScreenEntry();
   const go = (route, params) => navigation.navigate(route, params);
@@ -200,7 +202,7 @@ export default function HomeScreen({ navigation, route }) {
   const targetSpace = spaces[targetId];
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior="padding">
+    <KeyboardAvoidingView style={styles.root}>
       {/* ---------- 머리: 나, 날짜, AI, 검색, 알림 ---------- */}
       <View style={[styles.header, { paddingTop: embedded ? 18 : insets.top + spacing.sm }]}>
         {!embedded && <Pressable accessibilityRole="button" accessibilityLabel="나, 설정" onPress={() => go(ROUTES.More)} hitSlop={6} style={({ pressed }) => [styles.me, pressed && { opacity: 0.7 }]}>
@@ -306,7 +308,7 @@ export default function HomeScreen({ navigation, route }) {
       </ScrollView>
 
       {/* ---------- 입력줄 ---------- */}
-      <View style={[styles.capture, { paddingBottom: 10 + insets.bottom }]}>
+      <View style={[styles.capture, { paddingBottom: keyboard ? keyboard + insets.bottom + 6 : 10 + insets.bottom }]}>
         {recording ? (
           <>
             <View style={styles.recDot} />
