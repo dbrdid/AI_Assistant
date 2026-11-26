@@ -18,7 +18,7 @@ export const SPEECH_RECORDING = {
 };
 
 export function useRecorder() {
-  const recorder = useAudioRecorder(SPEECH_RECORDING);
+  const recorder = useAudioRecorder({ ...SPEECH_RECORDING, isMeteringEnabled: true });   // 녹음 줄의 소리 막대용
 
   const start = async () => {
     try {
@@ -43,5 +43,9 @@ export function useRecorder() {
     }
   };
 
-  return { start, stop };
+  // 일시정지·이어서 (같은 파일에 이어 녹음)
+  const pause = () => { try { recorder.pause(); return true; } catch { return false; } };
+  const resume = () => { try { recorder.record(); return true; } catch { return false; } };
+
+  return { start, stop, pause, resume, recorder };
 }

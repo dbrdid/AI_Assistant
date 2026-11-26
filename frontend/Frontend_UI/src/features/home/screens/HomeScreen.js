@@ -16,6 +16,7 @@ import { styles as st } from '../../stella/theme';
 import ProposalCard from '../../proposal/components/ProposalCard';
 import { useProposalActions } from '../../proposal/useProposalActions';
 import { useRecorder } from '../../../services/device/Recorder';
+import RecordingBar from '../../record/components/RecordingBar';
 import { analyzeText } from '../../../services/ai/AiAnalyze';
 import { addRecording } from '../../../data/files/FileStore';
 import { addUsage, useSettings } from '../../../data/settings/SettingsStore';
@@ -36,7 +37,6 @@ const MAX_LEN = 2000;
 const CAPTURE_HEIGHT = 64; // 입력줄 높이 (안내 띠를 그 위에 띄우는 데 씀)
 
 // 초 → "01:05"
-const formatTime = (sec) => `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
 const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 
 function SectionHead({ title, onAdd, addLabel }) {
@@ -144,13 +144,14 @@ export default function HomeScreen({ navigation, route }) {
   const rec = useRecorder();
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  const [paused, setPaused] = useState(false);   // 일시정지 동안은 시간도 멈춤
   const [recSheet, setRecSheet] = useState(null); // { state, uri, seconds, fileId }
   const recBusy = useRef(false); // 시작/종료 처리 중에 또 눌러도 무시
   useEffect(() => {
-    if (!recording) return undefined;
+    if (!recording || paused) return undefined;
     const id = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(id);
-  }, [recording]);
+  }, [recording, paused]);
   // 서버가 받는 최대 길이(3시간)가 되면 녹음을 끝내고 정리 창을 띄움
   const toggleRef = useRef(null);
   useEffect(() => {
@@ -165,6 +166,7 @@ export default function HomeScreen({ navigation, route }) {
     try {
       if (recording) {
         setRecording(false);
+        setPaused(false);
         const uri = await rec.stop();
         if (!uri) return setRecSheet({ state: 'error' });
         // 저장하지 못해도 녹음 듣기와 변환은 그대로 됨. 실패 이유를 보여 주고 다시 저장할 수 있게 함
@@ -311,11 +313,8 @@ export default function HomeScreen({ navigation, route }) {
       <View style={[styles.capture, { paddingBottom: keyboard ? keyboard + insets.bottom + 6 : 10 + insets.bottom }]}>
         {recording ? (
           <>
-            <View style={styles.recDot} />
-            <Text style={styles.recText} accessibilityLiveRegion="polite">녹음 중 {formatTime(seconds)}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="녹음 끝내기" onPress={toggleRecording} style={styles.iconBtn}>
-              <Icon name="stop" size={20} color={colors.coral} />
-            </Pressable>
+            <RecordingBar recorder={rec.recorder} seconds={seconds} paused={paused}
+              onPause={() => rec.pause() && setPaused(true)} onResume={() => rec.resume() && setPaused(false)} onStop={toggleRecording} />
           </>
         ) : (
           <>
@@ -440,8 +439,6 @@ const styles = StyleSheet.create({
   round: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   ghost: { borderWidth: 0, backgroundColor: 'transparent', marginBottom: 2 },
   stop: { backgroundColor: colors.coralSoft },
-  recDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.coral, alignSelf: 'center' },
-  recText: { flex: 1, alignSelf: 'center', fontSize: font.bodyLg, fontWeight: '600', color: colors.coral },
 
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.48)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.cream, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xs },
