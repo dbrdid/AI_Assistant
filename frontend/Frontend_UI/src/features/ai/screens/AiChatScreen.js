@@ -6,7 +6,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   FlatList,
   Keyboard,
   KeyboardAvoidingView,
@@ -26,6 +25,7 @@ import { createAiDocument } from '../../stella/aiPending.mjs';
 import { nextField, parseProjectRequest, summary as projectSummary } from '../projectTemplate.mjs';
 import { addProject } from '../../../data/projects/ProjectStore';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
+import AtriaBook from '../components/AtriaBook';
 import { PinIcon } from '../components/ChatIcons';
 import Icon from '../../../shared/components/Icon';
 import { CircleButton } from '../../../shared/components/Ui';
@@ -69,37 +69,6 @@ const dayLabel = (ms) => {
 
 // 출처 칩 아이콘: 메모 · 일정 · 첨부
 const sourceIcon = (src) => (!src.route ? 'paperclip' : src.type === 'memo' ? 'file' : 'calendar');
-
-// ------------------------------------------------------------
-// 입력 중 표시 (● ● ● 가 차례로 깜빡임 · 시안: 진한 민트 → 민트 → 연한 색)
-// ------------------------------------------------------------
-const DOT_COLORS = [colors.mintDark, colors.mint, colors.line];
-function TypingDots() {
-  const dots = useRef([0, 1, 2].map(() => new Animated.Value(0.45))).current;
-  useEffect(() => {
-    const loops = dots.map((v, i) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(i * 160),
-          Animated.timing(v, { toValue: 1, duration: 300, useNativeDriver: true }),
-          Animated.timing(v, { toValue: 0.45, duration: 300, useNativeDriver: true }),
-          Animated.delay((2 - i) * 160),
-        ]),
-      ),
-    );
-    loops.forEach((l) => l.start());
-    return () => loops.forEach((l) => l.stop());
-  }, [dots]);
-  return (
-    <View style={styles.aiRow} accessibilityLabel="답변 준비 중">
-      <View style={[styles.aiBubble, styles.dotsBubble]}>
-        {dots.map((v, i) => (
-          <Animated.View key={i} style={[styles.dot, { backgroundColor: DOT_COLORS[i], opacity: v }]} />
-        ))}
-      </View>
-    </View>
-  );
-}
 
 // ------------------------------------------------------------
 // 말풍선 하나 (내 메시지 / AI 메시지)
@@ -533,7 +502,7 @@ export default function AiChatScreen({ navigation }) {
         {messages.length === 0 ? (
           <View style={styles.empty}>
             {/* Notion AI처럼 빈 화면은 이름만 (예시 질문 칩 없음) */}
-            <Icon name="sparkles" size={22} color={colors.muted} />
+            <AtriaBook size={40} busy={status !== 'idle'} />
             <Text style={styles.emptyTitle}>Atria AI</Text>
           </View>
         ) : (
@@ -573,7 +542,7 @@ export default function AiChatScreen({ navigation }) {
               listRef.current?.scrollToOffset({ offset: index * averageItemLength, animated: false });
               setTimeout(() => listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0 }), 100);
             }}
-            ListFooterComponent={status === 'thinking' ? <TypingDots /> : null}
+            ListFooterComponent={status === 'thinking' ? <View style={{ paddingHorizontal: 16, paddingVertical: 10 }}><AtriaBook size={26} busy label="Atria AI" /></View> : null}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
           />
@@ -977,8 +946,6 @@ const styles = StyleSheet.create({
   // 출처 칩: 흰 바탕 + 테두리, 아이콘 + 굵은 제목
   sourceChip: { flexDirection: 'row', alignItems: 'center', gap: 5, maxWidth: '100%', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
   sourceText: { flexShrink: 1, fontSize: font.caption + 1, fontWeight: '800', color: colors.ink },
-  dotsBubble: { flexDirection: 'row', gap: 5, alignItems: 'center', paddingVertical: spacing.lg },
-  dot: { width: 7, height: 7, borderRadius: 4 },
 
   // ----- 보내기 전 첨부 -----
   pendingBar: { flexGrow: 0, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.cream },
