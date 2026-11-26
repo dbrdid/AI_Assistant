@@ -7,6 +7,8 @@ import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, T
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { IconTile } from '../../../shared/components/Ui';
+import Icon from '../../../shared/components/Icon';
+import { useInsets } from '../../../shared/hooks/useInsets';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { addMemo, getMemo, updateMemo } from '../../../data/memos/MemoStore';
@@ -33,6 +35,7 @@ export default function CameraScreen({ navigation }) {
   const [perm, requestPerm] = useCameraPermissions();
   const camRef = useRef(null);
   const [facing, setFacing] = useState('back');
+  const insets = useInsets();
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -188,21 +191,22 @@ export default function CameraScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.root}>
-      <ScreenHeader title="카메라" onBack={navigation.goBack} />
-      <View style={styles.camWrap}>
-        <CameraView ref={camRef} style={styles.cam} facing={facing} onCameraReady={() => setReady(true)} />
-        {!!done && (
-          <View pointerEvents="none" style={styles.toast}><Text style={styles.toastText}>{done}</Text></View>
-        )}
-        {!!error && (
-          <View pointerEvents="none" style={[styles.toast, { backgroundColor: colors.coral }]}><Text style={styles.toastText}>{error}</Text></View>
-        )}
+    <View style={styles.camRoot}>
+      <CameraView ref={camRef} style={StyleSheet.absoluteFill} facing={facing} onCameraReady={() => setReady(true)} />
+      <View style={[styles.top, { paddingTop: insets.top + 8 }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="카메라 닫기" onPress={navigation.goBack} hitSlop={8} style={styles.round}>
+          <Icon name="x" size={22} color={colors.white} />
+        </Pressable>
+        {count > 0 && <View style={styles.countChip}><Text style={styles.countText}>{count}장 저장</Text></View>}
       </View>
-      <View style={styles.bar}>
-        <View style={styles.side}>
-          {count > 0 && <Text style={styles.count}>{count}장 저장</Text>}
-        </View>
+      {!!done && (
+        <View pointerEvents="none" style={[styles.toast, { bottom: insets.bottom + 140 }]}><Text style={styles.toastText}>{done}</Text></View>
+      )}
+      {!!error && (
+        <View pointerEvents="none" style={[styles.toast, { bottom: insets.bottom + 140, backgroundColor: colors.coral }]}><Text style={styles.toastText}>{error}</Text></View>
+      )}
+      <View style={[styles.bar, { paddingBottom: insets.bottom + 24 }]}>
+        <View style={styles.side} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="사진 찍기"
@@ -214,8 +218,8 @@ export default function CameraScreen({ navigation }) {
           <View style={styles.shutterInner} />
         </Pressable>
         <View style={styles.side}>
-          <Pressable accessibilityRole="button" accessibilityLabel="앞뒤 카메라 전환" onPress={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))} style={styles.flip}>
-            <Text style={styles.flipText}>🔄</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="앞뒤 카메라 전환" onPress={() => setFacing((f) => (f === 'back' ? 'front' : 'back'))} style={styles.round}>
+            <Icon name="refresh" size={22} color={colors.white} />
           </Pressable>
         </View>
       </View>
@@ -233,7 +237,7 @@ export default function CameraScreen({ navigation }) {
                 <>
                   <Text style={styles.sectionTitle}>관련 메모 추천</Text>
                   <View style={styles.rec}>
-                    <Text style={styles.recIcon}>📝</Text>
+                    <Icon name="file" size={20} color={colors.muted} />
                     <View style={{ flex: 1, gap: 2 }}>
                       <Text style={styles.recTitle} numberOfLines={1}>{shot.match.title}</Text>
                       {!!shot.match.reason && <Text style={styles.recReason}>{shot.match.reason}</Text>}
@@ -266,7 +270,7 @@ export default function CameraScreen({ navigation }) {
                   <Text style={styles.sectionTitle}>프로젝트에 사진 첨부</Text>
                   {shot.projectRecs.map((r) => (
                     <Pressable key={r.id} accessibilityRole="button" accessibilityLabel={`${r.title} 프로젝트에 사진 첨부`} onPress={() => putIntoProject(r)} style={styles.rec}>
-                      <Text style={styles.recIcon}>📁</Text>
+                      <Icon name="folder" size={20} color={colors.muted} />
                       <View style={{ flex: 1, gap: 2 }}>
                         <Text style={styles.recTitle} numberOfLines={1}>{r.title}</Text>
                         <Text style={styles.recReason}>{r.reason}</Text>
@@ -298,17 +302,17 @@ const styles = StyleSheet.create({
   sub: { fontSize: font.body, color: colors.muted, textAlign: 'center', lineHeight: 20 },
   primary: { minHeight: 52, paddingHorizontal: spacing.xl, borderRadius: radius.md, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
-  camWrap: { flex: 1, marginHorizontal: spacing.lg, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: colors.black },
-  cam: { flex: 1 },
-  toast: { position: 'absolute', left: spacing.lg, right: spacing.lg, bottom: spacing.lg, padding: spacing.md, borderRadius: radius.md, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center' },
+  camRoot: { flex: 1, backgroundColor: '#000' },
+  top: { position: 'absolute', left: 0, right: 0, top: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
+  round: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.38)' },
+  countChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.45)' },
+  countText: { color: colors.white, fontSize: font.body, fontWeight: '500' },
+  toast: { position: 'absolute', left: spacing.lg, right: spacing.lg, padding: spacing.md, borderRadius: radius.md, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center' },
   toastText: { color: colors.white, fontSize: font.body, fontWeight: '500' },
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xl, paddingVertical: spacing.lg },
+  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xl, paddingTop: spacing.lg },
   side: { width: 84, alignItems: 'center' },
-  count: { fontSize: font.body, fontWeight: '500', color: colors.mintDark },
-  shutter: { width: 76, height: 76, borderRadius: 4, borderWidth: 4, borderColor: colors.mintDark, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card },
-  shutterInner: { width: 56, height: 56, borderRadius: 4, backgroundColor: colors.action },
-  flip: { width: 52, height: 52, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  flipText: { fontSize: 22 },
+  shutter: { width: 76, height: 76, borderRadius: 38, borderWidth: 4, borderColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  shutterInner: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.white },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   sheet: { maxHeight: '90%', backgroundColor: colors.cream, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.xl },
   sheetBody: { gap: spacing.md, paddingBottom: spacing.md },
@@ -320,8 +324,7 @@ const styles = StyleSheet.create({
   preview: { width: '100%', height: 160, borderRadius: radius.md, backgroundColor: colors.line },
   sheetTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   sheetSub: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
-  rec: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 2, borderColor: colors.mint, minHeight: 64 },
-  recIcon: { fontSize: 22 },
+  rec: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, minHeight: 64 },
   recTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   recReason: { fontSize: font.caption, color: colors.muted },
   recGo: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },
