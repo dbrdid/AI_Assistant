@@ -39,6 +39,21 @@ test('app and bridge derive the same channel and talk end to end', async () => {
   assert.equal(models.ok, true);
 });
 
+test('an account bridge address always uses the relay and fetches its key when the app has none', async () => {
+  const gw = await import('../../frontend/Frontend_UI/src/integration/aiGateway.mjs');
+  const id = '11111111-2222-3333-4444-555555555555';
+  const asked = [], direct = [];
+  gw.setRelayFactory(key => async url => { asked.push([key, url]); return { ok: true, status: 200, json: async () => ({ data: [{ id: 'pc-model' }] }) }; });
+  gw.setBridgeResolver(async bridgeId => (bridgeId === id ? 'K'.repeat(43) : null));
+  gw.setSessionKey('server', '');
+  const models = await gw.listServerModels({ serverUrl: gw.accountBridgeUrl(id) }, { fetchImpl: async url => { direct.push(url); throw new Error('no'); } });
+  assert.deepEqual(models, ['pc-model']);
+  assert.deepEqual(direct, [], '주소로 직접 시도하지 않음');
+  assert.equal(asked[0][0], 'K'.repeat(43));
+  assert.equal(gw.accountBridgeId('http://' + id + '.atria-bridge'), id);
+  gw.setRelayFactory(null); gw.setBridgeResolver(null); gw.setSessionKey('server', '');
+});
+
 test('bridge drops forged, replayed, stale and unknown-path requests', async () => {
   const b = await bridgeKeys(KEY), a = await appKeys(KEY, digest);
   const localFetch = async () => ({ status: 200, text: async () => '{}' });

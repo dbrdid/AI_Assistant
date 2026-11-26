@@ -2,6 +2,7 @@
 // Atria bridge: node atria-bridge.mjs <init|serve|list|add-key|enable-cli|disable-cli|plugins|enable-plugin|disable-plugin|rotate-key>
 import { networkInterfaces } from 'node:os';
 import { startRelay } from './relay.mjs';
+import { bridgeLogin, heartbeat } from './account.mjs';
 import { createInterface } from 'node:readline';
 import { CHATGPT_USAGE_URL, PROVIDER_DEFAULTS, VERSION, chatgptLogin, chatgptLogout, cleanupOldExecutable, configPath, createBridge, downloadVerified, installUpdate, latestBridgeRelease, loadConfig, loadPlugins, newKey, pluginDir, resolveCli, saveConfig, sources } from './bridge.mjs';
 
@@ -33,6 +34,13 @@ if (command === 'init' || command === 'rotate-key') {
   done(link(config));
 } else if (command === 'serve') {
   if (!config.key) done('연결 키가 없습니다. 먼저 init을 실행하세요.', 1);
+  // 브리지는 Atria 계정으로 로그인해야 켤 수 있음 (같은 계정의 앱이 자동으로 찾아 연결)
+  if (!config.account?.token) done('먼저 Atria 계정으로 로그인하세요: atria-bridge login', 1);
+  const beat = () => heartbeat(config).catch(error => {
+    if (/로그아웃/.test(error.message)) done(error.message, 1);   // 앱에서 이 브리지를 로그아웃함
+  });
+  await beat();
+  setInterval(beat, 5 * 60 * 1000);
   const host = option(args, '--host', config.host), port = Number(option(args, '--port', config.port));
   createBridge(config, { plugins }).listen(port, host, () => {
     console.log(`Atria 브리지 실행 중: ${host}:${port}`);
@@ -51,6 +59,17 @@ if (command === 'init' || command === 'rotate-key') {
     if (!s.planUsage) done('로그인은 됐지만 ChatGPT 플랜 사용 권한이 허락되지 않았습니다. 다시 실행해 플랜 사용을 허락하세요.', 1);
     done(`이제 앱의 모델 목록에 chatgpt/ 모델이 보입니다. 이 모델의 요청은 ChatGPT 플랜 사용량을 씁니다.\n사용량 관리: ${CHATGPT_USAGE_URL}\n토큰은 이 PC의 설정 파일에만 저장됩니다. 이 브리지는 계정 주인 본인만 쓰세요.`);
   } catch (error) { done(error?.message ?? String(error), 1); }
+} else if (command === 'login') {
+  if (!config.key) { config.key = newKey(); saveConfig(config); }
+  try {
+    config.account = await bridgeLogin(config);
+    saveConfig(config);
+    done(`${config.account.email} 계정에 이 PC 브리지를 연결했습니다. 이제 serve를 실행하면 같은 계정으로 로그인한 앱이 자동으로 찾아 연결합니다.`);
+  } catch (error) { done(error?.message ?? String(error), 1); }
+} else if (command === 'logout') {
+  delete config.account;
+  saveConfig(config);
+  done('이 PC에서 로그아웃했습니다. 앱의 브리지 목록에서도 지우려면 앱 AI 연결 → 내 서버에서 로그아웃하세요.');
 } else if (command === 'logout-chatgpt') {
   await chatgptLogout(config, c => saveConfig(c));
   done('ChatGPT 연결을 해제했습니다. ChatGPT 설정 > 연결된 앱에서도 해제할 수 있습니다.');
@@ -106,5 +125,5 @@ if (command === 'init' || command === 'rotate-key') {
   saveConfig(config);
   done(on ? `${id} 플러그인을 켰습니다. 플러그인은 이 PC의 권한으로 실행되니 믿을 수 있는 파일만 켜세요. 서버를 다시 시작하면 적용됩니다.` : `${id} 플러그인을 껐습니다. 서버를 다시 시작하면 적용됩니다.`);
 } else {
-  done('사용법: atria-bridge <init | serve [--host 0.0.0.0] [--port 8787] [--no-relay] | list | login-chatgpt | logout-chatgpt | add-key ... | enable-cli <claude|codex> | disable-cli [이름] | plugins | enable-plugin <id> | disable-plugin <id> | update | rotate-key>', command ? 1 : 0);
+  done('사용법: atria-bridge <init | login | logout | serve [--host 0.0.0.0] [--port 8787] [--no-relay] | list | login-chatgpt | logout-chatgpt | add-key ... | enable-cli <claude|codex> | disable-cli [이름] | plugins | enable-plugin <id> | disable-plugin <id> | update | rotate-key>', command ? 1 : 0);
 }

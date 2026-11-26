@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { setup } from '../../backend/local/tests/helpers.mjs';
 import { createStellaDocumentStore } from '../../backend/local/src/stella-documents.js';
 import { createDocumentWorkspace } from '../../frontend/Frontend_UI/src/integration/documentWorkspace.mjs';
-import { planCommand, screens, splitRequest } from '../../frontend/Frontend_UI/src/features/stella/appCommands.mjs';
+import { planCommand, screens } from '../../frontend/Frontend_UI/src/features/stella/appCommands.mjs';
+import { splitRequest } from '../../frontend/Frontend_UI/src/features/stella/commandSteps.mjs';
 import { originalEvidence, locateFile, statedTimes, verifiedStart, unstatedTimeWarning } from '../../frontend/Frontend_UI/src/integration/recordEvidence.mjs';
 import { ROUTES } from '../../frontend/Frontend_UI/src/navigation/routes.js';
 

@@ -3,7 +3,7 @@
 import * as Crypto from 'expo-crypto';
 import { supabase } from '../lib/stella/supabase';
 import { createRelayFetch } from './bridgeRelay.mjs';
-import { setRelayFactory } from './aiGateway.mjs';
+import { setBridgeResolver, setRelayFactory } from './aiGateway.mjs';
 
 function openChannel(topic) {
   const channel = supabase.channel(topic, { config: { broadcast: { self: false, ack: false } } });
@@ -30,3 +30,19 @@ setRelayFactory(key => createRelayFetch({
   newId: () => Crypto.randomUUID(),
   openChannel,
 }));
+
+// 같은 계정에 로그인된 PC 브리지 (atria-bridge login으로 등록). 연결 키는 계정 주인만 받는다.
+export async function myBridges() {
+  const { data, error } = await supabase.rpc('my_bridges');
+  if (error) throw new Error(error.message?.replace(/^[A-Z_]+:\s*/, '') || '브리지 목록을 불러오지 못했습니다.');
+  return Array.isArray(data) ? data : [];
+}
+export async function approveBridgeLogin(code) {
+  const { error } = await supabase.rpc('bridge_login_approve', { p_code: code });
+  if (error) throw new Error(error.message?.replace(/^[A-Z_]+:\s*/, '') || '승인하지 못했습니다.');
+}
+export async function revokeBridge(id) {
+  const { error } = await supabase.rpc('revoke_bridge', { p_bridge_id: id });
+  if (error) throw new Error(error.message?.replace(/^[A-Z_]+:\s*/, '') || '로그아웃하지 못했습니다.');
+}
+setBridgeResolver(async id => (await myBridges().catch(() => [])).find(b => b.id === id)?.relay_key ?? null);

@@ -6,6 +6,8 @@ import { askMobileModel, cancelMobileModelDownload, installMobileModel, listMobi
 import { DEFAULT_DEVICE_MODEL, deviceModels } from '../../integration/mobileModelPolicy.mjs';
 import { DEFAULT_CONNECTION, PROVIDERS, gatewayMessages, hasSessionKey, listServerModels, parseBridgeLink, readReply, sendToProvider, setSessionKey } from '../../integration/aiGateway.mjs';
 import '../../integration/bridgeRelayApp'; // 같은 네트워크 밖이면 중계 연결로
+import BridgeAccountRows, { accountBridgeUrl } from './BridgeAccountRows';
+import { accountBridgeId } from '../../integration/aiGateway.mjs';
 import { ROUTES } from '../../navigation/routes';
 import { palette as c, styles as s } from './theme';
 import { WorkspaceHeader, IconButton } from './WorkspaceScreen';
@@ -207,12 +209,16 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
       {busy === 'install' && <Text style={s.connNote}>{waitingNetwork ? '네트워크를 기다리는 중입니다. ' : ''}화면을 나가거나 앱을 닫아도 백그라운드에서 계속 받고, 알림에서 진행률을 볼 수 있습니다.</Text>}
     </>}
     {id === 'server' && <>
-      <TextInput accessibilityLabel="서버 주소" value={connection.serverUrl} onChangeText={serverUrl => {
+      {/* 같은 계정에 로그인된 PC 브리지: 고르면 연결 문자열 없이 중계로 연결 */}
+      <BridgeAccountRows serverUrl={connection.serverUrl} disabled={!!busy}
+        onUse={b => { setSessionKey('server', b.relay_key); setError(''); update({ serverUrl: accountBridgeUrl(b.id), serverModel: '' }); }}
+        onClear={() => { setSessionKey('server', ''); update({ serverUrl: '', serverModel: '' }); }} />
+      {!accountBridgeId(connection.serverUrl) && <TextInput accessibilityLabel="서버 주소" value={connection.serverUrl} onChangeText={serverUrl => {
         // A pasted bridge link fills the address; its key stays in memory for this run only, like a typed server key.
         const bridge = parseBridgeLink(serverUrl);
         if (bridge) setSessionKey('server', bridge.key);
         update({ serverUrl: bridge ? bridge.url : serverUrl });
-      }} editable={!busy} autoCapitalize="none" autoCorrect={false} placeholder="서버 주소 또는 Atria 브리지 연결 문자열" placeholderTextColor={c.subtle} style={s.connInput} />
+      }} editable={!busy} autoCapitalize="none" autoCorrect={false} placeholder="서버 주소 또는 Atria 브리지 연결 문자열" placeholderTextColor={c.subtle} style={s.connInput} />}
       {detailRow('모델', connection.serverModel || '서버에서 불러오기', () => (serverList.length ? setPicker('server') : loadServer()))}
       {/* Sign in with ChatGPT 안내: chatgpt/ 모델은 브리지 주인의 ChatGPT 플랜 사용량을 씀 */}
       {connection.serverModel?.startsWith('chatgpt/') && detailRow('ChatGPT 플랜 사용 중', '사용량 관리', () => Linking.openURL('https://chatgpt.com/settings/usage'))}

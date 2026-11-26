@@ -28,9 +28,19 @@ const relays = new Map();            // 키 → relayFetch (같은 실행 동안
 const routeCache = new Map();        // 서버 주소 → { direct, at }
 const DIRECT_PROBE_MS = 2500, ROUTE_TTL_MS = 60000;
 export const setRelayFactory = factory => { relayFactory = factory; relays.clear(); routeCache.clear(); };
+// 계정에 등록된 PC 브리지 (atria-bridge login): 주소 'http://<브리지 id>.atria-bridge'는 항상 중계로.
+// 앱을 다시 켜서 연결 키가 없으면 setBridgeResolver로 넣은 함수(같은 계정의 my_bridges)에서 받아 온다.
+let bridgeResolver = null;
+export const setBridgeResolver = resolver => { bridgeResolver = resolver; };
+export const accountBridgeUrl = id => `http://${id}.atria-bridge`;
+export const accountBridgeId = url => /^https?:\/\/([0-9a-f-]{36})\.atria-bridge(?:[/:]|$)/i.exec(String(url ?? '').trim())?.[1] ?? null;
 async function serverFetch(connection, fetchImpl, signal) {
-  const key = sessionKeys.get('server');
+  const bridgeId = accountBridgeId(connection.serverUrl);
+  let key = sessionKeys.get('server');
+  if (bridgeId && !key && bridgeResolver) { key = await bridgeResolver(bridgeId); if (key) sessionKeys.set('server', key); }
+  if (bridgeId && (!key || !relayFactory)) throw new Error('이 계정에서 PC 브리지를 찾지 못했습니다. PC에서 atria-bridge login과 serve를 실행해 주세요.');
   if (!relayFactory || !key) return fetchImpl;
+  if (bridgeId) { if (!relays.has(key)) relays.set(key, relayFactory(key)); return relays.get(key); }
   const base = serverBase(connection.serverUrl), cached = routeCache.get(base);
   let direct = cached && Date.now() - cached.at < ROUTE_TTL_MS ? cached.direct : null;
   if (direct === null) {

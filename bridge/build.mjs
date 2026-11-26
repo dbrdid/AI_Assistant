@@ -13,12 +13,13 @@ rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist);
 
 if (process.platform === 'win32') {
-  // A SEA main cannot import sibling files, so the three modules become one ESM script (no bundler needed).
+  // A SEA main cannot import sibling files, so the four modules become one ESM script (no bundler needed).
   const core = read('bridge.mjs').replace(/^export const VERSION = .*$/m, `export const VERSION = ${JSON.stringify(version)};`);
   const relay = read('relay.mjs');   // 중계 연결 (다른 파일을 불러오지 않음)
-  const cli = read('atria-bridge.mjs').replace(/^#!.*\n/, '').replace(/^import .* from '\.\/bridge\.mjs';\r?\n/m, '').replace(/^import .* from '\.\/relay\.mjs';\r?\n/m, '');
-  if (cli.includes("from './bridge.mjs'") || cli.includes("from './relay.mjs'") || !core.includes(`VERSION = ${JSON.stringify(version)};`)) throw new Error('번들 치환에 실패했습니다.');
-  writeFileSync(join(dist, 'bundle.mjs'), core + '\n' + relay + '\n' + cli);
+  const account = read('account.mjs').replace(/^import .* from '\.\/relay\.mjs';\r?\n/m, '');   // 로그인 (relay의 기본 주소를 씀)
+  const cli = read('atria-bridge.mjs').replace(/^#!.*\n/, '').replace(/^import .* from '\.\/bridge\.mjs';\r?\n/m, '').replace(/^import .* from '\.\/relay\.mjs';\r?\n/m, '').replace(/^import .* from '\.\/account\.mjs';\r?\n/m, '');
+  if (cli.includes("from './bridge.mjs'") || cli.includes("from './relay.mjs'") || cli.includes("from './account.mjs'") || account.includes("from './relay.mjs'") || !core.includes(`VERSION = ${JSON.stringify(version)};`)) throw new Error('번들 치환에 실패했습니다.');
+  writeFileSync(join(dist, 'bundle.mjs'), core + '\n' + relay + '\n' + account + '\n' + cli);
   writeFileSync(join(dist, 'sea.json'), JSON.stringify({ main: 'bundle.mjs', output: 'atria-bridge.exe', mainFormat: 'module', disableExperimentalSEAWarning: true }));
   execFileSync(process.execPath, ['--build-sea', 'sea.json'], { cwd: dist, stdio: 'inherit' });
   rmSync(join(dist, 'bundle.mjs')); rmSync(join(dist, 'sea.json'));
