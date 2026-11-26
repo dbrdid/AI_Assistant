@@ -11,7 +11,7 @@ import { Chip, CircleButton, Tag } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import {
-  GROUP_ACCESS, GROUP_COLORS, deleteGroup, getProject, moveMembers, removeMembers, saveGroup, setGroupMember, updateMember, useProjects,
+  GROUP_ACCESS, deleteGroup, getProject, moveMembers, removeMembers, saveGroup, setGroupMember, updateMember, useProjects,
 } from '../../../data/projects/ProjectStore';
 
 export default function TeamScreen({ navigation, route }) {
@@ -27,10 +27,9 @@ export default function TeamScreen({ navigation, route }) {
   const [moving, setMoving] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [notice, setNotice] = useState('');
-  // 그룹 창: null(닫힘) · { id: null } 새 그룹 · { id } 기존 그룹
+  // 그룹 창 (색 없이 이름·인원으로 구분): null(닫힘) · { id: null } 새 그룹 · { id } 기존 그룹
   const [groupEdit, setGroupEdit] = useState(null);
   const [groupName, setGroupName] = useState('');
-  const [groupColor, setGroupColor] = useState(GROUP_COLORS[0]);
   const [groupBusy, setGroupBusy] = useState(false);
   const [groupError, setGroupError] = useState('');
   const [confirmGroupDel, setConfirmGroupDel] = useState(false);
@@ -50,7 +49,6 @@ export default function TeamScreen({ navigation, route }) {
   const openGroup = (g) => {
     setGroupEdit({ id: g?.id ?? null });
     setGroupName(g?.name ?? '');
-    setGroupColor(g?.color ?? GROUP_COLORS[groups.length % GROUP_COLORS.length]);
     setGroupError('');
   };
   // 서버에 바로 저장 (서버가 권한 확인). 실패하면 창 안에 이유를 보여 줌
@@ -143,7 +141,7 @@ export default function TeamScreen({ navigation, route }) {
             {groups.length === 0 && <Text style={styles.sub}>그룹을 만들면 문서·할 일을 그룹에만 보여 줄 수 있어요.</Text>}
             {groups.map((g) => (
               <Pressable key={g.id} accessibilityRole="button" accessibilityLabel={`${g.name} 그룹, ${g.members.length}명`} onPress={() => openGroup(g)} style={styles.row}>
-                <View style={[styles.dot, { backgroundColor: g.color }]} />
+                <Icon name="users" size={18} color={colors.muted} />
                 <Text style={styles.name} numberOfLines={1}>{g.name}</Text>
                 <Text style={styles.inviteMeta}>{g.members.length}명</Text>
                 <Icon name="chevronRight" size={18} color={colors.muted} />
@@ -239,12 +237,6 @@ export default function TeamScreen({ navigation, route }) {
           <View style={styles.dialog} accessibilityViewIsModal>
             <Text style={styles.dialogTitle}>{groupEdit?.id ? '그룹' : '새 그룹'}</Text>
             <TextInput style={styles.input} value={groupName} onChangeText={setGroupName} placeholder="그룹 이름 (예: 디자인팀)" placeholderTextColor={colors.muted} accessibilityLabel="그룹 이름" maxLength={20} />
-            <View style={styles.chipRow}>
-              {GROUP_COLORS.map((col) => (
-                <Pressable key={col} accessibilityRole="radio" accessibilityState={{ checked: groupColor === col }} accessibilityLabel={`색 ${col}`} onPress={() => setGroupColor(col)}
-                  style={[styles.swatch, { backgroundColor: col }, groupColor === col && styles.swatchOn]} />
-              ))}
-            </View>
             {editingGroup && (
               <ScrollView style={{ maxHeight: 280 }} contentContainerStyle={{ gap: spacing.sm }}>
                 {members.map((m) => {
@@ -275,7 +267,7 @@ export default function TeamScreen({ navigation, route }) {
                 accessibilityRole="button"
                 disabled={groupBusy || !groupName.trim()}
                 onPress={async () => {
-                  const saved = await runGroup(() => saveGroup(project.id, { id: groupEdit?.id ?? null, name: groupName.trim(), color: groupColor }));
+                  const saved = await runGroup(() => saveGroup(project.id, { id: groupEdit?.id ?? null, name: groupName.trim() }));
                   if (saved && !groupEdit?.id) setGroupEdit({ id: saved.id });   // 새 그룹이면 이어서 멤버를 고르게
                 }}
                 style={[styles.dBtn, { backgroundColor: colors.action }, (groupBusy || !groupName.trim()) && styles.off]}
@@ -351,7 +343,4 @@ const styles = StyleSheet.create({
   dialogRow: { flexDirection: 'row', gap: spacing.sm },
   dBtn: { flex: 1, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   ghost: { backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
-  dot: { width: 10, height: 10, borderRadius: 5 },
-  swatch: { width: 28, height: 28, borderRadius: 14 },
-  swatchOn: { borderWidth: 3, borderColor: colors.ink },
 });

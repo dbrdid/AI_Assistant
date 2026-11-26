@@ -46,7 +46,6 @@ export default function GroupAccessRow({ kind, id, style, textStyle }) {
               <Pressable key={g.id} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={`${g.name} 그룹`} onPress={() => toggle(g.id)}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48 }}>
                 <Icon name={on ? 'checkSquare' : 'square'} size={20} color={on ? colors.ink : colors.muted} />
-                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: g.color }} />
                 <Text style={{ flex: 1, color: colors.ink, fontSize: 15 }}>{g.name}</Text>
                 <Text style={{ color: colors.muted, fontSize: 13 }}>{g.members.length}명</Text>
               </Pressable>

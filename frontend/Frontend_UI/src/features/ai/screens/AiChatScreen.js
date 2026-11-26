@@ -600,8 +600,8 @@ export default function AiChatScreen({ navigation }) {
           </Pressable>
           <View style={{ flex: 1 }} />
           <Pressable accessibilityRole="button" accessibilityLabel={`AI 선택, 지금 ${AI_ROUTE_LABEL[route]}`} onPress={() => setPanel('route')} style={styles.routeChip}>
-            <View style={[styles.routeDot, { backgroundColor: !routeReady ? colors.muted : allowed ? colors.mint : colors.coral }]} />
-            <Text style={styles.routeText}>{AI_ROUTE_LABEL[route]}</Text>
+            {/* 색 점 대신 글자: 쓸 수 없으면 '사용 불가'를 붙임 */}
+            <Text style={[styles.routeText, routeReady && !allowed && { color: colors.coral }]}>{AI_ROUTE_LABEL[route]}{routeReady && !allowed ? ', 사용 불가' : ''}</Text>
             <Icon name="chevronDown" size={14} color={colors.muted} />
           </Pressable>
           {status === 'idle' ? (
@@ -902,7 +902,6 @@ const styles = StyleSheet.create({
   usageTrack: { height: 8, borderRadius: 4, backgroundColor: colors.line, overflow: 'hidden' },
   usageFill: { height: 8, borderRadius: 4 },
   routeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
-  routeDot: { width: 8, height: 8, borderRadius: 4 },
   routeText: { fontSize: font.caption + 1, fontWeight: '700', color: colors.ink },
   newChatBtn: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.mintSoft },
   newChatText: { fontSize: font.body, fontWeight: '700', color: colors.mintDark },

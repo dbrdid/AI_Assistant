@@ -12,7 +12,6 @@ import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { getAllMemos, memoIn, memoTitle, searchTerms, useAllMemos } from '../../../data/memos/MemoStore';
 import { enterSpace, useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import { memoCreationWorkspaceId } from '../memoCreationWorkspace';
-import { SpaceDot } from '../../../shared/components/SpaceTag';
 import { useFiles } from '../../../data/files/FileStore';
 import Svg, { Path } from 'react-native-svg';
 import MemoCard, { FilledStar } from '../components/MemoCard';
@@ -352,7 +351,6 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
               const on = space === s.id;
               return (
                 <Pressable key={s.id} accessibilityRole="button" accessibilityState={{ selected: on }} onPress={() => pickSpace(s.id)} style={styles.spaceChip}>
-                  {!!s.color && <SpaceDot color={s.color} />}
                   <Text style={[styles.spaceChipText, !on && { color: colors.muted }]} numberOfLines={1}>{s.name}</Text>
                 </Pressable>
               );

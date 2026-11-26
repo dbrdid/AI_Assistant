@@ -150,7 +150,6 @@ let view = { deps: null, value: EMPTY };
 
 // ---- 그룹 (서버 함수로 저장하고 서버가 권한을 확인. 바뀐 내용은 동기화로 다른 기기에 전달) ----
 export const GROUP_ACCESS = [['view', '보기'], ['edit', '편집'], ['manage', '관리']];
-export const GROUP_COLORS = ['#8B8BF5', '#E07A5F', '#81B29A', '#F2CC8F', '#5FA8D3', '#C77DFF'];
 async function groupCall(name, args) {
   const { rt, ws } = current();
   if (ws.personal) throw new Error('그룹은 공유 공간의 프로젝트에서만 쓸 수 있어요');

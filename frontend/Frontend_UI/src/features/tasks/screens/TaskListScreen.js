@@ -19,7 +19,7 @@ import { toKey } from '../../calendar/utils/DateUtils';
 import { lastDate, occursOn, shiftKey, shortDate, taskIn, useAllTasks } from '../../../data/tasks/TaskStore';
 import { enterSpace, useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import { useSettings } from '../../../data/settings/SettingsStore';
-import SpaceTag, { SpaceDot } from '../../../shared/components/SpaceTag';
+import SpaceTag from '../../../shared/components/SpaceTag';
 import { projectOf, useProjects } from '../../../data/projects/ProjectStore';
 import SwipeRow from '../components/SwipeRow';
 
@@ -156,7 +156,6 @@ export default function TasksScreen({ navigation }) {
         <View style={{ flex: 1 }} />
         {multi && (
           <Pressable accessibilityRole="button" accessibilityLabel={`공간 ${spaceOptions.find((o) => o.id === space)?.name ?? '모든 공간'}, 눌러서 고르기`} onPress={() => setPicker('space')} hitSlop={6} style={styles.spacePick}>
-            {!!spaceOptions.find((o) => o.id === space)?.color && <SpaceDot color={spaceOptions.find((o) => o.id === space).color} />}
             <Text style={st.filterText} numberOfLines={1}>{spaceOptions.find((o) => o.id === space)?.name ?? '모든 공간'}</Text>
             <Icon name="chevronDown" size={12} color={colors.muted} />
           </Pressable>
@@ -174,7 +173,6 @@ export default function TasksScreen({ navigation }) {
           const on = picker === 'space' ? o.id === space : o.id === tab;
           return (
             <Pressable key={o.id} accessibilityRole="radio" accessibilityState={{ checked: on }} onPress={() => { (picker === 'space' ? setSpace : setTab)(o.id); setPicker(null); }} style={st.menuRow}>
-              {!!o.color && <SpaceDot color={o.color} />}
               <Text style={[st.menuLabel, { flex: 1 }]}>{o.name}</Text>
               {on && <Icon name="check" size={16} color={colors.ink} />}
             </Pressable>

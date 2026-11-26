@@ -19,7 +19,6 @@ import { DatePickerModal, TimePickerModal } from '../../../shared/components/Dat
 import { projectOf, setItemProject, useProjects } from '../../../data/projects/ProjectStore';
 import GroupAccessRow from '../../project/components/GroupAccessRow';
 import { enterSpace, useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
-import { SpaceDot } from '../../../shared/components/SpaceTag';
 import {SheetModal} from '../../../shared/components/Motion';
 
 const KINDS = [{ id: 'event', label: '일정' }, { id: 'task', label: '할 일' }];
@@ -43,8 +42,8 @@ function SpaceLine({ list, spaces, current, onPick }) {
   const [open, setOpen] = useState(false);
   return (
     <><Pressable accessibilityRole="button" accessibilityLabel={`공간: ${current.name}`} onPress={() => setOpen(true)} style={styles.line}>
-      <SpaceDot color={spaces[current.id]?.color} /><Text style={styles.lineLabel}>공간</Text><Text style={styles.lineValue} numberOfLines={1}>{current.name}</Text><Icon name="chevronDown" size={15} color={colors.muted} />
-    </Pressable><SheetModal visible={open} onClose={() => setOpen(false)} label="공간 선택"><View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}><Text style={styles.label}>공간</Text><Pressable accessibilityRole="button" accessibilityLabel="공간 선택 닫기" onPress={() => setOpen(false)} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={18} color={colors.muted} /></Pressable></View><ScrollView showsVerticalScrollIndicator={false}>{list.map((w) => { const s = spaces[w.id]; const on = w.id === current.id; return <Pressable key={w.id} accessibilityRole="radio" accessibilityState={{ checked: on, disabled: s.readOnly }} accessibilityLabel={s.name} disabled={s.readOnly} onPress={() => { onPick(w.id); setOpen(false); }} style={[styles.line, s.readOnly && { opacity: 0.4 }]}><SpaceDot color={s.color} /><Text style={[styles.lineValue, { flex: 1 }]} numberOfLines={1}>{s.name}</Text>{on && <Icon name="check" size={18} color={colors.ink} />}</Pressable>; })}</ScrollView></SheetModal></>
+      <Icon name="users" size={18} color={colors.muted} /><Text style={styles.lineLabel}>공간</Text><Text style={styles.lineValue} numberOfLines={1}>{current.name}</Text><Icon name="chevronDown" size={15} color={colors.muted} />
+    </Pressable><SheetModal visible={open} onClose={() => setOpen(false)} label="공간 선택"><View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}><Text style={styles.label}>공간</Text><Pressable accessibilityRole="button" accessibilityLabel="공간 선택 닫기" onPress={() => setOpen(false)} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={18} color={colors.muted} /></Pressable></View><ScrollView showsVerticalScrollIndicator={false}>{list.map((w) => { const s = spaces[w.id]; const on = w.id === current.id; return <Pressable key={w.id} accessibilityRole="radio" accessibilityState={{ checked: on, disabled: s.readOnly }} accessibilityLabel={s.name} disabled={s.readOnly} onPress={() => { onPick(w.id); setOpen(false); }} style={[styles.line, s.readOnly && { opacity: 0.4 }]}><Text style={[styles.lineValue, { flex: 1 }]} numberOfLines={1}>{s.name}</Text>{on && <Icon name="check" size={18} color={colors.ink} />}</Pressable>; })}</ScrollView></SheetModal></>
   );
 }
 

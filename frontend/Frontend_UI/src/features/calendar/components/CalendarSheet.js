@@ -22,7 +22,6 @@ import { WEEKDAYS, formatLunar, isSameDay, toKey, fromKey } from '../utils/DateU
 import { getHolidays } from '../utils/Holidays';
 import { classify, searchTasks, shiftKey, useAllTasks } from '../../../data/tasks/TaskStore';
 import { useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
-import { SpaceDot } from '../../../shared/components/SpaceTag';
 
 // 닫혀 있을 때 화면 맨 아래에 보이는 높이 (손잡이 + '이번 주' 띠). HomeScreen 이 이 값을 가져다 구슬 위치를 맞춤
 export const GRAB_HEIGHT = 118;
@@ -418,7 +417,6 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
                         const on = !hiddenSpaces.has(w.id);
                         return (
                           <Pressable key={w.id} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={`${w.name} 일정 보기`} onPress={() => toggleSpace(w.id)} style={[styles.spaceChip, !on && styles.spaceChipOff]}>
-                            <SpaceDot color={on ? spaces[w.id]?.color : colors.line} />
                             <Text style={[styles.spaceChipText, !on && { color: colors.muted, textDecorationLine: 'line-through' }]} numberOfLines={1}>{spaces[w.id]?.name}</Text>
                           </Pressable>
                         );

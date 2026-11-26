@@ -34,7 +34,7 @@ import { classify, lastDate, occursOn, taskIn, useAllTasks } from '../../../data
 import { WEEKDAYS_LONG, toKey } from '../../calendar/utils/DateUtils';
 import { ROUTES } from '../../../navigation/routes';
 import Icon from '../../../shared/components/Icon';
-import SpaceTag, { SpaceDot } from '../../../shared/components/SpaceTag';
+import SpaceTag from '../../../shared/components/SpaceTag';
 import { CircleButton } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { selectHomeScheduleEvents } from '../utils/HomeSchedule.mjs';
@@ -247,7 +247,6 @@ export default function HomeScreen({ navigation, route }) {
             <Text style={[styles.sectionTitle, { marginTop: spacing.md }]} accessibilityRole="header">팀 공간</Text>
             {teamSummary.map(({ w, text: summary, alert }) => (
               <Pressable key={w.id} accessibilityRole="button" accessibilityLabel={`${w.name} 공간, ${summary}`} onPress={() => go(ROUTES.SpaceHome, { workspaceId: w.id })} style={({ pressed }) => [styles.teamRow, pressed && { opacity: 0.6 }]}>
-                <SpaceDot color={spaces[w.id]?.color} />
                 <Text style={styles.teamName} numberOfLines={1}>{w.name}</Text>
                 <Text style={[styles.teamText, alert && { color: colors.coral }]} numberOfLines={1}>{summary}</Text>
                 <Icon name="chevronRight" size={14} color={colors.muted} />
@@ -330,7 +329,6 @@ export default function HomeScreen({ navigation, route }) {
             <View style={styles.inputWrap}>
               {multi && targetSpace && (
                 <Pressable accessibilityRole="button" accessibilityLabel={`저장할 공간 ${targetSpace.fullName}, 눌러서 바꾸기`} onPress={() => setPickSpace(true)} hitSlop={6} style={styles.spaceChip}>
-                  <SpaceDot color={targetSpace.color} size={7} />
                   <Text style={styles.spaceChipText} numberOfLines={1}>{targetSpace.name}</Text>
                   <Icon name="chevronDown" size={12} color={colors.muted} />
                 </Pressable>
@@ -380,7 +378,6 @@ export default function HomeScreen({ navigation, route }) {
                   onPress={() => { setTarget(w.id); setPickSpace(false); }}
                   style={[styles.sheetRow, on && { backgroundColor: colors.mintSoft }, s.readOnly && { opacity: 0.4 }]}
                 >
-                  <SpaceDot color={s.color} size={10} />
                   <Text style={styles.sheetText} numberOfLines={1}>{w.name}</Text>
                   {s.readOnly ? <Text style={styles.itemSub}>보기 전용</Text> : on ? <Icon name="check" size={18} color={colors.mintDark} /> : null}
                 </Pressable>
