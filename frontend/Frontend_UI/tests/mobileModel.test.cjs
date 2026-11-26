@@ -34,7 +34,7 @@ test('native service publishes verified downloads, handles memory pressure, and 
   };
   const mocks = {
     'react-native': { Platform: { OS: 'android' }, AppState: { currentState: 'active', addEventListener: addListener } },
-    'expo-modules-core': { requireOptionalNativeModule: () => device },
+    'expo': { requireOptionalNativeModule: () => device },
     'expo-file-system': { File, Directory: class { create() {} }, Paths: { availableDiskSpace: 8e9 } },
     './mobileModelPolicy.mjs': policy,
     './s22Gate': { metrics: null },

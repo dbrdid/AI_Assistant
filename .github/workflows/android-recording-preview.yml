@@ -67,7 +67,7 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
           df -h .
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-            'platforms;android-37' 'build-tools;37.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+            'platforms;android-37.0' 'build-tools;37.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
       - run: npm ci --no-audit --no-fund
       - name: Generate the isolated test application
         run: |
@@ -115,8 +115,14 @@ jobs:
           preview_id=$(application_id preview)
           official_cert=$(certificate official)
           preview_cert=$(certificate preview)
-          test -n "$official_id" && test "$preview_id" = "$PREVIEW_PACKAGE" && test "$official_id" != "$preview_id"
-          test -n "$official_cert" && test -n "$preview_cert" && test "$official_cert" != "$preview_cert"
+          if [[ -z "$official_id" || "$preview_id" != "$PREVIEW_PACKAGE" || "$preview_id" == "$official_id" ]]; then
+            echo "::error::Preview APK does not have a separate application ID"
+            exit 1
+          fi
+          if [[ -z "$official_cert" || -z "$preview_cert" || "$preview_cert" == "$official_cert" ]]; then
+            echo "::error::Preview APK does not have a separate signing certificate"
+            exit 1
+          fi
           grep -q "android.permission.RECORD_AUDIO" "$RUNNER_TEMP/preview.badging"
           grep -q "^application-label:'Atria 녹음 테스트'" "$RUNNER_TEMP/preview.badging"
           unzip -Z1 "$apk" > "$RUNNER_TEMP/preview.entries"
