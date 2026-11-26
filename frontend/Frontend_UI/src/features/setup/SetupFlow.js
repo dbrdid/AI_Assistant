@@ -146,7 +146,7 @@ export default function SetupFlow({ user, onDone }) {
   if (name === 'basic') {
     return (
       <View style={styles.root}>
-        {header('기본 정보 (1/3)', true, false)}
+        {header('1/3', true, false)}
         <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.body}>
           <Text style={styles.q}>앱의 사용 목적을 선택해주세요</Text>
           <Text style={styles.note}>여러 개를 고를 수 있어요. 선택하지 않아도 넘어갈 수 있어요. 고른 만큼 시작용 메모 템플릿을 만들어 드려요.</Text>
@@ -154,7 +154,7 @@ export default function SetupFlow({ user, onDone }) {
             const on = hasPurpose(purpose, p.id);
             return (
               <Pressable key={p.id} accessibilityRole="checkbox" accessibilityState={{ checked: on }} onPress={() => setPurpose(togglePurpose(purpose, p.id))} style={[styles.card, on && styles.cardOn]}>
-                <Text style={styles.cardIcon}>{p.icon}</Text>
+                <Icon name={p.icon} size={22} color={on ? colors.ink : colors.muted} />
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={styles.cardTitle}>{p.label}</Text>
                   <Text style={styles.cardSub}>{p.sub}</Text>
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, minHeight: 56 },
   hSide: { width: 72 },
-  hTitle: { flex: 1, textAlign: 'center', fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
+  hTitle: { flex: 1, textAlign: 'center', fontSize: 13, fontWeight: '400', color: colors.muted },
   back: { fontSize: 32, color: colors.ink, marginTop: -4 },
   skip: { fontSize: font.body, fontWeight: '500', color: colors.muted },
   body: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xl, gap: spacing.md },
@@ -338,14 +338,13 @@ const styles = StyleSheet.create({
   note: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
   textBtn: { alignSelf: 'center', minHeight: 44, justifyContent: 'center' },
   textBtnText: { fontSize: font.body, fontWeight: '500', color: colors.muted },
-  flowRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  flowRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
   flowNum: { width: 34, height: 34, borderRadius: 4, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   flowNumText: { color: colors.onPrimary, fontWeight: '600' },
   flowTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   flowSub: { fontSize: font.body, color: colors.muted },
-  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, minHeight: 64 },
-  cardOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
-  cardIcon: { fontSize: 26 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line, minHeight: 64 },
+  cardOn: { backgroundColor: colors.raised },
   cardTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   cardSub: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
   radio: { fontSize: 22, color: colors.muted },
@@ -357,7 +356,7 @@ const styles = StyleSheet.create({
   info: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.mintSoft, gap: 4 },
   infoTitle: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },
   infoText: { fontSize: font.body, color: colors.ink, lineHeight: 20 },
-  preview: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.mint, gap: 4 },
+  preview: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.mint, gap: 4 },
   previewLabel: { fontSize: font.caption, fontWeight: '600', color: colors.muted },
   previewText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink, lineHeight: 24 },
   previewSub: { fontSize: font.body, color: colors.muted },
@@ -365,7 +364,7 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   sheet: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.md },
   sheetTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
-  opt: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, paddingHorizontal: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  opt: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, paddingHorizontal: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
   optText: { fontSize: font.bodyLg, color: colors.ink, fontWeight: '600' },
   optTag: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
 });

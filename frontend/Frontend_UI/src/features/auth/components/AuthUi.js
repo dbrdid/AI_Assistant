@@ -20,6 +20,7 @@ export function AuthFrame({ title, subtitle, onBack, children }) {
         </View>
       ) : null}
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]} keyboardShouldPersistTaps="handled">
+        <Text style={styles.brand}>Atria</Text>
         <Text style={styles.title} accessibilityRole="header">{title}</Text>
         {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
         {children}
@@ -84,7 +85,7 @@ const BUTTON_TONES = {
   ghost: { box: { backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line }, text: colors.ink },
   outline: { box: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.line }, text: colors.mintDark },
   // 소셜 로그인: 각 회사 버튼 가이드 색 (Google 흰색, 카카오 노란색 #FEE500)
-  google: { box: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DADCE0' }, text: '#1F1F1F' },
+  google: { box: { backgroundColor: '#131314', borderWidth: 1, borderColor: '#8E918F' }, text: '#E3E3E3' },
   kakao: { box: { backgroundColor: colors.kakao }, text: 'rgba(0,0,0,0.85)' },
 };
 
@@ -113,10 +114,11 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   back: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, alignItems: 'flex-start' },
   content: {width:'100%',maxWidth:420,alignSelf:'center',paddingHorizontal:28,paddingTop:28,gap:18},
+  brand: { fontSize: 15, fontWeight: '600', color: colors.muted, letterSpacing: 0.2, marginBottom: -10 },
   title: { fontSize: 24, lineHeight: 32, fontWeight: '600', color: colors.ink },
   subtitle: { fontSize: font.body, color: colors.muted, lineHeight: 21, marginTop: -spacing.sm },
   label: { fontSize: 13, fontWeight: '500', color: colors.ink },
-  inputWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 46, paddingHorizontal: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  inputWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 46, paddingHorizontal: spacing.lg, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
   input: { flex: 1, fontSize: font.bodyLg, color: colors.ink, paddingVertical: 10, outlineStyle: 'none' },
   hint: { fontSize: font.caption, color: colors.muted },
   btn: { flexDirection: 'row', gap: spacing.sm, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
