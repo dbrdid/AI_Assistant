@@ -7,6 +7,7 @@ import { ScreenEntryProvider } from '../../navigation/ScreenEntry';
 import { useFiles } from '../../data/files/FileStore';
 import GraphCanvas from './GraphCanvas';
 import SearchDock from './SearchDock';
+import SwipeNav from './SwipeNav';
 import { runtime, useValue, readPreference, writePreference } from '../../data/hooks';
 import { randomUUID } from 'expo-crypto';
 import { isPlaced, placeProposal } from './aiPending.mjs';
@@ -355,7 +356,13 @@ export default function WorkspaceScreen({
           route={{ name: page.route, params: i === pagerIndex ? route?.params ?? {} : {} }} /></ScreenEntryProvider>;
       }} />;
   };  return <View style={s.root}>{pagerIndex !== undefined
-    ? <><PageRail index={pagerIndex} pages={TABS} keepVisited header={tab => header(tab.route)} renderPage={renderTab} />
+    ? <><SwipeNav tabs={TABS} current={TABS[pagerIndex]?.route} onTab={route => (navigation.selectTab || navigation.navigate)(route)}
+        onPage={step => {
+          const pages = TABS[pagerIndex].pages, next = subIndexOf(TABS[pagerIndex], pagerIndex) + step;
+          if (step && next >= 0 && next < pages.length) navigation.setParams({ subpage: pages[next].route });
+        }}>
+        <PageRail index={pagerIndex} pages={TABS} keepVisited header={tab => header(tab.route)} renderPage={renderTab} />
+      </SwipeNav>
       {!OWN_BOTTOM_BAR.has(TABS[pagerIndex]?.pages[subIndexOf(TABS[pagerIndex], pagerIndex)]?.route) && askDock}</>
     : <>{!bodyOnly && header()}{content}</>}{actions.snack.view}<SheetModal visible={menu} onClose={() => setMenu(false)} label="작업 공간 메뉴"><View style={s.handle} /><View style={s.titleRow}><Text style={s.sectionTitle}>나의 작업 공간</Text><IconButton name="x" label="메뉴 닫기" onPress={() => setMenu(false)} /></View><ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4 }}>
       {/* 공간 / AI / 관리 세 묶음. 묶음마다 둥근 면 안에 같은 높이의 행, 아이콘 열과 글자 시작점을 맞춘다. */}
