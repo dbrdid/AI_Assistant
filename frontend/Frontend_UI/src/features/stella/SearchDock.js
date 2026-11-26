@@ -30,11 +30,13 @@ export default function SearchDock({ docs, bottomInset, onOpen, onAskAI, onNew }
   const [sort, setSort] = useState('updated');
   const [titleOnly, setTitleOnly] = useState(false);
   const [filters, setFilters] = useState(false);
+  const filterAfterKeyboard = useRef(false);
   const [menu, setMenu] = useState(false);
   const [keyboard, setKeyboard] = useState(0); // 화면이 키보드만큼 줄지 않는 기기에서도 검색창을 키보드 위에 둔다
   useEffect(() => {
     const up = Keyboard.addListener('keyboardDidShow', e => setKeyboard(e.endCoordinates?.height ?? 0));
-    const down = Keyboard.addListener('keyboardDidHide', () => setKeyboard(0));
+    // 키보드가 다 내려간 뒤에 필터 시트를 연다 (내려가는 중에 시트가 같이 올라오면 화면이 출렁임)
+    const down = Keyboard.addListener('keyboardDidHide', () => { setKeyboard(0); if (filterAfterKeyboard.current) { filterAfterKeyboard.current = false; setFilters(true); } });
     return () => { up.remove(); down.remove(); };
   }, []);
   const grow = useRef(new Animated.Value(0)).current;
@@ -100,7 +102,7 @@ export default function SearchDock({ docs, bottomInset, onOpen, onAskAI, onNew }
         {open && <>
           <TextInput ref={input} accessibilityLabel="문서 검색" value={query} onChangeText={setQuery} placeholder="무엇이든 검색하기..." placeholderTextColor={c.subtle} returnKeyType="search"
             style={{ flex: 1, color: c.text, fontSize: 15, paddingVertical: 0 }} />
-          <Pressable accessibilityRole="button" accessibilityLabel="검색 필터" onPress={() => { Keyboard.dismiss(); setFilters(true); }} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+          <Pressable accessibilityRole="button" accessibilityLabel="검색 필터" onPress={() => { if (keyboard) { filterAfterKeyboard.current = true; Keyboard.dismiss(); } else setFilters(true); }} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="list" size={18} color={sort !== 'updated' || titleOnly ? c.text : c.muted} />
           </Pressable>
         </>}

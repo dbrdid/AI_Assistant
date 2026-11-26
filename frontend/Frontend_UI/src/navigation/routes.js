@@ -68,7 +68,8 @@ export const TABS = [
     { route: ROUTES.Calendar, label: '캘린더' }, { route: ROUTES.Tasks, label: '할 일' },
   ] },
   { route: ROUTES.Memos, label: '문서', icon: 'file', pages: [
-    { route: ROUTES.Memos, label: '문서 목록' }, { route: ROUTES.Favorites, label: '즐겨찾기' },
+    // 즐겨찾기는 문서 목록 안의 '즐겨찾기' 필터로 본다 (따로 쪽을 두지 않음)
+    { route: ROUTES.Memos, label: '문서 목록' },
     { route: ROUTES.Files, label: '파일 보관함' },
   ] },
   // 문서와 할 일을 묶는 프로젝트는 매일 쓰는 단위라 상단에 둔다. 작업 검토·AI 연결·공유 공간·휴지통은 공간 메뉴로 옮겼다.

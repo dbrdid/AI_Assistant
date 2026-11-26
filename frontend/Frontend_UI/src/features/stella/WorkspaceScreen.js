@@ -8,6 +8,7 @@ import { useFiles } from '../../data/files/FileStore';
 import GraphCanvas from './GraphCanvas';
 import SearchDock from './SearchDock';
 import SwipeNav from './SwipeNav';
+import ProposalCard from '../proposal/components/ProposalCard';
 import { runtime, useValue, readPreference, writePreference } from '../../data/hooks';
 import { randomUUID } from 'expo-crypto';
 import { isPlaced, placeProposal } from './aiPending.mjs';
@@ -211,6 +212,7 @@ export default function WorkspaceScreen({
   const spaces = useWorkspaces();
   const memos = memoRows;
   const actions = useProposalActions(navigation);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const appUpdate = useAppUpdate();
   const [menu, setMenu] = useState(false);
   const [query, setQuery] = useState('');
@@ -316,7 +318,9 @@ export default function WorkspaceScreen({
           {list.length > 20 && <Pressable accessibilityRole="button" style={s.link} onPress={() => go(ROUTES.Memos)}><Text style={s.linkText}>모든 문서 보기</Text></Pressable>}
           {!documents.length && <Text style={s.emptyInline}>아직 작성한 문서가 없습니다.</Text>}
         </HomeSection>
-        {waiting.length > 0 && <Pressable accessibilityRole="button" onPress={() => go(ROUTES.Proposals)} style={s.homeReview}><Icon name="checkSquare" size={18} color={c.muted} /><Text style={s.rowTitle}>검토할 작업</Text><Text style={s.linkText}>{waiting.length}</Text></Pressable>}
+        {waiting.length > 0 && <Pressable accessibilityRole="button" accessibilityState={{ expanded: reviewOpen }} onPress={() => setReviewOpen(v => !v)} style={s.homeReview}><Icon name="checkSquare" size={18} color={c.muted} /><Text style={s.rowTitle}>검토할 작업</Text><Text style={s.linkText}>{waiting.length}</Text><Icon name={reviewOpen ? 'chevronUp' : 'chevronDown'} size={14} color={c.subtle} /></Pressable>}
+        {/* 검토할 작업은 따로 페이지로 가지 않고 이 자리에서 펼쳐 저장, 보류, 무시 */}
+        {reviewOpen && waiting.map(p => <View key={p.id} style={{ marginBottom: 8 }}><ProposalCard p={p} actions={actions} /></View>)}
         {appUpdate && <Pressable accessibilityRole="button" accessibilityLabel={`새 버전 ${appUpdate.version} 받기`} onPress={() => Linking.openURL(appUpdate.url)} style={s.homeReview}><Icon name="arrowUp" size={18} color={c.muted} /><Text style={s.rowTitle}>새 버전 {appUpdate.version}</Text><Text style={s.linkText}>받기</Text></Pressable>}
       </ScrollView>
       {!embedded && askDock}
