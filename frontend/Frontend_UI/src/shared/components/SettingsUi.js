@@ -1,8 +1,8 @@
 // ============================================================
 // SettingsUi.js — 설정 화면들이 같이 쓰는 작은 부품
 // ============================================================
-//   Group     : 여러 줄을 하나의 흰 카드로 묶고, 줄 사이에 얇은 구분선 (Figma 설정 시안)
-//   Row       : 아이콘 타일 + 이름 + 값 + › 한 줄. Group 밖에서 쓰면 혼자서 카드 모양
+//   Group     : 여러 줄을 묶고 줄 사이에 얇은 구분선 (Notion 설정처럼 상자 없이 평평하게)
+//   Row       : 아이콘 + 이름 + 값 + › 한 줄
 //   ToggleRow : 켜고 끄는 스위치 한 줄
 //   Radio     : 동그란 선택 표시 (◉ ○ 대신)
 
@@ -34,8 +34,8 @@ export function Group({ children, style }) {
 
 // 줄 위쪽 구분선: 아이콘이 있으면 아이콘 다음부터 시작
 function Divider({ icon }) {
-  // 구분선은 글자 시작점부터: 아이콘 열(14 + 18 + 12)을 비워 둔다.
-  return <View pointerEvents="none" style={[styles.divider, { left: icon ? 14 + 18 + 12 : 14 }]} />;
+  // 구분선은 글자 시작점부터: 아이콘 열(4 + 18 + 12)을 비워 둔다.
+  return <View pointerEvents="none" style={[styles.divider, { left: icon ? 4 + 18 + 12 : 4 }]} />;
 }
 
 function useRowFrame() {
@@ -136,12 +136,11 @@ export function useNotice() {
 export const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 const styles = StyleSheet.create({
-  // Stella 메뉴와 같은 묶음: 낮은 대비의 둥근 면 안에 같은 높이의 행, 묶음 제목은 작고 흐리게
+  // Notion 설정·홈 개요처럼 상자 없이 평평한 행 + 얇은 구분선, 묶음 제목은 작고 흐리게
   sectionTitle: { fontSize: 12, fontWeight: '400', color: colors.muted, marginTop: 18, marginBottom: 2, marginLeft: 4 },
-  group: { backgroundColor: colors.card, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 50, paddingHorizontal: 14, paddingVertical: 10 },
-  // 혼자 있는 줄: 그대로 카드 모양
-  rowAlone: { borderRadius: 12, backgroundColor: colors.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline },
+  group: {},
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 50, paddingHorizontal: 4, paddingVertical: 10 },
+  rowAlone: {},
   // Group 안의 줄: 카드는 Group 이 그림
   rowGrouped: { backgroundColor: 'transparent' },
   divider: { position: 'absolute', top: 0, right: 0, height: StyleSheet.hairlineWidth, backgroundColor: colors.line },

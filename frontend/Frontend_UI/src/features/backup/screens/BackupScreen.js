@@ -202,9 +202,9 @@ export default function BackupScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
-  card: { padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.mintSoft, gap: spacing.sm },
+  card: { paddingVertical: spacing.sm, gap: spacing.xs },   // Notion 설정처럼 상자 없이 제목 + 흐린 설명
   cardTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
-  cardSub: { fontSize: font.body, color: colors.ink, lineHeight: 20 },
+  cardSub: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
   row: { flexDirection: 'row', gap: spacing.md },
   btn: { flex: 1, minHeight: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   primary: { backgroundColor: colors.action },

@@ -165,9 +165,10 @@ export default function AiSettingsForm({ onOpenUsage, contentStyle, compact = fa
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
-  mode: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  modeOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
-  modeTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
+  // 고르는 줄: 상자 없이 Notion 설정처럼 줄 + 얇은 구분선, 선택은 앞의 동그라미/체크로만 표시
+  mode: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
+  modeOn: {},
+  modeTitle: { fontSize: 15, color: colors.ink },
   modeSub: { fontSize: font.caption, color: colors.muted, lineHeight: 17 },
   sub: { gap: spacing.sm, paddingLeft: spacing.lg },
   // 주간 브리핑 요일 칩 (Group 카드 안)

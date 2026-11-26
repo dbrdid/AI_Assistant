@@ -58,17 +58,13 @@ export const styles = StyleSheet.create({
   aiConnection: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, marginTop: 22, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
   aiConnectionText: { flex: 1, color: c.subtle, fontSize: 12 },
   // AI 연결 카드(Orca 에이전트 연결 화면 참고): 낮은 대비의 면, 옅은 테두리, 오른쪽 상태 배지
-  connCard: { padding: 14, gap: 8, backgroundColor: c.surface, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: '#2e3134' },
-  connCardOn: { borderColor: '#4a4e52' },
-  connHead: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  connName: { flex: 1, color: c.text, fontSize: 15, fontWeight: '600' },
-  connBadge: { color: c.subtle, fontSize: 11, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, borderWidth: 0, borderColor: '#45494c', overflow: 'hidden',
-    backgroundColor: c.raised
-  },
-  connBadgeOn: { color: c.text, backgroundColor: '#35373a', borderColor: '#35373a' },
-  connBadgeReady: { color: c.text, borderColor: '#55595c' },
+  // AI 연결: Notion 설정처럼 상자 없이 줄 + 얇은 구분선
+  connItem: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.line },
+  connHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10 },
+  connName: { color: c.text, fontSize: 15 },
+  connStatus: { color: c.subtle, fontSize: 13 },
   connDesc: { color: c.muted, fontSize: 12, lineHeight: 18 },
-  connDetails: { gap: 8, marginTop: 4, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  connDetails: { gap: 8, paddingLeft: 30, paddingBottom: 14 },
   connRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
   connRowLabel: { color: c.muted, fontSize: 13, width: 44 },
   connRowValue: { flex: 1, color: c.text, fontSize: 14 },

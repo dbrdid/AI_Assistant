@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.sm },
   // 프로필 카드 (시안: 흰 카드 + 얇은 테두리)
-  account: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  account: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: 4 },   // 상자 없이 (Notion 설정의 계정 줄)
   avatar: { width: 52, height: 52, borderRadius: 4, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 22, fontWeight: '600', color: colors.onPrimary },
   name: { fontSize: font.header, fontWeight: '600', color: colors.ink },

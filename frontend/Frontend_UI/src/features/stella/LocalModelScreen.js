@@ -24,11 +24,11 @@ const CONSENT = {
 };
 const field = [s.editorBody, { minHeight: 44 }];
 const CARD_INFO = {
-  device: { name: '이 기기', icon: 'lock', desc: 'Gemma 4 E2B를 휴대폰에서 실행합니다. 입력한 내용이 기기 밖으로 나가지 않습니다.' },
-  server: { name: '내 서버', icon: 'link', desc: 'Ollama, LM Studio, llama.cpp, Atria 브리지처럼 /v1/chat/completions를 제공하는 서버에 연결합니다. 같은 네트워크 밖에서는 https 주소를 권장합니다.' },
-  cloud: { name: 'Atria 클라우드', icon: 'cloud', desc: '로그인한 계정의 Atria AI 이용량에서 차감됩니다.' },
-  openai: { name: 'OpenAI', icon: 'globe', desc: '본인 계정에서 발급한 API 키로 연결합니다. ChatGPT 구독 로그인은 다른 앱에서 쓸 수 없습니다.' },
-  anthropic: { name: 'Anthropic', icon: 'globe', desc: '본인 계정에서 발급한 API 키로 연결합니다. Claude 구독 로그인은 다른 앱에서 쓸 수 없습니다.' },
+  device: { name: '이 기기', icon: 'lock', desc: '휴대폰 안에서 실행, 내용이 밖으로 나가지 않아요' },
+  server: { name: '내 서버', icon: 'link', desc: 'Ollama·LM Studio 같은 내 컴퓨터의 AI' },
+  cloud: { name: 'Atria 클라우드', icon: 'cloud', desc: '내 계정 이용량에서 차감돼요' },
+  openai: { name: 'OpenAI', icon: 'globe', desc: '내 API 키로 연결 (ChatGPT 구독과는 별개)' },
+  anthropic: { name: 'Anthropic', icon: 'globe', desc: '내 API 키로 연결 (Claude 구독과는 별개)' },
 };
 
 // 블록에 자주 하는 요청 (Notion AI의 글 다듬기, 맞춤법, 짧게, 길게, 요약, 번역과 같은 자리)
@@ -190,7 +190,7 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
   const modelLabel = provider === 'device' ? ''
     : provider === 'server' ? connection.serverModel : provider === 'cloud' ? '' : connection[provider + 'Model'];
   const errorView = !!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>;
-  // 공급자별 상태: Orca 에이전트 연결 화면처럼 카드마다 이름, 설명, 상태 배지, 동작을 둔다.
+  // 공급자별 상태 (줄 오른쪽 글자)
   const statusOf = id => id === 'device' ? (busy === 'install' ? '받는 중 ' + Math.round(100 * progress) + '%' : deviceList.length ? '준비됨' : '모델 필요')
     : id === 'server' ? (connection.serverUrl.trim() && connection.serverModel ? '준비됨' : '설정 필요')
     : id === 'cloud' ? '준비됨' : hasSessionKey(id) ? '키 입력됨' : '키 필요';
@@ -230,15 +230,18 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
   const cards = <>
     {Object.keys(PROVIDERS).filter(id => native || id !== 'device').map(id => {
       const on = id === provider, info = CARD_INFO[id], status = statusOf(id);
-      return <View key={id} style={[s.connCard, on && s.connCardOn]}>
-        <View style={s.connHead}>
-          <Icon name={info.icon} size={18} color={on ? c.text : c.muted} />
-          <Text style={s.connName}>{info.name}</Text>
-          {on && <Text style={[s.connBadge, s.connBadgeOn]}>사용 중</Text>}
-          <Text style={[s.connBadge, (status === '준비됨' || status === '키 입력됨') && s.connBadgeReady]}>{status}</Text>
-        </View>
-        <Text style={s.connDesc}>{info.desc}</Text>
-        {on ? details(id) : <View style={s.aiActions}>{ghost('이 AI 사용', 'check', () => { setKeyDraft(''); update({ provider: id }); })}</View>}
+      return <View key={id} style={s.connItem}>
+        <Pressable accessibilityRole="radio" accessibilityState={{ checked: on }} accessibilityLabel={`${info.name}, ${status}`} disabled={!!busy && busy !== 'install'}
+          onPress={() => { if (!on) { setKeyDraft(''); update({ provider: id }); } }} style={s.connHead}>
+          <Icon name={info.icon} size={18} color={c.muted} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={s.connName}>{info.name}</Text>
+            <Text style={s.connDesc} numberOfLines={1}>{info.desc}</Text>
+          </View>
+          <Text style={s.connStatus}>{status}</Text>
+          <Icon name="check" size={18} color={on ? c.text : 'transparent'} />
+        </Pressable>
+        {on && details(id)}
       </View>;
     })}
   </>;
@@ -248,7 +251,7 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
       {commandMode && <Text accessibilityRole="header" style={s.title}>앱 작업 해석</Text>}
       {!!target && !sheet && <Text selectable style={s.aiTarget}>{targetLine(target)}</Text>}
       {!asking && <Text style={s.intro}>바뀌는 내용은 승인한 뒤에만 적용돼요.</Text>}
-      {!asking && <View style={{ gap: 12, marginTop: 16 }}>{cards}</View>}
+      {!asking && <View style={{ marginTop: 8 }}>{cards}</View>}
       {!asking && errorView}
       {asking && <>
         <TextInput accessibilityLabel="AI에게 요청" value={prompt} onChangeText={value => { setPrompt(value); setReply(null); }} autoFocus={!sheet}
@@ -287,7 +290,7 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
     </ScrollView>
     <SheetModal visible={asking && showSettings} onClose={() => setShowSettings(false)} label="AI 연결">
       <View style={s.titleRow}><Text style={s.sectionTitle}>AI 연결</Text><IconButton name="x" label="AI 연결 닫기" onPress={() => setShowSettings(false)} /></View>
-      <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 12, paddingTop: 8 }}>{cards}{errorView}</ScrollView>
+      <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: 4 }}>{cards}{errorView}</ScrollView>
     </SheetModal>
     <Modal visible={!!picker} transparent onRequestClose={() => setPicker(null)}><View style={s.modalShade}><View style={s.sheet}>
       <View style={s.titleRow}><Text style={s.sectionTitle}>{picker === 'provider' ? 'AI 연결' : '모델 선택'}</Text><IconButton name="x" label="닫기" onPress={() => setPicker(null)} /></View>
