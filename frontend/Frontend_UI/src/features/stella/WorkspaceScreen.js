@@ -16,7 +16,8 @@ import Icon from '../../shared/components/Icon';
 import { useInsets } from '../../shared/hooks/useInsets';
 import { useMemos, memoTitle } from '../../data/memos/MemoStore';
 import { useProposals } from '../../data/proposals/ProposalStore';
-import { useWorkspaces, switchWorkspace } from '../../data/workspaces/WorkspaceStore';
+import { useSpaceInfo, useWorkspaces, switchWorkspace } from '../../data/workspaces/WorkspaceStore';
+import ConfirmDialog from '../../shared/components/ConfirmDialog';
 import { reviewReason, useProposalActions } from '../proposal/useProposalActions';
 import { ROUTES, TABS } from '../../navigation/routes';
 import { filterDocuments } from './model.mjs';
@@ -73,12 +74,16 @@ export function WorkspaceHeader({
   onSearch,
 
   right,
-  tabs
+  tabs,
+  team = null // 팀 공간이면 { name, color }: 개인 공간과 한눈에 구분되게
 }) {
   const insets = useInsets();
   const initial = profileInitial(useSettings().profile?.name);
-  if (tabs) return <View style={[s.navigationHeader, { paddingTop: insets.top + 10 }]}>
-    <Pressable accessibilityRole="button" accessibilityLabel={`작업 공간 메뉴 열기: ${title}`} hitSlop={{ left: 6, right: 6 }} onPress={onMenu} style={s.workspaceAvatar}><Text style={s.workspaceInitial}>{initial}</Text></Pressable>
+  if (tabs) return <View style={[s.navigationHeader, { paddingTop: insets.top + 10 }, team && { borderBottomWidth: 2, borderBottomColor: team.color }]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={`작업 공간 메뉴 열기: ${title}${team ? ', 팀 공간' : ', 개인 공간'}`} hitSlop={{ left: 6, right: 6 }} onPress={onMenu} style={s.workspaceAvatar}>
+      <Text style={[s.workspaceInitial, team && { borderWidth: 2, borderColor: team.color, lineHeight: 26 }]}>{initial}</Text>
+      {team && <Text numberOfLines={1} style={{ position: 'absolute', bottom: -6, fontSize: 9, fontWeight: '700', color: c.background, backgroundColor: team.color, borderRadius: 6, paddingHorizontal: 4, overflow: 'hidden' }}>팀</Text>}
+    </Pressable>
     {tabs}
   </View>;
   const headerStyle = [s.header, { paddingTop: insets.top + 8 }];
@@ -210,6 +215,8 @@ export default function WorkspaceScreen({
   const documents = useValue(() => runtime().documents.listDocuments());
   const proposals = useProposals();
   const spaces = useWorkspaces();
+  const spaceInfo = useSpaceInfo();
+  const [switchTo, setSwitchTo] = useState(null); // 바꿀 공간 (확인 대기)
   const memos = memoRows;
   const actions = useProposalActions(navigation);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -255,7 +262,7 @@ export default function WorkspaceScreen({
   const requestSearch = route?.params?.search === true;
   const selectedTab = { home: ROUTES.Home, documents: ROUTES.Memos, relations: ROUTES.Relations, review: ROUTES.Proposals }[mode];
   const standalone = pagerIndex === undefined && (mode === 'review' || mode === 'relations');
-  const header = (highlight = selectedTab) => standalone ? <WorkspaceHeader title={title} onBack={() => navigation.goBack()} /> : <><WorkspaceHeader title={current?.name || '나의 작업 공간'} onMenu={() => setMenu(true)} tabs={!favoritesOnly && <TabBar current={highlight} onSelect={navigation.selectTab || navigation.navigate} />} onSearch={mode === "documents" ? undefined : () => go(ROUTES.Memos, {
+  const header = (highlight = selectedTab) => standalone ? <WorkspaceHeader title={title} onBack={() => navigation.goBack()} /> : <><WorkspaceHeader title={current?.name || '나의 작업 공간'} onMenu={() => setMenu(true)} team={!current || current.personal ? null : { name: current.name, color: spaceInfo[current.id]?.color ?? c.accent }} tabs={!favoritesOnly && <TabBar current={highlight} onSelect={navigation.selectTab || navigation.navigate} />} onSearch={mode === "documents" ? undefined : () => go(ROUTES.Memos, {
       search: true
     })} />{error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}</>;
   const intro = standalone ? null : <><View style={s.titleRow}><Text accessibilityRole="header" style={s.title}>{title}</Text></View></>;
@@ -371,7 +378,8 @@ export default function WorkspaceScreen({
     : <>{!bodyOnly && header()}{content}</>}{actions.snack.view}<SheetModal visible={menu} onClose={() => setMenu(false)} label="작업 공간 메뉴"><View style={s.handle} /><View style={s.titleRow}><Text style={s.sectionTitle}>나의 작업 공간</Text><IconButton name="x" label="메뉴 닫기" onPress={() => setMenu(false)} /></View><ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4 }}>
       {/* 공간 / AI / 관리 세 묶음. 묶음마다 둥근 면 안에 같은 높이의 행, 아이콘 열과 글자 시작점을 맞춘다. */}
       {[['공간', [...spaces.list.map(space => ({ key: space.id, label: space.name, icon: space.personal ? 'home' : 'users', checked: space.id === current?.id, onPress: () => {
-          try { switchWorkspace(space.id); setMenu(false); setError(''); } catch (e) { setError(e.message); setMenu(false); }
+          if (space.id === current?.id) return setMenu(false);
+          setMenu(false); setSwitchTo(space); // 바로 넘어가지 않고 한 번 묻는다
         } })), ...SPACE_TOOLS.filter(([, , , group]) => group === '공간').map(tool)]],
         ['AI', SPACE_TOOLS.filter(([, , , group]) => group === 'AI').map(tool)],
         ['관리', SPACE_TOOLS.filter(([, , , group]) => group === '관리').map(tool)]].map(([group, items]) => <View key={group}>
@@ -383,5 +391,9 @@ export default function WorkspaceScreen({
             {item.count > 0 && <Text style={s.linkText}>{item.count}</Text>}
             {item.checked ? <Icon name="check" size={17} color={c.accent} /> : item.chevron && <Icon name="chevronRight" size={14} color={c.subtle} />}
           </Pressable></View>)}</View>
-      </View>)}</ScrollView></SheetModal></View>;
+      </View>)}</ScrollView></SheetModal>
+    <ConfirmDialog visible={!!switchTo} title={`${switchTo?.personal ? '개인 공간' : `'${switchTo?.name}' 팀 공간`}으로 바꿀까요?`}
+      sub={switchTo?.personal ? '내 문서와 일정만 보여요.' : '이 공간의 문서와 일정은 팀원과 함께 보고 편집해요.'} confirmText="바꾸기"
+      onCancel={() => setSwitchTo(null)}
+      onConfirm={() => { const target = switchTo; setSwitchTo(null); try { switchWorkspace(target.id); setError(''); } catch (e) { setError(e.message); } }} /></View>;
 }
