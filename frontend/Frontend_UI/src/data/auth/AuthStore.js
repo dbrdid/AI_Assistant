@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { supabase } from '../../lib/stella/supabase';
+import { forgetRememberedKeys } from '../../integration/rememberedKeys';
 import { openSession, closeSession, maybeRuntime, wipeSessionData } from '../../integration/runtime';
 import { getWithdrawPreview, withdrawAccount, withdrawErrorMessage } from '../../lib/stella/withdraw';
 import { Linking, Platform } from 'react-native';
@@ -59,7 +60,7 @@ export async function signOut() {
   const before = state;
   publish({ status: 'loading', user: null, error: null });
   // 로그아웃한 계정의 서버 알림이 이 기기로 오지 않게 (로그인 상태일 때 해야 서버가 받아 줌)
-  try { await unregisterPush(); await closeSession(true); const { error } = await supabase.auth.signOut({ scope: 'local' }); if (error) throw error; await enqueue(null); return { ok: true }; }
+  try { await unregisterPush(); await closeSession(true); await forgetRememberedKeys(); /* 다음 사람이 이 휴대폰에 기억된 AI 키를 쓰지 않게 */ const { error } = await supabase.auth.signOut({ scope: 'local' }); if (error) throw error; await enqueue(null); return { ok: true }; }
   catch (error) { publish(maybeRuntime() ? before : { status: 'out', user: null, error: error.message }); return { ok: false, message: error.message }; }
 }
 export const loadWithdrawPreview = () => getWithdrawPreview(supabase);

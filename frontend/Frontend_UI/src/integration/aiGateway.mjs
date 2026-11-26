@@ -18,7 +18,21 @@ const MAX_OUTPUT_TOKENS = 1024;
 
 // API keys live only in memory for this app session; they are never written to the device database.
 const sessionKeys = new Map();
-export const setSessionKey = (provider, key) => { if (key?.trim()) sessionKeys.set(provider, key.trim()); else sessionKeys.delete(provider); };
+// 키 보관소(앱에서는 휴대폰 보안 저장소, rememberedKeys.js): 넣은 키를 기기에 기억해 앱을 다시 켜도 다시 입력하지 않게
+let keyStore = null;
+export const KEY_PROVIDERS = ['server', 'openai', 'anthropic'];
+export const setSessionKey = (provider, key) => {
+  if (key?.trim()) sessionKeys.set(provider, key.trim()); else sessionKeys.delete(provider);
+  keyStore?.save(provider, key?.trim() || '');
+};
+/** 보관소를 붙이고 기억한 키를 불러온다 (이번 실행에 이미 넣은 키가 우선) */
+export async function attachKeyStore(store) {
+  keyStore = store;
+  for (const provider of KEY_PROVIDERS) {
+    const value = await Promise.resolve(store.load(provider)).catch(() => null);
+    if (value && !sessionKeys.has(provider)) sessionKeys.set(provider, value);
+  }
+}
 export const hasSessionKey = provider => sessionKeys.has(provider);
 
 // 내 서버(브리지)로 가는 길: 같은 네트워크면 주소로 바로, 닿지 않으면 중계 연결(bridgeRelay.mjs)로.

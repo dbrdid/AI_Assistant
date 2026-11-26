@@ -6,6 +6,7 @@ import { askMobileModel, cancelMobileModelDownload, installMobileModel, listMobi
 import { DEFAULT_DEVICE_MODEL, deviceModels } from '../../integration/mobileModelPolicy.mjs';
 import { DEFAULT_CONNECTION, PROVIDERS, gatewayMessages, hasSessionKey, listServerModels, parseBridgeLink, readReply, sendToProvider, setSessionKey } from '../../integration/aiGateway.mjs';
 import '../../integration/bridgeRelayApp'; // 같은 네트워크 밖이면 중계 연결로
+import { forgetRememberedKeys, keysReady } from '../../integration/rememberedKeys';
 import BridgeAccountRows, { accountBridgeUrl } from './BridgeAccountRows';
 import { accountBridgeId } from '../../integration/aiGateway.mjs';
 import { ROUTES } from '../../navigation/routes';
@@ -48,6 +49,8 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
   const [serverList, setServerList] = useState([]);
   const [deviceModel, setDeviceModel] = useState(DEFAULT_DEVICE_MODEL);
   const [keyDraft, setKeyDraft] = useState('');
+  const [, keysLoaded] = useState(0);   // 기억한 키를 다 불러오면 '키 입력됨'으로 다시 그림
+  useEffect(() => { keysReady.then(() => keysLoaded(n => n + 1)); }, []);
   const [prompt, setPrompt] = useState(route?.params?.commandRequest ?? '');
   const [sendNext, setSendNext] = useState(false); // 빠른 요청: 글자가 채워진 다음 그리기에서 보냄
   const [reply, setReply] = useState(null);
@@ -227,11 +230,15 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
     {(id === 'openai' || id === 'anthropic') && <TextInput accessibilityLabel="모델 이름" value={connection[id + 'Model']} onChangeText={value => update({ [id + 'Model']: value })}
       editable={!busy} autoCapitalize="none" autoCorrect={false} placeholder={DEFAULT_CONNECTION[id + 'Model']} placeholderTextColor={c.subtle} style={s.connInput} />}
     {['server', 'openai', 'anthropic'].includes(id) && <>
-      {/* 입력하는 즉시 이번 실행에 적용한다. 기기에는 저장하지 않는다. */}
+      {/* 입력하는 즉시 적용하고, 이 휴대폰의 보안 저장소에 기억한다 (서버로 보내지 않음) */}
       <TextInput accessibilityLabel="API 키" importantForAutofill="no" autoComplete="off" value={keyDraft} onChangeText={value => { setKeyDraft(value); if (value) { setSessionKey(id, value); setError(''); } }} secureTextEntry editable={!busy}
         autoCapitalize="none" autoCorrect={false} placeholder={hasSessionKey(id) ? '키 입력됨. 바꾸려면 다시 입력' : id === 'server' ? '서버 키 (필요할 때만)' : 'API 키'}
         placeholderTextColor={c.subtle} style={s.connInput} />
-      <Text style={s.connNote}>키는 기기에 저장하지 않으며 앱을 다시 열면 다시 입력해야 합니다.</Text>
+      <Text style={s.connNote}>키는 이 휴대폰의 보안 저장소에만 기억돼요. 앱을 다시 켜도 다시 입력하지 않아도 되고, 서버로는 보내지 않아요.</Text>
+      {hasSessionKey(id) && <Pressable accessibilityRole="button" disabled={!!busy} hitSlop={6}
+        onPress={() => { forgetRememberedKeys().then(() => { setKeyDraft(''); keysLoaded(n => n + 1); }); }}>
+        <Text style={[s.connNote, { textDecorationLine: 'underline' }]}>이 휴대폰에 기억한 키 지우기</Text>
+      </Pressable>}
     </>}
   </View>;
   const cards = <>

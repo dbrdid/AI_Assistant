@@ -72,7 +72,8 @@
             "video"
           ]
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }
