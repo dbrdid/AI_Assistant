@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Atria bridge: node atria-bridge.mjs <init|serve|list|add-key|enable-cli|disable-cli|plugins|enable-plugin|disable-plugin|rotate-key>
 import { networkInterfaces } from 'node:os';
+import { startRelay } from './relay.mjs';
 import { createInterface } from 'node:readline';
 import { CHATGPT_USAGE_URL, PROVIDER_DEFAULTS, VERSION, chatgptLogin, chatgptLogout, cleanupOldExecutable, configPath, createBridge, downloadVerified, installUpdate, latestBridgeRelease, loadConfig, loadPlugins, newKey, pluginDir, resolveCli, saveConfig, sources } from './bridge.mjs';
 
@@ -38,7 +39,9 @@ if (command === 'init' || command === 'rotate-key') {
     for (const address of host === '0.0.0.0' ? lanAddresses() : [host]) console.log(`  같은 네트워크 접속 주소: http://${address}:${port}`);
     const on = plugins.filter(p => p.plugin && config.plugins[p.id]?.enabled).map(p => p.id);
     if (on.length) console.log(`  켜진 플러그인: ${on.join(', ')}`);
-    console.log('외부에서 접속하려면 HTTPS 역방향 프록시나 Tailscale을 사용하세요. 포트를 인터넷에 그대로 열지 마세요.');
+    // 같은 와이파이 밖: 브리지가 Atria 중계 채널에 바깥 방향으로 접속해 기다림 (포트를 열지 않음, 내용은 연결 키로 암호화)
+    if (!args.includes('--no-relay')) startRelay({ key: config.key, port });
+    else console.log('중계 연결 꺼짐 (--no-relay): 같은 네트워크에서만 접속할 수 있어요. 포트를 인터넷에 그대로 열지 마세요.');
     latestBridgeRelease().then(r => r && console.log(`새 버전 ${r.version}이 있습니다. 서버를 끄고 update를 실행하세요. 설정과 연결 키는 그대로 유지됩니다.`)).catch(() => {});
   });
 } else if (command === 'login-chatgpt') {
@@ -103,5 +106,5 @@ if (command === 'init' || command === 'rotate-key') {
   saveConfig(config);
   done(on ? `${id} 플러그인을 켰습니다. 플러그인은 이 PC의 권한으로 실행되니 믿을 수 있는 파일만 켜세요. 서버를 다시 시작하면 적용됩니다.` : `${id} 플러그인을 껐습니다. 서버를 다시 시작하면 적용됩니다.`);
 } else {
-  done('사용법: atria-bridge <init | serve [--host 0.0.0.0] [--port 8787] | list | login-chatgpt | logout-chatgpt | add-key ... | enable-cli <claude|codex> | disable-cli [이름] | plugins | enable-plugin <id> | disable-plugin <id> | update | rotate-key>', command ? 1 : 0);
+  done('사용법: atria-bridge <init | serve [--host 0.0.0.0] [--port 8787] [--no-relay] | list | login-chatgpt | logout-chatgpt | add-key ... | enable-cli <claude|codex> | disable-cli [이름] | plugins | enable-plugin <id> | disable-plugin <id> | update | rotate-key>', command ? 1 : 0);
 }

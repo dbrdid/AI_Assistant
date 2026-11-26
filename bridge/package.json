@@ -4,7 +4,7 @@
   "description": "Atria 앱에서 이 PC나 서버의 AI를 OpenAI 호환 API 하나로 쓰게 하는 브리지",
   "type": "module",
   "bin": { "atria-bridge": "atria-bridge.mjs" },
-  "files": ["bridge.mjs", "atria-bridge.mjs"],
+  "files": ["bridge.mjs", "relay.mjs", "atria-bridge.mjs"],
   "engines": { "node": ">=20" },
   "scripts": {
     "build": "node build.mjs",

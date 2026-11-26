@@ -5,6 +5,7 @@ import { runtime, maybeRuntime, gateway, readPreference, writePreference, aiPoli
 import { askMobileModel, cancelMobileModelDownload, installMobileModel, listMobileModels, pendingMobileModelDownload } from '../../integration/mobileModel';
 import { DEFAULT_DEVICE_MODEL, deviceModels } from '../../integration/mobileModelPolicy.mjs';
 import { DEFAULT_CONNECTION, PROVIDERS, gatewayMessages, hasSessionKey, listServerModels, parseBridgeLink, readReply, sendToProvider, setSessionKey } from '../../integration/aiGateway.mjs';
+import '../../integration/bridgeRelayApp'; // 같은 네트워크 밖이면 중계 연결로
 import { ROUTES } from '../../navigation/routes';
 import { palette as c, styles as s } from './theme';
 import { WorkspaceHeader, IconButton } from './WorkspaceScreen';
