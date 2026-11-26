@@ -5,7 +5,7 @@ import { runtime, maybeRuntime } from '../../integration/runtime';
 import { useMemos } from '../../data/memos/MemoStore';
 import { ROUTES } from '../../navigation/routes';
 import { WorkspaceHeader, PrimaryButton } from './WorkspaceScreen';
-import { examples, planCommand, routeCommand, screens } from './appCommands.mjs';
+import { examples, planCommand, routeCommand, screens, splitRequest } from './appCommands.mjs';
 import { planProjectCommand, projectExamples, routeProjectCommand } from './projectCommands.mjs';
 import { addProject, getProjects, setItemProject, updateProject } from '../../data/projects/ProjectStore';
 import { metrics } from '../../integration/s22Gate';
@@ -36,6 +36,13 @@ export default function AppCommandScreen({ navigation, route }) {
     },
   };
   const planFor = (text, original, target = memoId) => planProjectCommand(projectTools, text, original) ?? planCommand(owner, text, target, randomUUID, original);
+  // 여러 작업이면 원래 요청을 작업별 조각으로 나눠, 이 작업과 맞는 조각으로 같은 검사를 한다
+  const planStep = (text, original, target = memoId) => {
+    if (total <= 1 || !original) return planFor(text, original, target);
+    let last;
+    for (const part of [...splitRequest(original), original]) { try { return planFor(text, part, target); } catch (error) { last = error; } }
+    throw last;
+  };
   function clear() { setPlan(null); setMessage(''); }
   // Device-only evaluation record for untouched model commands; user-typed commands are not AI results.
   const fromModel = useRef(false);
@@ -50,7 +57,7 @@ export default function AppCommandScreen({ navigation, route }) {
       if (!canAccess) throw new Error('공간 접근이 변경되었습니다. 화면을 다시 열어 주세요.');
       // A command the user retyped is theirs; only the untouched model output is checked against the original request.
       const started = Date.now();
-      setPlan(planFor(input, fromModel.current ? route.params.originalRequest : undefined));
+      setPlan(planStep(input, fromModel.current ? route.params.originalRequest : undefined));
       metrics?.record('approval_card', { ms: Date.now() - started });
     } catch (error) { setMessage(error.message); feedback('failed', error.message); }
   }
@@ -78,7 +85,7 @@ export default function AppCommandScreen({ navigation, route }) {
         const target = result?.params?.memoId ?? memoId;
         setQueue(rest); setMemoId(target); setInput(next);
         fromModel.current = !!route.params?.originalRequest;
-        try { setPlan(planFor(next, route.params?.originalRequest, target)); }
+        try { setPlan(planStep(next, route.params?.originalRequest, target)); }
         catch (error) { setMessage(`${total - rest.length}번째 작업을 준비하지 못했어요: ${error.message}`); }
         return;
       }

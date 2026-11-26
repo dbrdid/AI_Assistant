@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { setup } from '../../backend/local/tests/helpers.mjs';
 import { createStellaDocumentStore } from '../../backend/local/src/stella-documents.js';
 import { createDocumentWorkspace } from '../../frontend/Frontend_UI/src/integration/documentWorkspace.mjs';
-import { planCommand, screens } from '../../frontend/Frontend_UI/src/features/stella/appCommands.mjs';
+import { planCommand, screens, splitRequest } from '../../frontend/Frontend_UI/src/features/stella/appCommands.mjs';
 import { originalEvidence, locateFile, statedTimes, verifiedStart, unstatedTimeWarning } from '../../frontend/Frontend_UI/src/integration/recordEvidence.mjs';
 import { ROUTES } from '../../frontend/Frontend_UI/src/navigation/routes.js';
 
@@ -112,4 +112,18 @@ test('English 12-hour times count as stated times, once each', () => {
   assert.deepEqual(statedTimes('오후 3시 회의'), [['15:00']]);
   assert.equal(verifiedStart('22:30', 'standup at 10:30am'), '10:30');
   assert.equal(unstatedTimeWarning({ start: '15:00', end: '' }, 'meeting with Kim at 3pm'), '');
+});
+
+test('a multi-step request verifies each model step against its own part of the request', t => {
+  const { rt, memo } = fixture(t);
+  const request = '2026-11-28 보고서 할 일 추가하고 2026-11-29 15:00 회의 일정 추가해줘';
+  const parts = splitRequest(request);
+  assert.deepEqual(parts, ['2026-11-28 보고서 할 일 추가해줘', '2026-11-29 15:00 회의 일정 추가해줘']);
+  // 전체 요청으로는 복합 요청이라 막히고, 자기 조각으로는 통과한다 (화면의 planStep과 같은 순서)
+  assert.throws(() => planCommand(rt, '할 일 추가 2026-11-28: 보고서', memo.id, () => 'x', request), /복합 요청/);
+  const why = [];
+  const pick = command => { for (const part of parts) { try { return planCommand(rt, command, memo.id, () => 'x', part); } catch (e) { why.push(part + ' → ' + e.message); } } return null; };
+  assert.ok(pick('할 일 추가 2026-11-28: 보고서'), why.join('\n'));
+  assert.ok(pick('일정 추가 2026-11-29 15:00: 회의'), why.join('\n'));
+  assert.equal(pick('일정 추가 2026-11-30 15:00: 회의'), null, '요청에 없는 날짜는 어느 조각으로도 통과 못 함');
 });
