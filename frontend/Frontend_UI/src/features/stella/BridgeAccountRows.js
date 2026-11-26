@@ -23,7 +23,7 @@ export default function BridgeAccountRows({ serverUrl, onUse, onClear, disabled 
       const list = await myBridges();
       setBridges(list);
       if (auto && !serverUrl && list.length === 1) onUse(list[0]);   // 같은 계정의 PC 브리지가 하나면 바로 연결
-    } catch (error) { setBridges([]); setMessage(error.message); }
+    } catch { setBridges('unavailable'); }   // 서버에 브리지 로그인이 아직 없으면 이 칸을 숨김
   };
   useEffect(() => { load(true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -40,6 +40,7 @@ export default function BridgeAccountRows({ serverUrl, onUse, onClear, disabled 
     finally { setBusy(false); }
   };
 
+  if (bridges === 'unavailable') return null;
   return <View style={{ gap: 6 }}>
     <Text style={s.connNote}>내 PC 브리지 (같은 계정)</Text>
     {bridges?.length === 0 && <Text style={s.connNote}>아직 없어요. PC에서 atria-bridge login을 실행하고 아래에 코드를 넣어 주세요.</Text>}
