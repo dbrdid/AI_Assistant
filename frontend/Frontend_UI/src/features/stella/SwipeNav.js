@@ -84,9 +84,10 @@ export default function SwipeNav({ tabs, current, onTab, onPage, children }) {
       if (s && !s.movedEarly && Date.now() - s.t < HOLD_MS && Math.hypot(e.nativeEvent.pageX - s.x, e.nativeEvent.pageY - s.y) > 10) { s.movedEarly = true; stopPeek(); }
     }}>
     {children}
-    {peek && !bar && <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, [peek]: 0, justifyContent: 'center' }}>
-      <View style={{ width: 8, height: tabs.length * ROW, backgroundColor: c.raised, [peek === 'right' ? 'borderTopLeftRadius' : 'borderTopRightRadius']: 8, [peek === 'right' ? 'borderBottomLeftRadius' : 'borderBottomRightRadius']: 8 }} />
-    </View>}
+    {/* 열 준비가 됐을 때, 그리고 반대로 밀어 메뉴를 넣었을 때도 손을 떼기 전까지 가장자리에 살짝 남긴다 */}
+    {(() => { const side = bar ? (bar.hidden ? bar.side : null) : peek; return side && <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, [side]: 0, justifyContent: 'center' }}>
+      <View style={{ width: 8, height: tabs.length * ROW, backgroundColor: c.raised, [side === 'right' ? 'borderTopLeftRadius' : 'borderTopRightRadius']: 8, [side === 'right' ? 'borderBottomLeftRadius' : 'borderBottomRightRadius']: 8 }} />
+    </View>; })()}
     {bar && <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, [bar.side]: 0, justifyContent: 'center', opacity: slide,
       transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [bar.side === 'right' ? 40 : -40, 0] }) }] }}>
       <View style={{ backgroundColor: c.surface, borderRadius: 14, paddingVertical: 4, marginHorizontal: 8 }}>
