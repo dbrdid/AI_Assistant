@@ -39,7 +39,7 @@ export default function SwipeNav({ tabs, current, onTab, onPage, children }) {
       const { tabs: all, current: here } = latest.current;
       anchor.current = { y: g.moveY, start: Math.max(0, all.findIndex(tab => tab.route === here)) };
       stopPeek();
-      setBar({ side: g.dx > 0 ? 'right' : 'left', pick: pickAt(g.moveY) });
+      setBar({ side: touch.current.x < width / 2 ? 'right' : 'left', dir: Math.sign(g.dx), pick: pickAt(g.moveY) }); // 살짝 보이던 쪽(손가락 반대쪽)에 연다
       slide.setValue(0);
       Animated.timing(slide, { toValue: 1, duration: 160, useNativeDriver: true }).start();
     }
@@ -60,7 +60,7 @@ export default function SwipeNav({ tabs, current, onTab, onPage, children }) {
       // 연 방향의 반대로 시작점을 넘겨 밀면 막대를 다시 넣고, 다시 연 방향으로 밀면 꺼낸다 (넣은 채 떼면 취소)
       setBar(b => {
         if (!b) return b;
-        const out = b.side === 'right' ? g.dx : -g.dx;
+        const out = g.dx * b.dir; // 처음 민 방향 기준
         const hidden = b.hidden ? out < 12 : out < 0;
         if (hidden !== !!b.hidden) Animated.timing(slide, { toValue: hidden ? 0 : 1, duration: 140, useNativeDriver: true }).start();
         return { ...b, hidden, pick: hidden ? -1 : pickAt(g.moveY) };
