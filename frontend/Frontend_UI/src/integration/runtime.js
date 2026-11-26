@@ -443,7 +443,7 @@ export async function transcribeForDevice(job, { signal } = {}) {
 // ---------------------------------------------------------------------
 export const LONG_RECORDING_SECONDS = 10 * 60;   // 이보다 긴 녹음은 구간 방식 (짧은 녹음은 한 번에 보내는 편이 빠름)
 let audioSplit;                                    // 네이티브 분할 모듈 (웹·Expo Go에는 없음)
-function loadAudioSplit() {
+export function loadAudioSplit() {
   if (audioSplit !== undefined) return audioSplit;
   try { audioSplit = Platform.OS === 'web' ? null : require('../../modules/stella-audio-split'); }
   catch { audioSplit = null; }

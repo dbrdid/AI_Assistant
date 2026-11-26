@@ -5,8 +5,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import Svg, { Path, Rect } from 'react-native-svg';
+import RecordingPlayer from './RecordingPlayer';
+import { formatRecordingTime } from './recordingPlayback.mjs';
 import Icon from '../../../shared/components/Icon';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { finishTranscription, newTranscribeJob, transcribeRecording } from '../../../services/ai/Transcribe';
@@ -14,46 +14,6 @@ import { analyzeText } from '../../../services/ai/AiAnalyze';
 import { titleRecording } from '../../../services/ai/AiTitle';
 import { addMemo } from '../../../data/memos/MemoStore';
 import { setAiTransmission } from '../../../data/settings/SettingsStore';
-
-// 재생/일시정지 아이콘 (Icon.js 에 없어 여기서 직접 그림)
-function PlayIcon({ playing, size = 18, color = colors.ink }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-      {playing ? (
-        <>
-          <Rect x="6" y="4" width="4" height="16" rx="1" />
-          <Rect x="14" y="4" width="4" height="16" rx="1" />
-        </>
-      ) : (
-        <Path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z" />
-      )}
-    </Svg>
-  );
-}
-
-const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-
-function Player({ uri }) {
-  const player = useAudioPlayer(uri ? { uri } : null);
-  const status = useAudioPlayerStatus(player);
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={status.playing ? '일시정지' : '녹음 듣기'}
-      onPress={() => {
-        if (status.playing) player.pause();
-        else {
-          if (status.didJustFinish || (status.duration && status.currentTime >= status.duration - 0.1)) player.seekTo(0);
-          player.play();
-        }
-      }}
-      style={[styles.ghost, styles.row]}
-    >
-      <PlayIcon playing={status.playing} />
-      <Text style={styles.ghostText}>{status.playing ? '일시정지' : '듣기'}</Text>
-    </Pressable>
-  );
-}
 
 // 받아 적은 글로 만든 메모 제목: "녹음 11/16 14:05"
 const memoTitleFor = (d = new Date()) =>
@@ -117,7 +77,7 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
                 <View style={styles.titleIcon}><Icon name="mic" size={20} color={colors.mintDark} /></View>
                 <Text style={styles.title}>{sheet.state === 'saved' ? '녹음을 저장했어요' : '녹음 파일을 저장하지 못했어요'}</Text>
               </View>
-              <Text style={styles.sub}>{fmt(sheet.seconds || 0)}{sheet.fileId ? ', 파일 보관함에 보관돼요' : ''}</Text>
+              <Text style={styles.sub}>{formatRecordingTime(sheet.seconds)}{sheet.fileId ? ', 파일 보관함에 보관돼요' : ''}</Text>
               {sheet.state === 'save_error' && (
                 <>
                   <Text accessibilityLiveRegion="polite" style={styles.error}>{sheet.saveError || '저장 위치의 권한을 확인해 주세요.'}</Text>
@@ -127,7 +87,7 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
                   </Pressable>
                 </>
               )}
-              <Player uri={sheet.uri} />
+              <RecordingPlayer key={sheet.uri} uri={sheet.uri} fileId={sheet.fileId} seconds={sheet.seconds} />
               {phase === 'done' && result ? (
                 <>
                   {/* 받아 적은 글 (길면 안에서 스크롤) */}
@@ -172,10 +132,10 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
                 <View style={[styles.titleIcon, { backgroundColor: colors.coralSoft }]}><Icon name="alert" size={20} color={colors.coral} /></View>
                 <Text style={styles.title}>마이크 권한이 필요해요</Text>
               </View>
-              <Text style={styles.sub}>녹음을 하려면 마이크 권한을 허용해 주세요.</Text>
-              <Pressable accessibilityRole="button" onPress={() => { onClose(); Linking.openSettings().catch(() => {}); }} style={styles.primary}>
+              <Text style={styles.sub}>{sheet.canAskAgain ? '녹음 버튼을 다시 누르고 마이크 사용을 허용해 주세요.' : '기기 설정에서 이 앱의 마이크 사용을 허용해 주세요.'}</Text>
+              {!sheet.canAskAgain && <Pressable accessibilityRole="button" onPress={() => { onClose(); Linking.openSettings().catch(() => {}); }} style={styles.primary}>
                 <Text style={styles.primaryText}>설정 열기</Text>
-              </Pressable>
+              </Pressable>}
             </>
           )}
           {sheet.state === 'error' && (
@@ -184,7 +144,7 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
                 <View style={[styles.titleIcon, { backgroundColor: colors.coralSoft }]}><Icon name="alert" size={20} color={colors.coral} /></View>
                 <Text style={styles.title}>녹음하지 못했어요</Text>
               </View>
-              <Text style={styles.sub}>다시 시도해 주세요. 계속되면 마이크가 다른 앱에서 쓰이고 있는지 확인해 주세요.</Text>
+              <Text style={styles.sub}>{sheet.message || '다시 시도해 주세요. 계속되면 마이크가 다른 앱에서 쓰이고 있는지 확인해 주세요.'}</Text>
             </>
           )}
           <Pressable accessibilityRole="button" onPress={onClose} style={styles.ghost}><Text style={styles.ghostText}>닫기</Text></Pressable>
@@ -200,7 +160,6 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   titleIcon: { width: 36, height: 36, borderRadius: 4, backgroundColor: colors.mintSoft, alignItems: 'center', justifyContent: 'center' },
   title: { flexShrink: 1, fontSize: font.title, fontWeight: '600', color: colors.ink },
-  row: { flexDirection: 'row', gap: spacing.sm },
   sub: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
   note: { fontSize: font.body, color: colors.mintDark, lineHeight: 20, fontWeight: '600' },
   error: { fontSize: font.body, color: colors.coral, lineHeight: 20, fontWeight: '600' },

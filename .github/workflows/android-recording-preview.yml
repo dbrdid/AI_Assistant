@@ -1,0 +1,140 @@
+name: Android recording preview
+
+on:
+  push:
+    branches: [codex/android-recording]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-recording-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "1"
+  EXPO_NO_TELEMETRY: "1"
+
+defaults:
+  run:
+    shell: bash
+    working-directory: frontend/Frontend_UI
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/Frontend_UI/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Run local, integration and mobile tests
+        working-directory: .
+        run: |
+          npm ci --prefix tests/sync-verify --ignore-scripts --no-audit --no-fund
+          node --test backend/local/tests/*.test.mjs tests/integration/*.test.mjs frontend/Frontend_UI/tests/*.test.cjs
+      - name: Export web and Android bundles
+        run: npx --no-install expo export --platform web --platform android --max-workers 2
+
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    env:
+      PREVIEW_PACKAGE: com.dbrdid.atria.recordingpreview
+      CMAKE_BUILD_PARALLEL_LEVEL: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/Frontend_UI/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Make room on the hosted runner and install Android build tools
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          df -h .
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            'platforms;android-37' 'build-tools;37.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+      - run: npm ci --no-audit --no-fund
+      - name: Generate the isolated test application
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const config = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+          config.expo.name = 'Atria 녹음 테스트';
+          config.expo.scheme = 'atria-recording-preview';
+          config.expo.android.package = process.env.PREVIEW_PACKAGE;
+          fs.writeFileSync('app.json', JSON.stringify(config, null, 2));
+          NODE
+          npx --no-install expo prebuild --platform android --no-install
+          keytool -genkeypair -keystore "$RUNNER_TEMP/preview.jks" -storetype JKS \
+            -alias androiddebugkey -storepass android -keypass android -keyalg RSA \
+            -keysize 2048 -validity 365 -dname "CN=Atria Recording Preview"
+          # Expo's generated release build uses app/debug.keystore.
+          cp "$RUNNER_TEMP/preview.jks" android/app/debug.keystore
+      - name: Build the standalone arm64 APK
+        working-directory: frontend/Frontend_UI/android
+        run: |
+          ./gradlew :app:assembleRelease --no-daemon --max-workers=2 \
+            -PreactNativeArchitectures=arm64-v8a \
+            '-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8'
+      - name: Verify application IDs, signatures and bundled audio resources
+        run: |
+          tools="$ANDROID_HOME/build-tools/37.0.0"
+          output="$GITHUB_WORKSPACE/preview-artifact"
+          mkdir -p "$output"
+          apk="$output/Atria-recording-preview-arm64.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk "$apk"
+          official="$RUNNER_TEMP/Atria-0.0.4.apk"
+          curl --fail --silent --show-error --location --retry 3 --output "$official" \
+            'https://github.com/dbrdid/AI_Assistant/releases/download/v0.0.4/Atria-0.0.4.apk'
+          echo "4810761ecec21b056c317d7d90ddf84c19242e21b23c76eacc1e8fd41f8c10cf  $official" | sha256sum --check --status
+          apk_info() {
+            local path="$1" prefix="$2"
+            "$tools/aapt" dump badging "$path" > "$RUNNER_TEMP/$prefix.badging"
+            "$tools/apksigner" verify --print-certs "$path" > "$RUNNER_TEMP/$prefix.certs"
+          }
+          apk_info "$official" official
+          apk_info "$apk" preview
+          application_id() { sed -n "s/^package: name='\([^']*\)'.*/\1/p" "$RUNNER_TEMP/$1.badging"; }
+          certificate() { sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/$1.certs"; }
+          official_id=$(application_id official)
+          preview_id=$(application_id preview)
+          official_cert=$(certificate official)
+          preview_cert=$(certificate preview)
+          test -n "$official_id" && test "$preview_id" = "$PREVIEW_PACKAGE" && test "$official_id" != "$preview_id"
+          test -n "$official_cert" && test -n "$preview_cert" && test "$official_cert" != "$preview_cert"
+          grep -q "android.permission.RECORD_AUDIO" "$RUNNER_TEMP/preview.badging"
+          grep -q "^application-label:'Atria 녹음 테스트'" "$RUNNER_TEMP/preview.badging"
+          unzip -Z1 "$apk" > "$RUNNER_TEMP/preview.entries"
+          grep -qx 'assets/index.android.bundle' "$RUNNER_TEMP/preview.entries"
+          grep -q '^lib/arm64-v8a/.*\.so$' "$RUNNER_TEMP/preview.entries"
+          (cd "$output" && sha256sum Atria-recording-preview-arm64.apk > SHA256SUMS.txt)
+          {
+            printf '### Android recording preview\n\n'
+            printf '| APK | Application ID | Signing certificate SHA-256 |\n| --- | --- | --- |\n'
+            printf '| v0.0.4 | `%s` | `%s` |\n' "$official_id" "$official_cert"
+            printf '| Recording preview | `%s` | `%s` |\n\n' "$preview_id" "$preview_cert"
+            cat "$output/SHA256SUMS.txt"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload APK and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: Atria-recording-preview-arm64
+          path: preview-artifact/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7

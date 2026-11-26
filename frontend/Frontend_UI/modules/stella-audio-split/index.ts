@@ -13,8 +13,19 @@ export interface SplitSegment { seq: number; uri: string; startSeconds: number; 
 
 const Native = requireNativeModule<{
   getAudioDuration(uri: string): Promise<number>;
+  inspectRecording?(uri: string): Promise<{ durationSeconds: number; hasSignal: boolean }>;
   splitAudio(uri: string, ranges: SplitRange[], outputDir: string | null): Promise<SplitSegment[]>;
 }>('StellaAudioSplit');
+
+export function canInspectRecording(): boolean {
+  return typeof Native.inspectRecording === 'function';
+}
+
+/** Android에서 파일의 오디오를 디코딩해 길이와 무음 여부를 확인합니다. */
+export function inspectRecording(uri: string): Promise<{ durationSeconds: number; hasSignal: boolean }> {
+  if (!Native.inspectRecording) throw new Error('녹음 검사를 지원하는 Android 앱이 필요해요.');
+  return Native.inspectRecording(uri);
+}
 
 /** 녹음 길이(초) */
 export function getAudioDuration(uri: string): Promise<number> {

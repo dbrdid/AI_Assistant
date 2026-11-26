@@ -114,12 +114,29 @@ export function getCloudFiles() {
 export const useCloudFiles = () => useValue(getCloudFiles);
 
 const sha256 = Platform.OS === 'web' ? undefined : bytes => digest(CryptoDigestAlgorithm.SHA256, bytes);
-async function withAssetAccess(asset, callback) {
+export function captureRecordingOwner() {
+  const rt = runtime();
+  return { session: rt.session, workspaceId: rt.store.getCurrentWorkspace().id };
+}
+
+export function isRecordingOwnerCurrent(owner) {
+  const rt = maybeRuntime();
+  return !!rt && !!owner && rt.session === owner.session &&
+    rt.store.getCurrentWorkspace().id === owner.workspaceId && !rt.closedSpaces.has(owner.workspaceId);
+}
+
+function requireRecordingOwner(owner) {
+  if (!isRecordingOwnerCurrent(owner)) throw new Error('녹음을 시작한 계정이나 공간이 바뀌었어요.');
+}
+
+async function withAssetAccess(asset, callback, requireAccess) {
+  requireAccess?.();
   if (WEB || (!asset?.reference && !asset?.accessReference)) return callback(asset);
   const isFileReference = !!asset.reference;
   const reference = asset.reference ?? asset.accessReference;
   const access = await resolveDeviceReference(reference);
   try {
+    requireAccess?.();
     const resolved = { ...asset, uri: isFileReference ? access.uri : asset.uri };
     if (access.reference !== reference && asset.fileId) {
       saveList('files', list('files').map(file => file.id === asset.fileId
@@ -127,6 +144,7 @@ async function withAssetAccess(asset, callback) {
         : file));
       if (!isFileReference) {
         const savedValue = await AsyncStorage.getItem(SAVE_DIRECTORY_KEY);
+        requireAccess?.();
         if (savedValue) {
           let savedDirectory;
           try { savedDirectory = JSON.parse(savedValue); }
@@ -139,12 +157,25 @@ async function withAssetAccess(asset, callback) {
         }
       }
     }
+    requireAccess?.();
     return await callback(resolved);
   } finally {
     if (access.token) await releaseDeviceAccess(access.token);
   }
 }
 const readAssetBytes = asset => withAssetAccess(asset, readBytes);
+
+// Keep security-scoped bookmarks and Android document references open for the entire playback.
+export async function withRecordingUri(fileId, uri, play) {
+  if (!uri) throw new Error('녹음 파일의 위치를 찾을 수 없어요.');
+  if (!fileId) return play(uri); // The recording can still be previewed if copying it failed.
+  const row = localFiles().find(file => file.id === fileId && file.uri === uri);
+  if (!row) throw new Error('현재 파일 보관함에서 이 녹음을 찾을 수 없어요.');
+  const owner = captureRecordingOwner();
+  return withAssetAccess({
+    uri, fileId, reference: row.fileReference, accessReference: row.saveDirectoryReference,
+  }, asset => play(asset.uri), () => requireRecordingOwner(owner));
+}
 
 /** 파일을 선택해 현재 공유 작업 공간에 업로드합니다. { added, failed: [{ name, message }] }를 반환합니다. */
 export async function pickAndUploadCloudFiles() {
@@ -269,8 +300,10 @@ const ANDROID_DOWNLOADS_TREE_URI = 'content://com.android.externalstorage.docume
 let saveDirectoryRun = null;
 let activeSaveDirectory = null;
 
-async function getSaveRootDirectory() {
+async function getSaveRootDirectory(requireAccess) {
+  requireAccess?.();
   if (saveDirectoryRun) return saveDirectoryRun;
+  const folderOwner = captureRecordingOwner();
   saveDirectoryRun = (async () => {
     const savedValue = await AsyncStorage.getItem(SAVE_DIRECTORY_KEY);
     let saved = null;
@@ -310,9 +343,11 @@ async function getSaveRootDirectory() {
             const previousReference = saved.reference;
             saved = { ...saved, uri: access.uri, reference: access.reference };
             await AsyncStorage.setItem(SAVE_DIRECTORY_KEY, JSON.stringify(saved));
-            saveList('files', list('files').map(file => file.saveDirectoryReference === previousReference
-              ? { ...file, saveDirectoryReference: access.reference }
-              : file));
+            if (isRecordingOwnerCurrent(folderOwner)) {
+              saveList('files', list('files').map(file => file.saveDirectoryReference === previousReference
+                ? { ...file, saveDirectoryReference: access.reference }
+                : file));
+            }
           }
           return { directory, reference: saved.reference };
         }
@@ -324,6 +359,7 @@ async function getSaveRootDirectory() {
       await AsyncStorage.removeItem(SAVE_DIRECTORY_KEY);
       await AsyncStorage.removeItem(SAVE_MODE_KEY);
     }
+    requireAccess?.();
     let selected;
     try {
       selected = await pickDeviceDirectory(
@@ -379,20 +415,27 @@ async function copyIntoDirectory(sourceUri, name, mimeType, directory) {
   return { uri: target.uri, name: fileName, size: target.size };
 }
 
-async function copyToDeviceFolder(sourceUri, name, mimeType) {
-  const rootAccess = await getSaveRootDirectory();
+async function copyToDeviceFolder(sourceUri, name, mimeType, requireAccess) {
+  requireAccess?.();
+  const rootAccess = await getSaveRootDirectory(requireAccess);
   const root = rootAccess.directory;
   const mode = await AsyncStorage.getItem(SAVE_MODE_KEY);
+  const copy = directory => {
+    requireAccess?.();
+    return copyIntoDirectory(sourceUri, name, mimeType, directory);
+  };
   if (mode === 'app') {
     try {
       const appDirectory = await getAppSaveDirectory(root);
-      return { ...(await copyIntoDirectory(sourceUri, name, mimeType, appDirectory)), saveDirectoryReference: rootAccess.reference };
+      return { ...(await copy(appDirectory)), saveDirectoryReference: rootAccess.reference };
     } catch (appError) {
+      requireAccess?.();
       try {
-        const saved = await copyIntoDirectory(sourceUri, name, mimeType, root);
+        const saved = await copy(root);
         await AsyncStorage.setItem(SAVE_MODE_KEY, 'root');
         return { ...saved, saveDirectoryReference: rootAccess.reference };
       } catch (rootError) {
+        requireAccess?.();
         await AsyncStorage.removeItem(SAVE_DIRECTORY_KEY);
         await AsyncStorage.removeItem(SAVE_MODE_KEY);
         throw new Error(`다운로드 폴더와 앱 전용 폴더에 저장하지 못했어요. 앱 폴더: ${appError?.message || '저장 권한을 확인해 주세요'} · 다운로드 폴더: ${rootError?.message || '저장 권한을 확인해 주세요'}`);
@@ -400,14 +443,16 @@ async function copyToDeviceFolder(sourceUri, name, mimeType) {
     }
   }
   try {
-    return await copyIntoDirectory(sourceUri, name, mimeType, root);
+    return await copy(root);
   } catch (rootError) {
+    requireAccess?.();
     try {
       const appDirectory = await getAppSaveDirectory(root);
-      const saved = await copyIntoDirectory(sourceUri, name, mimeType, appDirectory);
+      const saved = await copy(appDirectory);
       await AsyncStorage.setItem(SAVE_MODE_KEY, 'app');
       return { ...saved, saveDirectoryReference: rootAccess.reference };
     } catch (appError) {
+      requireAccess?.();
       await AsyncStorage.removeItem(SAVE_DIRECTORY_KEY);
       await AsyncStorage.removeItem(SAVE_MODE_KEY);
       throw new Error(`다운로드 폴더와 앱 전용 폴더에 저장하지 못했어요. 다운로드 폴더: ${rootError?.message || '저장 권한을 확인해 주세요'} · 앱 폴더: ${appError?.message || '저장 권한을 확인해 주세요'}`);
@@ -416,7 +461,8 @@ async function copyToDeviceFolder(sourceUri, name, mimeType) {
 }
 /** 이 파일의 내용을 인식할 수 있는지 확인합니다(사진, PDF·Word·PowerPoint, 일반 텍스트). */
 export const canRecognize = f => !!describe({ name: f.name, mimeType: f.mimeType ?? mimeOfName(f.name) }).kind;
-export async function addAsset(asset, fields = {}, { referenceOnly = false } = {}) {
+export async function addAsset(asset, fields = {}, { referenceOnly = false, requireAccess } = {}) {
+  requireAccess?.();
   if (!asset?.uri) throw new Error('기기 파일 경로가 필요합니다');
   if (referenceOnly && !WEB && !asset.reference) throw new Error('파일 원본에 다시 접근할 정보가 없습니다. 파일을 다시 선택해 주세요.');
   const id = `local-${randomUUID()}`;
@@ -440,14 +486,16 @@ export async function addAsset(asset, fields = {}, { referenceOnly = false } = {
     webVersion += 1;
     row = { ...base, webName: fileName, uri: '', size: blob.size, savedToDevice: true };
   } else {
-    const saved = await copyToDeviceFolder(asset.uri, asset.name ?? '파일', asset.mimeType ?? fields.mimeType);
+    const saved = await copyToDeviceFolder(asset.uri, asset.name ?? '파일', asset.mimeType ?? fields.mimeType, requireAccess);
     row = {
       ...base, name: saved.name, title: saved.name, uri: saved.uri, size: saved.size,
       savedToDevice: true, saveDirectoryReference: saved.saveDirectoryReference,
     };
   }
-  try { saveList('files', [row, ...list('files')]); }
-  catch (error) {
+  try {
+    requireAccess?.();
+    saveList('files', [row, ...list('files')]);
+  } catch (error) {
     if (!row.referenceOnly && WEB && row.webName) {
       try { await (await webDir()).removeEntry(row.webName); }
       catch (cleanupError) { console.warn('[files] 목록 저장 실패 후 브라우저 파일을 정리하지 못했습니다', row.webName, cleanupError); }
@@ -579,8 +627,10 @@ export async function addPhoto(value) {
   await removeTemporarySource(asset.uri);
   return saved;
 }
-export async function addRecording(uri, seconds) {
-  const saved = await addAsset({ uri, name: '녹음.m4a' }, { kind: '녹음', seconds });
+export async function addRecording(uri, seconds, owner = captureRecordingOwner()) {
+  const saved = await addAsset({ uri, name: '녹음.m4a' }, { kind: '녹음', seconds }, {
+    requireAccess: () => requireRecordingOwner(owner),
+  });
   await removeTemporarySource(uri);
   return saved;
 }

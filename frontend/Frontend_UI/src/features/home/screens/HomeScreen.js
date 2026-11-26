@@ -5,17 +5,18 @@
 // 위에서부터: 나 · 날짜 · AI · 검색 · 알림 / AI 제안 카드 / 팀 공간 요약 / 오늘 일정 / 오늘 할 일
 // 맨 아래: 바로 쓰는 입력줄 (어느 공간에 쓸지 고르는 칩 · 글 메모 저장 · 사진 · 카메라 · 녹음)
 
-import React, { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { AppState, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import { useScreenEntry } from '../../../navigation/ScreenEntry';
 import Bell from '../../notice/components/Bell';
 import RecordSheet from '../../record/components/RecordSheet';
 import { styles as st } from '../../stella/theme';
 import { useProposalActions } from '../../proposal/useProposalActions';
-import { useRecorder } from '../../../services/device/Recorder';
+import { inspectFinishedAudio, useRecorder } from '../../../services/device/Recorder';
+import { finishRecordedClip, readRecordingSheet, storeVerifiedClip, subscribeRecordingSheets, writeRecordingSheet } from '../../../services/device/recordedClip.mjs';
 import { analyzeText } from '../../../services/ai/AiAnalyze';
-import { addRecording } from '../../../data/files/FileStore';
+import { addRecording, captureRecordingOwner, isRecordingOwnerCurrent } from '../../../data/files/FileStore';
 import { addUsage, useSettings } from '../../../data/settings/SettingsStore';
 import { enterSpace, useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import { addMemo } from '../../../data/memos/MemoStore';
@@ -51,7 +52,14 @@ function SectionHead({ title, onAdd, addLabel }) {
   );
 }
 
-export default function HomeScreen({ navigation, route }) {
+async function storeRecording(uri, seconds, owner) {
+  const file = await addRecording(uri, seconds, owner);
+  if (!isRecordingOwnerCurrent(owner)) return file;
+  try { addUsage('voice'); } catch (error) { console.warn('[record] 녹음 이용량을 갱신하지 못했어요', error); }
+  return file;
+}
+
+export default function HomeScreen({ navigation, route, screenVisible = true }) {
   const insets = useSafeAreaInsets();
   // 상단 탭 안의 '오늘'에서는 탭 줄의 S 버튼과 겹치는 '나' 버튼과 상단 여백을 빼고 날짜를 제목으로 쓴다.
   const { embedded } = useScreenEntry();
@@ -138,60 +146,116 @@ export default function HomeScreen({ navigation, route }) {
 
   // ---------- 입력줄: 녹음 (끝나면 파일 보관함에 저장하고 안내 창) ----------
   const rec = useRecorder();
-  const [recording, setRecording] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const [recSheet, setRecSheet] = useState(null); // { state, uri, seconds, fileId }
-  const recBusy = useRef(false); // 시작/종료 처리 중에 또 눌러도 무시
-  useEffect(() => {
-    if (!recording) return undefined;
-    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, [recording]);
-  // 서버가 받는 최대 길이(3시간)가 되면 녹음을 끝내고 정리 창을 띄움
-  const toggleRef = useRef(null);
-  useEffect(() => {
-    if (recording && seconds >= MAX_RECORDING_SECONDS) void toggleRef.current?.();
-  }, [recording, seconds]);
-  // 하단 새로 만들기 > AI 노트: 오늘 화면으로 와서 바로 녹음 시작 (값은 누를 때마다 바뀌는 시각)
-  const startRequest = route?.params?.startRecording;
-  useEffect(() => { if (startRequest && !recording) toggleRecording(); }, [startRequest]); // eslint-disable-line react-hooks/exhaustive-deps
-  const toggleRecording = async () => {
-    if (recBusy.current) return;
-    recBusy.current = true;
+  const [phase, setPhase] = useState('idle');
+  const [elapsed, setElapsed] = useState(0);
+  const [noInput, setNoInput] = useState(false);
+  const viewingOwner = captureRecordingOwner();
+  const recSheet = useSyncExternalStore(subscribeRecordingSheets,
+    () => isRecordingOwnerCurrent(viewingOwner) ? readRecordingSheet(viewingOwner) : null, () => null);
+  const closeRecordingSheet = () => writeRecordingSheet(viewingOwner, null, recSheet);
+  const capture = useRef({ phase: 'idle', generation: 0, visible: screenVisible });
+  const finishRef = useRef(null);
+  const savingAgain = useRef(false);
+  const changePhase = (value) => { capture.current.phase = value; setPhase(value); };
+
+  const finishRecording = async () => {
+    if (capture.current.phase !== 'recording') return;
+    changePhase('finishing');
+    const owner = capture.current.owner;
     try {
-      if (recording) {
-        setRecording(false);
-        const uri = await rec.stop();
-        if (!uri) return setRecSheet({ state: 'error' });
-        // 저장하지 못해도 녹음 듣기와 변환은 그대로 됨. 실패 이유를 보여 주고 다시 저장할 수 있게 함
-        let saved = null;
-        let saveError = '';
-        try { saved = await addRecording(uri, seconds); }
-        catch (error) { saveError = error?.message || '녹음 파일을 저장하지 못했어요.'; }
-        addUsage('voice', Math.max(1, Math.ceil(seconds / 60))); // 녹음 이용량은 분 단위
-        setRecSheet({ state: saved ? 'saved' : 'save_error', uri: saved?.uri || uri, seconds, fileId: saved?.id ?? null, saveError });
-      } else {
-        const r = await rec.start();
-        if (!r.ok) return setRecSheet({ state: r.reason === 'denied' ? 'denied' : 'error' });
-        setSeconds(0);
-        setRecording(true);
-      }
+      const clip = await rec.stop();
+      const result = await finishRecordedClip(clip, inspectFinishedAudio, (uri, seconds) => storeRecording(uri, seconds, owner));
+      writeRecordingSheet(owner, result);
     } finally {
-      recBusy.current = false;
+      changePhase('idle');
     }
   };
+  finishRef.current = finishRecording;
 
-  toggleRef.current = toggleRecording;
-  const retrySaveRecording = async () => {
-    const current = recSheet;
-    if (current?.state !== 'save_error' || current.saving) return;
-    setRecSheet({ ...current, saving: true, saveError: '' });
+  // The dashboard can remain mounted behind another screen. Invalidate pending permission
+  // requests and finish a real take before the hidden recorder or its native handle is released.
+  useLayoutEffect(() => {
+    capture.current.visible = screenVisible;
+    return () => {
+      capture.current.visible = false;
+      capture.current.generation += 1;
+      void finishRef.current?.();
+    };
+  }, [screenVisible, viewingOwner?.session, viewingOwner?.workspaceId]);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'background' && capture.current.phase === 'recording') void finishRef.current?.();
+    });
+    return () => sub.remove();
+  }, []);
+
+  const startRecording = async () => {
+    const session = capture.current;
+    if (session.phase !== 'idle' || !session.visible) return;
+    const owner = captureRecordingOwner();
+    if (!isRecordingOwnerCurrent(owner)) return;
+    session.owner = owner;
+    const generation = session.generation;
+    const stillVisible = () => session.visible && session.generation === generation
+      && AppState.currentState !== 'background' && isRecordingOwnerCurrent(owner);
+    changePhase('starting');
     try {
-      const saved = await addRecording(current.uri, current.seconds);
-      setRecSheet({ ...current, state: 'saved', uri: saved.uri || current.uri, fileId: saved.id, saving: false, saveError: '' });
-    } catch (error) {
-      setRecSheet({ ...current, saving: false, saveError: error?.message || '녹음 파일을 저장하지 못했어요.' });
+      const result = await rec.start(stillVisible);
+      if (!stillVisible()) {
+        if (result.ok) await rec.stop();
+      } else if (result.ok) {
+        setElapsed(0);
+        setNoInput(false);
+        changePhase('recording');
+        return;
+      } else if (result.reason !== 'cancelled') {
+        writeRecordingSheet(owner, { state: result.reason === 'denied' ? 'denied' : 'error', canAskAgain: result.canAskAgain, message: result.message });
+      }
+    } finally {
+      if (session.phase === 'starting') changePhase('idle');
     }
+  };
+  const startRequest = route?.params?.startRecording;
+  useEffect(() => {
+    if (startRequest && screenVisible) {
+      navigation.setParams({ startRecording: undefined });
+      void startRecording();
+    }
+  }, [startRequest, screenVisible]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (phase !== 'recording') return undefined;
+    let lastDuration = 0;
+    let lastProgress = Date.now();
+    let lastSignal = 0;
+    const timer = setInterval(() => {
+      if (capture.current.phase !== 'recording') return;
+      try {
+        const state = rec.recorder.getStatus();
+        const ms = state.durationMillis;
+        if (ms > lastDuration) { lastDuration = ms; lastProgress = Date.now(); }
+        setElapsed(Math.max(0, Math.floor(ms / 1000)));
+        if (state.metering !== -160) lastSignal = ms;
+        setNoInput(Platform.OS === 'android' && state.metering === -160 && ms - lastSignal >= 3000);
+        if (!state.isRecording || Date.now() - lastProgress >= 3000 || ms >= MAX_RECORDING_SECONDS * 1000) {
+          void finishRef.current();
+        }
+      } catch { void finishRef.current(); }
+    }, 500);
+    return () => clearInterval(timer);
+  }, [phase, rec.recorder]);
+
+  const retrySaveRecording = async () => {
+    const owner = viewingOwner;
+    const current = readRecordingSheet(owner);
+    if (!isRecordingOwnerCurrent(owner) || current?.state !== 'save_error' || savingAgain.current || current.saving) return;
+    savingAgain.current = true;
+    const saving = { ...current, saving: true };
+    writeRecordingSheet(owner, saving, current);
+    try {
+      const updated = await storeVerifiedClip(current.uri, current.seconds, (uri, seconds) => storeRecording(uri, seconds, owner));
+      writeRecordingSheet(owner, updated, saving);
+    } finally { savingAgain.current = false; }
   };
 
   const dateText = `${now.getMonth() + 1}월 ${now.getDate()}일 ${WEEKDAYS_LONG[now.getDay()]}`;
@@ -303,13 +367,18 @@ export default function HomeScreen({ navigation, route }) {
 
       {/* ---------- 입력줄 ---------- */}
       <View style={[styles.capture, { paddingBottom: 10 + insets.bottom }]}>
-        {recording ? (
+        {phase !== 'idle' ? (
           <>
             <View style={styles.recDot} />
-            <Text style={styles.recText} accessibilityLiveRegion="polite">녹음 중 {formatTime(seconds)}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="녹음 끝내기" onPress={toggleRecording} style={styles.iconBtn}>
-              <Icon name="stop" size={20} color={colors.coral} />
-            </Pressable>
+            <Text style={styles.recText} accessibilityLiveRegion="polite">
+              {phase === 'recording' ? `녹음 중 ${formatTime(elapsed)}${noInput ? ' · 마이크 신호 없음' : ''}`
+                : phase === 'starting' ? '녹음 준비 중…' : '녹음 확인 및 저장 중…'}
+            </Text>
+            {phase === 'recording' && (
+              <Pressable accessibilityRole="button" accessibilityLabel="녹음 끝내기" onPress={finishRecording} style={styles.iconBtn}>
+                <Icon name="stop" size={20} color={colors.coral} />
+              </Pressable>
+            )}
           </>
         ) : (
           <>
@@ -340,7 +409,7 @@ export default function HomeScreen({ navigation, route }) {
               <>
                 <CircleButton icon="paperclip" label="사진이나 문서 올리기" size={44} iconSize={20} color={colors.muted} onPress={() => go(ROUTES.QuickInput, { tab: 'file' })} style={styles.ghost} />
                 <CircleButton icon="camera" label="카메라" size={44} iconSize={20} color={colors.muted} onPress={() => go(ROUTES.Camera)} style={styles.ghost} />
-                <Pressable accessibilityRole="button" accessibilityLabel="녹음 시작" onPress={toggleRecording} style={styles.iconBtn}>
+                <Pressable accessibilityRole="button" accessibilityLabel="녹음 시작" onPress={startRecording} style={styles.iconBtn}>
                   <Icon name="mic" size={21} color={colors.ink} strokeWidth={2} />
                 </Pressable>
               </>
@@ -377,11 +446,11 @@ export default function HomeScreen({ navigation, route }) {
       </Modal>
 
       <RecordSheet
-        sheet={recSheet}
-        onClose={() => setRecSheet(null)}
-        onOpenFiles={() => { setRecSheet(null); go(ROUTES.Files); }}
-        onOpenMemo={(memoId) => { setRecSheet(null); go(ROUTES.MemoEdit, { memoId }); }}
-        onOpenProposals={() => { setRecSheet(null); go(ROUTES.Proposals); }}
+        sheet={screenVisible ? recSheet : null}
+        onClose={closeRecordingSheet}
+        onOpenFiles={() => { closeRecordingSheet(); go(ROUTES.Files); }}
+        onOpenMemo={(memoId) => { closeRecordingSheet(); go(ROUTES.MemoEdit, { memoId }); }}
+        onOpenProposals={() => { closeRecordingSheet(); go(ROUTES.Proposals); }}
         onRetrySave={retrySaveRecording}
       />
       {snack.view}

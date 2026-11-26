@@ -166,7 +166,10 @@ export default function AppNavigator() {
       const top = prev[prev.length - 1];
 
       // 홈으로: 기록을 비우고 처음으로
-      if (route === ROUTES.Home) return top.name === ROUTES.Home ? prev : [{ name: ROUTES.Home, key: 0 }];
+      if (route === ROUTES.Home) {
+        if (top.name === ROUTES.Home && params === undefined) return prev;
+        return [{ name: ROUTES.Home, key: 0, params }];
+      }
 
       // 지금 보고 있는 화면으로 다시 이동하는 경우
       if (top.name === route && !push) {
@@ -276,7 +279,7 @@ export default function AppNavigator() {
             그래서 돌아왔을 때 쓰던 입력·스크롤 위치가 그대로 남아 있습니다. */}
         <View style={[styles.fill, tabIndex < 0 && styles.hidden]}>
           <ScreenEntryProvider value={onHome ? HOME_ENTRY : entry}>
-            <HomeScreen navigation={navigation} pagerIndex={pagerIndex} screens={REAL_SCREENS} calendar={calendar} route={lastTab} />
+            <HomeScreen navigation={navigation} screenVisible={tabIndex >= 0} pagerIndex={pagerIndex} screens={REAL_SCREENS} calendar={calendar} route={lastTab} />
           </ScreenEntryProvider>
         </View>
 

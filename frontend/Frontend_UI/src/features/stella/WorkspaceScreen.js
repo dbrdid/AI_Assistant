@@ -197,6 +197,7 @@ export default function WorkspaceScreen({
   route,
   mode = 'home',
   pagerIndex,
+  screenVisible = true,
   screens,
   calendar,
   bodyOnly = false,
@@ -351,7 +352,7 @@ export default function WorkspaceScreen({
         const mode = DOCUMENT_MODES[page.route];
         if (mode) return <WorkspaceScreen bodyOnly mode={mode} navigation={navigation} route={i === pagerIndex ? route : undefined} />;
         const Tool = screens[page.route];
-        return <ScreenEntryProvider value={EMBEDDED_ENTRY}><Tool bodyOnly calendar={calendar} navigation={j === 0 ? navigation : { ...navigation, goBack: () => select(pages[0].route) }}
+        return <ScreenEntryProvider value={EMBEDDED_ENTRY}><Tool bodyOnly screenVisible={screenVisible && i === pagerIndex && j === subIndex} calendar={calendar} navigation={j === 0 ? navigation : { ...navigation, goBack: () => select(pages[0].route) }}
           route={{ name: page.route, params: i === pagerIndex ? route?.params ?? {} : {} }} /></ScreenEntryProvider>;
       }} />;
   };  return <View style={s.root}>{pagerIndex !== undefined

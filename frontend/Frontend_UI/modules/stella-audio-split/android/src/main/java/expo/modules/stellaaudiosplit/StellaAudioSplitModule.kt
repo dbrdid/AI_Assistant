@@ -35,20 +35,29 @@ class StellaAudioSplitModule : Module() {
   /** 오디오 트랙을 고른 extractor와 그 형식 */
   private fun openAudio(path: String): Triple<MediaExtractor, Int, MediaFormat> {
     val ex = MediaExtractor()
-    ex.setDataSource(path)
-    for (i in 0 until ex.trackCount) {
-      val f = ex.getTrackFormat(i)
-      if (f.getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true) {
-        ex.selectTrack(i)
-        return Triple(ex, i, f)
+    try {
+      ex.setDataSource(path)
+      for (i in 0 until ex.trackCount) {
+        val f = ex.getTrackFormat(i)
+        if (f.getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true) {
+          ex.selectTrack(i)
+          return Triple(ex, i, f)
+        }
       }
+      throw SplitException("오디오 트랙이 없어요")
+    } catch (cause: Throwable) {
+      ex.release()
+      throw cause
     }
-    ex.release()
-    throw SplitException("오디오 트랙이 없어요")
   }
 
   override fun definition() = ModuleDefinition {
     Name("StellaAudioSplit")
+
+    AsyncFunction("inspectRecording") { uri: String ->
+      val (extractor, _, format) = openAudio(pathOf(uri))
+      try { inspectRecordingAudio(extractor, format) } finally { extractor.release() }
+    }
 
     AsyncFunction("getAudioDuration") { uri: String ->
       val (ex, _, format) = openAudio(pathOf(uri))

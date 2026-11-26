@@ -6,9 +6,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
+import RecordingPlayer from '../../record/components/RecordingPlayer';
 import { STORAGE_INFO } from '../../../data/memos/MemoStore';
 import {
-  canRecognize, cloudAvailable, deleteCloudFile, deleteFile, getFiles, openCloudFile, pickAndAddFiles, pickAndUploadCloudFiles,
+  canRecognize, captureRecordingOwner, cloudAvailable, deleteCloudFile, deleteFile, getFiles, isRecordingOwnerCurrent,
+  openCloudFile, pickAndAddFiles, pickAndUploadCloudFiles,
   recognizeFile, useCloudFiles, useFiles,
 } from '../../../data/files/FileStore';
 import { alertUser } from '../../../data/alert';
@@ -28,6 +30,7 @@ export default function FilesScreen({ navigation, route }) {
   useCloudFiles(); // 공유 공간 파일이 동기화되면 다시 그리기
   const [busy, setBusy] = useState(false);
   const [delId, setDelId] = useState(null);
+  const [activeRecording, setActiveRecording] = useState(null);
   const [reading, setReading] = useState({}); // 내용 인식 중인 파일 id → true
   const [readError, setReadError] = useState({}); // 파일 id → 실패 이유
   const focusId = route.params?.focusId; // 강조하고 이동할 파일 번호 (없을 수 있음)
@@ -37,6 +40,9 @@ export default function FilesScreen({ navigation, route }) {
   const [tab, setTab] = useState(() => {
     const cloudHit = focusId && getFiles('cloud').some((f) => f.id === focusId);
     return cloudHit ? 'cloud' : 'local';
+  });
+  useEffect(() => {
+    if (activeRecording && !isRecordingOwnerCurrent(activeRecording.owner)) setActiveRecording(null);
   });
   const files = getFiles(tab); // 선택한 탭의 파일들
   const addFiles = async () => {
@@ -91,7 +97,9 @@ export default function FilesScreen({ navigation, route }) {
         <View style={styles.tabs}>
           {['local', 'cloud'].map((key) => {
             const on = tab === key;
-            return <Chip key={key} label={STORAGE_INFO[key].label} active={on} onPress={() => setTab(key)} />;
+            return <Chip key={key} label={STORAGE_INFO[key].label} active={on} onPress={() => {
+              if (key !== tab) { setActiveRecording(null); setTab(key); }
+            }} />;
           })}
         </View>
         <Text style={styles.count}>{tab === 'local' && Platform.OS !== 'web' ? '기기에서 고른 파일은 원본을 그대로 두고 연결만 해요. 처음 저장할 때 다운로드 폴더를 한 번 고르면 앱에서 만든 사진과 녹음이 그곳에 저장돼요.' : STORAGE_INFO[tab].desc}</Text>
@@ -133,7 +141,16 @@ export default function FilesScreen({ navigation, route }) {
               <Text style={styles.meta}>
                 {[f.referenceOnly ? '기기 파일 연결' : null, f.kind, sizeText(f.size), dateText(f.createdAt)].filter(Boolean).join(', ')}
               </Text>
-              {f.text ? (
+              {f.storage === 'local' && f.kind === '녹음' ? (
+                activeRecording?.id === f.id && activeRecording.uri === f.uri && isRecordingOwnerCurrent(activeRecording.owner) ? (
+                  <RecordingPlayer key={f.uri} fileId={f.id} uri={f.uri} seconds={f.seconds} name={f.name} autoPlay />
+                ) : (
+                  <Pressable accessibilityRole="button" accessibilityLabel={`${f.name} 듣기`} style={styles.smallBtn}
+                    onPress={() => setActiveRecording({ owner: captureRecordingOwner(), id: f.id, uri: f.uri })}>
+                    <Text style={styles.smallBtnText}>듣기</Text>
+                  </Pressable>
+                )
+              ) : f.text ? (
                 <Text style={styles.desc} numberOfLines={3}>{f.text.slice(0, 120)}</Text>
               ) : canRecognize(f) ? (
                 <View style={styles.actions}>
