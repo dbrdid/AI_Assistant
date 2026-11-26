@@ -62,7 +62,7 @@ export default function AccountScreen({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.root} behavior="padding">
       <ScreenHeader title="계정" onBack={navigation.goBack} />
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.avatar}>
@@ -91,7 +91,7 @@ export default function AccountScreen({ navigation }) {
       </ScrollView>
       {notice.view}
       <Modal transparent visible={passwordDialog} animationType="fade" onRequestClose={closePasswordDialog}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
+        <KeyboardAvoidingView behavior="padding" style={styles.backdrop}>
           <View style={styles.dialog} accessibilityViewIsModal>
             <Text style={styles.dialogTitle}>비밀번호 변경</Text>
             <Text style={styles.dialogSub}>{PASSWORD_RULE_MESSAGE}</Text>

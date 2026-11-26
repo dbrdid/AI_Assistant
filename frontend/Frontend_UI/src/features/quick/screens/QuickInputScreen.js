@@ -6,6 +6,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
+import { useScreenEntry } from '../../../navigation/ScreenEntry';
 import { BarAction, BottomBar } from '../../../shared/components/Ui';
 import Icon from '../../../shared/components/Icon';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
@@ -151,6 +152,7 @@ export default function QuickInputScreen({ navigation, route }) {
   };
 
   const onSave = tab === 'memo' ? saveMemo : saveFiles;
+  const { embedded } = useScreenEntry();
   const readyCount = staged.filter((s) => s.status === 'ready').length;
 
   return (
@@ -158,6 +160,8 @@ export default function QuickInputScreen({ navigation, route }) {
       <ScreenHeader
         title="빠른 입력"
         onBack={navigation.goBack}
+        // 탭 안에서는 아래가 공통 하단(검색, AI, 새로 만들기)이라 저장은 위 오른쪽에
+        right={embedded ? <BarAction label="저장" onPress={onSave} /> : undefined}
       />
       <View style={styles.tabs}>
         {[{ id: 'memo', label: '메모' }, { id: 'file', label: '사진과 문서' }].map((t) => (
@@ -167,7 +171,7 @@ export default function QuickInputScreen({ navigation, route }) {
         ))}
       </View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {tab === 'memo' ? (
             <>
@@ -237,12 +241,12 @@ export default function QuickInputScreen({ navigation, route }) {
           })}
         </ScrollView>
         {/* 하단 줄: 홈 개요 도크와 같은 자리. 왼쪽 상태, 오른쪽 저장 */}
-        <BottomBar style={{ justifyContent: 'space-between' }}>
+        {!embedded && <BottomBar style={{ justifyContent: 'space-between' }}>
           <Text style={[styles.counter, tab === 'memo' && body.length >= MAX_LEN && { color: colors.coral }]}>
             {tab === 'memo' ? (body.length >= MAX_LEN * 0.9 ? `${body.length}/${MAX_LEN}` : '') : readyCount > 0 ? `${readyCount}개 선택` : ''}
           </Text>
           <BarAction label="저장" onPress={onSave} />
-        </BottomBar>
+        </BottomBar>}
       </KeyboardAvoidingView>
       {notice.view}
     </View>

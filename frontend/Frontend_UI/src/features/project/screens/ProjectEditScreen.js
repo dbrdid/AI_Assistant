@@ -48,7 +48,7 @@ export default function ProjectEditScreen({ navigation, route }) {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.root} behavior="padding">
       <ScreenHeader title={existing ? '프로젝트 편집' : '새 프로젝트'} onBack={navigation.goBack} right={<Pressable accessibilityRole="button" accessibilityLabel="저장하기" onPress={save} style={styles.headerSave}><Text style={styles.headerSaveText}>저장</Text></Pressable>} />
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <TextInput style={styles.titleInput} value={f.title} onChangeText={set('title')} placeholder="제목" placeholderTextColor={colors.muted} maxLength={60} accessibilityLabel="제목" autoFocus={!existing} multiline />

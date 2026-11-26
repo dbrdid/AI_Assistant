@@ -205,7 +205,8 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
       const days = [t.date];
       for (let k = t.date; t.endDate && k < t.endDate && days.length < 62; ) days.push((k = shiftKey(k, 1)));
       days.forEach((day) => {
-        const e = m[day] || (m[day] = { n: 0, overdue: false, allDone: true, dots: [] });
+        const e = m[day] || (m[day] = { n: 0, overdue: false, allDone: true, dots: [], titles: [] });
+        if (e.titles.length < 3) e.titles.push({ title: t.title, done: c === 'done' });
         e.n += 1;
         if (c === 'overdue') e.overdue = true;
         if (c !== 'done') e.allDone = false;
@@ -265,7 +266,10 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
   const panelTopRef = useRef(0);
   const liftBase = useRef(0);
   const [panelExpanded, setPanelExpanded] = useState(false);
-  const [panelDragging, setPanelDragging] = useState(false); // 끄는 동안 달력 스크롤을 멈춰 손잡이가 손가락을 따라가게
+  const [panelDragging, setPanelDragging] = useState(false);
+  // 손잡이를 아래로 내리면 일정 패널을 아래로 접고 달력 칸을 키워 일정 제목까지 보여 준다
+  const [detailed, setDetailed] = useState(false);
+  const detailedRef = useRef(false); detailedRef.current = detailed; // 끄는 동안 달력 스크롤을 멈춰 손잡이가 손가락을 따라가게
   const movePanel = (expand) => {
     const to = expand ? -panelTopRef.current : 0;
     liftBase.current = to;
@@ -278,21 +282,24 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
     onPanResponderGrant: () => setPanelDragging(true),
     onPanResponderTerminationRequest: () => false,
     onPanResponderTerminate: () => { setPanelDragging(false); movePanel(liftBase.current < 0); },
-    onPanResponderMove: (_, g) => lift.setValue(Math.min(0, Math.max(-panelTopRef.current, liftBase.current + g.dy))),
+    onPanResponderMove: (_, g) => lift.setValue(Math.min(liftBase.current < 0 ? 0 : 160, Math.max(-panelTopRef.current, liftBase.current + g.dy))),
     onPanResponderRelease: (_, g) => {
       setPanelDragging(false);
       const expanded = liftBase.current < 0;
-      if (Math.abs(g.dy) < 6 && Math.abs(g.dx) < 6) { movePanel(!expanded); return; } // 짧게 누르면 열고 닫기
-      // 높이의 1/4 이상 또는 빠르게 밀면 반대쪽으로 넘어감
-      const far = Math.abs(g.dy) > panelTopRef.current / 4 || Math.abs(g.vy) > 0.6;
-      movePanel(expanded ? !(far && g.dy > 0) : far && g.dy < 0);
+      if (Math.abs(g.dy) < 6 && Math.abs(g.dx) < 6) { if (detailedRef.current) setDetailed(false); else movePanel(!expanded); return; } // 짧게 누르면 열고 닫기
+      // 높이의 1/4 이상(내릴 때는 80) 또는 빠르게 밀면 한 단계 넘어감: 덮기 ↔ 제자리 ↔ 달력 크게
+      const far = Math.abs(g.vy) > 0.6 || (g.dy > 0 ? g.dy > 80 : -g.dy > panelTopRef.current / 4);
+      if (!far) return movePanel(expanded);
+      if (g.dy > 0) { if (expanded) movePanel(false); else { setDetailed(true); movePanel(false); } }
+      else if (detailedRef.current) { setDetailed(false); movePanel(false); }
+      else movePanel(true);
     },
   })).current;
   useEffect(() => {
-    if (!panelExpanded) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => { movePanel(false); return true; });
+    if (!panelExpanded && !detailed) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setDetailed(false); movePanel(false); return true; });
     return () => sub.remove();
-  }, [panelExpanded]);
+  }, [panelExpanded, detailed]);
   const headerActions = (
     <>
           {/* 오늘이 이미 선택되어 보이면 숨김 (Notion 캘린더의 오늘 버튼과 같은 동작) */}
@@ -382,11 +389,12 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
             onPickMonth={(yy, mm) => goToDate(new Date(yy, mm, 1))}
             actions={embedded ? headerActions : null}
             scrollEnabled={!panelDragging}
+            detailed={detailed}
           >
             {/* 선택한 날의 일정 / 검색 결과: 위쪽이 둥근 흰 시트 (아래 안전영역만큼 띄움) */}
             <Animated.View onLayout={(e) => { panelTopRef.current = e.nativeEvent.layout.y; if (liftBase.current < 0) { liftBase.current = -panelTopRef.current; lift.setValue(liftBase.current); } }}
               style={[styles.panel, { paddingBottom: insets.bottom + spacing.xxl, transform: [{ translateY: lift }] }]}>
-              <View {...panelPan.panHandlers} accessible accessibilityRole="button" accessibilityLabel={panelExpanded ? '일정 목록 내리기' : '일정 목록 크게 보기'}
+              <View {...panelPan.panHandlers} accessible accessibilityRole="button" accessibilityLabel={panelExpanded ? '일정 목록 내리기' : detailed ? '일정 목록 다시 보기' : '일정 목록 크게 보기'}
                 accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={() => movePanel(!panelExpanded)} style={styles.panelBarWrap}>
                 <View style={styles.bar} />
               </View>

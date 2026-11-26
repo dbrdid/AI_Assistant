@@ -28,7 +28,8 @@ export default function MonthCalendar({
   onNext,
   onPickMonth,
   actions = null,
-  scrollEnabled = true, // 달 이름 줄 오른쪽에 함께 둘 버튼 (탭 안 캘린더: 오늘, 검색)
+  scrollEnabled = true,
+  detailed = false, // 칸을 키워 일정 제목을 보여 줌 // 달 이름 줄 오른쪽에 함께 둘 버튼 (탭 안 캘린더: 오늘, 검색)
   children,
 }) {
   // 이 달의 달력 표(주 단위 배열)를 계산
@@ -80,7 +81,7 @@ export default function MonthCalendar({
               if (!d) {
                 const outside = new Date(year, month, 1 + wi * 7 + di - new Date(year, month, 1).getDay());
                 return (
-                  <View key={di} style={styles.cell} importantForAccessibility="no" accessibilityElementsHidden>
+                  <View key={di} style={[styles.cell, detailed && styles.cellDetailed]} importantForAccessibility="no" accessibilityElementsHidden>
                     <View style={styles.dayCircle}>
                       <Text style={[styles.dayText, styles.outsideText]}>{outside.getDate()}</Text>
                     </View>
@@ -103,7 +104,7 @@ export default function MonthCalendar({
                   accessibilityState={{ selected: isSelected }}
                   accessibilityLabel={`${month + 1}월 ${d.getDate()}일${isToday ? ', 오늘' : ''}${holiday ? `, ${holiday}` : ''}${mark ? `, 일정 ${mark.n}개` : ''}`}
                   onPress={() => onSelect(d)}
-                  style={styles.cell}
+                  style={[styles.cell, detailed && styles.cellDetailed]}
                 >
                   {/* 동그라미: 선택됐으면 진녹색으로 채움, 오늘이면 테두리, 검색에 걸렸으면 연한 민트 */}
                   <View
@@ -126,10 +127,13 @@ export default function MonthCalendar({
                     </Text>
                   </View>
                   {/* 일정 점: 최대 3개. 일정 = 민트, 할 일 = 진녹색, 기한 초과 = 코랄, 완료 = 회색 */}
-                  <View style={styles.dots}>
+                  {detailed ? <View style={styles.titles}>
+                    {(mark?.titles || []).map((x, i) => <Text key={i} numberOfLines={1} style={[styles.titleText, x.done && { color: colors.muted, textDecorationLine: 'line-through' }]}>{x.title}</Text>)}
+                    {mark && mark.n > 3 && <Text style={[styles.titleText, { color: colors.muted }]}>+{mark.n - 3}</Text>}
+                  </View> : <View style={styles.dots}>
                     {mark &&
                       (mark.dots || []).map((c, i) => <View key={i} style={[styles.dot, { backgroundColor: c }]} />)}
-                  </View>
+                  </View>}
                 </Pressable>
               );
             })}
@@ -207,6 +211,9 @@ const styles = StyleSheet.create({
   outsideText: { color: OUTSIDE, fontWeight: '400' },
   dots: { flexDirection: 'row', gap: 3, height: 4, marginTop: 2, alignItems: 'center' },
   dot: { width: 4, height: 4, borderRadius: 2 },
+  cellDetailed: { height: 96, justifyContent: 'flex-start', paddingTop: 2 },
+  titles: { alignSelf: 'stretch', paddingHorizontal: 2, gap: 1, marginTop: 2 },
+  titleText: { fontSize: 10, lineHeight: 13, color: colors.ink, backgroundColor: colors.raised, borderRadius: 3, paddingHorizontal: 2, overflow: 'hidden' },
 
   // 연·월 고르기 창
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },

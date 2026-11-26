@@ -13,7 +13,7 @@ import { CircleButton } from '../../../shared/components/Ui';
 export function AuthFrame({ title, subtitle, onBack, children }) {
   const insets = useSafeAreaInsets();
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.root, { paddingTop: insets.top + spacing.md }]}>
+    <KeyboardAvoidingView behavior="padding" style={[styles.root, { paddingTop: insets.top + spacing.md }]}>
       {onBack ? (
         <View style={styles.back}>
           <CircleButton icon="chevronLeft" label="뒤로 가기" onPress={onBack} />

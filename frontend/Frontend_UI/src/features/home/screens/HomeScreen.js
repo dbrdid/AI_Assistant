@@ -198,7 +198,7 @@ export default function HomeScreen({ navigation, route }) {
   const targetSpace = spaces[targetId];
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.root} behavior="padding">
       {/* ---------- 머리: 나, 날짜, AI, 검색, 알림 ---------- */}
       <View style={[styles.header, { paddingTop: embedded ? 18 : insets.top + spacing.sm }]}>
         {!embedded && <Pressable accessibilityRole="button" accessibilityLabel="나, 설정" onPress={() => go(ROUTES.More)} hitSlop={6} style={({ pressed }) => [styles.me, pressed && { opacity: 0.7 }]}>

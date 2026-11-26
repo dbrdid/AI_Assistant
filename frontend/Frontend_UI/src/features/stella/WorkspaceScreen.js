@@ -153,7 +153,7 @@ const DOCUMENT_MODES = { [ROUTES.Memos]: 'documents', [ROUTES.Relations]: 'relat
 const pagerOverflow = Platform.OS === 'web' ? 'clip' : 'hidden';
 
 // 자체 입력줄이 있는 쪽 (오늘: 메모, 첨부, 녹음 입력줄 / 빠른 입력: 저장 줄)은 공통 하단을 겹쳐 그리지 않는다
-const OWN_BOTTOM_BAR = new Set([ROUTES.Today, ROUTES.QuickInput]);
+const OWN_BOTTOM_BAR = new Set([ROUTES.Today]);
 
 function PageRail({ index, pages, header, renderPage, keepVisited = false }) {
   const position = useRef(new Animated.Value(index)).current;
