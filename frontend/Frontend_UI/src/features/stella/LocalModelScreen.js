@@ -170,7 +170,7 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
   function useReply(replace = false, answer = reply) {
     try {
       if (!inScope()) throw new Error('계정 또는 공간이 바뀌었습니다. 다시 열어 주세요.');
-      if (answer.command) { sheet?.onClose(); navigation.navigate(ROUTES.AppCommand, { command: answer.command, originalRequest: reviewRequest, memoId: route?.params?.memoId }); }
+      if (answer.command) { sheet?.onClose(); navigation.navigate(ROUTES.AppCommand, { command: answer.command, commands: answer.commands, originalRequest: reviewRequest, memoId: route?.params?.memoId }); }
       else {
         // 시트: 문서의 지금 판(편집 중인 내용을 먼저 저장)에 넣는다
         const revision = sheet ? sheet.prepare()?.revision : route.params.revision;

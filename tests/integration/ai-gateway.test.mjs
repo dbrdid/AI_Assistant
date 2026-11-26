@@ -92,6 +92,13 @@ test('replies become app commands only through the explicit command line', () =>
   assert.ok(readReply('지원불가', 'command').clarify);
   assert.throws(() => readReply('', 'chat'), /비어/);
 });
+test('several app actions come back in order (at most five), one stays a single command', () => {
+  const reply = readReply('앱 작업: 문서 만들기: 회의록\n앱 작업: 제목 블록 추가: 결정 사항\n앱 작업: 할 일 추가 2026-11-27: 포스터 제출', 'chat');
+  assert.deepEqual(reply, { command: '문서 만들기: 회의록', commands: ['문서 만들기: 회의록', '제목 블록 추가: 결정 사항', '할 일 추가 2026-11-27: 포스터 제출'] });
+  const many = readReply(Array.from({ length: 7 }, (_, i) => `앱 작업: ${i + 1}번 블록 삭제`).join('\n'), 'chat');
+  assert.equal(many.commands.length, 5);
+  assert.deepEqual(readReply('앱 작업: 캘린더 열어줘', 'chat'), { command: '캘린더 열어줘' });
+});
 
 test('project commands run only after approval and only with stated values', () => {
   assert.deepEqual(routeProjectCommand('신제품 출시라는 프로젝트 만들어줘'), { command: '프로젝트 만들기: 신제품 출시' });

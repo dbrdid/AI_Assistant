@@ -19,6 +19,9 @@ export default function AppCommandScreen({ navigation, route }) {
   const [message, setMessage] = useState('');
   const [showHelp, setShowHelp] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  // AI가 순서대로 제안한 여러 작업: 하나씩 검토·승인하고, 승인하면 다음 작업을 바로 준비한다
+  const [queue, setQueue] = useState(() => (route.params?.commands ?? []).slice(1));
+  const total = route.params?.commands?.length ?? 1;
   const owner = useRef(runtime()).current;
   const workspaceId = useRef(owner.store.getCurrentWorkspace().id).current;
   const canAccess = maybeRuntime() === owner && owner.store.getCurrentWorkspace().id === workspaceId && !owner.closedSpaces.has(workspaceId);
@@ -32,7 +35,7 @@ export default function AppCommandScreen({ navigation, route }) {
       return maybeRuntime() === owner && ws.id === workspaceId && !owner.closedSpaces.has(workspaceId) && (ws.personal || ws.roleCode !== 'VIEWER');
     },
   };
-  const planFor = (text, original) => planProjectCommand(projectTools, text, original) ?? planCommand(owner, text, memoId, randomUUID, original);
+  const planFor = (text, original, target = memoId) => planProjectCommand(projectTools, text, original) ?? planCommand(owner, text, target, randomUUID, original);
   function clear() { setPlan(null); setMessage(''); }
   // Device-only evaluation record for untouched model commands; user-typed commands are not AI results.
   const fromModel = useRef(false);
@@ -69,6 +72,16 @@ export default function AppCommandScreen({ navigation, route }) {
     try {
       const result = plan.approve(maybeRuntime());
       feedback('accepted');
+      if (queue.length) {
+        // 다음 작업: 방금 만든 문서가 있으면 그 문서가 대상이 된다
+        const [next, ...rest] = queue;
+        const target = result?.params?.memoId ?? memoId;
+        setQueue(rest); setMemoId(target); setInput(next);
+        fromModel.current = !!route.params?.originalRequest;
+        try { setPlan(planFor(next, route.params?.originalRequest, target)); }
+        catch (error) { setMessage(`${total - rest.length}번째 작업을 준비하지 못했어요: ${error.message}`); }
+        return;
+      }
       if (result?.route) navigation.navigate(result.route, result.params);
       else setMessage('승인한 변경을 저장했습니다.');
     } catch (error) { setMessage(error.message); feedback('failed', error.message); }
@@ -89,9 +102,11 @@ export default function AppCommandScreen({ navigation, route }) {
         onChangeText={value => { clear(); setInput(value); }} />
       <PrimaryButton label="작업 검토" icon="checkSquare" disabled={!input.trim()} onPress={preview} />
       {row('자연어 요청 해석', interpret)}
+      {total > 1 && <Text style={s.note}>{`AI가 제안한 작업 ${total}개 중 ${total - queue.length}번째. 하나씩 확인하고 승인해요.`}</Text>}
       {plan && <View style={s.section}><Text style={s.sectionTitle}>실행할 작업</Text>
         <Text selectable style={s.proposalBody}>{plan.summary}</Text>
-        <PrimaryButton label="승인하고 실행" icon="check" onPress={approve} />{row('취소', clear)}</View>}
+        <PrimaryButton label={queue.length ? '승인하고 다음 작업' : '승인하고 실행'} icon="check" onPress={approve} />
+        {row(queue.length ? '이 작업과 남은 작업 모두 취소' : '취소', () => { clear(); setQueue([]); })}</View>}
       {!!message && <Text accessibilityRole="alert" style={s.note}>{message}</Text>}
       {row(showHelp ? '사용 예시 닫기' : '지원 작업과 사용 예시', () => setShowHelp(!showHelp))}
       {showHelp && <><Text selectable style={s.proposalBody}>{[...examples, ...projectExamples].join('\n')}</Text>
