@@ -68,6 +68,16 @@ jobs:
           df -h .
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
             'platforms;android-37.0' 'build-tools;37.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+      - name: Verify the published APK used as the comparison
+        run: |
+          tools="$ANDROID_HOME/build-tools/37.0.0"
+          official="$RUNNER_TEMP/Atria-0.0.4.apk"
+          curl --fail --silent --show-error --location --retry 3 --output "$official" \
+            'https://github.com/dbrdid/AI_Assistant/releases/download/v0.0.4/Atria-0.0.4.apk'
+          echo "4810761ecec21b056c317d7d90ddf84c19242e21b23c76eacc1e8fd41f8c10cf  $official" | sha256sum --check
+          "$tools/aapt" dump badging "$official" > "$RUNNER_TEMP/official.badging"
+          java -cp "$tools/lib/apksigner.jar" "$GITHUB_WORKSPACE/.github/scripts/ApkSigners.java" "$official" > "$RUNNER_TEMP/official.certs"
+          cat "$RUNNER_TEMP/official.certs"
       - run: npm ci --no-audit --no-fund
       - name: Generate the isolated test application
         run: |
@@ -83,8 +93,8 @@ jobs:
           keytool -genkeypair -keystore "$RUNNER_TEMP/preview.jks" -storetype JKS \
             -alias androiddebugkey -storepass android -keypass android -keyalg RSA \
             -keysize 2048 -validity 365 -dname "CN=Atria Recording Preview"
-          # Expo's generated release build uses app/debug.keystore.
-          cp "$RUNNER_TEMP/preview.jks" android/app/debug.keystore
+          keytool -exportcert -keystore "$RUNNER_TEMP/preview.jks" -storepass android \
+            -alias androiddebugkey -file "$RUNNER_TEMP/preview-public.der"
       - name: Build the standalone arm64 APK
         working-directory: frontend/Frontend_UI/android
         run: |
@@ -97,38 +107,32 @@ jobs:
           output="$GITHUB_WORKSPACE/preview-artifact"
           mkdir -p "$output"
           apk="$output/Atria-recording-preview-arm64.apk"
-          cp android/app/build/outputs/apk/release/app-release.apk "$apk"
-          official="$RUNNER_TEMP/Atria-0.0.4.apk"
-          curl --fail --silent --show-error --location --retry 3 --output "$official" \
-            'https://github.com/dbrdid/AI_Assistant/releases/download/v0.0.4/Atria-0.0.4.apk'
-          echo "4810761ecec21b056c317d7d90ddf84c19242e21b23c76eacc1e8fd41f8c10cf  $official" | sha256sum --check --status
-          apk_info() {
-            local path="$1" prefix="$2"
-            "$tools/aapt" dump badging "$path" > "$RUNNER_TEMP/$prefix.badging"
-            "$tools/apksigner" verify --print-certs "$path" > "$RUNNER_TEMP/$prefix.certs"
-          }
-          apk_info "$official" official
-          apk_info "$apk" preview
+          "$tools/apksigner" sign --ks "$RUNNER_TEMP/preview.jks" --ks-key-alias androiddebugkey \
+            --ks-pass pass:android --key-pass pass:android --v4-signing-enabled false \
+            --out "$apk" android/app/build/outputs/apk/release/app-release.apk
+          "$tools/aapt" dump badging "$apk" > "$RUNNER_TEMP/preview.badging"
+          java -cp "$tools/lib/apksigner.jar" "$GITHUB_WORKSPACE/.github/scripts/ApkSigners.java" "$apk" > "$RUNNER_TEMP/preview.certs"
           application_id() { sed -n "s/^package: name='\([^']*\)'.*/\1/p" "$RUNNER_TEMP/$1.badging"; }
-          certificate() { sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/$1.certs"; }
           official_id=$(application_id official)
           preview_id=$(application_id preview)
-          official_cert=$(certificate official)
-          preview_cert=$(certificate preview)
+          official_cert=$(paste -sd, "$RUNNER_TEMP/official.certs")
+          preview_cert=$(cat "$RUNNER_TEMP/preview.certs")
+          expected_cert=$(sha256sum "$RUNNER_TEMP/preview-public.der" | cut -d' ' -f1)
+          printf 'Published app %s (%s) and preview %s (%s)\n' "$official_id" "$official_cert" "$preview_id" "$preview_cert"
           if [[ -z "$official_id" || "$preview_id" != "$PREVIEW_PACKAGE" || "$preview_id" == "$official_id" ]]; then
             echo "::error::Preview APK does not have a separate application ID"
             exit 1
           fi
-          if [[ -z "$official_cert" || -z "$preview_cert" || "$preview_cert" == "$official_cert" ]]; then
+          if [[ "$preview_cert" != "$expected_cert" ]] || grep -Fxq "$preview_cert" "$RUNNER_TEMP/official.certs"; then
             echo "::error::Preview APK does not have a separate signing certificate"
             exit 1
           fi
           grep -q "android.permission.RECORD_AUDIO" "$RUNNER_TEMP/preview.badging"
-          grep -q "^application-label:'Atria 녹음 테스트'" "$RUNNER_TEMP/preview.badging"
+          grep -E "^application(-label:|: label=)'Atria 녹음 테스트'" "$RUNNER_TEMP/preview.badging"
           unzip -Z1 "$apk" > "$RUNNER_TEMP/preview.entries"
           grep -qx 'assets/index.android.bundle' "$RUNNER_TEMP/preview.entries"
           grep -q '^lib/arm64-v8a/.*\.so$' "$RUNNER_TEMP/preview.entries"
-          (cd "$output" && sha256sum Atria-recording-preview-arm64.apk > SHA256SUMS.txt)
+          (cd "$output" && sha256sum Atria-recording-preview-arm64.apk | tee SHA256SUMS.txt)
           {
             printf '### Android recording preview\n\n'
             printf '| APK | Application ID | Signing certificate SHA-256 |\n| --- | --- | --- |\n'
