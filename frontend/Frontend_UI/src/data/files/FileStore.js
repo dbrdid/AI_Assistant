@@ -10,7 +10,7 @@ import { supabase } from '../../lib/stella/supabase';
 import { attachmentErrorMessage, deleteAttachment, downloadAttachment, getAttachmentUrl, MAX_ATTACHMENT_BYTES, uploadAttachment } from '../../lib/stella/attachments';
 import { describe, extract, readBytes } from '../../services/ai/ChatAttachments';
 import {
-  pickDeviceDirectory, pickDeviceFiles, releaseDeviceAccess, releaseDeviceReference, resolveDeviceReference,
+  deleteDeviceContent, pickDeviceDirectory, pickDeviceFiles, releaseDeviceAccess, releaseDeviceReference, resolveDeviceReference, saveToRecordings,
 } from '../../../modules/device-file-access';
 
 // 기기 파일('local', 이 파일의 목록)과 클라우드 파일(현재 공유 작업 공간에 업로드한 첨부 파일)을 다룹니다.
@@ -579,8 +579,21 @@ export async function addPhoto(value) {
   await removeTemporarySource(asset.uri);
   return saved;
 }
+// 녹음은 폴더를 고르지 않고 휴대폰의 녹음 폴더(Recordings/Atria)에 바로 저장한다. 안 되면(iOS 등) 다른 파일처럼 저장.
 export async function addRecording(uri, seconds) {
-  const saved = await addAsset({ uri, name: '녹음.m4a' }, { kind: '녹음', seconds });
+  let saved = null;
+  if (Platform.OS === 'android') {
+    try {
+      const d = new Date(), p = n => String(n).padStart(2, '0');
+      const name = `Atria 녹음 ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.m4a`;
+      const file = await saveToRecordings(uri, name, 'audio/mp4');
+      const row = { id: `local-${randomUUID()}`, storage: 'local', kind: '녹음', seconds, name, title: name, mimeType: 'audio/mp4',
+        uri: file.uri, size: file.size, savedToDevice: true, recordingFolder: file.folder, createdAt: Date.now() };
+      saveList('files', [row, ...list('files')]);
+      saved = row;
+    } catch (error) { console.warn('[files] 녹음 폴더에 저장하지 못해 기본 위치에 저장합니다', error); }
+  }
+  if (!saved) saved = await addAsset({ uri, name: '녹음.m4a' }, { kind: '녹음', seconds });
   await removeTemporarySource(uri);
   return saved;
 }
@@ -592,6 +605,8 @@ export async function deleteFile(id) {
     try { await (await webDir()).removeEntry(row.webName); } catch { /* 이미 없음 */ }
     const url = webUrls.get(row.webName);
     if (url) { URL.revokeObjectURL(url); webUrls.delete(row.webName); }
+  } else if (row.recordingFolder && !WEB) {
+    await deleteDeviceContent(row.uri); // 휴대폰 녹음 폴더의 파일 (이미 지워졌어도 목록에서는 뺀다)
   } else if (!row.referenceOnly) {
     if (row.savedToDevice && !WEB) {
       if (row.saveDirectoryReference) {

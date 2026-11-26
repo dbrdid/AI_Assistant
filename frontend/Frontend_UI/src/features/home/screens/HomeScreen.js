@@ -173,7 +173,7 @@ export default function HomeScreen({ navigation, route }) {
         try { saved = await addRecording(uri, seconds); }
         catch (error) { saveError = error?.message || '녹음 파일을 저장하지 못했어요.'; }
         addUsage('voice', Math.max(1, Math.ceil(seconds / 60))); // 녹음 이용량은 분 단위
-        setRecSheet({ state: saved ? 'saved' : 'save_error', uri: saved?.uri || uri, seconds, fileId: saved?.id ?? null, saveError });
+        setRecSheet({ state: saved ? 'saved' : 'save_error', uri: saved?.uri || uri, seconds, fileId: saved?.id ?? null, folder: saved?.recordingFolder, saveError });
       } else {
         const r = await rec.start();
         if (!r.ok) return setRecSheet({ state: r.reason === 'denied' ? 'denied' : 'error' });
@@ -192,7 +192,7 @@ export default function HomeScreen({ navigation, route }) {
     setRecSheet({ ...current, saving: true, saveError: '' });
     try {
       const saved = await addRecording(current.uri, current.seconds);
-      setRecSheet({ ...current, state: 'saved', uri: saved.uri || current.uri, fileId: saved.id, saving: false, saveError: '' });
+      setRecSheet({ ...current, state: 'saved', uri: saved.uri || current.uri, fileId: saved.id, folder: saved.recordingFolder, saving: false, saveError: '' });
     } catch (error) {
       setRecSheet({ ...current, saving: false, saveError: error?.message || '녹음 파일을 저장하지 못했어요.' });
     }

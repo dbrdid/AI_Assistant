@@ -21,6 +21,8 @@ type DeviceFileAccessNative = {
   resolveReference(reference: string): Promise<ResolvedDeviceReference>;
   releaseAccess(token: string): Promise<void>;
   releaseReference(reference: string): Promise<void>;
+  saveToRecordings(sourceUri: string, name: string, mimeType: string): Promise<{ uri: string; size: number; folder: string }>;
+  deleteContent(uri: string): Promise<boolean>;
 };
 
 function nativeModule() {
@@ -35,6 +37,10 @@ function nativeModule() {
   }
 }
 
+/** 녹음을 휴대폰 녹음 폴더(Recordings/Atria)에 저장. Android 전용 */
+export const saveToRecordings = (sourceUri: string, name: string, mimeType = 'audio/mp4'): Promise<{ uri: string; size: number; folder: string }> =>
+  nativeModule().saveToRecordings(sourceUri, name, mimeType);
+export const deleteDeviceContent = (uri: string): Promise<boolean> => nativeModule().deleteContent(uri);
 export const pickDeviceFiles = (multiple = true) => nativeModule().pickFiles(multiple);
 export const pickDeviceDirectory = (initialUri?: string) => nativeModule().pickDirectory(initialUri);
 export const resolveDeviceReference = (reference: string) => nativeModule().resolveReference(reference);

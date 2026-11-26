@@ -36,7 +36,7 @@ export function useRecorder() {
   const stop = async () => {
     try {
       await recorder.stop();
-      await setAudioModeAsync({ allowsRecording: false });
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }); // 무음 모드에서도 '듣기'는 들리게
       return recorder.uri || null;
     } catch (e) {
       return null;

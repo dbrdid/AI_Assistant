@@ -1,6 +1,13 @@
 package expo.modules.devicefileaccess
 
 import android.app.Activity
+import android.content.ContentValues
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -51,6 +58,43 @@ class DeviceFileAccessModule : Module() {
     }
 
     AsyncFunction("releaseAccess") { _: String -> }
+
+    // 녹음을 휴대폰의 녹음 폴더에 저장한다 (Android 12 이상: Recordings/Atria, 10~11: Music/Atria). 앱이 만든 파일이라 권한이 필요 없다.
+    AsyncFunction("saveToRecordings") { sourceUri: String, name: String, mimeType: String ->
+      val source = Uri.parse(sourceUri)
+      val input = { if (source.scheme == "file" || source.scheme == null) FileInputStream(File(source.path!!)) else contentResolver.openInputStream(source)!! }
+      if (Build.VERSION.SDK_INT >= 29) {
+        val folder = if (Build.VERSION.SDK_INT >= 31) Environment.DIRECTORY_RECORDINGS else Environment.DIRECTORY_MUSIC
+        val values = ContentValues().apply {
+          put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+          put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+          put(MediaStore.MediaColumns.RELATIVE_PATH, "$folder/Atria")
+          put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        val target = contentResolver.insert(MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), values)
+          ?: throw CodedException("ERR_RECORDING_SAVE", "녹음 폴더에 파일을 만들지 못했어요", null)
+        try {
+          var size = 0L
+          input().use { from -> contentResolver.openOutputStream(target)!!.use { to -> size = from.copyTo(to) } }
+          contentResolver.update(target, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+          mapOf("uri" to target.toString(), "size" to size, "folder" to "$folder/Atria")
+        } catch (error: Exception) {
+          contentResolver.delete(target, null, null)
+          throw error
+        }
+      } else {
+        val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "Atria").apply { mkdirs() }
+        val out = File(dir, name)
+        val size = input().use { from -> FileOutputStream(out).use { to -> from.copyTo(to) } }
+        mapOf("uri" to Uri.fromFile(out).toString(), "size" to size, "folder" to "Music/Atria")
+      }
+    }
+
+    // 앱이 녹음 폴더에 만든 파일 지우기 (사용자가 이미 지웠으면 false)
+    AsyncFunction("deleteContent") { uri: String ->
+      val target = Uri.parse(uri)
+      if (target.scheme == "file") File(target.path!!).delete() else contentResolver.delete(target, null, null) > 0
+    }
 
     AsyncFunction("releaseReference") { reference: String ->
       val uri = Uri.parse(reference)
