@@ -4,7 +4,7 @@
 import React, { useRef, useState } from 'react';
 import { Animated, PanResponder, Text, View } from 'react-native';
 import Icon from '../../shared/components/Icon';
-import { HOLD_MS, pageStep, swipeIntent } from './swipeIntent.mjs';
+import { HOLD_MS, pageStep, relativePick, swipeIntent } from './swipeIntent.mjs';
 import { palette as c } from './theme';
 
 const ROW = 56;
@@ -12,18 +12,17 @@ const ROW = 56;
 export default function SwipeNav({ tabs, current, onTab, onPage, children }) {
   const touch = useRef(null);       // { t, x, y, movedEarly }
   const mode = useRef(null);        // 'page' | 'tabs'
-  const box = useRef(null);         // 감싼 영역의 화면 위치
   const view = useRef(null);
   const latest = useRef({}); latest.current = { tabs, current, onTab, onPage };
   const [bar, setBar] = useState(null); // { side, pick }
   const slide = useRef(new Animated.Value(0)).current;
   const barRef = useRef(null); barRef.current = bar; // 놓을 때 최신 막대 상태
 
-  const barTop = useRef(0); // 감싼 영역 안에서 막대 위쪽 위치
+  const anchor = useRef({ y: 0, start: 0 }); // 처음 좌우로 민 높이와 그때의 탭
   const pickAt = (pageY) => {
-    const b = box.current; if (!b) return -1;
-    const i = Math.floor((pageY - b.y - barTop.current - 4) / ROW);
-    return i >= 0 && i < latest.current.tabs.length ? i : -1;
+    const r = relativePick({ anchor: anchor.current.y, y: pageY, start: anchor.current.start, count: latest.current.tabs.length, row: ROW });
+    anchor.current.y = r.anchor;
+    return r.pick;
   };
   const decide = (g) => {
     const s = touch.current;
@@ -32,11 +31,8 @@ export default function SwipeNav({ tabs, current, onTab, onPage, children }) {
     if (!intent) return false;
     mode.current = intent;
     if (intent === 'tabs') {
-      const b = box.current ?? { y: 0, height: 0 };
       const { tabs: all, current: here } = latest.current;
-      const start = Math.max(0, all.findIndex(tab => tab.route === here));
-      const height = all.length * ROW + 8;
-      barTop.current = Math.min(Math.max(g.moveY - b.y - 4 - (start + 0.5) * ROW, 8), Math.max(8, b.height - height - 8));
+      anchor.current = { y: g.moveY, start: Math.max(0, all.findIndex(tab => tab.route === here)) };
       setBar({ side: g.dx > 0 ? 'right' : 'left', pick: pickAt(g.moveY) });
       slide.setValue(0);
       Animated.timing(slide, { toValue: 1, duration: 160, useNativeDriver: true }).start();
@@ -69,14 +65,13 @@ export default function SwipeNav({ tabs, current, onTab, onPage, children }) {
   })).current;
 
   return <View ref={view} style={{ flex: 1 }} {...pan.panHandlers}
-    onLayout={() => view.current?.measureInWindow((x, y, width, height) => { box.current = { y, height }; })}
     onTouchStart={e => { touch.current = { t: Date.now(), x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, movedEarly: false }; mode.current = null; }}
     onTouchMove={e => {
       const s = touch.current;
       if (s && !s.movedEarly && Date.now() - s.t < HOLD_MS && Math.hypot(e.nativeEvent.pageX - s.x, e.nativeEvent.pageY - s.y) > 10) s.movedEarly = true;
     }}>
     {children}
-    {bar && <Animated.View pointerEvents="none" style={{ position: 'absolute', top: barTop.current, [bar.side]: 0, opacity: slide,
+    {bar && <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, [bar.side]: 0, justifyContent: 'center', opacity: slide,
       transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [bar.side === 'right' ? 40 : -40, 0] }) }] }}>
       <View style={{ backgroundColor: c.surface, borderRadius: 14, paddingVertical: 4, marginHorizontal: 8 }}>
         {tabs.map((tab, i) => {
