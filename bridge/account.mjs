@@ -23,7 +23,12 @@ export async function bridgeLogin(config, { log = console.log, pollMs = 2000, na
   const until = Date.parse(start.expires_at);
   while (Date.now() < until) {
     await new Promise(r => setTimeout(r, pollMs));
-    const res = await rpc('bridge_login_finish', { p_id: start.id, p_secret: secret, p_name: name, p_relay_key: config.key }, server);
+    let res;
+    try { res = await rpc('bridge_login_finish', { p_id: start.id, p_secret: secret, p_name: name, p_relay_key: config.key }, server); }
+    catch (error) {
+      if (/없거나 만료/.test(error.message)) throw error;   // 코드가 사라짐: 다시 login
+      continue;   // 잠깐 끊긴 네트워크: 만료 전까지 계속 기다림
+    }
     if (res?.status === 'OK') return { bridgeId: res.bridge_id, token: res.token, email: res.email };
   }
   throw new Error('10분 안에 승인되지 않았습니다. 다시 login을 실행해 주세요.');

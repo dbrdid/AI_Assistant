@@ -764,6 +764,10 @@ async function runScenarios(env, report) {
     const fe = await S.flushOutbox(ctxB);
     const srvEdit = (await A.select('notes', 'id', NG))[0];
     check('편집 권한으로 바꾸면 B가 고칠 수 있음', fe.status === 'DONE' && srvEdit?.body === 'B가 고침(편집 권한)', `${fe.status} · "${srvEdit?.body}"`);
+    const unlock = await err(() => B.rpc('set_item_groups', { p_workspace_id: ws, p_entity: 'notes', p_key: NG, p_group_ids: [] }));
+    const stillLocked = (await A.select('item_group_access', 'entity_key', NG)).filter((r) => !r.deleted_at).length;
+    check('편집 권한만으로는 공개 범위를 풀 수 없음 (그룹을 빼려면 관리 권한)', /FORBIDDEN/.test(`${unlock?.code} ${unlock?.message}`) && stillLocked === 1,
+      `${unlock?.message ?? '풀림'} · 남은 제한 ${stillLocked}개`);
 
     await A.rpc('set_group_member', { p_workspace_id: ws, p_group_id: g.id, p_member_id: MGB, p_access: null });
     await S.pullWorkspace(ctxB);

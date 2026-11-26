@@ -51,6 +51,10 @@ test('an account bridge address always uses the relay and fetches its key when t
   assert.deepEqual(direct, [], '주소로 직접 시도하지 않음');
   assert.equal(asked[0][0], 'K'.repeat(43));
   assert.equal(gw.accountBridgeId('http://' + id + '.atria-bridge'), id);
+  // 일반 서버(브리지 연결 문자열로 넣지 않음)는 닿지 않아도 중계로 보내지 않고 실제 오류를 보여 줌
+  gw.setSessionKey('server', 'plain-key');
+  await assert.rejects(gw.listServerModels({ serverUrl: 'https://my-llm.example', viaBridge: false }, { fetchImpl: async () => { throw new Error('offline'); } }), /모델 목록/);
+  assert.equal(asked.length, 1, '중계를 쓰지 않음');
   gw.setRelayFactory(null); gw.setBridgeResolver(null); gw.setSessionKey('server', '');
 });
 

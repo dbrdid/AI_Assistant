@@ -48,7 +48,7 @@ if (command === 'init' || command === 'rotate-key') {
     const on = plugins.filter(p => p.plugin && config.plugins[p.id]?.enabled).map(p => p.id);
     if (on.length) console.log(`  켜진 플러그인: ${on.join(', ')}`);
     // 같은 와이파이 밖: 브리지가 Atria 중계 채널에 바깥 방향으로 접속해 기다림 (포트를 열지 않음, 내용은 연결 키로 암호화)
-    if (!args.includes('--no-relay')) startRelay({ key: config.key, port });
+    if (!args.includes('--no-relay')) startRelay({ key: config.key, port, host });
     else console.log('중계 연결 꺼짐 (--no-relay): 같은 네트워크에서만 접속할 수 있어요. 포트를 인터넷에 그대로 열지 마세요.');
     latestBridgeRelease().then(r => r && console.log(`새 버전 ${r.version}이 있습니다. 서버를 끄고 update를 실행하세요. 설정과 연결 키는 그대로 유지됩니다.`)).catch(() => {});
   });

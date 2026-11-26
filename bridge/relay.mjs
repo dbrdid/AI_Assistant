@@ -47,10 +47,12 @@ export async function handleRelayRequest(keys, message, { localFetch, seen, now 
 }
 
 /** Supabase 실시간(Phoenix) 채널에 붙어 요청을 기다린다. 끊기면 다시 붙는다. Node 22 이상(내장 WebSocket). */
-export function startRelay({ key, port, url = RELAY_DEFAULTS.url, apikey = RELAY_DEFAULTS.apikey, log = console.log, WebSocketImpl = globalThis.WebSocket }) {
+export function startRelay({ key, port, host = '0.0.0.0', url = RELAY_DEFAULTS.url, apikey = RELAY_DEFAULTS.apikey, log = console.log, WebSocketImpl = globalThis.WebSocket }) {
   if (!WebSocketImpl) { log('중계 연결은 Node 22 이상에서 켜집니다. 지금은 같은 네트워크에서만 접속할 수 있어요.'); return { stop() {} }; }
   const seen = new Set();
-  const localFetch = (path, init) => fetch(`http://127.0.0.1:${port}${path.startsWith('/v1') ? path : '/v1' + path}`, {
+  // serve가 특정 주소(--host)에 붙어 있으면 그 주소로, 모든 주소(0.0.0.0 · ::)면 이 PC 안(127.0.0.1)으로 넘긴다
+  const local = ['0.0.0.0', '::', ''].includes(host) ? '127.0.0.1' : host.includes(':') ? `[${host}]` : host;
+  const localFetch = (path, init) => fetch(`http://${local}:${port}${path.startsWith('/v1') ? path : '/v1' + path}`, {
     ...init, headers: { authorization: 'Bearer ' + key, 'content-type': 'application/json' },
   });
   let ws = null, ref = 0, beat = null, stopped = false, keysP = relayKeys(key), announced = false;
