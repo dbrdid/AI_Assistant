@@ -71,12 +71,14 @@ export default function SpaceHomeScreen({ navigation, route }) {
   }, [accessClosed, ws?.serverId, ws?.personal]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- 초대 (관리자만) ----------
-  const [invite, setInvite] = useState(null); // { code, url } | { error } | 'loading'
-  const makeInvite = async () => {
+  const [invite, setInvite] = useState(null); // 'choose' | 'loading' | { code, url, uses } | { error }
+  // 코드 하나를 여러 명이 쓸 수 있게: 먼저 인원을 고르고 만든다 (서버 한도 1~50명)
+  const makeInvite = () => setInvite('choose');
+  const createFor = async (uses) => {
     setInvite('loading');
     try {
-      const r = await createInvite(ws.serverId);
-      setInvite({ code: r.code, url: inviteUrl(r.code) });
+      const r = await createInvite(ws.serverId, { maxUses: uses });
+      setInvite({ code: r.code, url: inviteUrl(r.code), uses });
     } catch (e) {
       setInvite({ error: e.message || '초대 코드를 만들지 못했어요' });
     }
@@ -280,14 +282,25 @@ export default function SpaceHomeScreen({ navigation, route }) {
         <View style={styles.backdrop}>
           <View style={styles.dialog} accessibilityViewIsModal>
             <Text style={styles.dialogTitle}>「{ws.name}」 초대</Text>
-            {invite === 'loading' ? (
+            {invite === 'choose' ? (
+              <>
+                <Text style={styles.muted}>이 코드로 몇 명까지 들어올 수 있게 할까요? 7일 동안 쓸 수 있어요.</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {[1, 5, 10, 50].map((n) => (
+                    <Pressable key={n} accessibilityRole="button" accessibilityLabel={`${n}명까지`} onPress={() => createFor(n)} style={[styles.ghost, { flex: 1 }]}>
+                      <Text style={styles.ghostText}>{n}명</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            ) : invite === 'loading' ? (
               <ActivityIndicator color={colors.mintDark} />
             ) : invite?.error ? (
               <Text style={[styles.muted, { color: colors.coral }]}>{invite.error}</Text>
             ) : invite ? (
               <>
                 <Text style={styles.code} selectable accessibilityLabel={`초대 코드 ${invite.code}`}>{invite.code}</Text>
-                <Text style={styles.muted}>7일 안에 한 명만 쓸 수 있고, 닫으면 다시 볼 수 없어요.</Text>
+                <Text style={styles.muted}>{invite.uses > 1 ? `7일 안에 ${invite.uses}명까지 이 코드로 들어올 수 있어요. 단체방에 한 번에 공유하세요.` : '7일 안에 한 명만 쓸 수 있어요.'} 닫으면 다시 볼 수 없어요.</Text>
                 <Pressable accessibilityRole="button" onPress={shareInvite} style={styles.primary}>
                   <Text style={styles.primaryText}>코드 공유하기</Text>
                 </Pressable>
