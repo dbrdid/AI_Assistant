@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { Keyboard } from 'react-native';
 
 export function useKeyboardHeight() {
-  const [height, setHeight] = useState(0);
+  // 이미 떠 있는 키보드 위에 새로 열린 화면·시트도 바로 올라가게 지금 높이로 시작
+  const [height, setHeight] = useState(() => (Keyboard.isVisible?.() ? Keyboard.metrics?.()?.height ?? 0 : 0));
   useEffect(() => {
     const up = Keyboard.addListener('keyboardDidShow', e => setHeight(e.endCoordinates?.height ?? 0));
     const down = Keyboard.addListener('keyboardDidHide', () => setHeight(0));

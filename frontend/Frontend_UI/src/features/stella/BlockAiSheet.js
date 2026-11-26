@@ -5,9 +5,11 @@ import { Animated, BackHandler, PanResponder, Pressable, Text, View, useWindowDi
 import Icon from '../../shared/components/Icon';
 import LocalModelScreen from './LocalModelScreen';
 import { palette as c, styles as s } from './theme';
+import { useKeyboardHeight } from '../../shared/hooks/useKeyboardHeight';
 
 export default function BlockAiSheet({ block, navigation, memoId, prepare, onPlaced, onClose }) {
   const { height } = useWindowDimensions();
+  const keyboard = useKeyboardHeight();   // 입력칸이 키보드에 가리지 않게 시트를 키보드 위로
   const sheetHeight = Math.round(height * 0.45);
   const y = useRef(new Animated.Value(sheetHeight)).current;
   const closing = useRef(false);
@@ -27,7 +29,7 @@ export default function BlockAiSheet({ block, navigation, memoId, prepare, onPla
     onPanResponderRelease: (_, g) => (g.dy > 80 || g.vy > 0.8 ? close() : Animated.spring(y, { toValue: 0, bounciness: 0, useNativeDriver: true }).start()),
   })).current;
 
-  return <Animated.View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: sheetHeight, backgroundColor: c.surface,
+  return <Animated.View style={{ position: 'absolute', left: 0, right: 0, bottom: keyboard, height: Math.min(sheetHeight, height - keyboard - 96), backgroundColor: c.surface,
     borderTopLeftRadius: 12, borderTopRightRadius: 12, borderTopWidth: 1, borderColor: c.line, transform: [{ translateY: y }] }}>
     <View {...pan.panHandlers}>
       <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 2 }}><View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: c.subtle }} /></View>
