@@ -1,5 +1,6 @@
 import CryptoKit
 import ExpoModulesCore
+import Foundation
 import os
 
 public final class StellaModelDeviceModule: Module {

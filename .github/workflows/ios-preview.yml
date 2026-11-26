@@ -1,0 +1,46 @@
+name: iPhone preview build
+
+on:
+  push:
+    branches: [codex/ios-release-prep]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iphone-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  iphone:
+    runs-on: xcode-27
+    timeout-minutes: 90
+    env:
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/Frontend_UI/package-lock.json
+      - name: Test the release gesture behavior
+        run: node --test tests/integration/swipe-intent.test.mjs
+      - name: Build for iPhone without signing
+        run: zsh prepare-iphone.command
+      - name: Check and package the unsigned app
+        run: |
+          set -euo pipefail
+          app=frontend/Frontend_UI/ios/build/PreviewDerivedData/Build/Products/Release-iphoneos/Atria.app
+          binary=$(plutil -extract CFBundleExecutable raw "$app/Info.plist")
+          xcrun lipo -verify_arch arm64 "$app/$binary"
+          test -s "$app/main.jsbundle"
+          ditto -c -k --keepParent "$app" "$RUNNER_TEMP/Atria-iPhone-unsigned.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Atria-iPhone-unsigned
+          path: ${{ runner.temp }}/Atria-iPhone-unsigned.zip
+          if-no-files-found: error
+          retention-days: 7

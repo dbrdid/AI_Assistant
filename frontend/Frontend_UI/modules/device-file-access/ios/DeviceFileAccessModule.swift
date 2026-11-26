@@ -13,9 +13,34 @@ private final class FolderPickerCancelledException: Exception {
   }
 }
 
-public class DeviceFileAccessModule: Module, UIDocumentPickerDelegate, UIAdaptivePresentationControllerDelegate {
-  private var pendingPromise: Promise?
-  private var pendingKind: PickerKind?
+private final class PickerDelegate: NSObject, UIDocumentPickerDelegate, UIAdaptivePresentationControllerDelegate {
+  private var completion: (([URL]?) -> Void)?
+
+  init(completion: @escaping ([URL]?) -> Void) {
+    self.completion = completion
+  }
+
+  private func finish(with urls: [URL]?) {
+    let callback = completion
+    completion = nil
+    callback?(urls)
+  }
+
+  func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+    finish(with: urls)
+  }
+
+  func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+    finish(with: nil)
+  }
+
+  func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+    finish(with: nil)
+  }
+}
+
+public class DeviceFileAccessModule: Module {
+  private var pickerDelegate: PickerDelegate?
   private var activeAccess: [String: (URL, Bool)] = [:]
 
   public func definition() -> ModuleDefinition {
@@ -68,7 +93,7 @@ public class DeviceFileAccessModule: Module, UIDocumentPickerDelegate, UIAdaptiv
   }
 
   private func presentPicker(kind: PickerKind, multiple: Bool, initialUri: String?, promise: Promise) {
-    guard pendingPromise == nil else {
+    guard pickerDelegate == nil else {
       promise.reject(PickingInProgressException())
       return
     }
@@ -86,19 +111,24 @@ public class DeviceFileAccessModule: Module, UIDocumentPickerDelegate, UIAdaptiv
       picker = UIDocumentPickerViewController(forOpeningContentTypes: [.folder], asCopy: false)
       if let initialUri, let url = URL(string: initialUri) { picker.directoryURL = url }
     }
-    pendingPromise = promise
-    pendingKind = kind
-    picker.delegate = self
-    picker.presentationController?.delegate = self
+    let delegate = PickerDelegate { [weak self] urls in
+      self?.finishPicker(urls: urls, kind: kind, promise: promise)
+    }
+    pickerDelegate = delegate
+    picker.delegate = delegate
     picker.modalPresentationStyle = .pageSheet
+    picker.presentationController?.delegate = delegate
     SceneGeometry.anchorPopover(of: picker, to: viewController.view)
     viewController.present(picker, animated: true)
   }
 
-  public func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-    guard let promise = pendingPromise, let kind = pendingKind else { return }
-    pendingPromise = nil
-    pendingKind = nil
+  private func finishPicker(urls: [URL]?, kind: PickerKind, promise: Promise) {
+    pickerDelegate = nil
+    guard let urls else {
+      if kind == .directory { promise.reject(FolderPickerCancelledException()) }
+      else { promise.resolve([[String: Any]]()) }
+      return
+    }
 
     do {
       switch kind {
@@ -111,14 +141,6 @@ public class DeviceFileAccessModule: Module, UIDocumentPickerDelegate, UIAdaptiv
     } catch {
       promise.reject(error)
     }
-  }
-
-  public func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
-    guard let promise = pendingPromise, let kind = pendingKind else { return }
-    pendingPromise = nil
-    pendingKind = nil
-    if kind == .directory { promise.reject(FolderPickerCancelledException()) }
-    else { promise.resolve([[String: Any]]()) }
   }
 
   private func fileDetails(_ url: URL) throws -> [String: Any] {
