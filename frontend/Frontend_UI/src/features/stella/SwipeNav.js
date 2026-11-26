@@ -2,7 +2,7 @@
 // 좌우로 밀기: 같은 탭 안의 쪽 이동. 길게 누른 채 좌우로 밀기: 민 쪽 가장자리에서 세로 탭 막대가 나오고,
 // 손가락을 위아래로 옮겨 탭을 고른 뒤 떼면 이동한다. 위쪽 탭 버튼은 그대로 있다(같은 기능의 버튼).
 import React, { useRef, useState } from 'react';
-import { Animated, PanResponder, Text, View } from 'react-native';
+import { Animated, PanResponder, Text, View, useWindowDimensions } from 'react-native';
 import Icon from '../../shared/components/Icon';
 import { HOLD_MS, pageStep, relativePick, swipeIntent } from './swipeIntent.mjs';
 import { palette as c } from './theme';
@@ -17,6 +17,11 @@ export default function SwipeNav({ tabs, current, onTab, onPage, children }) {
   const [bar, setBar] = useState(null); // { side, pick }
   const slide = useRef(new Animated.Value(0)).current;
   const barRef = useRef(null); barRef.current = bar; // 놓을 때 최신 막대 상태
+  // 길게 눌러 메뉴를 열 준비가 되면 손가락 반대쪽 가장자리에 메뉴를 살짝 보여 준다
+  const { width } = useWindowDimensions();
+  const [peek, setPeek] = useState(null); // 'left' | 'right'
+  const peekTimer = useRef(null);
+  const stopPeek = () => { clearTimeout(peekTimer.current); setPeek(null); };
 
   const anchor = useRef({ y: 0, start: 0 }); // 처음 좌우로 민 높이와 그때의 탭
   const pickAt = (pageY) => {
@@ -33,6 +38,7 @@ export default function SwipeNav({ tabs, current, onTab, onPage, children }) {
     if (intent === 'tabs') {
       const { tabs: all, current: here } = latest.current;
       anchor.current = { y: g.moveY, start: Math.max(0, all.findIndex(tab => tab.route === here)) };
+      stopPeek();
       setBar({ side: g.dx > 0 ? 'right' : 'left', pick: pickAt(g.moveY) });
       slide.setValue(0);
       Animated.timing(slide, { toValue: 1, duration: 160, useNativeDriver: true }).start();
@@ -42,7 +48,7 @@ export default function SwipeNav({ tabs, current, onTab, onPage, children }) {
   const end = (g) => {
     if (mode.current === 'page') latest.current.onPage(pageStep(g.dx));
     if (mode.current === 'tabs' && !barRef.current?.hidden) { const i = pickAt(g.moveY); if (i >= 0) latest.current.onTab(latest.current.tabs[i].route); }
-    mode.current = null; touch.current = null; setBar(null);
+    mode.current = null; touch.current = null; setBar(null); stopPeek();
   };
   const pan = useRef(PanResponder.create({
     // 길게 누른 뒤의 밀기는 안쪽(목록, 버튼)보다 먼저 가져온다. 그냥 밀기는 안쪽 가로 스크롤에 양보한다.
@@ -65,12 +71,22 @@ export default function SwipeNav({ tabs, current, onTab, onPage, children }) {
   })).current;
 
   return <View ref={view} style={{ flex: 1 }} {...pan.panHandlers}
-    onTouchStart={e => { touch.current = { t: Date.now(), x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, movedEarly: false }; mode.current = null; }}
+    onTouchStart={e => {
+      const x = e.nativeEvent.pageX;
+      touch.current = { t: Date.now(), x, y: e.nativeEvent.pageY, movedEarly: false }; mode.current = null;
+      stopPeek();
+      peekTimer.current = setTimeout(() => { if (touch.current && !touch.current.movedEarly && !mode.current) setPeek(x < width / 2 ? 'right' : 'left'); }, HOLD_MS);
+    }}
+    onTouchEnd={stopPeek}
+    onTouchCancel={stopPeek}
     onTouchMove={e => {
       const s = touch.current;
-      if (s && !s.movedEarly && Date.now() - s.t < HOLD_MS && Math.hypot(e.nativeEvent.pageX - s.x, e.nativeEvent.pageY - s.y) > 10) s.movedEarly = true;
+      if (s && !s.movedEarly && Date.now() - s.t < HOLD_MS && Math.hypot(e.nativeEvent.pageX - s.x, e.nativeEvent.pageY - s.y) > 10) { s.movedEarly = true; stopPeek(); }
     }}>
     {children}
+    {peek && !bar && <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, [peek]: 0, justifyContent: 'center' }}>
+      <View style={{ width: 8, height: tabs.length * ROW, backgroundColor: c.raised, [peek === 'right' ? 'borderTopLeftRadius' : 'borderTopRightRadius']: 8, [peek === 'right' ? 'borderBottomLeftRadius' : 'borderBottomRightRadius']: 8 }} />
+    </View>}
     {bar && <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, [bar.side]: 0, justifyContent: 'center', opacity: slide,
       transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [bar.side === 'right' ? 40 : -40, 0] }) }] }}>
       <View style={{ backgroundColor: c.surface, borderRadius: 14, paddingVertical: 4, marginHorizontal: 8 }}>
