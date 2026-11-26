@@ -10,7 +10,7 @@ import { AuthButton, AuthDialog, AuthField, AuthFrame } from '../components/Auth
 
 const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
-export default function VerifyScreen({ email, initial, onVerified, onBack, onExpired }) {
+export default function VerifyScreen({ email, purpose, initial, onVerified, onBack, onExpired }) {
   const [code, setCode] = useState('');
   const [expiresAt, setExpiresAt] = useState(initial.expiresAt);
   const [devCode, setDevCode] = useState(initial.devCode);
@@ -58,7 +58,10 @@ export default function VerifyScreen({ email, initial, onVerified, onBack, onExp
   };
 
   return (
-    <AuthFrame title="이메일 인증" subtitle={`${email}(으)로 보낸 메일의 링크를 휴대폰에서 누르면 바로 로그인돼요.`} onBack={onBack}>
+    <AuthFrame title="이메일 인증" subtitle={purpose === 'reset'
+      // 서버는 가입 여부를 알려 주지 않는다(가입된 이메일을 알아낼 수 없게). 그래서 "보냈어요"라고 단정하지 않는다
+      ? `${email}이(가) 가입된 계정이면 인증 메일이 가요. 메일이 오지 않으면 이메일 주소를 확인하거나 새로 가입해 주세요.`
+      : `${email}(으)로 보낸 메일의 링크를 휴대폰에서 누르면 바로 로그인돼요.`} onBack={onBack}>
       {!!devCode && (
         <View style={styles.dev}>
           <Text style={styles.devTitle}>테스트 모드</Text>

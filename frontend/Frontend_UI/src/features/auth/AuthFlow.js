@@ -63,6 +63,7 @@ export default function AuthFlow() {
     body = (
       <VerifyScreen
         email={email}
+        purpose={purpose}
         initial={sent}
         onBack={() => setView({ name: purpose === 'signup' ? 'signup' : 'reset', email })}
         onExpired={() => setView({ name: purpose === 'signup' ? 'signup' : 'reset', email })}
