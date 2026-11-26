@@ -26,6 +26,7 @@ import { nextField, parseProjectRequest, summary as projectSummary } from '../pr
 import { addProject } from '../../../data/projects/ProjectStore';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import AtriaBook from '../components/AtriaBook';
+import OnceTip from '../../../shared/components/OnceTip';
 import { PinIcon } from '../components/ChatIcons';
 import Icon from '../../../shared/components/Icon';
 import { CircleButton } from '../../../shared/components/Ui';
@@ -504,6 +505,7 @@ export default function AiChatScreen({ navigation }) {
             {/* Notion AI처럼 빈 화면은 이름만 (예시 질문 칩 없음) */}
             <AtriaBook size={40} busy={status !== 'idle'} />
             <Text style={styles.emptyTitle}>Atria AI</Text>
+            <OnceTip style={{ marginTop: 16, marginHorizontal: 24 }} tips={[{ id: 'ai-chat', text: '앱 안의 문서·일정·할 일에서 찾아 답해요. 무언가를 만들거나 바꾸는 작업은 확인하고 승인한 뒤에만 적용돼요.' }]} />
           </View>
         ) : (
           <FlatList

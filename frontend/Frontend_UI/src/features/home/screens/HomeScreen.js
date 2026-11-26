@@ -17,6 +17,13 @@ import ProposalCard from '../../proposal/components/ProposalCard';
 import { useProposalActions } from '../../proposal/useProposalActions';
 import { useRecorder } from '../../../services/device/Recorder';
 import RecordingBar from '../../record/components/RecordingBar';
+import OnceTip from '../../../shared/components/OnceTip';
+
+const TODAY_TIPS = [
+  { id: 'swipe-nav', text: '화면을 좌우로 밀면 오늘·개요·빠른 입력을 오가요. 길게 누른 채 밀면 옆에 홈·업무·문서 메뉴가 나와요.' },
+  { id: 'capture-bar', text: '아래 입력줄에 적으면 메모로 저장돼요. 마이크로 녹음하고, 카메라로 사진을 바로 남길 수 있어요.' },
+  { id: 'space-switch', text: '왼쪽 위 프로필을 누르면 개인·팀 공간을 바꾸고 설정을 열 수 있어요. 팀 공간에서는 위쪽에 공간 색 줄이 보여요.' },
+];
 import { analyzeText } from '../../../services/ai/AiAnalyze';
 import { addRecording } from '../../../data/files/FileStore';
 import { addUsage, useSettings } from '../../../data/settings/SettingsStore';
@@ -219,6 +226,8 @@ export default function HomeScreen({ navigation, route }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={{ flex: 1 }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {/* 처음 쓰는 사람을 위한 한 번만 보이는 안내 (확인하면 다음 안내, 다 보면 사라짐) */}
+        <OnceTip tips={TODAY_TIPS} />
         {/* ---------- AI 제안: 가장 먼저 확인할 것 하나 ---------- */}
         {/* 홈 개요와 같은 한 줄 (카드 안 카드, 강조색 버튼 없이). 추가, 수정, 무시는 작업 검토 화면에서 */}
         {waiting.length > 0 && (
