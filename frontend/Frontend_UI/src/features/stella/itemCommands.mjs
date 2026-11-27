@@ -57,6 +57,26 @@ export function isItemCommand(input) {
  * rt: 앱 런타임(store, documents). memoId: 블록 작업의 대상 문서. originalRequest: 모델 명령일 때 사용자의 원래 요청.
  * canWrite(): 지금 공간에서 고칠 수 있는지.
  */
+// 문서 만들기: '회의록 만들어줘', 'X에 대한 문서 만들어줘'처럼 '문서'로 시작하지 않는 요청도 받는다.
+// 제목은 요청 원문에 그대로 있어야 하고, 제목을 뺀 나머지는 '만들어 줘' 같은 만들기 표현뿐이어야 한다.
+const DOCUMENT_COMMAND = /^(?:새\s*)?문서\s*(?:만들기|생성|추가)\s*[:：]\s*(.+)$/;
+const DOCUMENT_INTENT = /^(?:이라는|라는|이란|란)?(?:에|에서)?(?:대한|관한|관련된|관련한|관련)?(?:새)?(?:문서|페이지|노트|메모|글)?(?:를|을|하나|한개)?(?:좀|새로)?(?:만들어|만들|생성해|생성|추가해|추가|작성해|작성|써)(?:줘|주세요|줄래|봐|봐줘)?[.!?]?$/;
+export function planDocumentCommand(rt, input, { originalRequest, canWrite }) {
+  const m = DOCUMENT_COMMAND.exec(String(input ?? '').trim());
+  if (!m || originalRequest == null) return null;
+  const title = m[1].trim(), said = squash(originalRequest).replace(/["'“”‘’]/g, ''), wanted = squash(title).replace(/["'“”‘’]/g, '');
+  // 맞지 않으면 null: 기존 검사(appCommands)가 그대로 판단한다
+  if (!wanted || !said.includes(wanted) || !DOCUMENT_INTENT.test(said.replace(wanted, ''))) return null;
+  let used = false;
+  return { summary: '새 문서 만들기, ' + title, approve() {
+    if (used) throw new Error('이미 처리한 요청입니다.');
+    used = true;
+    if (!canWrite()) throw new Error('이 공간에서 바꿀 권한이 없거나 공간이 바뀌었습니다.');
+    const created = rt.store.addMemo({ title });
+    return { route: ROUTES.MemoEdit, params: { memoId: created.id } };
+  } };
+}
+
 export function planItemCommand(rt, input, { memoId, originalRequest, canWrite }) {
   const request = String(input ?? '').trim();
   if (!isItemCommand(request)) return null;

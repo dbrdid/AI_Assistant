@@ -9,7 +9,7 @@ import { proposeBlocks } from './aiPending.mjs';
 import { planCommand } from './appCommands.mjs';
 import { splitRequest } from './commandSteps.mjs';
 import { planProjectCommand } from './projectCommands.mjs';
-import { planItemCommand } from './itemCommands.mjs';
+import { planDocumentCommand, planItemCommand } from './itemCommands.mjs';
 import { addProject, getProjects, setItemProject, updateProject } from '../../data/projects/ProjectStore';
 import Icon from '../../shared/components/Icon';
 import { palette as c, styles as s } from './theme';
@@ -28,6 +28,7 @@ export function useCommandPlanner(total = 1) {
   };
   const planFor = (text, original, target, rt = owner) => {
     const appPlan = planProjectCommand(projectTools, text, original)
+      ?? planDocumentCommand(rt, text, { originalRequest: original, canWrite })
       ?? planItemCommand(rt, text, { memoId: target, originalRequest: original, canWrite });
     if (appPlan) return appPlan;
     const legacy = planCommand(rt, text, target, randomUUID, original);
