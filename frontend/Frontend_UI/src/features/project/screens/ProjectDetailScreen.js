@@ -407,11 +407,11 @@ export default function ProjectDetailScreen({ navigation, route }) {
 
         {!editing && canManageItems && (
           <View style={styles.bottomRow}>
-            <Pressable accessibilityRole="button" onPress={() => setEditing(true)} style={[styles.bigBtn, styles.primary]}>
-              <Text style={styles.primaryText}>프로젝트 편집</Text>
+            <Pressable accessibilityRole="button" onPress={() => setEditing(true)} style={({ pressed }) => [styles.textBtn, pressed && { opacity: 0.6 }]}>
+              <Text style={styles.textBtnLabel}>프로젝트 편집</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.ProjectEdit, { projectId })} style={[styles.bigBtn, styles.ghost]}>
-              <Text style={styles.ghostText}>정보 수정</Text>
+            <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.ProjectEdit, { projectId })} style={({ pressed }) => [styles.textBtn, pressed && { opacity: 0.6 }]}>
+              <Text style={styles.textBtnLabel}>정보 수정</Text>
             </Pressable>
           </View>
         )}
@@ -532,33 +532,35 @@ const styles = StyleSheet.create({
   downloadBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   root: { flex: 1, backgroundColor: colors.cream },
   gone: { padding: spacing.xl, fontSize: font.bodyLg, color: colors.muted, textAlign: 'center' },
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, gap: spacing.md, paddingBottom: 140 },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, gap: spacing.sm, paddingBottom: 140 },
   info: { gap: spacing.sm },
   infoRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.md },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   infoLine: { fontSize: 13, color: colors.muted },
   desc: { fontSize: font.body, color: colors.ink, lineHeight: 20 },
-  heading: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
+  heading: { fontSize: 12, color: colors.muted },
   viewHeader: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.sm },
   viewControls: { flexDirection: 'row', gap: spacing.sm },
-  section: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, padding: spacing.lg, gap: spacing.sm },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 32 },
+  section: { gap: 4 },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
   sectionCount: { fontSize: 13, fontWeight: '400', color: colors.muted },
-  sectionTitle: { fontSize: 15, fontWeight: '600', color: colors.ink },
+  sectionTitle: { fontSize: 14, color: colors.ink },
   flip: { transform: [{ rotate: '180deg' }] },
-  none: { fontSize: font.body, color: colors.muted },
-  item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: 4, borderWidth: 1, borderColor: 'transparent', minHeight: 48 },
+  none: { fontSize: 13, color: colors.muted, paddingVertical: 8 },
+  item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 8, paddingHorizontal: 8, marginHorizontal: -8, borderRadius: 4, borderWidth: 1, borderColor: 'transparent', minHeight: 48 },
   itemOn: { borderColor: '#fff' },
-  itemTitle: { fontSize: font.body, fontWeight: '600', color: colors.ink },
+  itemTitle: { fontSize: 14, color: colors.ink },
   itemSub: { fontSize: font.caption, color: colors.muted },
   linkBtn: { minHeight: 44, borderRadius: radius.md },
-  bottomRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  bottomRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm, marginTop: spacing.sm },
   bigBtn: { minHeight: 50, borderRadius: radius.card, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
   primary: { flex: 1, backgroundColor: colors.action },
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   ghost: { backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
   ghostText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
   off: { opacity: 0.4 },
+  textBtn: { minHeight: 44, paddingHorizontal: 12, justifyContent: 'center' },
+  textBtnLabel: { fontSize: 14, color: colors.ink },
   bar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.cream, borderTopWidth: 1, borderTopColor: colors.line, paddingHorizontal: 16, paddingTop: 6, paddingBottom: spacing.md, gap: 2 },
   barCount: { fontSize: 13, color: colors.muted, textAlign: 'center', paddingTop: 4 },
   barRow: { flexDirection: 'row', gap: 4 },
