@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   dialogTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   dialogSub: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
   dialogActions: { flexDirection: 'row', gap: spacing.sm },
-  dialogButton: { flex: 1, minHeight: 46, borderRadius: radius.sm, borderWidth: 0, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  dialogPrimary: { backgroundColor: colors.action, borderColor: colors.actionBorder },
+  dialogButton: { flex: 1, minHeight: 46, borderRadius: radius.sm, borderWidth: 0, borderColor: colors.line, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
+  dialogPrimary: { backgroundColor: 'transparent', borderColor: colors.actionBorder },
   dialogButtonText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
 });

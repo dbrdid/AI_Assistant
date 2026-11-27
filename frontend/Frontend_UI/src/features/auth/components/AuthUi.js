@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: font.bodyLg, color: colors.ink, paddingVertical: 10, outlineStyle: 'none' },
   hint: { fontSize: font.caption, color: colors.muted },
   btn: { flexDirection: 'row', gap: spacing.sm, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
-  btnPrimary: { backgroundColor: colors.action },
+  btnPrimary: { backgroundColor: 'transparent'},
   btnText: { fontSize: font.bodyLg, fontWeight: '500' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.md },

@@ -52,7 +52,7 @@ export function CircleButton({ icon, onPress, label, size = 40, iconSize = 20, c
       disabled={disabled}
       onPress={onPress}
       hitSlop={6}
-      style={({ pressed }) => [styles.circle, { width: size, height: size, borderRadius: size / 2 }, pressed && { backgroundColor: colors.mintSoft }, disabled && { opacity: 0.4 }, style]}
+      style={({ pressed }) => [styles.circle, { width: size, height: size, borderRadius: size / 2 }, pressed && { opacity: 0.6 }, disabled && { opacity: 0.4 }, style]}
     >
       {children || <Icon name={icon} size={iconSize} color={color} />}
       {!!badge && <View style={styles.badgeDot} />}
@@ -85,7 +85,7 @@ export function Card({ children, style, onPress, onLongPress, accessibilityLabel
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
       onLongPress={onLongPress}
-      style={({ pressed }) => [styles.card, dim && { opacity: 0.7 }, pressed && { backgroundColor: colors.mintSoft }, style]}
+      style={({ pressed }) => [styles.card, dim && { opacity: 0.7 }, pressed && { opacity: 0.6 }, style]}
     >
       {children}
     </Pressable>
@@ -124,7 +124,7 @@ export function IconTile({ icon, size = 36, iconSize = 20, color = colors.mintDa
 
 export function DashedButton({ label, onPress, style }) {
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.dashed, pressed && { backgroundColor: colors.mintSoft }, style]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.dashed, pressed && { opacity: 0.6 }, style]}>
       <Icon name="plus" size={17} color={colors.muted} />
       <Text style={styles.dashedText}>{label}</Text>
     </Pressable>
@@ -141,7 +141,7 @@ export function StatBox({ icon, label, value, onPress, style }) {
   );
   if (!onPress) return <View style={[styles.stat, style]}>{body}</View>;
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`${label} ${value}`} onPress={onPress} style={({ pressed }) => [styles.stat, pressed && { backgroundColor: colors.mintSoft }, style]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={`${label} ${value}`} onPress={onPress} style={({ pressed }) => [styles.stat, pressed && { opacity: 0.6 }, style]}>
       {body}
     </Pressable>
   );
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
   dockButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm },
   // Stella 주요 버튼(features/stella/theme.js primary·secondary)과 같은 4px 모서리
   pill: { minHeight: 44, paddingHorizontal: 18, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
-  pillPrimary: { backgroundColor: colors.action },
+  pillPrimary: { backgroundColor: 'transparent'},
   // 머리글 오른쪽 동작(저장·완료): Notion처럼 면 없는 글자 버튼
   pillTextOnly: { paddingHorizontal: 8, minWidth: 44 },
   pillGhost: { backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.actionBorder },

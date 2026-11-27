@@ -322,7 +322,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
               accessibilityLabel="오늘로 이동"
               onPress={goToday}
               hitSlop={6}
-              style={({ pressed }) => [styles.todayBtn, pressed && { backgroundColor: colors.mintSoft }]}
+              style={({ pressed }) => [styles.todayBtn, pressed && { opacity: 0.6 }]}
             >
               <Text style={styles.todayText}>오늘</Text>
             </Pressable>
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
   side: { position: 'absolute', height: 40, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   sideLeft: { left: spacing.lg },
   sideRight: { right: spacing.lg },
-  todayBtn: {minHeight: 44,paddingHorizontal:14,borderRadius:4,borderWidth:0,borderColor:colors.line,backgroundColor:'transparent',alignItems:'center',justifyContent:'center'},
+  todayBtn: {minHeight: 44,paddingHorizontal:14,borderRadius:4,borderWidth:0,borderColor:colors.line,backgroundColor: 'transparent',alignItems:'center',justifyContent:'center'},
   todayText: { fontSize: 13, fontWeight: '600', color: colors.ink },
   searchOn: { backgroundColor: colors.mintSoft, borderColor: colors.mint },
 

@@ -152,7 +152,7 @@ export default function SpaceHomeScreen({ navigation, route }) {
               <Text style={styles.muted}>{members.error}</Text>
             ) : (
               <Pressable accessibilityRole="button" onPress={() => go(ROUTES.SpaceMembers, { workspaceId: id })}
-                style={({ pressed }) => [styles.quickBtn, pressed && { backgroundColor: colors.mintSoft }]}
+                style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.6 }]}
                 accessibilityLabel={`${ws.role}, 멤버 ${ws.members}명. 멤버 관리 열기`}>
                 <View style={styles.avatars}>
                   {members.list.slice(0, 3).map((m, i) => <Avatar key={m.account_id} name={m.display_name} i={i} size={24} />)}
@@ -167,7 +167,7 @@ export default function SpaceHomeScreen({ navigation, route }) {
             { icon: 'compare', label: '회의 안건', route: ROUTES.AgendaCompare },
             { icon: 'paperclip', label: '파일', route: ROUTES.Files },
           ].filter(Boolean).map((q) => (
-            <Pressable key={q.label} accessibilityRole="button" onPress={q.onPress ?? (() => go(q.route))} style={({ pressed }) => [styles.quickBtn, pressed && { backgroundColor: colors.mintSoft }]}>
+            <Pressable key={q.label} accessibilityRole="button" onPress={q.onPress ?? (() => go(q.route))} style={({ pressed }) => [styles.quickBtn, pressed && { opacity: 0.6 }]}>
               <Icon name={q.icon} size={18} color={colors.muted} />
               <Text style={styles.quickText}>{q.label}</Text>
               <Icon name="chevronRight" size={16} color={colors.muted} />
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   dialog: { width: '100%', maxWidth: 400, gap: spacing.md, padding: spacing.xl, borderRadius: radius.card, backgroundColor: colors.cream },
   dialogTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   code: { fontSize: 28, fontWeight: '600', letterSpacing: 2, color: colors.mintDark, textAlign: 'center', paddingVertical: spacing.sm },
-  primary: { minHeight: 48, borderRadius: radius.card, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
+  primary: { minHeight: 48, borderRadius: radius.card, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   ghost: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: font.body, fontWeight: '500', color: colors.muted },

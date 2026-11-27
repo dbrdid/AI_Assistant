@@ -94,6 +94,6 @@ const styles = StyleSheet.create({
   btn: { flex: 1, minHeight: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   ghost: { backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
   ghostText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
-  primary: { backgroundColor: colors.action },
+  primary: { backgroundColor: 'transparent'},
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
 });

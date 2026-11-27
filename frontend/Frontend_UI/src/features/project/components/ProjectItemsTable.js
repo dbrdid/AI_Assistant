@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
   value: { fontSize: font.body, color: colors.muted },
   title: { color: colors.ink, fontWeight: '600' },
   empty: { paddingVertical: spacing.lg, color: colors.muted },
-  pressed: { backgroundColor: colors.mintSoft },
+  pressed: { opacity: 0.6 },
   savedRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
   savedName: { flex: 1, minWidth: 0 },
   savedList: { maxHeight: 220 },

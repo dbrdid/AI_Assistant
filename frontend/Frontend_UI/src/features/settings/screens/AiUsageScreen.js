@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   itemCount: { fontSize: font.bodyLg, fontWeight: '600', color: colors.mintDark },
   track: { height: 8, borderRadius: 4, backgroundColor: colors.line, overflow: 'hidden' },
   fill: { height: 8, borderRadius: 4, backgroundColor: colors.mint },
-  btn: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
+  btn: { minHeight: 52, borderRadius: radius.md, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center', marginTop: spacing.md },
   btnText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   note: { fontSize: font.caption, color: colors.muted },
   loader: { paddingVertical: spacing.xl },

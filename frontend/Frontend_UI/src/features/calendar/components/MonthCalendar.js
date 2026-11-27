@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  monthBtnOn: { backgroundColor: colors.raised, borderColor: colors.raised },
+  monthBtnOn: { backgroundColor: 'transparent', borderRadius: 0, borderBottomWidth: 2, borderBottomColor: colors.ink, borderColor: colors.raised },
   monthBtnText: { fontSize: 15, color: colors.ink, fontWeight: '500' },
   closeBtn: { minHeight: 44, borderRadius: radius.sm, borderWidth: 0, borderColor: colors.hairline, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
   closeText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },

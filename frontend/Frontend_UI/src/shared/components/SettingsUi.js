@@ -65,7 +65,7 @@ export function Row({ label, value, onPress, danger, sub, icon }) {
   );
   if (!onPress) return <View style={[styles.row, frame]}>{body}</View>;
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.row, frame, pressed && { backgroundColor: colors.raised }]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.row, frame, pressed && { opacity: 0.6 }]}>
       {body}
     </Pressable>
   );

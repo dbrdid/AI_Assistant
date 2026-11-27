@@ -5,7 +5,7 @@ export { palette };
 const c = palette;
 export const styles = StyleSheet.create({
   blockTypeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 12 },
-  blockTypeOption: { width: '48%', minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: c.surface, borderRadius: 7 },
+  blockTypeOption: { width: '48%', minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: 'transparent', borderRadius: 7 },
   navigationHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: c.background },
   workspaceAvatar: { width: 32, height: 44, alignItems: 'center', justifyContent: 'center' },
   workspaceInitial: { color: c.text, backgroundColor: '#343638', width: 30, height: 30, borderRadius: 15, textAlign: 'center', lineHeight: 30, fontSize: 16, fontWeight: '600', fontFamily: 'Georgia' },
@@ -46,7 +46,7 @@ export const styles = StyleSheet.create({
   promptBox: { color: c.text, fontSize: 15, lineHeight: 23, minHeight: 104, maxHeight: 240, marginTop: 16, padding: 14, backgroundColor: c.surface, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: '#3a3d40', textAlignVertical: 'top' },
   aiTarget: { color: c.muted, fontSize: 13, lineHeight: 20, paddingLeft: 10, borderLeftWidth: 2, borderLeftColor: c.accent },
   aiActions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 12 },
-  aiSend: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: '#35373a' },
+  aiSend: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: 'transparent'},
   aiSendText: { color: c.text, fontSize: 14, fontWeight: '600' },
   aiGhost: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 0, borderColor: '#45494c',
     backgroundColor: c.raised
@@ -182,7 +182,7 @@ export const styles = StyleSheet.create({
     fontSize: 12
   },
   primary: {
-    backgroundColor: c.raised,
+    backgroundColor: 'transparent',
     borderRadius: 4,
     minHeight: 44,
     paddingHorizontal: 14,
@@ -206,7 +206,7 @@ export const styles = StyleSheet.create({
     borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: c.raised
+    backgroundColor: 'transparent'
   },
   secondaryText: {
     color: c.text,

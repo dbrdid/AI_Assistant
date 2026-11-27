@@ -63,7 +63,7 @@ function ToolBtn({ icon, label, active, disabled, onPress }) {
       accessibilityState={{ selected: !!active, disabled: !!disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.tool, active && styles.toolOn, pressed && !active && { backgroundColor: colors.cream }, disabled && { opacity: 0.3 }]}
+      style={({ pressed }) => [styles.tool, active && styles.toolOn, pressed && !active && { opacity: 0.6 }, disabled && { opacity: 0.3 }]}
     >
       <Icon name={icon} size={22} color={tint} strokeWidth={active ? 2.1 : 1.8} />
 
@@ -1177,7 +1177,7 @@ const styles = StyleSheet.create({
   },
   // 제목 아래: 프로젝트 알약 + 수정 시각
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingBottom: spacing.sm },
-  projPill: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 220, minHeight: 44, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.mintSoft },
+  projPill: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 220, minHeight: 44, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: 'transparent'},
   projPillText: { flexShrink: 1, fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
   edited: { flexShrink: 1, fontSize: font.caption, color: colors.muted },
   // 글자 입력창 + 필기 캔버스가 겹치는 스크롤 영역
@@ -1238,7 +1238,7 @@ const styles = StyleSheet.create({
   notice: { textAlign: 'center', fontSize: font.caption, color: colors.mintDark, fontWeight: '500', paddingTop: spacing.sm },
   toolRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.xs, paddingTop: spacing.sm, gap: 2 },
   tool: { width: 44, minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  toolOn: { backgroundColor: colors.mintSoft },
+  toolOn: { backgroundColor: 'transparent', borderBottomWidth: 2, borderBottomColor: colors.ink },
   toolLabel: { fontSize: 11, color: colors.muted, fontWeight: '600' },
   toolLabelOn: { color: colors.mintDark, fontWeight: '600' },
 
@@ -1257,8 +1257,8 @@ const styles = StyleSheet.create({
   dialogSub: { fontSize: font.body, color: colors.muted },
   dialogButtons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   dialogBtn: { flex: 1, minHeight: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  cancelBtn: { backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
+  cancelBtn: { backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.line },
   cancelText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
-  deleteBtn: { backgroundColor: colors.coralSoft },
+  deleteBtn: { backgroundColor: 'transparent'},
   deleteText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.onPrimary },
 });

@@ -88,7 +88,7 @@ export default function SearchDock({ docs, bottomInset, onOpen, onAskAI, onNew }
       <Pressable accessibilityLabel="새로 만들기 닫기" onPress={() => setMenu(false)} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
       <View style={{ position: 'absolute', right: 16, bottom: Math.max(10, bottomInset) + 60, minWidth: 180, backgroundColor: c.surface, borderRadius: 10, paddingVertical: 4 }}>
         {[['mic', 'AI 노트', 'note'], ['message', '채팅', 'chat'], ['file', '페이지', 'page']].map(([icon, label, kind]) =>
-          <Pressable key={kind} accessibilityRole="button" onPress={() => { setMenu(false); onNew(kind); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingHorizontal: 16 }, pressed && { backgroundColor: c.raised }]}>
+          <Pressable key={kind} accessibilityRole="button" onPress={() => { setMenu(false); onNew(kind); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingHorizontal: 16 }, pressed && { opacity: 0.6 }]}>
             <Icon name={icon} size={18} color={c.muted} /><Text style={{ color: c.text, fontSize: 15 }}>{label}</Text>
           </Pressable>)}
       </View>

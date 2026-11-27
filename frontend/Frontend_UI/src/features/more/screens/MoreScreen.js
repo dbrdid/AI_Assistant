@@ -25,7 +25,7 @@ export default function MoreScreen({ navigation }) {
     <View style={styles.root}>
       <ScreenHeader title="모든 도구" onBack={navigation.goBack} />
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: spacing.xxl + insets.bottom }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="계정 정보 보기" onPress={() => navigation.navigate(ROUTES.Account)} style={({ pressed }) => [styles.account, pressed && { backgroundColor: colors.raised }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="계정 정보 보기" onPress={() => navigation.navigate(ROUTES.Account)} style={({ pressed }) => [styles.account, pressed && { opacity: 0.6 }]}>
           <View style={styles.avatar}><Text style={styles.avatarText}>{name ? name.charAt(0) : '나'}</Text></View>
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={styles.name}>{name || '이름을 설정해 주세요'}</Text>

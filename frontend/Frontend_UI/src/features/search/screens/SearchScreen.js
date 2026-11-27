@@ -215,7 +215,7 @@ export default function SearchScreen({ navigation, route }) {
                 accessibilityRole="button"
                 accessibilityLabel={[TYPE_INFO[item.type].label, item.title, spaces[item.workspaceId]?.name].filter(Boolean).join(', ')}
                 onPress={() => openResult(item)}
-                style={({ pressed }) => [styles.card, pressed && { backgroundColor: colors.mintSoft }]}
+                style={({ pressed }) => [styles.card, pressed && { opacity: 0.6 }]}
               >
                 <View style={styles.cardTop}>
                   <Text style={styles.badge}>
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
-  filterChipOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
+  filterChipOn: { backgroundColor: 'transparent', borderRadius: 0, borderBottomWidth: 2, borderBottomColor: colors.ink, borderColor: colors.actionBorder },
   filterText: { fontSize: font.body, color: colors.ink },
   filterTextOn: { color: colors.white, fontWeight: '500' },
 

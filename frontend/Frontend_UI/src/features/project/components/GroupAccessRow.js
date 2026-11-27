@@ -57,7 +57,7 @@ export default function GroupAccessRow({ kind, id, style, textStyle }) {
           <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={{ flex: 1, minHeight: 46, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: colors.card }}>
             <Text style={{ color: colors.ink, fontSize: 15 }}>취소</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" disabled={busy} onPress={apply} style={{ flex: 1, minHeight: 46, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: colors.action, opacity: busy ? 0.5 : 1 }}>
+          <Pressable accessibilityRole="button" disabled={busy} onPress={apply} style={{ flex: 1, minHeight: 46, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: 'transparent', opacity: busy ? 0.5 : 1 }}>
             <Text style={{ color: colors.onPrimary, fontSize: 15, fontWeight: '600' }}>{busy ? '적용 중' : '적용'}</Text>
           </Pressable>
         </View>

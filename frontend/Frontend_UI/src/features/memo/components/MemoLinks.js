@@ -41,6 +41,6 @@ export default function MemoLinks({ memoId, navigation }) {
 const styles = StyleSheet.create({
   wrap: { flexGrow: 0 },
   row: { gap: spacing.sm, paddingVertical: spacing.xs },
-  chip: { flexDirection: 'row', gap: 4, maxWidth: 220, minHeight: 44, paddingHorizontal: spacing.md, borderRadius: 4, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  chip: { flexDirection: 'row', gap: 4, maxWidth: 220, minHeight: 44, paddingHorizontal: spacing.md, borderRadius: 4, backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   text: { flexShrink: 1, fontSize: font.caption, fontWeight: '500', color: colors.mintDark },
 });

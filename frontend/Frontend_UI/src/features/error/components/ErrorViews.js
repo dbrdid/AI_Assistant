@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   icon: { fontSize: 38 },
   title: { fontSize: font.title, fontWeight: '600', color: colors.ink, textAlign: 'center' },
   msg: { fontSize: font.body, color: colors.muted, textAlign: 'center', lineHeight: 21 },
-  primary: { width: '100%', minHeight: 52, borderRadius: radius.md, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm },
+  primary: { width: '100%', minHeight: 52, borderRadius: radius.md, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm },
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   ghost: { width: '100%', minHeight: 52, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },

@@ -134,6 +134,6 @@ const styles = StyleSheet.create({
   dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.md },
   dialogTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
   policy: { fontSize: font.body, color: colors.ink, lineHeight: 22 },
-  closeBtn: { minHeight: 46, borderRadius: radius.sm, borderWidth: 0, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { minHeight: 46, borderRadius: radius.sm, borderWidth: 0, borderColor: colors.line, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
   closeText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
 });

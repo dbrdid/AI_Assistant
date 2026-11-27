@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
   linkBtn: { minHeight: 44, borderRadius: radius.md },
   bottomRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   bigBtn: { minHeight: 50, borderRadius: radius.card, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
-  primary: { flex: 1, backgroundColor: colors.action },
+  primary: { flex: 1, backgroundColor: 'transparent'},
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   ghost: { backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
   ghostText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },

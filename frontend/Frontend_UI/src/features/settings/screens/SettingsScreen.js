@@ -24,7 +24,7 @@ export default function SettingsScreen({ navigation }) {
     <View style={styles.root}>
       <ScreenHeader title="설정" onBack={navigation.goBack} />
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <Pressable accessibilityRole="button" accessibilityLabel="계정 정보 보기" onPress={() => navigation.navigate(ROUTES.Account)} style={({ pressed }) => [styles.account, pressed && { backgroundColor: colors.mintSoft }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="계정 정보 보기" onPress={() => navigation.navigate(ROUTES.Account)} style={({ pressed }) => [styles.account, pressed && { opacity: 0.6 }]}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{name ? name.charAt(0) : '?'}</Text>
           </View>

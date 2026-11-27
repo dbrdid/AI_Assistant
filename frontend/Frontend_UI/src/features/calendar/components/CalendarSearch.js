@@ -43,7 +43,7 @@ export default function CalendarSearch({ query, onChange, matches, onPick, onClo
               accessibilityRole="button"
               accessibilityLabel={`${t.title}, ${shortDate(t)}`}
               onPress={() => onPick(t)}
-              style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.mintSoft }]}
+              style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
             >
               <Text style={styles.date}>{shortDate(t)}</Text>
               <View style={styles.body}>
