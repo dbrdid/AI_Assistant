@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AppState, BackHandler, KeyboardAvoidingView, Modal, useWindowDimensions, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { addMemo, getMemo, updateMemo, setFavorites, useMemos } from '../../data/memos/MemoStore';
 import { useTasks } from '../../data/tasks/TaskStore';
-import { projectOf, setItemProject } from '../../data/projects/ProjectStore';
+import { projectOf, setItemProject, useItemAccess } from '../../data/projects/ProjectStore';
 import GroupAccessRow from '../project/components/GroupAccessRow';
 import { EXPORT_FORMATS } from '../../services/export/MeetingExport.mjs';
 import { exportMemo } from '../../services/export/ShareExport';
@@ -95,7 +95,9 @@ export default function DocumentEditor({
   const insets = useInsets();
   const own = useRef(runtime()).current;
   const workspaceId = useRef(own.store.getCurrentWorkspace().id).current;
-  const readOnly = own.store.getCurrentWorkspace().roleCode === 'VIEWER';
+  // 보기 전용 멤버, 또는 이 문서의 공개 그룹에서 '보기' 권한만 있는 사람은 읽기만
+  const groupAccess = useItemAccess('memo', memoId);
+  const readOnly = own.store.getCurrentWorkspace().roleCode === 'VIEWER' || groupAccess === 'view';
   const latest = useRef({
     title,
     body,

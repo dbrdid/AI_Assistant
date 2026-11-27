@@ -50,16 +50,19 @@ export const accountBridgeUrl = id => `http://${id}.atria-bridge`;
 export const accountBridgeId = url => /^https?:\/\/([0-9a-f-]{36})\.atria-bridge(?:[/:]|$)/i.exec(String(url ?? '').trim())?.[1] ?? null;
 async function serverFetch(connection, fetchImpl, signal) {
   const bridgeId = accountBridgeId(connection.serverUrl);
-  let key = sessionKeys.get('server');
-  if (bridgeId && !key && bridgeResolver) { key = await bridgeResolver(bridgeId); if (key) sessionKeys.set('server', key); }
-  if (bridgeId && (!key || !relayFactory)) throw new Error('이 계정에서 PC 브리지를 찾지 못했습니다. PC에서 atria-bridge login과 serve를 실행해 주세요.');
-  if (!relayFactory || !key) return fetchImpl;
-  if (bridgeId) { if (!relays.has(key)) relays.set(key, relayFactory(key)); return relays.get(key); }
+  if (bridgeId) {
+    const key = bridgeResolver ? await bridgeResolver(bridgeId) : null;
+    if (!key || !relayFactory) throw new Error('이 계정에서 PC 브리지를 찾지 못했습니다. PC에서 atria-bridge login과 serve를 실행해 주세요.');
+    if (!relays.has(key)) relays.set(key, relayFactory(key));
+    return relays.get(key);
+  }
+  const key = sessionKeys.get('server');
+  if (!connection.viaBridge || !relayFactory || !key) return fetchImpl;
   const base = serverBase(connection.serverUrl), cached = routeCache.get(base);
   let direct = cached && Date.now() - cached.at < ROUTE_TTL_MS ? cached.direct : null;
   if (direct === null) {
     const probe = withTimeout(signal, DIRECT_PROBE_MS);
-    try { direct = (await fetchImpl(base + '/models', { headers: { authorization: 'Bearer ' + key }, signal: probe.signal })).ok; }
+    try { await fetchImpl(base + '/models', { headers: { authorization: 'Bearer ' + key }, signal: probe.signal }); direct = true; }
     catch { direct = false; } finally { probe.done(); }
     routeCache.set(base, { direct, at: Date.now() });
   }

@@ -6,9 +6,16 @@ import { KEY_PROVIDERS, attachKeyStore, setSessionKey } from './aiGateway.mjs';
 const slot = provider => 'atria.ai-key.' + provider;
 
 /** 앱이 이 파일을 불러오면 기억한 키를 불러온다. 화면은 이 약속이 끝난 뒤 다시 그리면 된다 */
+const writes = new Map();   // 공급자 → 마지막 저장 약속 (저장을 순서대로 이어 붙임)
 export const keysReady = attachKeyStore({
   load: provider => SecureStore.getItemAsync(slot(provider)),
-  save: (provider, value) => (value ? SecureStore.setItemAsync(slot(provider), value) : SecureStore.deleteItemAsync(slot(provider))).catch(() => {}),
+  save: (provider, value) => {
+    const next = (writes.get(provider) ?? Promise.resolve())
+      .then(() => (value ? SecureStore.setItemAsync(slot(provider), value) : SecureStore.deleteItemAsync(slot(provider))))
+      .catch(() => {});
+    writes.set(provider, next);
+    return next;
+  },
 }).catch(() => {});
 
 /** 기억한 키를 모두 지움 (로그아웃, "기억한 키 지우기") */

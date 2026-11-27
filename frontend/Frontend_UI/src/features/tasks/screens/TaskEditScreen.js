@@ -16,7 +16,7 @@ import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { WEEKDAYS_LONG, fromKey, toKey } from '../../calendar/utils/DateUtils';
 import { ALARMS, PRIORITIES, STATUSES, addTask, deleteTask, findOverlap, getTask, shiftKey, updateTask } from '../../../data/tasks/TaskStore';
 import { DatePickerModal, TimePickerModal } from '../../../shared/components/DateTimePicker';
-import { projectOf, setItemProject, useProjects } from '../../../data/projects/ProjectStore';
+import { projectOf, setItemProject, useItemAccess, useProjects } from '../../../data/projects/ProjectStore';
 import GroupAccessRow from '../../project/components/GroupAccessRow';
 import { enterSpace, useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import {SheetModal} from '../../../shared/components/Motion';
@@ -140,6 +140,8 @@ export default function TaskEditScreen({ navigation, route }) {
   const [error, setError] = useState('');
   const [overlap, setOverlap] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // 공개 그룹에서 '보기' 권한만 있으면 저장·삭제를 막음 (서버도 거절함)
+  const viewOnly = useItemAccess('task', existing?.id) === 'view';
   const [pending, setPending] = useState(null); // 겹침 확인 뒤 저장할 값
 
   // 화면 상태(종일·여러 날)를 반영한 저장 값
@@ -202,7 +204,7 @@ export default function TaskEditScreen({ navigation, route }) {
 
   return (
     <KeyboardAvoidingView style={styles.root} behavior="padding">
-      <ScreenHeader title={title} onBack={navigation.goBack} right={<Pressable accessibilityRole="button" accessibilityLabel="저장하기" onPress={save} style={styles.headerSave}><Text style={styles.headerSaveText}>저장</Text></Pressable>}/>
+      <ScreenHeader title={title} onBack={navigation.goBack} right={viewOnly ? <Text style={styles.headerSaveText}>보기 전용</Text> : <Pressable accessibilityRole="button" accessibilityLabel="저장하기" onPress={save} style={styles.headerSave}><Text style={styles.headerSaveText}>저장</Text></Pressable>}/>
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* ---------- 종류 ---------- */}
         {!existing && <View style={styles.seg} accessibilityRole="tablist">
@@ -293,7 +295,7 @@ export default function TaskEditScreen({ navigation, route }) {
 
         {!!error && <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text>}
 
-        {existing && (
+        {existing && !viewOnly && (
           <Pressable accessibilityRole="button" onPress={() => setConfirmDelete(true)} style={styles.del}>
             <Text style={styles.delText}>삭제</Text>
           </Pressable>

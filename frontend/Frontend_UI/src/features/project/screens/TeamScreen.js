@@ -54,7 +54,7 @@ export default function TeamScreen({ navigation, route }) {
   // 서버에 바로 저장 (서버가 권한 확인). 실패하면 창 안에 이유를 보여 줌
   const runGroup = async (fn) => {
     setGroupBusy(true); setGroupError('');
-    try { return await fn(); } catch (e) { setGroupError(e?.message ?? '저장하지 못했어요'); return null; } finally { setGroupBusy(false); }
+    try { return (await fn()) ?? true; } catch (e) { setGroupError(e?.message ?? '저장하지 못했어요'); return null; } finally { setGroupBusy(false); }
   };
   const accessOf = (memberId) => editingGroup?.members.find((x) => x.memberId === memberId)?.access ?? null;
   const others = projects.filter((p) => p.id !== project.id);

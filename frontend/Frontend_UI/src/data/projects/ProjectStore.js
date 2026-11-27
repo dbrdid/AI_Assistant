@@ -4,6 +4,7 @@
 //   Personal workspace: never synced (same rule as memos and tasks), so projects stay on this device only.
 //   Task links use the task's own projectId (synced with the task). Memo links use the server's note_projects in a
 //   shared workspace. File links stay on this device: files in the vault are device files, not uploaded attachments.
+import { useEffect, useState } from 'react';
 import { randomUUID } from 'expo-crypto';
 import {
   list, saveList, scoped, useValue, runtime, maybeRuntime, runtimeSubscribe, readPreference, writePreference, emitRuntime, syncContext,
@@ -171,6 +172,41 @@ export const setGroupMember = (groupId, memberId, access) =>
 /** 문서('memo')·할 일('task')을 볼 수 있는 그룹. 빈 목록이면 모두에게 */
 export const setItemGroups = (kind, id, groupIds) =>
   groupCall('set_item_groups', { p_entity: kind === 'task' ? 'tasks' : 'notes', p_key: id, p_group_ids: groupIds });
+/**
+ * 이 문서·할 일에 대한 내 권한 (서버 item_access와 같은 규칙): 'open'(제한 없음) · 'view' · 'edit' · 'manage'.
+ * 보기 권한이면 편집 화면을 읽기 전용으로 둔다. 고쳐 봐야 서버가 거절하고, 그 거절이 보내기 줄을 막기 때문.
+ */
+export async function itemAccessOf(kind, id) {
+  const rt = maybeRuntime();
+  const ws = rt?.store.getCurrentWorkspace();
+  if (!ws?.serverId || !id) return 'open';
+  const entity = kind === 'task' ? 'tasks' : 'notes';
+  const entry = sharedEntry(rt, ws.serverId);
+  const rows = (entry.itemAccess ?? EMPTY).filter(a => a.entity === entity && a.entity_key === id && !a.deleted_at);
+  if (!rows.length) return 'open';
+  const me = rt.session.id;
+  const creator = (await engine.getLocal(rt.syncDb, ws.serverId, entity, id).catch(() => null))?.data?.created_by;
+  if (creator === me || ws.roleCode === 'OWNER') return 'manage';
+  let best = 0;
+  for (const a of rows) {
+    const group = (entry.groups ?? EMPTY).find(g => g.id === a.group_id && !g.deleted_at);
+    if (!group) continue;
+    if (entry.members.some(m => m.project_id === group.project_id && m.account_id === me && !m.deleted_at && String(m.role).trim() === LEADER_ROLE)) return 'manage';
+    for (const gm of entry.groupMembers ?? EMPTY) {
+      if (gm.group_id !== group.id || gm.deleted_at) continue;
+      if (entry.members.find(m => m.id === gm.member_id && !m.deleted_at)?.account_id === me) best = Math.max(best, { view: 1, edit: 2, manage: 3 }[gm.access] ?? 0);
+    }
+  }
+  return ['view', 'view', 'edit', 'manage'][best];
+}
+/** 화면용: 그룹·공개 범위가 바뀌면 다시 계산 */
+export function useItemAccess(kind, id) {
+  const projects = useProjects();
+  const [access, setAccess] = useState('open');
+  useEffect(() => { let alive = true; itemAccessOf(kind, id).then(a => alive && setAccess(a)).catch(() => {}); return () => { alive = false; }; }, [kind, id, projects]);
+  return access;
+}
+
 /** 이 문서·할 일을 볼 수 있는 그룹 id 목록 (빈 목록 = 모두) */
 export function itemGroupsOf(kind, id) {
   const rt = maybeRuntime();

@@ -589,7 +589,8 @@ export async function addRecording(uri, seconds) {
       const file = await saveToRecordings(uri, name, 'audio/mp4');
       const row = { id: `local-${randomUUID()}`, storage: 'local', kind: '녹음', seconds, name, title: name, mimeType: 'audio/mp4',
         uri: file.uri, size: file.size, savedToDevice: true, recordingFolder: file.folder, createdAt: Date.now() };
-      saveList('files', [row, ...list('files')]);
+      try { saveList('files', [row, ...list('files')]); }
+      catch (error) { await deleteDeviceContent(file.uri).catch(() => {}); throw error; }   // 같은 녹음이 두 군데 남지 않게
       saved = row;
     } catch (error) { console.warn('[files] 녹음 폴더에 저장하지 못해 기본 위치에 저장합니다', error); }
   }
@@ -606,7 +607,8 @@ export async function deleteFile(id) {
     const url = webUrls.get(row.webName);
     if (url) { URL.revokeObjectURL(url); webUrls.delete(row.webName); }
   } else if (row.recordingFolder && !WEB) {
-    await deleteDeviceContent(row.uri); // 휴대폰 녹음 폴더의 파일 (이미 지워졌어도 목록에서는 뺀다)
+    // 휴대폰 녹음 폴더의 파일. 이미 지워졌거나 앱을 다시 설치해 지울 권한이 없어도 목록에서는 뺀다
+    try { await deleteDeviceContent(row.uri); } catch (error) { console.warn('[files] 녹음 파일을 지우지 못했습니다 (목록에서만 뺍니다)', error); }
   } else if (!row.referenceOnly) {
     if (row.savedToDevice && !WEB) {
       if (row.saveDirectoryReference) {

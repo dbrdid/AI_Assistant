@@ -6,7 +6,7 @@ import { askMobileModel, cancelMobileModelDownload, installMobileModel, listMobi
 import { DEFAULT_DEVICE_MODEL, deviceModels } from '../../integration/mobileModelPolicy.mjs';
 import { DEFAULT_CONNECTION, PROVIDERS, gatewayMessages, hasSessionKey, listServerModels, parseBridgeLink, readReply, sendToProvider, setSessionKey } from '../../integration/aiGateway.mjs';
 import '../../integration/bridgeRelayApp'; // 같은 네트워크 밖이면 중계 연결로
-import { forgetRememberedKeys, keysReady } from '../../integration/rememberedKeys';
+import { keysReady } from '../../integration/rememberedKeys';
 import BridgeAccountRows, { accountBridgeUrl } from './BridgeAccountRows';
 import { accountBridgeId } from '../../integration/aiGateway.mjs';
 import { ROUTES } from '../../navigation/routes';
@@ -214,13 +214,13 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
     {id === 'server' && <>
       {/* 같은 계정에 로그인된 PC 브리지: 고르면 연결 문자열 없이 중계로 연결 */}
       <BridgeAccountRows serverUrl={connection.serverUrl} disabled={!!busy}
-        onUse={b => { setSessionKey('server', b.relay_key); setError(''); update({ serverUrl: accountBridgeUrl(b.id), serverModel: '' }); }}
-        onClear={() => { setSessionKey('server', ''); update({ serverUrl: '', serverModel: '' }); }} />
+        onUse={b => { setError(''); update({ serverUrl: accountBridgeUrl(b.id), serverModel: '', viaBridge: false }); }}
+        onClear={() => update({ serverUrl: '', serverModel: '', viaBridge: false })} />
       {!accountBridgeId(connection.serverUrl) && <TextInput accessibilityLabel="서버 주소" value={connection.serverUrl} onChangeText={serverUrl => {
         // A pasted bridge link fills the address; its key stays in memory for this run only, like a typed server key.
         const bridge = parseBridgeLink(serverUrl);
         if (bridge) setSessionKey('server', bridge.key);
-        update({ serverUrl: bridge ? bridge.url : serverUrl });
+        update({ serverUrl: bridge ? bridge.url : serverUrl, viaBridge: !!bridge });   // 브리지 연결만 밖에서 중계로
       }} editable={!busy} autoCapitalize="none" autoCorrect={false} placeholder="서버 주소 또는 Atria 브리지 연결 문자열" placeholderTextColor={c.subtle} style={s.connInput} />}
       {detailRow('모델', connection.serverModel || '서버에서 불러오기', () => (serverList.length ? setPicker('server') : loadServer()))}
       {/* Sign in with ChatGPT 안내: chatgpt/ 모델은 브리지 주인의 ChatGPT 플랜 사용량을 씀 */}
@@ -236,7 +236,7 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
         placeholderTextColor={c.subtle} style={s.connInput} />
       <Text style={s.connNote}>키는 이 휴대폰의 보안 저장소에만 기억돼요. 앱을 다시 켜도 다시 입력하지 않아도 되고, 서버로는 보내지 않아요.</Text>
       {hasSessionKey(id) && <Pressable accessibilityRole="button" disabled={!!busy} hitSlop={6}
-        onPress={() => { forgetRememberedKeys().then(() => { setKeyDraft(''); keysLoaded(n => n + 1); }); }}>
+        onPress={() => { setSessionKey(id, ''); setKeyDraft(''); keysLoaded(n => n + 1); }}>
         <Text style={[s.connNote, { textDecorationLine: 'underline' }]}>이 휴대폰에 기억한 키 지우기</Text>
       </Pressable>}
     </>}
