@@ -80,14 +80,14 @@ export function TimePickerModal({ visible, value, title, onPick, onClear, onClos
         <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={styles.col} contentContainerStyle={{ gap: 6 }}>
           {HOURS.map((x) => (
             <Pressable key={x} accessibilityRole="button" accessibilityState={{ selected: hh === x }} onPress={() => setHh(x)} style={[styles.opt, hh === x && styles.optOn]}>
-              <Text style={[styles.optText, hh === x && styles.optTextOn]}>{x}시</Text>
+              <Text style={[styles.optText, hh === x && styles.optTextOn, (hh === x) && { fontWeight: '700' }]}>{x}시</Text>
             </Pressable>
           ))}
         </ScrollView>
         <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={styles.col} contentContainerStyle={{ gap: 6 }}>
           {MINUTES.map((x) => (
             <Pressable key={x} accessibilityRole="button" accessibilityState={{ selected: mm === x }} onPress={() => setMm(x)} style={[styles.opt, mm === x && styles.optOn]}>
-              <Text style={[styles.optText, mm === x && styles.optTextOn]}>{x}분</Text>
+              <Text style={[styles.optText, mm === x && styles.optTextOn, (mm === x) && { fontWeight: '700' }]}>{x}분</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   cols: { flexDirection: 'row', gap: spacing.md, height: 240 },
   col: { flex: 1 },
   opt: { minHeight: 40, borderRadius: radius.sm, backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  optOn: { backgroundColor: 'transparent', borderRadius: 0, borderBottomWidth: 2, borderBottomColor: colors.ink, borderColor: colors.actionBorder },
+  optOn: { backgroundColor: 'transparent', borderColor: colors.actionBorder },
   optText: { fontSize: font.bodyLg, color: colors.ink },
   optTextOn: { color: colors.onPrimary, fontWeight: '600' },
   btn: { flex: 1, minHeight: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },

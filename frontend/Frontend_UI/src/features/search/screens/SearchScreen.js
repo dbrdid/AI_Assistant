@@ -156,7 +156,7 @@ export default function SearchScreen({ navigation, route }) {
                 onPress={() => setFilter(f.key)}
                 style={[styles.filterChip, on && styles.filterChipOn]}
               >
-                <Text style={[styles.filterText, on && styles.filterTextOn]}>
+                <Text style={[styles.filterText, on && styles.filterTextOn, (on) && { fontWeight: '700' }]}>
                   {f.label} {counts[f.key]}
                 </Text>
               </Pressable>
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
-  filterChipOn: { backgroundColor: 'transparent', borderRadius: 0, borderBottomWidth: 2, borderBottomColor: colors.ink, borderColor: colors.actionBorder },
+  filterChipOn: { backgroundColor: 'transparent', borderColor: colors.actionBorder },
   filterText: { fontSize: font.body, color: colors.ink },
   filterTextOn: { color: colors.white, fontWeight: '500' },
 

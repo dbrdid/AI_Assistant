@@ -557,7 +557,7 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
                 }}
                 style={[styles.projOpt, id === sort && styles.spaceChipOn]}
               >
-                <Text style={styles.projOptText}>{label}</Text>
+                <Text style={[styles.projOptText, (id === sort) && { fontWeight: '700' }]}>{label}</Text>
               </Pressable>
             ))}
             <Pressable accessibilityRole="button" onPress={() => setSortOpen(false)} style={styles.projClose}>
@@ -649,7 +649,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: font.bodyLg, color: colors.ink, paddingVertical: 8 },
   chips: { gap: spacing.sm, paddingVertical: 2 },
   spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, maxWidth: 160, paddingHorizontal: 4 },
-  spaceChipOn: { borderColor: colors.actionBorder, backgroundColor: 'transparent', borderRadius: 0, borderBottomWidth: 2, borderBottomColor: colors.ink},
+  spaceChipOn: { borderColor: colors.actionBorder, backgroundColor: 'transparent'},
   spaceChipText: { flexShrink: 1, fontSize: 12, color: colors.ink },
   chip: { maxWidth: 180 },
   tools: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },

@@ -121,7 +121,7 @@ export default function AgendaCompareScreen({ navigation, route }) {
                   onPress={() => { setPid(p.id); setDay(today); setOpen({}); }}
                   style={[styles.chip, p.id === project.id && styles.chipOn]}
                 >
-                  <Text style={[styles.chipText, p.id === project.id && { color: colors.onPrimary }]} numberOfLines={1}>
+                  <Text style={[styles.chipText, p.id === project.id && { color: colors.onPrimary }, (p.id === project.id) && { fontWeight: '700' }]} numberOfLines={1}>
                     {p.members.length >= 2 ? '👥 ' : ''}{p.title || '(제목 없음)'}
                   </Text>
                 </Pressable>
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   chips: { gap: spacing.sm, paddingVertical: spacing.xs },
   chip: { maxWidth: 220, paddingHorizontal: spacing.lg, minHeight: 44, borderRadius: 4, backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  chipOn: { backgroundColor: 'transparent', borderRadius: 0, borderBottomWidth: 2, borderBottomColor: colors.ink, borderColor: colors.actionBorder },
+  chipOn: { backgroundColor: 'transparent', borderColor: colors.actionBorder },
   chipText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
   dayRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   arrow: { width: 44, height: 44, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },

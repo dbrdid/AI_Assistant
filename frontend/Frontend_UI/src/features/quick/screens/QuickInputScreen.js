@@ -222,7 +222,7 @@ export default function QuickInputScreen({ navigation, route }) {
           <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
             {FILTERS.map((f) => (
               <Pressable key={f.id} accessibilityRole="button" accessibilityState={{ selected: filter === f.id }} onPress={() => setFilter(f.id)} style={[styles.chip, filter === f.id && styles.chipOn]}>
-                <Text style={[styles.chipText, filter === f.id && { color: colors.onPrimary }]}>{f.label}</Text>
+                <Text style={[styles.chipText, filter === f.id && { color: colors.onPrimary }, (filter === f.id) && { fontWeight: '700' }]}>{f.label}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 12, fontWeight: '400', color: colors.muted, marginTop: spacing.lg },
   filters: { gap: spacing.sm, paddingVertical: spacing.xs },
   chip: { minHeight: 44, paddingHorizontal: 14, borderRadius: 17, backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.hairline, alignItems: 'center', justifyContent: 'center' },
-  chipOn: { backgroundColor: 'transparent', borderRadius: 0, borderBottomWidth: 2, borderBottomColor: colors.ink, borderColor: colors.raised },
+  chipOn: { backgroundColor: 'transparent', borderColor: colors.raised },
   chipText: { fontSize: 13, fontWeight: '500', color: colors.ink },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: 14, paddingVertical: 12, borderRadius: radius.lg, backgroundColor: colors.card, minHeight: 52 },
   rowOn: { backgroundColor: colors.raised },

@@ -14,11 +14,11 @@ export default function SpaceFilter({ value, onChange, spaces, style }) {
   const all = value === 'all';
   return <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 4 }, style]}>
     <Pressable accessibilityRole="switch" accessibilityLabel="모든 공간 보기" accessibilityState={{ checked: all }} onPress={() => onChange(all ? one?.id ?? 'all' : 'all')}
-      style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, borderBottomWidth: 2, borderBottomColor: all ? c.text : 'transparent' }}>
+      style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 }}>
       <Text style={{ fontSize: 14, color: all ? c.text : c.muted, fontWeight: all ? '600' : '400' }}>모두</Text>
     </Pressable>
     <Pressable accessibilityRole="button" accessibilityLabel={`공간 ${one?.name ?? ''}, 눌러서 고르기`} onPress={() => setOpen(true)}
-      style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, maxWidth: 180, borderBottomWidth: 2, borderBottomColor: all ? 'transparent' : c.text }}>
+      style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, maxWidth: 180 }}>
       <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 14, color: all ? c.muted : c.text, fontWeight: all ? '400' : '600' }}>{one?.name ?? ''}</Text>
       <Icon name="chevronDown" size={12} color={c.muted} />
     </Pressable>
