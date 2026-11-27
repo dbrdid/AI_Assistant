@@ -78,7 +78,7 @@ export function Line({ icon, label, value, onPress, right, muted }) {
   );
   if (!onPress) return <View style={styles.line}>{body}</View>;
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={value ? `${label} ${value}` : label} onPress={onPress} style={({ pressed }) => [styles.line, pressed && { backgroundColor: colors.mintSoft }]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={value ? `${label} ${value}` : label} onPress={onPress} style={({ pressed }) => [styles.line, pressed && { opacity: 0.6 }]}>
       {body}
     </Pressable>
   );
@@ -384,28 +384,28 @@ export default function TaskEditScreen({ navigation, route }) {
 const styles = StyleSheet.create({headerSaveText:{fontSize:16,fontWeight:'600',color:colors.ink},headerSave:{minHeight:44,minWidth:44,paddingHorizontal:8,alignItems:'center',justifyContent:'center'},
   root: { flex: 1, backgroundColor: colors.cream },
   content: {paddingHorizontal:20,paddingBottom:32,gap:10},
-  seg: { flexDirection: 'row', gap: 4, marginLeft: -10 },
-  segBtn: { minHeight: 44, paddingHorizontal: 10, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
-  segOn: { backgroundColor: colors.raised },
-  segText: { fontSize: 14, fontWeight: '500', color: colors.muted },
-  segTextOn: {color:colors.ink},
+  seg: { flexDirection: 'row', gap: 20 },
+  segBtn: { minHeight: 44, justifyContent: 'center' },
+  segOn: {},
+  segText: { fontSize: 12, color: colors.muted },
+  segTextOn: { color: colors.ink, fontWeight: '700' },
   spaceLine: {flexDirection:'row',alignItems:'center',gap:6,marginTop:8},
   spacePick: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, maxWidth: 180, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
   spacePickOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
   spacePickText: { flexShrink: 1, fontSize: font.body, fontWeight: '600', color: colors.ink },
   titleInput: {minHeight:96,borderBottomWidth:0,borderBottomColor:colors.line,fontSize:28,fontWeight:'600',color:colors.ink,paddingHorizontal:2,lineHeight:38,paddingTop:12,paddingBottom:16,textAlignVertical:'top'},
   group: {backgroundColor:'transparent',borderRadius:0,borderWidth:0,borderColor:colors.line,overflow:'hidden'},
-  lineInput: { flex: 1, minHeight: 50, fontSize: 15, color: colors.ink, paddingVertical: 0 },
-  line: {flexDirection:'row',alignItems:'center',gap:spacing.md,minHeight:52,paddingHorizontal:0,borderBottomWidth:1,borderBottomColor:colors.line},
-  lineLabel: {flex:1,fontSize:14,fontWeight:'400',color:colors.muted},
-  lineValue: {fontSize:15,color:colors.ink},
+  lineInput: { flex: 1, minHeight: 44, fontSize: 13, color: colors.ink, paddingVertical: 0, paddingHorizontal: 0 },
+  line: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 },
+  lineLabel: { flex: 1, fontSize: 13, color: colors.muted },
+  lineValue: { fontSize: 13, color: colors.ink },
   lineBlock: {padding:spacing.md,gap:spacing.sm,paddingHorizontal:0,paddingVertical:12},
   lineHint: {fontSize:font.caption,fontWeight:'400',color:colors.muted,marginLeft:0},
   field: { gap: spacing.sm },
   label: {fontSize:14,fontWeight:'500',color:colors.muted},
-  input: {minHeight:46,borderRadius:0,borderWidth:0,borderColor:colors.line,backgroundColor:colors.cream,paddingHorizontal:0,fontSize:font.bodyLg,color:colors.ink,borderBottomWidth:1},
-  pickBtn: {flex:1,minHeight:46,flexDirection:'row',alignItems:'center',gap:spacing.sm,borderRadius:0,borderWidth:0,borderColor:colors.line,backgroundColor:colors.cream,paddingHorizontal:0,borderBottomWidth:1},
-  pickText: { fontSize: font.bodyLg, color: colors.ink },
+  input: { minHeight: 44, paddingHorizontal: 0, fontSize: 13, color: colors.ink },
+  pickBtn: { flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  pickText: { fontSize: 13, color: colors.ink },
   timeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   tilde: { fontSize: font.bodyLg, color: colors.muted },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

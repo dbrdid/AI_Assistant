@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   headerSaveText: { fontSize: 16, fontWeight: '600', color: colors.ink },
   titleInput: { minHeight: 72, fontSize: 28, fontWeight: '600', color: colors.ink, paddingHorizontal: 2, lineHeight: 38, paddingTop: 12, paddingBottom: 8, textAlignVertical: 'top' },
   clear: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  desc: { minHeight: 96, fontSize: font.bodyLg, color: colors.ink, textAlignVertical: 'top', paddingTop: 12 },
+  desc: { minHeight: 96, fontSize: 13, color: colors.ink, textAlignVertical: 'top', paddingTop: 12, paddingHorizontal: 0 },
   note: { fontSize: font.caption, color: colors.muted },
   error: { fontSize: font.body, fontWeight: '500', color: colors.coral },
   del: { minHeight: 48, justifyContent: 'center' },
