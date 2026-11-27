@@ -414,7 +414,7 @@ export function parseAgendaInput(b: Record<string, unknown>, now = new Date()): 
     throw new InputError(413, "INPUT_TOO_LONG", `items는 ${AGENDA_LIMITS.items}개까지 보내세요`, { field: "items", max_items: AGENDA_LIMITS.items });
   }
   if (!Array.isArray(b.discussions) || b.discussions.length === 0) {
-    throw bad("discussions(그날 회의 메모·녹음 전사문, 1개 이상)가 필요합니다");
+    throw bad("그날 회의 메모 또는 녹음 전사문이 하나 이상 필요합니다");
   }
   if (b.discussions.length > AGENDA_LIMITS.discussions) {
     throw new InputError(413, "INPUT_TOO_LONG", `discussions는 ${AGENDA_LIMITS.discussions}개까지 보내세요`, { field: "discussions" });

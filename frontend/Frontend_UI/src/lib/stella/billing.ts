@@ -155,7 +155,7 @@ export function koreanDate(iso: string): string {
 export function nextPaymentText(s: Subscription): string {
   if (s.state === 'FREE') return '-  (무료 요금제는 결제가 없어요)';
   if (s.state === 'CANCELING' && s.current_period_end) return `${koreanDate(s.current_period_end)}부터 무료 요금제로 바뀌어요`;
-  if (s.next_payment_at) return `${koreanDate(s.next_payment_at)} · ${won(s.next_payment_krw ?? s.price_krw[s.plan] ?? 0)}`;
+  if (s.next_payment_at) return `${koreanDate(s.next_payment_at)}, ${won(s.next_payment_krw ?? s.price_krw[s.plan] ?? 0)}`;
   return '-';
 }
 
@@ -170,7 +170,7 @@ export function planOptionText(s: Pick<Subscription, 'plans'>, id: AppPlanId): s
   const p = s.plans?.[serverPlan(id)];
   if (!p) return '';
   const price = p.price_krw > 0 ? `월 ${won(p.price_krw)}` : '무료';
-  return `${price} · 초대 월 ${p.project_invites_per_month}회 · 공간 첨부 ${storageText(p.workspace_storage_bytes)}`;
+  return `${price}, 초대 월 ${p.project_invites_per_month}회, 공간 첨부 ${storageText(p.workspace_storage_bytes)}`;
 }
 
 /** 결제·구독 오류 → 화면 문구 */

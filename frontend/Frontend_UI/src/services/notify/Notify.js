@@ -29,7 +29,7 @@ async function setup() {
     });
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync(CHANNEL, {
-        name: '일정·할 일·브리핑',
+        name: '일정, 할 일, 브리핑',
         importance: Notifications.AndroidImportance.HIGH,
       });
     }

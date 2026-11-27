@@ -118,7 +118,7 @@ const PREPARE_ERRORS: Record<string, [number, string]> = {
   UPLOAD_GONE: [410, "이미 변환이 끝나 지운 녹음입니다. 새 upload_id로 올려 주세요"],
   TOO_MANY_PENDING: [429, "변환을 기다리는 녹음이 너무 많습니다(10개). 먼저 변환하거나 잠시 후 다시 시도하세요"],
   TOO_LARGE: [413, "녹음 파일은 25MB까지 올릴 수 있습니다"],
-  UNSUPPORTED_TYPE: [415, "지원하지 않는 녹음 형식입니다 (m4a·mp3·wav·webm·ogg·flac·mp4)"],
+  UNSUPPORTED_TYPE: [415, "지원하지 않는 녹음 형식입니다 (m4a, mp3, wav, webm, ogg, flac, mp4)"],
 };
 const BEGIN_ERRORS: Record<string, [number, string]> = {
   FORBIDDEN: [403, "이 공간의 기록을 보낼 권한이 없습니다"],

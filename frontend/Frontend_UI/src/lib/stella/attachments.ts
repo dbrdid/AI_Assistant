@@ -138,14 +138,14 @@ export function canRetryUpload(code: string): boolean {
 export function attachmentErrorMessage(err: unknown): string {
   const code = (err as { code?: string } | null)?.code ?? '';
   switch (code) {
-    case 'UNSUPPORTED_TYPE': return '이 형식의 파일은 올릴 수 없어요 (사진·녹음·PDF·문서만)';
+    case 'UNSUPPORTED_TYPE': return '이 형식의 파일은 올릴 수 없어요 (사진, 녹음, PDF, 문서만)';
     case 'TOO_LARGE': return '파일은 50MB까지 올릴 수 있어요';
     case 'QUOTA_EXCEEDED': {
       // 서버 문구에 지금 요금제 기준 용량이 있음: "이 공간의 첨부 용량(2GB)을 넘습니다" / "백업 용량(1GB)을 넘습니다"
       const msg = String((err as { message?: string } | null)?.message ?? '');
       const size = /\((\d+(?:MB|GB))\)/.exec(msg)?.[1] ?? null;
       if (msg.includes('백업')) return `백업 용량${size ? `(${size})` : ''}이 가득 찼어요. 예전 백업을 지우거나 요금제를 올려 주세요`;
-      return `공간의 첨부 용량(${size ?? '500MB'})이 가득 찼어요. 안 쓰는 첨부를 지우거나 공간 관리자의 요금제를 올려 주세요 (FREE 500MB · PRO 2GB · TEAM 10GB)`;
+      return `공간의 첨부 용량(${size ?? '500MB'})이 가득 찼어요. 안 쓰는 첨부를 지우거나 공간 관리자의 요금제를 올려 주세요 (FREE 500MB, PRO 2GB, TEAM 10GB)`;
     }
     case 'TOO_MANY_PENDING': return '올리는 중인 파일이 너무 많아요. 잠시 후 다시 시도해 주세요';
     case 'FORBIDDEN': return '이 공간에 파일을 올리거나 지울 권한이 없어요';

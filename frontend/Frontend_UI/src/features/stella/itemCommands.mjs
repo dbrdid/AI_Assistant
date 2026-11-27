@@ -110,12 +110,12 @@ export function planItemCommand(rt, input, { memoId, originalRequest, canWrite }
     const undo = !!m[2];
     intends(undo ? 'undone' : 'done');
     const task = findTask(m[1], m[3]);
-    return proposal(`${m[1]} ${undo ? '완료 취소' : '완료'} · ${task.title}`, () => patchTask(task, { status: undo ? '진행 전' : '완료' }));
+    return proposal(`${m[1]} ${undo ? '완료 취소' : '완료'}, ${task.title}`, () => patchTask(task, { status: undo ? '진행 전' : '완료' }));
   }
   if ((m = RULES.remove.exec(request))) {
     intends('remove');
     const task = findTask(m[1], m[2]);
-    return proposal(`${m[1]} 삭제 · ${task.title}${task.date ? ' (' + task.date + ')' : ''}`, () => {
+    return proposal(`${m[1]} 삭제, ${task.title}${task.date ? ' (' + task.date + ')' : ''}`, () => {
       const current = rt.store.getTask(task.id);
       if (!current || current.revision !== task.revision) throw new Error('항목이 바뀌었습니다. 요청을 다시 검토해 주세요.');
       rt.store.deleteTask(task.id);
@@ -127,7 +127,7 @@ export function planItemCommand(rt, input, { memoId, originalRequest, canWrite }
     const task = findTask(m[1], m[2]);
     const title = stated(m[3].trim());
     if (!title || title.length > 200) throw new Error('새 이름은 1~200자로 입력해 주세요.');
-    return proposal(`${m[1]} 이름 변경 · ${task.title} → ${title}`, () => patchTask(task, { title }));
+    return proposal(`${m[1]} 이름 변경, ${task.title} → ${title}`, () => patchTask(task, { title }));
   }
   if ((m = RULES.date.exec(request))) {
     intends('date');
@@ -135,19 +135,19 @@ export function planItemCommand(rt, input, { memoId, originalRequest, canWrite }
     const [, , , date, start] = m;
     dateStated(date, start);
     const patch = start ? { date, start } : { date };
-    return proposal(`${m[1]} 날짜 변경 · ${task.title}\n${task.date}${task.start ? ' ' + task.start : ''} → ${date}${start ? ' ' + start : ''}`, () => patchTask(task, patch));
+    return proposal(`${m[1]} 날짜 변경, ${task.title}\n${task.date}${task.start ? ' ' + task.start : ''} → ${date}${start ? ' ' + start : ''}`, () => patchTask(task, patch));
   }
   if ((m = RULES.priority.exec(request))) {
     intends('priority');
     const task = findTask(m[1], m[2]);
     const priority = stated(m[3]);
-    return proposal(`${m[1]} 우선순위 변경 · ${task.title}\n${task.priority} → ${priority}`, () => patchTask(task, { priority }));
+    return proposal(`${m[1]} 우선순위 변경, ${task.title}\n${task.priority} → ${priority}`, () => patchTask(task, { priority }));
   }
   if ((m = RULES.alarm.exec(request))) {
     intends('alarm');
     const task = findTask(m[1], m[2]);
     const alarm = stated(m[3]);
-    return proposal(`${m[1]} 알림 변경 · ${task.title}\n${task.alarm} → ${alarm}`, () => patchTask(task, { alarm }));
+    return proposal(`${m[1]} 알림 변경, ${task.title}\n${task.alarm} → ${alarm}`, () => patchTask(task, { alarm }));
   }
 
   // 블록 작업: 지금 문서에서, 검토한 판(revision)이 그대로일 때만

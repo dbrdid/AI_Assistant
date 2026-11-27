@@ -24,7 +24,7 @@ function itemsOf(rt, project) {
   for (const id of project.links.tasks) {
     const t = rt.store.getTask(id);
     if (t && !t.deletedAt) {
-      const when = `${t.date}${t.start ? ` ${t.start}` : ''} · ${t.status}`;
+      const when = `${t.date}${t.start ? ` ${t.start}` : ''}, ${t.status}`;
       out[`task:${id}`] = { kind: 'task', id, title: t.title, body: t.desc ? `${when}\n${t.desc}` : when, createdAt: t.createdAt, updatedAt: t.updatedAt };
     }
   }

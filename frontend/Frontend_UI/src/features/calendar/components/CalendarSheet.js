@@ -13,6 +13,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
+import { useClaimSwipeGesture } from '../../../shared/hooks/useClaimSwipeGesture';
+import { HOLD_MS, isVerticalDrag } from '../../stella/swipeIntent.mjs';
 import { colors, font, spacing, FILL } from '../../../shared/theme/theme';
 import { CircleButton } from '../../../shared/components/Ui';
 import MonthCalendar from './MonthCalendar';
@@ -29,8 +31,11 @@ export const GRAB_HEIGHT = 118;
 const HOME_BAR = 16;     // 홈 시트 맨 위 손잡이 막대 영역 높이
 const HALF_VISIBLE = 560; // "중간" 단계에서 화면에 보이는 시트 높이 (달력 한 달이 들어갈 정도)
 const FLING_MS = 150;    // 손을 뗄 때의 속도로 "150ms 뒤 위치"를 미리 계산 → 휙 던지면 더 멀리 가게 함
+const ignoreHold = () => {};
 
 export default function CalendarSheet({ calendar, startFull = false, onReachTop, onClose, onAddTask, onEditTask, lead, embedded = false }) {
+  const claimSwipe = useClaimSwipeGesture();
+  const canDragSheet = !startFull || !!onClose;
   // ---------- 1) 크기 계산 ----------
   const windowH = useWindowDimensions().height; // 기기가 알려 주는 화면 높이 (폰에 따라 실제 그려지는 영역과 다를 수 있음)
   const [parentH, setParentH] = useState(0);      // 시트가 놓인 곳의 "실제로 그려지는 높이" (아래 probe View 로 잼)
@@ -109,11 +114,11 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
   const pan = useMemo(() => {
     let downY = 0; // 손가락을 댄 순간의 시트 위치
     return PanResponder.create({
-      // 손잡이를 터치하면 이 제스처를 내가 처리하겠다고 선언
-      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: (_, gesture) => canDragSheet && isVerticalDrag(gesture),
 
       // 손가락을 댄 순간: 진행 중이던 애니메이션을 멈추고 현재 위치를 기억
       onPanResponderGrant: () => {
+        claimSwipe();
         dragging.current = true;
         y.stopAnimation();
         downY = yRef.current;
@@ -130,25 +135,13 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
       // 제스처가 도중에 끊긴 경우(다른 곳이 가져감)에도 끌기 상태를 풀어 줌
       onPanResponderTerminate: () => {
         dragging.current = false;
+        latest.current.snapTo(latest.current.level);
       },
 
       // 손가락을 뗀 순간: 어느 단계로 갈지 결정
       onPanResponderRelease: (_, g) => {
         dragging.current = false;
         const L = latest.current;
-        // 하단 탭의 캘린더(닫을 곳 없음): 끌어도 항상 끝까지 올라온 상태로 돌아감
-        if (L.startFull && !L.onClose) {
-          L.snapTo('full');
-          return;
-        }
-
-        // (a) 거의 안 움직였다 = 그냥 "탭" → 닫혀 있으면 열고(홈: 중간 / 캘린더 화면: 끝까지), 열려 있으면 닫기
-        if (Math.abs(g.dy) < 6 && Math.abs(g.vy) < 0.2) {
-          if (L.level === 'closed') L.snapTo(L.startFull ? 'full' : 'half');
-          else L.snapTo('closed');
-          return;
-        }
-
         // (b) 끌었다 → "손을 뗀 위치 + 속도로 조금 더 나아간 위치" 에서 가장 가까운 단계로 이동
         //     (g.vy 는 위로 빠르게 움직이면 큰 음수 → 더 위쪽 단계가 선택됨)
         const projected = yRef.current + g.vy * FLING_MS;
@@ -161,7 +154,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
         L.snapTo(best);
       },
     });
-  }, [y]);
+  }, [canDragSheet, claimSwipe, y]);
 
   // ---------- 4) 안드로이드 뒤로가기 버튼 ----------
   // 시트가 열려 있을 때만: 뒤로가기를 누르면 시트를 닫음 (캘린더 화면 모드에서는 닫으면서 이전 화면으로 이동)
@@ -281,16 +274,14 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
     Animated.spring(lift, { toValue: to, bounciness: 0, speed: 16, useNativeDriver: true }).start();
   };
   const panelPan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onStartShouldSetPanResponderCapture: () => true,
-    onPanResponderGrant: () => setPanelDragging(true),
+    onMoveShouldSetPanResponderCapture: (_, gesture) => isVerticalDrag(gesture),
+    onPanResponderGrant: () => { claimSwipe(); setPanelDragging(true); },
     onPanResponderTerminationRequest: () => false,
     onPanResponderTerminate: () => { pendingMove.current = null; setPanelDragging(false); movePanel(liftBase.current < 0); },
     onPanResponderMove: (_, g) => { liftNow.current = Math.min(liftBase.current < 0 ? 0 : 160, Math.max(-panelTopRef.current, liftBase.current + g.dy)); lift.setValue(liftNow.current); },
     onPanResponderRelease: (_, g) => {
       setPanelDragging(false);
       const expanded = liftBase.current < 0;
-      if (Math.abs(g.dy) < 6 && Math.abs(g.dx) < 6) { if (detailedRef.current) setDetailed(false); else movePanel(!expanded); return; } // 짧게 누르면 열고 닫기
       // 높이의 1/4 이상(내릴 때는 80) 또는 빠르게 밀면 한 단계 넘어감: 덮기 ↔ 제자리 ↔ 달력 크게
       const far = Math.abs(g.vy) > 0.6 || (g.dy > 0 ? g.dy > 80 : -g.dy > panelTopRef.current / 4);
       if (!far) return movePanel(expanded);
@@ -360,14 +351,12 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
         <View
           {...pan.panHandlers}
           {...hideHead}
-          accessible
-          accessibilityRole="button"
-          accessibilityLabel={level === 'closed' ? '캘린더 열기' : '캘린더 닫기'}
-          accessibilityHint={hint}
-          accessibilityActions={[{ name: 'activate' }]}
-          onAccessibilityAction={toggle}
           style={[styles.grab, { paddingTop: startFull && !embedded ? headTop : 0 }]}
         >
+          <Pressable disabled={!canDragSheet} accessibilityRole={canDragSheet ? 'button' : undefined}
+            accessibilityLabel={canDragSheet ? (level === 'closed' ? '캘린더 열기' : '캘린더 닫기') : undefined}
+            accessibilityHint={canDragSheet ? hint : undefined}
+            onPress={toggle} onLongPress={ignoreHold} delayLongPress={HOLD_MS}>
           {!startFull && (
             <View style={styles.barWrap}>
               <View style={styles.bar} />
@@ -376,6 +365,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
           <View style={[styles.headerRow, embedded && styles.headerRowEmbedded]}>
             {!embedded && <Text style={styles.headerTitle}>캘린더</Text>}
           </View>
+          </Pressable>
         </View>
         {/* 제목 줄 왼쪽 버튼 (캘린더 화면의 ☰ 또는 ‹). 손잡이 위에 겹쳐 그려서 눌림을 먼저 받음 */}
         {lead ? (
@@ -414,9 +404,12 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
                 else if (liftBase.current < 0) { liftBase.current = -y; liftNow.current = -y; lift.setValue(-y); }
               }}
               style={[styles.panel, { paddingBottom: insets.bottom + spacing.xxl, transform: [{ translateY: lift }] }]}>
-              <View {...panelPan.panHandlers} accessible accessibilityRole="button" accessibilityLabel={panelExpanded ? '일정 목록 내리기' : detailed ? '일정 목록 다시 보기' : '일정 목록 크게 보기'}
-                accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={() => movePanel(!panelExpanded)} style={styles.panelBarWrap}>
-                <View style={styles.bar} />
+              <View {...panelPan.panHandlers}>
+                <Pressable accessibilityRole="button" accessibilityLabel={panelExpanded ? '일정 목록 내리기' : detailed ? '일정 목록 다시 보기' : '일정 목록 크게 보기'}
+                  onPress={() => { if (detailed) setDetailed(false); else movePanel(!panelExpanded); }}
+                  onLongPress={ignoreHold} delayLongPress={HOLD_MS} style={styles.panelBarWrap}>
+                  <View style={styles.bar} />
+                </Pressable>
               </View>
               {searching ? (
                 <CalendarSearch
@@ -450,17 +443,13 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
           <Animated.View
             {...pan.panHandlers}
             pointerEvents={showPeek ? 'auto' : 'none'}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel="이번 주 캘린더 열기"
-            accessibilityHint={hint}
             accessibilityElementsHidden={!showPeek}
             importantForAccessibility={showPeek ? 'yes' : 'no-hide-descendants'}
-            accessibilityActions={[{ name: 'activate' }]}
-            onAccessibilityAction={toggle}
             // 아래 안전영역(홈 인디케이터)까지 흰 띠로 덮어야 밑의 달력이 비쳐 보이지 않음
             style={[styles.peek, { height: GRAB_HEIGHT + insets.bottom, paddingBottom: insets.bottom, opacity: peekOpacity }]}
           >
+            <Pressable accessibilityRole="button" accessibilityLabel="이번 주 캘린더 열기" accessibilityHint={hint}
+              onPress={toggle} onLongPress={ignoreHold} delayLongPress={HOLD_MS}>
             <View style={styles.barWrap}>
               <View style={styles.bar} />
             </View>
@@ -493,6 +482,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
                 );
               })}
             </View>
+            </Pressable>
           </Animated.View>
         )}
       </Animated.View>

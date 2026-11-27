@@ -276,16 +276,16 @@ export function recordingProgressText(s: RecordingStatus, now = new Date()): { l
   const lines: string[] = [];
   const canRetry = c.failed > 0 && (!s.retryUntil || new Date(s.retryUntil) > now);
   switch (s.state) {
-    case 'UPLOADING': lines.push(`업로드 중 · ${s.total}개 중 ${s.total - c.pendingUpload}개 올림`); break;
-    case 'PROCESSING': lines.push(`음성 변환 중 · ${s.total}개 중 ${c.done}개 완료`); break;
-    case 'NEEDS_RETRY': lines.push(`음성 변환 · ${s.total}개 중 ${c.done}개 완료`); break;
+    case 'UPLOADING': lines.push(`업로드 중, ${s.total}개 중 ${s.total - c.pendingUpload}개 올림`); break;
+    case 'PROCESSING': lines.push(`음성 변환 중, ${s.total}개 중 ${c.done}개 완료`); break;
+    case 'NEEDS_RETRY': lines.push(`음성 변환, ${s.total}개 중 ${c.done}개 완료`); break;
     case 'DONE': lines.push('음성 변환 완료'); break;
-    case 'DONE_WITH_GAPS': lines.push(`음성 변환 완료 · ${c.gaveUp + c.canceled}개 구간은 복구하지 못함`); break;
+    case 'DONE_WITH_GAPS': lines.push(`음성 변환 완료, ${c.gaveUp + c.canceled}개 구간은 복구하지 못함`); break;
     case 'FAILED': lines.push('음성 변환 실패'); break;
     case 'CANCELED': lines.push('취소됨'); break;
   }
   if (c.failed > 0 && s.state !== 'CANCELED') {
-    lines.push(canRetry ? `실패한 구간 ${c.failed}개 · 재시도 가능${s.retryUntil ? ` (${formatDeadline(s.retryUntil)}까지)` : ''}`
+    lines.push(canRetry ? `실패한 구간 ${c.failed}개, 재시도 가능${s.retryUntil ? ` (${formatDeadline(s.retryUntil)}까지)` : ''}`
                         : `실패한 구간 ${c.failed}개`);
   }
   return { lines, canRetry };
@@ -400,7 +400,7 @@ export function recordingErrorMessage(err: unknown): string {
     case 'FORBIDDEN': return '이 공간에 녹음을 저장할 권한이 없어요';
     case 'RECORDING_TOO_LONG': return '녹음은 3시간까지 처리할 수 있어요';
     case 'TOO_LARGE': return '구간 파일이 너무 커요 (25MB까지). 더 짧게 나눠 주세요';
-    case 'UNSUPPORTED_TYPE': return '이 형식은 처리할 수 없어요 (m4a·mp3)';
+    case 'UNSUPPORTED_TYPE': return '이 형식은 처리할 수 없어요 (m4a, mp3)';
     case 'TOO_MANY_SEGMENTS': return '구간이 너무 많아요 (200개까지)';
     case 'TOO_MANY_ACTIVE': return '처리 중인 녹음이 3개 있어요. 끝난 뒤에 다시 시도해 주세요';
     case 'RECORDING_EXISTS': case 'RECORDING_ID_TAKEN': return '이미 등록된 녹음이에요. 새 녹음으로 다시 시도해 주세요';

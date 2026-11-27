@@ -14,7 +14,7 @@ import { palette as c, styles as s } from './theme';
 
 const ROLES = [
   ['OWNER', '관리자', '공간 설정, 결제, 초대와 멤버 관리'],
-  ['EDITOR', '멤버', '문서·일정·프로젝트 편집'],
+  ['EDITOR', '멤버', '문서, 일정, 프로젝트 편집'],
   ['VIEWER', '보기 전용', '읽기만 가능'],
 ];
 const ROLE_LABEL = Object.fromEntries(ROLES.map(([code, label]) => [code, label]));

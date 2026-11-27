@@ -24,7 +24,7 @@ export function recommendTargets(now = new Date()) {
       type: 'memo',
       id: m.id,
       title: memoTitle(m),
-      reason: ageMin < 30 ? '방금 작성·수정한 메모예요' : `${Math.max(1, Math.round(ageMin / 60))}시간 전에 작성·수정한 메모예요`,
+      reason: ageMin < 30 ? '방금 작성하거나 수정한 메모예요' : `${Math.max(1, Math.round(ageMin / 60))}시간 전에 작성하거나 수정한 메모예요`,
       score: 100 - ageMin / 2,
     });
   });

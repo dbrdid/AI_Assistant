@@ -505,7 +505,7 @@ export default function AiChatScreen({ navigation }) {
             {/* Notion AI처럼 빈 화면은 이름만 (예시 질문 칩 없음) */}
             <AtriaBook size={40} busy={status !== 'idle'} />
             <Text style={styles.emptyTitle}>Atria AI</Text>
-            <OnceTip style={{ marginTop: 16, marginHorizontal: 24 }} tips={[{ id: 'ai-chat', text: '앱 안의 문서·일정·할 일에서 찾아 답해요. 무언가를 만들거나 바꾸는 작업은 확인하고 승인한 뒤에만 적용돼요.' }]} />
+            <OnceTip style={{ marginTop: 16, marginHorizontal: 24 }} tips={[{ id: 'ai-chat', text: '앱 안의 문서, 일정, 할 일에서 찾아 답해요. 무언가를 만들거나 바꾸는 작업은 확인하고 승인한 뒤에만 적용돼요.' }]} />
           </View>
         ) : (
           <FlatList
@@ -635,7 +635,7 @@ export default function AiChatScreen({ navigation }) {
             </Pressable>
             <Pressable accessibilityRole="button" onPress={() => addFiles('file')} style={styles.option}>
               <Text style={styles.optionName}>파일</Text>
-              <Text style={styles.optionSub}>PDF·Word·PowerPoint·텍스트의 글자를 꺼내서 함께 보내요</Text>
+              <Text style={styles.optionSub}>PDF, Word, PowerPoint, 텍스트 파일에서 글자를 꺼내 함께 보내요</Text>
             </Pressable>
             <Pressable accessibilityRole="button" onPress={() => setPanel('archive')} style={styles.option}>
               <Text style={styles.optionName}>파일 보관함에서 선택</Text>
@@ -763,7 +763,7 @@ export default function AiChatScreen({ navigation }) {
       {/* ---------- 업로드된 파일 (아래에서 머리글 바로 아래까지 올라오는 창) ---------- */}
       <UpSheet visible={panel === 'files'} top={headerBottom} title="업로드된 파일" onClose={() => setPanel(null)}>
         {chatUploads.length === 0 ? (
-          <Text style={styles.historyEmpty}>올린 사진·파일이 없어요</Text>
+          <Text style={styles.historyEmpty}>올린 사진이나 파일이 없어요</Text>
         ) : (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: spacing.sm }}>
             {chatUploads.map((u) => (

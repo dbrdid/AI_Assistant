@@ -4,6 +4,7 @@ import { randomUUID } from 'expo-crypto';
 import { SheetModal } from '../../shared/components/Motion';
 import Icon from '../../shared/components/Icon';
 import { palette as c, styles as s } from './theme';
+import { previewOrder } from './aiPending.mjs';
 import { blockBreaks, insertBlock, moveBlock, splitBlock, tableRows, MAX_BLOCKS } from '../../../../../backend/local/src/document-blocks.mjs';
 
 const TYPES = [['paragraph','텍스트','file'],['heading','제목','type'],['bullet','목록','list'],['task','체크리스트','checkSquare'],['table','표','grid']];
@@ -38,11 +39,11 @@ function TextBody({block,index,ctx}) {
   </View>;
 }
 const BODIES = { table: TableBody };
-const NO_PENDING = new Set();
-const BlockEditor = forwardRef(function BlockEditor({ blocks, onChange, disabled, onAskAI, pending = NO_PENDING, replacing = NO_PENDING, deleting = NO_PENDING, onDecide }, ref) {
+const NO_PENDING = new Map();
+const BlockEditor = forwardRef(function BlockEditor({ blocks, onChange, disabled, onAskAI, pending = NO_PENDING, onDecide }, ref) {
   const [picker,setPicker] = useState(null), [active,setActive] = useState(null), [table,setTable] = useState(null), [error,setError] = useState(''), [drop,setDrop] = useState(null);
   const inputs=useRef(new Map()), dragging=useRef(null), skipSplit=useRef(false), dragMoved=useRef(false), holdTimer=useRef(null);
-  const askAI=disabled||!onAskAI?undefined:index=>{clearTimeout(holdTimer.current);dragging.current=null;setDrop(null);onAskAI(blocks[index],index);};
+  const askAI=disabled||!onAskAI?undefined:index=>{clearTimeout(holdTimer.current);dragging.current=null;setDrop(null);if(blocks[index]&&!pending.has(blocks[index].id))onAskAI(blocks[index],index);};
   // A TextInput has no onLongPress: hold ~450 ms without typing or lifting the finger.
   function holdStart(index){if(!askAI)return;clearTimeout(holdTimer.current);holdTimer.current=setTimeout(()=>askAI(index),450);}
   function holdEnd(){clearTimeout(holdTimer.current);}
@@ -51,7 +52,7 @@ const BlockEditor = forwardRef(function BlockEditor({ blocks, onChange, disabled
   function focusPending(){const input=inputs.current.get(pendingFocus.current);if(input){input.focus();pendingFocus.current=null;}}
   useEffect(()=>{if(!picker&&!table)focusPending();},[blocks]);
   const selected=blocks.find(block=>block.id===active) ?? blocks[0];
-  useImperativeHandle(ref,()=>({add:()=>{if(!disabled)setPicker({new:true,after:selected?.id});},format:()=>{if(!disabled&&selected)setPicker({id:selected.id});}}),[disabled,selected]);
+  useImperativeHandle(ref,()=>({add:()=>{if(!disabled)setPicker({new:true,after:selected?.id});},format:()=>{if(!disabled&&selected&&!pending.has(selected.id))setPicker({id:selected.id});}}),[disabled,pending,selected]);
   function commit(next){if(disabled||JSON.stringify(next)===JSON.stringify(blocks))return;try{onChange(next);setError('');}catch(e){setError(e.message);}}
   function update(id,patch){commit(blocks.map(block=>block.id===id?{...block,...patch}:block));}
   function closePicker(){setPicker(null);}
@@ -87,21 +88,28 @@ const BlockEditor = forwardRef(function BlockEditor({ blocks, onChange, disabled
   function resizeTable(rows){try{setTable({...table,block:{...table.block,rows:tableRows(rows)}});setError('');}catch(e){setError(e.message);}}
   function saveTable(){try{const block={...table.block,rows:tableRows(table.block.rows)};commit(table.new?insertBlock(blocks,table.after,block,table.first):blocks.map(item=>item.id===block.id?block:item));setActive(block.id);setTable(null);}catch(e){setError(e.message);}}
   const ctx={active,disabled,askAI,setActive,setTable,update,inputs,holdStart,holdEnd,changeText,skipSplit,closePicker};
+  const orderedBlocks = previewOrder(blocks, [...pending.values()]);
+  const blockIndexes = new Map(blocks.map((block, index) => [block.id, index]));
   const action=(label,icon,onPress,inactive=false)=><Pressable key={label} accessibilityRole="button" accessibilityLabel={label} disabled={disabled||inactive} onPress={onPress} style={[s.menuRow,(disabled||inactive)&&{opacity:.35}]}><Icon name={icon} size={18} color={c.muted}/><Text style={s.menuLabel}>{label}</Text></Pressable>;
   return <View style={{paddingTop:4,minHeight:280}} onPointerCancel={()=>{dragging.current=null;setDrop(null);}}>
     {error?<Text accessibilityRole="alert" style={s.error}>{error}</Text>:null}
     {!disabled && blocks.length < MAX_BLOCKS && <InsertBoundary label="첫 블록 앞에 삽입" open={()=>setPicker({new:true,first:true})} drop={()=>dropBlock(blocks[0]?.id)}/>}
-    {blocks.map((block,index)=><View key={block.id} onPointerEnter={()=>{if(dragging.current){dragMoved.current ||= dragging.current!==block.id;setDrop(block.id);}}} onPointerUp={()=>dropBlock(block.id)} style={[{borderTopWidth:drop===block.id?2:0,borderTopColor:c.accent,marginBottom:0},pending.has(block.id)&&{backgroundColor:c.raised,borderLeftWidth:2,borderLeftColor:c.accent,borderRadius:4}]}>
+    {orderedBlocks.map(block => {
+      const index = blockIndexes.get(block.id);
+      const proposal = pending.get(block.id);
+      const previewContext = proposal ? { ...ctx, disabled: true, askAI: undefined, holdStart: undefined } : ctx;
+      return <View key={block.id} onPointerEnter={()=>{if(dragging.current){dragMoved.current ||= dragging.current!==block.id;setDrop(block.id);}}} onPointerUp={()=>dropBlock(block.id)} style={proposal ? { borderWidth: 1, borderColor: '#fff', borderRadius: 4 } : { borderTopWidth: drop === block.id ? 2 : 0, borderTopColor: c.accent }}>
       <View style={{flexDirection:'row',gap:6,alignItems:'center'}}>
-        {!disabled&&block.id!==active&&<View style={{width:32}} />}
-        {!disabled&&block.id===active&&<Pressable accessibilityRole="button" accessibilityLabel={`블록 ${index+1} 메뉴와 끌어서 옮기기`} accessibilityHint={askAI?'길게 누르면 이 블록으로 AI에게 요청합니다':undefined} onLongPress={askAI&&(()=>askAI(index))} delayLongPress={450} onPress={()=>{if(dragMoved.current){dragMoved.current=false;return;}setActive(block.id);setPicker({id:block.id});}} onPointerDown={event=>{if(Platform.OS==='web'&&event.nativeEvent?.button!==2){dragMoved.current=false;dragging.current=block.id;setActive(block.id);}}} onKeyDown={event=>{if(event.altKey&&['ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();move(event.key==='ArrowUp'?-1:1,block.id);}}} style={{width:32,minHeight:44,alignItems:'center',justifyContent:'center'}}><Text style={{color:c.muted,fontSize:22}}>⠿</Text></Pressable>}
+        {!disabled&&(proposal||block.id!==active)&&<View style={{width:32}} />}
+        {!disabled&&!proposal&&block.id===active&&<Pressable accessibilityRole="button" accessibilityLabel={`블록 ${index+1} 메뉴와 끌어서 옮기기`} accessibilityHint={askAI?'길게 누르면 이 블록으로 AI에게 요청합니다':undefined} onLongPress={askAI&&(()=>askAI(index))} delayLongPress={450} onPress={()=>{if(dragMoved.current){dragMoved.current=false;return;}setActive(block.id);setPicker({id:block.id});}} onPointerDown={event=>{if(Platform.OS==='web'&&event.nativeEvent?.button!==2){dragMoved.current=false;dragging.current=block.id;setActive(block.id);}}} onKeyDown={event=>{if(event.altKey&&['ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();move(event.key==='ArrowUp'?-1:1,block.id);}}} style={{width:32,minHeight:44,alignItems:'center',justifyContent:'center'}}><Text style={{color:c.muted,fontSize:22}}>⠿</Text></Pressable>}
         <View style={{flex:1,minWidth:0}}>
-          {React.createElement(BODIES[block.type]??TextBody,{block,index,ctx})}
+          {(proposal?.preview ?? [block]).map(item => React.createElement(BODIES[item.type] ?? TextBody, { key: item.id, block: item, index, ctx: previewContext }))}
         </View>
       </View>
-      {pending.has(block.id)&&<View style={{flexDirection:'row',alignItems:'center',gap:4,marginLeft:38}}><Text style={[s.meta,{color:c.accent,flex:1}]}>{deleting?.has(block.id)?'AI 제안: 수용하면 이 블록을 삭제':replacing?.has(block.id)?'AI 제안: 수용하면 원래 블록을 대체':'AI 제안'}</Text>{[['수용',true],['거절',false]].map(([label,accept])=><Pressable key={label} accessibilityRole="button" accessibilityLabel={`블록 ${index+1} AI 제안 ${label}`} disabled={disabled} onPress={()=>onDecide?.([block.id],accept)} style={{minHeight:44,minWidth:44,justifyContent:'center',paddingHorizontal:8,opacity:disabled?.4:1}}><Text style={s.linkText}>{label}</Text></Pressable>)}</View>}
+      {pending.has(block.id)&&<View style={{flexDirection:'row',alignItems:'center',justifyContent:'flex-end',gap:4}}>{(proposal.deletes?[['삭제',true],['유지',false]]:[['수용',true],['거절',false]]).map(([label,accept])=><Pressable key={label} accessibilityRole="button" accessibilityLabel={`블록 ${index+1} AI 제안 ${label}`} disabled={disabled} onPress={()=>onDecide?.([block.id],accept)} style={{minHeight:44,minWidth:44,justifyContent:'center',paddingHorizontal:8,opacity:disabled?.4:1}}><Text style={s.linkText}>{label}</Text></Pressable>)}</View>}
       {!disabled && blocks.length < MAX_BLOCKS && <InsertBoundary label={`블록 ${index+1} 뒤에 삽입`} open={()=>setPicker({new:true,after:block.id})} drop={()=>dropBlock(blocks[index+1]?.id??null)}/>}
-    </View>)}
+      </View>;
+    })}
     <SheetModal visible={!!picker} onClosed={focusPending} onClose={closePicker} label="블록 형식"><View style={s.handle}/><View style={s.titleRow}><Text style={s.sectionTitle}>{picker?.new?'블록 추가':'블록 설정'}</Text><Pressable accessibilityRole="button" accessibilityLabel="블록 형식 닫기" onPress={closePicker} style={s.iconButton}><Icon name="x" size={20} color={c.muted}/></Pressable></View><ScrollView keyboardShouldPersistTaps="handled"><View style={s.blockTypeGrid}>{TYPES.map(([type,label,icon])=><Pressable key={type} accessibilityRole="button" accessibilityLabel={`${label} 블록${picker?.new?' 추가':'으로 변경'}`} disabled={disabled} onPress={()=>choose(type)} style={s.blockTypeOption}><Icon name={icon} size={19} color={c.muted}/><Text style={s.rowTitle}>{label}</Text></Pressable>)}</View>{picker&&!picker.new&&<>{askAI&&action('AI에게 요청','sparkles',()=>{const index=blocks.findIndex(block=>block.id===picker.id);closePicker();if(index>=0)askAI(index);})}{action('블록 위로 이동','chevronUp',()=>move(-1),blocks[0]?.id===picker.id)}{action('블록 아래로 이동','chevronDown',()=>move(1),blocks.at(-1)?.id===picker.id)}{action('블록 복제','copy',duplicate,blocks.length>=MAX_BLOCKS)}{action('블록 삭제','trash',deleteSelected,blocks.length===1)}</>}</ScrollView></SheetModal>
     <SheetModal visible={!!table} onClose={()=>setTable(null)} label="표 변경 검토"><View style={s.titleRow}><Text style={s.sectionTitle}>표 편집</Text><Pressable accessibilityRole="button" accessibilityLabel="표 편집 취소" onPress={()=>setTable(null)} style={s.iconButton}><Icon name="x" size={20} color={c.muted}/></Pressable></View><Text style={s.note}>확인 후 적용하기 전에는 원문이 바뀌지 않습니다.</Text>{error?<Text accessibilityRole="alert" style={s.error}>{error}</Text>:null}{table&&<ScrollView keyboardShouldPersistTaps="handled"><ScrollView horizontal keyboardShouldPersistTaps="handled"><View>{table.block.rows.map((row,r)=><View key={r} style={{flexDirection:'row'}}>{row.map((cell,col)=><TextInput key={col} accessibilityLabel={`표 편집 ${r+1}행 ${col+1}열`} value={cell} multiline onChangeText={text=>resizeTable(table.block.rows.map((line,i)=>line.map((value,j)=>i===r&&j===col?text:value)))} style={{width:140,minHeight:44,borderWidth:1,borderColor:c.line,padding:10,color:c.text,fontSize:16}}/>)}</View>)}</View></ScrollView><View style={{flexDirection:'row',flexWrap:'wrap',gap:12}}>{action('행 추가','plus',()=>resizeTable([...table.block.rows,Array(table.block.rows[0].length).fill('')]),table.block.rows.length>=50)}{action('열 추가','plus',()=>resizeTable(table.block.rows.map(row=>[...row,''])),table.block.rows[0].length>=20)}{action('마지막 행 삭제','minus',()=>resizeTable(table.block.rows.slice(0,-1)),table.block.rows.length===1)}{action('마지막 열 삭제','minus',()=>resizeTable(table.block.rows.map(row=>row.slice(0,-1))),table.block.rows[0].length===1)}</View><Pressable accessibilityRole="button" onPress={saveTable} style={s.primary}><Text style={s.primaryText}>확인 후 적용</Text></Pressable></ScrollView>}</SheetModal>
   </View>;

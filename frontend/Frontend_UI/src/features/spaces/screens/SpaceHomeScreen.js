@@ -268,7 +268,7 @@ export default function SpaceHomeScreen({ navigation, route }) {
         title={owner ? `「${ws.name}」 공간을 삭제할까요?` : `「${ws.name}」에서 나갈까요?`}
         sub={
           owner
-            ? `멤버 ${ws.members}명 모두에게서 이 공간의 메모·일정·할 일·프로젝트·파일이 삭제되고 되돌릴 수 없어요.`
+            ? `멤버 ${ws.members}명 모두에게서 이 공간의 메모, 일정, 할 일, 프로젝트, 파일이 삭제되고 되돌릴 수 없어요.`
             : '공간과 기록은 다른 멤버에게 그대로 남아요. 이 기기에서는 지워지고, 다시 들어오려면 관리자의 새 초대가 필요해요.'
         }
         confirmText={owner ? '삭제' : '나가기'}

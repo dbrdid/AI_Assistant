@@ -184,7 +184,7 @@ export async function judgeAgendaDiscussion(client: SupabaseClient, p: {
 /** 요약 문구: "논의됨 3 · 미논의 2" */
 export function agendaJudgeSummary(r: Pick<AgendaJudgeResult, 'judged'>): string {
   const v = Object.values(r.judged);
-  return `논의됨 ${v.filter((x) => x === 'discussed').length} · 미논의 ${v.filter((x) => x === 'open').length}`;
+  return `논의됨 ${v.filter((x) => x === 'discussed').length}, 미논의 ${v.filter((x) => x === 'open').length}`;
 }
 
 export function agendaJudgeErrorMessage(err: unknown): string {

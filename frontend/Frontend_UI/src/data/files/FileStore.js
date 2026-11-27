@@ -395,7 +395,7 @@ async function copyToDeviceFolder(sourceUri, name, mimeType) {
       } catch (rootError) {
         await AsyncStorage.removeItem(SAVE_DIRECTORY_KEY);
         await AsyncStorage.removeItem(SAVE_MODE_KEY);
-        throw new Error(`다운로드 폴더와 앱 전용 폴더에 저장하지 못했어요. 앱 폴더: ${appError?.message || '저장 권한을 확인해 주세요'} · 다운로드 폴더: ${rootError?.message || '저장 권한을 확인해 주세요'}`);
+        throw new Error(`다운로드 폴더와 앱 전용 폴더에 저장하지 못했어요. 앱 폴더: ${appError?.message || '저장 권한을 확인해 주세요'}, 다운로드 폴더: ${rootError?.message || '저장 권한을 확인해 주세요'}`);
       }
     }
   }
@@ -410,7 +410,7 @@ async function copyToDeviceFolder(sourceUri, name, mimeType) {
     } catch (appError) {
       await AsyncStorage.removeItem(SAVE_DIRECTORY_KEY);
       await AsyncStorage.removeItem(SAVE_MODE_KEY);
-      throw new Error(`다운로드 폴더와 앱 전용 폴더에 저장하지 못했어요. 다운로드 폴더: ${rootError?.message || '저장 권한을 확인해 주세요'} · 앱 폴더: ${appError?.message || '저장 권한을 확인해 주세요'}`);
+      throw new Error(`다운로드 폴더와 앱 전용 폴더에 저장하지 못했어요. 다운로드 폴더: ${rootError?.message || '저장 권한을 확인해 주세요'}, 앱 폴더: ${appError?.message || '저장 권한을 확인해 주세요'}`);
     }
   }
 }

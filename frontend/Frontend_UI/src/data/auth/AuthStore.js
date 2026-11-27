@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { supabase } from '../../lib/stella/supabase';
 import { forgetRememberedKeys } from '../../integration/rememberedKeys';
-import { openSession, closeSession, maybeRuntime, wipeSessionData } from '../../integration/runtime';
+import { openSession, closeSession, flushSessionDrafts, maybeRuntime, wipeSessionData } from '../../integration/runtime';
 import { getWithdrawPreview, withdrawAccount, withdrawErrorMessage } from '../../lib/stella/withdraw';
 import { Linking, Platform } from 'react-native';
 import { completeSignInFromUrl, completeWebSignIn } from '../../lib/stella/auth';
@@ -56,12 +56,29 @@ export async function startSession() {
   await enqueue(data.session.user);
   if (state.status !== 'in') throw new Error(state.error ?? '기기 저장소를 열지 못했습니다');
 }
-export async function signOut() {
-  const before = state;
-  publish({ status: 'loading', user: null, error: null });
-  // 로그아웃한 계정의 서버 알림이 이 기기로 오지 않게 (로그인 상태일 때 해야 서버가 받아 줌)
-  try { await unregisterPush(); await closeSession(true); await forgetRememberedKeys(); /* 다음 사람이 이 휴대폰에 기억된 AI 키를 쓰지 않게 */ const { error } = await supabase.auth.signOut({ scope: 'local' }); if (error) throw error; await enqueue(null); return { ok: true }; }
-  catch (error) { publish(maybeRuntime() ? before : { status: 'out', user: null, error: error.message }); return { ok: false, message: error.message }; }
+export function signOut() {
+  const job = queue.catch(() => undefined).then(async () => {
+    if (state.status === 'out') return { ok: true };
+    try {
+      flushSessionDrafts();
+      await unregisterPush();
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      if (error) throw error;
+    } catch (error) {
+      return { ok: false, message: error.message };
+    }
+    try {
+      await forgetRememberedKeys();
+      // Close the account database while keeping its on-device records and sync queue.
+      await apply(null);
+    } catch (error) {
+      console.error('[auth] 로그아웃 후 기기 저장소를 닫지 못했습니다', error);
+      publish({ status: 'out', user: null, error: '로그아웃 후 기기 저장소를 닫지 못했습니다. 앱을 다시 시작해 주세요.' });
+    }
+    return { ok: true };
+  });
+  queue = job;
+  return job;
 }
 export const loadWithdrawPreview = () => getWithdrawPreview(supabase);
 // Runs inside the auth queue so the SIGNED_OUT event from withdrawAccount waits until the device data is erased.

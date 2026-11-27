@@ -4,26 +4,44 @@
 // Figma 시안: '15일 일요일' + '오늘 · 일정 1 · 할 일 2' + 오른쪽 '+ 추가' 알약
 // 항목 카드: 왼쪽 시간(시작/끝) · 색 막대(일정 = 민트, 할 일 = 진녹색, 완료 = 흐린 선) · 제목 · 아이콘 설명 · 할 일은 오른쪽 체크박스
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import Icon from '../../../shared/components/Icon';
-import { Card } from '../../../shared/components/Ui';
-import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import { Card, InlineDeletePrompt } from '../../../shared/components/Ui';
+import { useClaimSwipeGesture } from '../../../shared/hooks/useClaimSwipeGesture';
+import { colors, font, spacing } from '../../../shared/theme/theme';
 import { WEEKDAYS_LONG, toKey } from '../utils/DateUtils';
 import { relativeTime } from '../utils/relativeTime.mjs';
 import { classify, deleteTask, occursOn, shortDate, taskIn, toggleDone } from '../../../data/tasks/TaskStore';
 
 // spaces: 여러 공간을 합쳐 볼 때 { 공간 id: { name, color } } (색 막대·공간 이름에 씀). 한 공간뿐이면 null
 export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarText, onAdd, onEdit }) {
+  const claimSwipe = useClaimSwipeGesture();
   const key = toKey(selected);
   const now = new Date();
   const todayKey = toKey(now);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const items = tasks.filter((t) => occursOn(t, key)); // 이미 시간순으로 정렬되어 들어옴 (여러 날 일정은 걸친 날마다)
 
-  const [actionId, setActionId] = useState(null);   // 꾹 눌러서 [편집][삭제] 가 열린 항목
-  const [confirmId, setConfirmId] = useState(null); // 삭제 확인 창에 올린 항목
+  const [selection, setSelection] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => { setSelection(null); setError(''); }, [key, spaces]);
+  const selectedItem = selection?.date === key ? items.find(item => item.id === selection.id) : null;
+  const select = (item) => {
+    setError('');
+    setSelection(item === selectedItem ? null : { date: key, id: item.id });
+  };
+  const deleteSelected = () => {
+    if (!selectedItem) return;
+    try {
+      if (selectedItem.workspaceId) taskIn(selectedItem, 'deleteTask', selectedItem.id);
+      else deleteTask(selectedItem.id);
+      setSelection(null);
+      setError('');
+    } catch (error) {
+      setError(error.code === 'read_only' ? '보기 전용 공간의 항목은 삭제할 수 없어요.' : '삭제하지 못했어요.');
+    }
+  };
 
   const m = selected.getMonth() + 1;
   const d = selected.getDate();
@@ -69,7 +87,7 @@ export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarT
       ) : (
         items.map((t) => {
           const done = t.status === '완료';
-          const open = actionId === t.id;
+          const open = selectedItem === t;
           const isEvent = t.kind === 'event';
           const c = classify(t, todayKey);
           // 설명 줄: 일정은 📍장소, 할 일은 '할 일 · 프로젝트(또는 완료/초과)'
@@ -87,15 +105,16 @@ export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarT
           return (
             <Card key={t.id} style={[styles.item, open && styles.itemOpen]}>
               <View style={styles.itemMain}>
-                {/* 내용: 짧게 누르면 편집 화면, 꾹 누르면 [편집][삭제] */}
                 <Pressable
                   style={styles.itemBody}
-                  accessibilityRole="button"
+                  accessibilityRole={selectedItem ? 'checkbox' : 'button'}
+                  accessibilityState={selectedItem ? { checked: open } : undefined}
                   accessibilityLabel={`${t.title} ${isEvent ? '일정' : '할 일'}`}
-                  onPress={() => (open ? setActionId(null) : onEdit(t))}
-                  onLongPress={() => setActionId(open ? null : t.id)}
+                  onPress={() => (selectedItem ? select(t) : onEdit(t))}
+                  onLongPress={() => { claimSwipe(); select(t); }}
                   delayLongPress={350}
                 >
+                  {selectedItem && <Icon name={open ? 'checkSquare' : 'square'} size={20} color={open ? colors.ink : colors.muted} />}
                   {/* 시간: 시작(굵게) / 끝(흐리게) */}
                   <View style={styles.timeCol}>
                     <Text style={[styles.timeStart, !t.start && styles.timeAllDay]}>{t.start || '종일'}</Text>
@@ -125,46 +144,19 @@ export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarT
                 )}
               </View>
 
-              {open && (
-                <View style={styles.actions}>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => {
-                      setActionId(null);
-                      onEdit(t);
-                    }}
-                    style={[styles.actionBtn, styles.editBtn]}
-                  >
-                    <Text style={styles.editText}>편집</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => setConfirmId(t)}
-                    style={[styles.actionBtn, styles.delBtn]}
-                  >
-                    <Text style={styles.delText}>삭제</Text>
-                  </Pressable>
-                </View>
-              )}
             </Card>
           );
         })
       )}
 
-      <ConfirmDialog
-        visible={confirmId !== null}
-        title="일정을 삭제할까요?"
-        sub="삭제한 일정은 복구할 수 없어요."
-        confirmText="삭제"
-        danger
-        onCancel={() => setConfirmId(null)}
-        onConfirm={() => {
-          if (confirmId.workspaceId) taskIn(confirmId, 'deleteTask', confirmId.id);
-          else deleteTask(confirmId.id);
-          setConfirmId(null);
-          setActionId(null);
-        }}
-      />
+      {selectedItem && (
+        <InlineDeletePrompt
+          question={selectedItem.kind === 'event' ? '일정을 삭제할까요?' : '할 일을 삭제할까요?'}
+          hint="삭제한 항목은 복구할 수 없어요."
+          onDelete={deleteSelected}
+        />
+      )}
+      {!!error && <Text accessibilityRole="alert" style={styles.itemMeta}>{error}</Text>}
     </View>
   );
 }
@@ -185,7 +177,7 @@ const styles = StyleSheet.create({
   empty: { fontSize: font.body, color: colors.muted, paddingVertical: spacing.sm },
 
   item: { paddingVertical: 12, paddingHorizontal: spacing.lg, gap: spacing.sm },
-  itemOpen: { borderColor: colors.mint, backgroundColor: colors.mintSoft },
+  itemOpen: { borderWidth: 1, borderColor: '#fff' },
   itemMain: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   itemBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 44 },
   timeCol: { width: 46, gap: 2 },
@@ -200,10 +192,4 @@ const styles = StyleSheet.create({
   itemMeta: { flex: 1, fontSize: 13, color: colors.muted },
   check: { width: 32, height: 44, alignItems: 'center', justifyContent: 'center' },
 
-  actions: { flexDirection: 'row', gap: spacing.sm },
-  actionBtn: { flex: 1, minHeight: 44, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
-  editBtn: { backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.actionBorder },
-  editText: { fontSize: 14, fontWeight: '500', color: colors.ink },
-  delBtn: { backgroundColor: colors.coralSoft },
-  delText: { fontSize: font.body, fontWeight: '500', color: colors.onPrimary },
 });

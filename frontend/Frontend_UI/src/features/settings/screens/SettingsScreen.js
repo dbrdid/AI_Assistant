@@ -17,6 +17,7 @@ import Icon from '../../../shared/components/Icon';
 export default function SettingsScreen({ navigation }) {
   const s = useSettings();
   const [confirmOut, setConfirmOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const notice = useNotice();
   const name = s.profile.name.trim();
 
@@ -47,7 +48,7 @@ export default function SettingsScreen({ navigation }) {
 
         <SectionTitle>계정</SectionTitle>
         <Group>
-          <Row icon="logout" label="로그아웃" onPress={() => setConfirmOut(true)} />
+          <Row icon="logout" label="로그아웃" value={signingOut ? '처리 중' : undefined} onPress={signingOut ? undefined : () => setConfirmOut(true)} />
           <Row icon="userX" label="회원탈퇴" danger onPress={() => navigation.navigate(ROUTES.Withdraw)} />
         </Group>
       </ScrollView>
@@ -62,8 +63,13 @@ export default function SettingsScreen({ navigation }) {
         onCancel={() => setConfirmOut(false)}
         onConfirm={async () => {
           setConfirmOut(false);
-          const r = await signOut();
-          if (!r.ok) notice.show(r.message || '로그아웃하지 못했습니다');
+          setSigningOut(true);
+          try {
+            const result = await signOut();
+            if (!result.ok) notice.show(result.message || '로그아웃하지 못했습니다');
+          } finally {
+            setSigningOut(false);
+          }
         }}
       />
     </View>

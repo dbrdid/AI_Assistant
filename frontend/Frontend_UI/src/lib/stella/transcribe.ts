@@ -197,7 +197,7 @@ export function transcribeErrorMessage(err: unknown): string {
     case 'QUOTA_EXCEEDED': return '이번 달 녹음 변환 시간을 모두 썼어요';
     case 'DURATION_TOO_LONG': return `녹음은 한 번에 ${STT_MAX_SECONDS / 60}분까지 바꿀 수 있어요. 나눠서 녹음해 주세요`;
     case 'TOO_LARGE': return '녹음 파일이 너무 커요 (25MB까지)';
-    case 'UNSUPPORTED_TYPE': return '이 형식의 녹음은 바꿀 수 없어요 (m4a·mp3·wav)';
+    case 'UNSUPPORTED_TYPE': return '이 형식의 녹음은 바꿀 수 없어요 (m4a, mp3, wav)';
     case 'AUDIO_REJECTED': return '녹음 파일을 읽지 못했어요. 다시 녹음해 주세요';
     case 'FORBIDDEN': return '이 공간의 녹음을 바꿀 권한이 없어요';
     case 'TOO_MANY_PENDING': return '변환을 기다리는 녹음이 너무 많아요. 먼저 변환해 주세요';

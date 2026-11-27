@@ -8,7 +8,7 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import Icon from '../../../shared/components/Icon';
-import { Chip, CircleButton, DashedButton, Tag } from '../../../shared/components/Ui';
+import { Chip, CircleButton, DashedButton, InlineDeletePrompt, Tag } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { memoTitle, trashMemos, useMemos } from '../../../data/memos/MemoStore';
@@ -60,7 +60,6 @@ export default function ProjectDetailScreen({ navigation, route }) {
   const [addPicked, setAddPicked] = useState([]);
   const [moving, setMoving] = useState(false);
   const [confirmUnlink, setConfirmUnlink] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [importingFiles, setImportingFiles] = useState(false);
   const [fileImportMessage, setFileImportMessage] = useState('');
   const [downloadingFileId, setDownloadingFileId] = useState(null);
@@ -258,10 +257,18 @@ export default function ProjectDetailScreen({ navigation, route }) {
     else if (s.kind === 'tasks') navigation.navigate(ROUTES.TaskEdit, { taskId: id });
     else navigation.navigate(ROUTES.Files, { focusId: id });
   };
-  const editPicked = () => {
-    if (picked.length !== 1) return;
-    const [key, id] = [picked[0].split(':')[0], picked[0].slice(picked[0].indexOf(':') + 1)];
-    openItem(sections.find((s) => s.key === key), id);
+  const deletePicked = () => {
+    if (!picked.length || hasCloudPicked) return;
+    try {
+      pickedBySection((section, ids) => {
+        if (section.kind === 'memos') trashMemos(ids);
+        else if (section.kind === 'tasks') ids.forEach(id => deleteTask(id));
+        else ids.forEach(id => deleteFile(id));
+      });
+      exitEdit();
+    } catch (error) {
+      alertUser('항목을 삭제하지 못했어요', error.message || '다시 시도해 주세요.');
+    }
   };
 
   return (
@@ -357,7 +364,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
                         delayLongPress={350}
                         style={[styles.item, on && styles.itemOn, x.isCloud && !editing && { flex: 1 }]}
                       >
-                        {editing && <Icon name={on ? 'checkSquare' : 'square'} size={22} color={on ? colors.mintDark : colors.muted} />}
+                        {editing && <Icon name={on ? 'checkSquare' : 'square'} size={22} color={on ? colors.ink : colors.muted} />}
                         <View style={{ flex: 1, gap: 2 }}>
                           <Text style={styles.itemTitle} numberOfLines={1}>{x.title}</Text>
                           <Text style={styles.itemSub} numberOfLines={1}>{x.sub}</Text>
@@ -410,7 +417,6 @@ export default function ProjectDetailScreen({ navigation, route }) {
         )}
       </ScrollView>
 
-      {/* 편집 모드 아래 바: 취소 / 전체 / 이동 / 편집 / 연결 해제 */}
       {editing && (
         <View style={styles.bar}>
           <Text style={styles.barCount}>{picked.length}개 선택</Text>
@@ -422,18 +428,15 @@ export default function ProjectDetailScreen({ navigation, route }) {
             <Pressable accessibilityRole="button" disabled={picked.length === 0 || otherProjects.length === 0} onPress={() => setMoving(true)} style={[styles.barBtn, (picked.length === 0 || otherProjects.length === 0) && styles.off]}>
               <Text style={styles.barText}>이동</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" disabled={picked.length !== 1} onPress={editPicked} style={[styles.barBtn, picked.length !== 1 && styles.off]}>
-              <Text style={styles.barText}>편집</Text>
-            </Pressable>
-          </View>
-          <View style={styles.barRow}>
             <Pressable accessibilityRole="button" accessibilityHint={canUnlink ? undefined : '프로젝트 팀장과 공간 관리자만 연결을 해제할 수 있어요'} disabled={picked.length === 0 || !canUnlink} onPress={() => setConfirmUnlink(true)} style={[styles.barBtn, (picked.length === 0 || !canUnlink) && styles.off]}>
               <Text style={styles.barText}>연결 해제</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" disabled={picked.length === 0 || hasCloudPicked} onPress={() => setConfirmDelete(true)} style={[styles.barBtn, styles.barDanger, (picked.length === 0 || hasCloudPicked) && styles.off]}>
-              <Text style={[styles.barText, { color: colors.coral }]}>삭제</Text>
-            </Pressable>
           </View>
+          {picked.length > 0 && !hasCloudPicked && <InlineDeletePrompt
+            question={`선택한 ${picked.length}개를 삭제할까요?`}
+            hint="메모는 휴지통으로 이동하고 할 일, 일정, 파일은 완전히 삭제됩니다."
+            onDelete={deletePicked}
+          />}
           {hasCloudPicked && <Text style={styles.itemSub}>클라우드 파일은 연결 해제로 프로젝트에서만 뺄 수 있어요.</Text>}
         </View>
       )}
@@ -508,27 +511,9 @@ export default function ProjectDetailScreen({ navigation, route }) {
       </Modal>
 
       <ConfirmDialog
-        visible={confirmDelete}
-        title={`선택한 ${picked.length}개를 삭제할까요?`}
-        sub="메모는 휴지통으로 이동하고(복구하면 이 프로젝트로 돌아와요), 할 일·일정·파일은 완전히 삭제돼요."
-        confirmText="삭제"
-        danger
-        onCancel={() => setConfirmDelete(false)}
-        onConfirm={() => {
-          pickedBySection((s, ids) => {
-            if (s.kind === 'memos') trashMemos(ids);
-            else if (s.kind === 'tasks') ids.forEach((id) => deleteTask(id));
-            else ids.forEach((id) => deleteFile(id));
-          });
-          setConfirmDelete(false);
-          exitEdit();
-        }}
-      />
-
-      <ConfirmDialog
         visible={confirmUnlink}
         title={`선택한 ${picked.length}개의 연결을 해제할까요?`}
-        sub="프로젝트에서만 빠지고, 메모·할 일·파일은 지워지지 않아요."
+        sub="프로젝트에서만 빠지고, 메모, 할 일, 파일은 지워지지 않아요."
         confirmText="연결 해제"
         danger
         onCancel={() => setConfirmUnlink(false)}
@@ -562,8 +547,8 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 15, fontWeight: '600', color: colors.ink },
   flip: { transform: [{ rotate: '180deg' }] },
   none: { fontSize: font.body, color: colors.muted },
-  item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.cream, borderWidth: 1, borderColor: colors.line, minHeight: 48 },
-  itemOn: { borderColor: colors.mint, backgroundColor: colors.mintSoft },
+  item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: 4, borderWidth: 1, borderColor: 'transparent', minHeight: 48 },
+  itemOn: { borderColor: '#fff' },
   itemTitle: { fontSize: font.body, fontWeight: '600', color: colors.ink },
   itemSub: { fontSize: font.caption, color: colors.muted },
   linkBtn: { minHeight: 44, borderRadius: radius.md },
@@ -578,7 +563,6 @@ const styles = StyleSheet.create({
   barCount: { fontSize: 13, color: colors.muted, textAlign: 'center', paddingTop: 4 },
   barRow: { flexDirection: 'row', gap: 4 },
   barBtn: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  barDanger: {},
   barText: { fontSize: 15, fontWeight: '500', color: colors.ink },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.lg, gap: spacing.md },

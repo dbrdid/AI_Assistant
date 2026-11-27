@@ -31,7 +31,7 @@ const CONSENT = {
 const field = [s.editorBody, { minHeight: 44 }];
 const CARD_INFO = {
   device: { name: '이 기기', icon: 'lock', desc: '휴대폰 안에서 실행, 내용이 밖으로 나가지 않아요' },
-  server: { name: '내 서버', icon: 'link', desc: 'Ollama·LM Studio 같은 내 컴퓨터의 AI' },
+  server: { name: '내 서버', icon: 'link', desc: 'Ollama나 LM Studio 같은 내 컴퓨터의 AI' },
   cloud: { name: 'Atria 클라우드', icon: 'cloud', desc: '내 계정 이용량에서 차감돼요' },
   openai: { name: 'OpenAI', icon: 'globe', desc: '내 API 키로 연결 (ChatGPT 구독과는 별개)' },
   anthropic: { name: 'Anthropic', icon: 'globe', desc: '내 API 키로 연결 (Claude 구독과는 별개)' },

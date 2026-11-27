@@ -269,7 +269,7 @@ export function projectInviteShareText(p: { projectName: string; code: string; e
   const lines = [
     `[Stella] '${p.projectName}' 프로젝트에 초대합니다`,
     `앱에서 [공간 참여]를 누르고 코드를 입력하세요: ${p.code}`,
-    `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일까지 · 1명`,
+    `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일까지, 1명`,
   ];
   if (p.url) lines.push(`앱이 설치돼 있으면 링크로 바로 열기: ${p.url}`);
   return lines.join('\n');

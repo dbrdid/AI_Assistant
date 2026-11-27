@@ -16,8 +16,8 @@ import { useProposalActions } from '../../proposal/useProposalActions';
 import OnceTip from '../../../shared/components/OnceTip';
 
 const TODAY_TIPS = [
-  { id: 'swipe-nav', text: '화면을 좌우로 밀면 오늘·개요·빠른 입력을 오가요. 길게 누른 채 좌우로 밀면 위쪽 메뉴에서 홈·업무·문서를 골라요.' },
-  { id: 'space-switch', text: '왼쪽 위 프로필을 누르면 개인·팀 공간을 바꾸고 설정을 열 수 있어요. 팀 공간에서는 위쪽에 공간 색 줄이 보여요.' },
+  { id: 'swipe-nav', text: '화면을 좌우로 밀면 오늘, 개요, 빠른 입력 화면을 오가요. 길게 누른 채 좌우로 밀면 위쪽 메뉴에서 홈, 업무, 문서 탭을 골라요.' },
+  { id: 'space-switch', text: '왼쪽 위 프로필을 누르면 개인 공간과 팀 공간을 오가고 설정을 열 수 있어요. 팀 공간에서는 위쪽에 공간 색 줄이 보여요.' },
 ];
 import { useSettings } from '../../../data/settings/SettingsStore';
 import { enterSpace, useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';

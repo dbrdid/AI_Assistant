@@ -117,7 +117,7 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
                 <View style={styles.titleIcon}><Icon name="mic" size={20} color={colors.mintDark} /></View>
                 <Text style={styles.title}>{sheet.state === 'saved' ? '녹음을 저장했어요' : '녹음 파일을 저장하지 못했어요'}</Text>
               </View>
-              <Text style={styles.sub}>{fmt(sheet.seconds || 0)}{sheet.folder ? ` · ${sheet.folder}` : ''}</Text>
+              <Text style={styles.sub}>{fmt(sheet.seconds || 0)}{sheet.folder ? `, ${sheet.folder}` : ''}</Text>
               {sheet.state === 'save_error' && (
                 <>
                   <Text accessibilityLiveRegion="polite" style={styles.error}>{sheet.saveError || '저장 위치의 권한을 확인해 주세요.'}</Text>

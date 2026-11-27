@@ -26,9 +26,14 @@ export function useCommandPlanner(total = 1) {
     setTaskProject: (taskId, projectId) => setItemProject('task', taskId, projectId),
     canWrite,
   };
-  const planFor = (text, original, target, rt = owner) => planProjectCommand(projectTools, text, original)
-    ?? planItemCommand(rt, text, { memoId: target, originalRequest: original, canWrite })
-    ?? planCommand(rt, text, target, randomUUID, original);
+  const planFor = (text, original, target, rt = owner) => {
+    const appPlan = planProjectCommand(projectTools, text, original)
+      ?? planItemCommand(rt, text, { memoId: target, originalRequest: original, canWrite });
+    if (appPlan) return appPlan;
+    const legacy = planCommand(rt, text, target, randomUUID, original);
+    const summary = legacy.summary.replace(/(^새 문서 만들기|\n기존 (?:값|내용)) \u00b7 /, '$1, ');
+    return { ...legacy, summary };
+  };
   // 여러 작업이면 원래 요청을 작업별 조각으로 나눠, 이 작업과 맞는 조각으로 같은 검사를 한다
   const planStep = (text, original, target, rt = owner) => {
     if (!canAccess()) throw new Error('공간 접근이 변경되었습니다. 다시 열어 주세요.');
@@ -68,7 +73,7 @@ export default function InlineCommand({ commands, originalRequest, memoId, navig
     const draft = draftRuntime(owner, memoId);
     planStep(commands[i], originalRequest, memoId, draft.rt).approve(draft.rt);
     if (!draft.result()) throw new Error('바뀌는 내용이 없습니다.');
-    proposeBlocks(owner.documents, memo, original, draft.result().blocks, { read: readPreference, write: writePreference }, randomUUID);
+    proposeBlocks(owner.documents, memo, original, draft.result().blocks, { read: readPreference, write: writePreference });
   };
   const [index, setIndex] = useState(0);
   const [target, setTarget] = useState(memoId);

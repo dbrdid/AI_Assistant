@@ -5,12 +5,11 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import ScreenHeader from '../../../shared/components/ScreenHeader';
+import { WorkspaceHeader } from '../../stella/WorkspaceScreen';
+import { palette as c, styles as s } from '../../stella/theme';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import Icon from '../../../shared/components/Icon';
-import { Tag } from '../../../shared/components/Ui';
-import { Radio } from '../../../shared/components/SettingsUi';
 import { MAX_BACKUPS, createBackup, deleteBackup, restoreBackup, useBackups } from '../../../data/backup/BackupStore';
 import { switchWorkspace, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 
@@ -78,88 +77,60 @@ export default function BackupScreen({ navigation }) {
     });
   };
 
+  // 메뉴 행: 공간 메뉴·AI 연결과 같은 평평한 행 (아이콘, 글자, 오른쪽 표시)
+  const row = (icon, label, onPress, { disabled = false, right = null, a11y } = {}) => (
+    <Pressable accessibilityRole="button" accessibilityLabel={a11y ?? label} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
+      style={({ pressed }) => [s.menuRow, (disabled || pressed) && { opacity: disabled ? 0.4 : 0.6 }]}>
+      <Icon name={icon} size={18} color={c.muted} /><Text style={[s.menuLabel, { flex: 1 }]}>{label}</Text>{right}
+    </Pressable>
+  );
   return (
-    <View style={styles.root}>
-      <ScreenHeader title="백업 및 복원" onBack={navigation.goBack} />
+    <View style={s.root}>
+      <WorkspaceHeader title="백업 및 복원" onBack={navigation.goBack} />
       {!current.personal ? (
-        // 조직(공유) 공간에서는 백업·복원을 쓸 수 없음 → 개인 공간으로 안내
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>개인 공간에서만 백업·복원할 수 있어요</Text>
-            <Text style={styles.cardSub}>
-              지금은 「{current.name}」 공간을 보고 있어요. 팀과 함께 쓰는 공간의 기록은 백업·복원 대상이 아니에요.
-            </Text>
-          </View>
-          <Pressable accessibilityRole="button" onPress={() => switchWorkspace('personal')} style={[styles.btn, styles.primary]}>
-            <Text style={styles.primaryText}>개인 공간으로 전환</Text>
-          </Pressable>
+        // 팀(공유) 공간에서는 백업·복원을 쓸 수 없음 → 개인 공간으로
+        <ScrollView contentContainerStyle={s.page}>
+          <Text style={[s.meta, styles.line]}>백업과 복원은 개인 공간에서만 할 수 있어요</Text>
+          {row('home', '개인 공간으로 전환', () => switchWorkspace('personal'))}
         </ScrollView>
       ) : (
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>프로젝트, 메모, 할 일을 임시 저장합니다</Text>
-          <Text style={styles.cardSub}>
-            개인 공간의 기록만 저장돼요. 파일 보관함의 파일과 팀 공간의 기록은 포함되지 않아요.
-          </Text>
-        </View>
+      <ScrollView contentContainerStyle={s.page}>
+        {row('cloud', busy ? '처리 중…' : '지금 백업하기', doBackup, { disabled: busy })}
+        <Text style={[s.meta, styles.line]}>개인 공간의 프로젝트, 메모, 할 일만 저장돼요</Text>
+        {!!errorMessage && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={[s.error, styles.line]}>{errorMessage}</Text>}
 
-        <View style={styles.row}>
-          <Pressable accessibilityRole="button" disabled={busy} onPress={doBackup} style={[styles.btn, styles.primary, busy && { opacity: 0.5 }]}>
-            <Text style={styles.primaryText}>{busy ? '처리 중…' : '백업하기'}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !selected }}
-            disabled={!selected || busy}
-            onPress={() => setConfirm('restore')}
-            style={[styles.btn, styles.ghost, (!selected || busy) && { opacity: 0.4 }]}
-          >
-            <Text style={styles.ghostText}>복원하기</Text>
+        <View style={styles.sectionHead}>
+          <Text style={s.homeSectionLabel}>백업 {list.length}/{MAX_BACKUPS}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={`정렬 ${order === 'new' ? '최신순' : '오래된순'}`} onPress={() => setOrder((o) => (o === 'new' ? 'old' : 'new'))} hitSlop={8} style={styles.sort}>
+            <Text style={s.meta}>{order === 'new' ? '최신순' : '오래된순'}</Text>
           </Pressable>
         </View>
-        {!!errorMessage && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.hint}>{errorMessage}</Text>}
-        {!errorMessage && !selected && list.length > 0 && <Text style={styles.hint}>복원할 백업을 아래에서 선택해 주세요</Text>}
-
-        <View style={styles.listHead}>
-          <Text style={styles.listTitle}>백업 목록 {list.length}/{MAX_BACKUPS}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel={`정렬 ${order === 'new' ? '최신순' : '오래된순'}`} onPress={() => setOrder((o) => (o === 'new' ? 'old' : 'new'))} hitSlop={8}>
-            <View style={styles.sortRow}>
-              <Text style={styles.sort}>{order === 'new' ? '최신순' : '오래된순'}</Text>
-              <Icon name="sort" size={16} color={colors.mintDark} />
-            </View>
-          </Pressable>
-        </View>
-
         {list.length === 0 ? (
-          <Text style={styles.empty}>아직 백업이 없어요. "백업하기"를 눌러 지금 상태를 저장해 보세요.</Text>
+          <Text style={[s.meta, styles.line]}>백업이 없어요</Text>
         ) : (
           list.map((b) => {
             const on = b.id === selectedId;
             return (
-              <Pressable
-                key={b.id}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: on, disabled: busy }}
-                disabled={busy}
-                accessibilityLabel={`${fmt(b.createdAt)} 백업${b.auto ? ', 자동' : ''}`}
-                onPress={() => setSelectedId(on ? null : b.id)}
-                style={[styles.item, on && styles.itemOn]}
-              >
-                <Radio on={on} />
-                <View style={{ flex: 1, gap: 2 }}>
-                  <View style={styles.dateRow}>
-                    <Text style={styles.date}>{fmt(b.createdAt)}</Text>
-                    {b.auto && <Tag label="자동" tone="muted" />}
+              <View key={b.id} style={styles.item}>
+                <Pressable accessibilityRole="radio" accessibilityState={{ checked: on, disabled: busy }} disabled={busy}
+                  accessibilityLabel={`${fmt(b.createdAt)} 백업${b.auto ? ', 자동' : ''}`} onPress={() => setSelectedId(on ? null : b.id)}
+                  style={({ pressed }) => [styles.itemMain, pressed && { opacity: 0.6 }]}>
+                  <Icon name="file" size={18} color={c.muted} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.date, on && { fontWeight: '700' }]}>{fmt(b.createdAt)}{b.auto ? ', 자동' : ''}</Text>
+                    <Text style={s.meta}>메모 {b.counts.memos}, 할 일 {b.counts.tasks}, 프로젝트 {b.counts.projects}</Text>
                   </View>
-                  <Text style={styles.counts}>메모 {b.counts.memos}, 할 일 {b.counts.tasks}, 프로젝트 {b.counts.projects}</Text>
-                </View>
-                <Pressable accessibilityRole="button" accessibilityLabel="백업 삭제" disabled={busy} onPress={() => setDelId(b.id)} hitSlop={10}>
-                  <Icon name="trash" size={20} color={colors.muted} />
+                  {on && <Icon name="check" size={16} color={c.text} />}
                 </Pressable>
-              </Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={`${fmt(b.createdAt)} 백업 삭제`} disabled={busy} onPress={() => setDelId(b.id)} hitSlop={8} style={styles.trash}>
+                  <Icon name="trash" size={18} color={c.muted} />
+                </Pressable>
+              </View>
             );
           })
         )}
+        {/* 백업을 고르면 그 아래에 복원 */}
+        {selected && row('refresh', '이 백업으로 복원', () => setConfirm('restore'), { disabled: busy, a11y: `${fmt(selected.createdAt)} 백업으로 복원` })}
       </ScrollView>
       )}
 
@@ -172,7 +143,7 @@ export default function BackupScreen({ navigation }) {
       <ConfirmDialog
         visible={confirm === 'restore'}
         title="이 백업으로 복원할까요?"
-        sub={selected ? `${fmt(selected.createdAt)} 시점으로 메모·할 일·프로젝트가 바뀌어요. 지금 상태는 "자동" 백업으로 남겨 두니 필요하면 다시 되돌릴 수 있어요.` : ''}
+        sub={selected ? `${fmt(selected.createdAt)} 시점으로 메모, 할 일, 프로젝트가 바뀌어요. 지금 상태는 "자동" 백업으로 남겨 두니 필요하면 다시 되돌릴 수 있어요.` : ''}
         confirmText="복원"
         danger
         onCancel={() => setConfirm(null)}
@@ -200,28 +171,13 @@ export default function BackupScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.cream },
-  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
-  card: { paddingVertical: spacing.sm, gap: spacing.xs },   // Notion 설정처럼 상자 없이 제목 + 흐린 설명
-  cardTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
-  cardSub: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
-  row: { flexDirection: 'row', gap: spacing.md },
-  btn: { flex: 1, minHeight: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  primary: { backgroundColor: colors.action },
-  primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.white },
-  ghost: { backgroundColor: colors.card, borderWidth: 0, borderColor: colors.mint },
-  ghostText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.mintDark },
-  hint: { fontSize: font.caption, color: colors.muted },
-  listHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md },
-  listTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
-  sortRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  sort: { fontSize: font.body, fontWeight: '500', color: colors.mintDark },
-  empty: { fontSize: font.body, color: colors.muted, lineHeight: 20, paddingVertical: spacing.lg },
-  item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 64, padding: spacing.md, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  itemOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
-  dateRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  date: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
-  counts: { fontSize: font.caption, color: colors.muted },
+  line: { paddingVertical: spacing.sm },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.xl },
+  sort: { minHeight: 44, justifyContent: 'center' },
+  item: { flexDirection: 'row', alignItems: 'center' },
+  itemMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56 },
+  date: { color: c.text, fontSize: 13 },   // 공용 menuLabel은 flex:1이라 두 줄 사이가 벌어짐
+  trash: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   notice: { position: 'absolute', left: spacing.xl, right: spacing.xl, bottom: spacing.xl, backgroundColor: colors.action, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
   noticeText: { color: colors.white, fontSize: font.body, textAlign: 'center' },
 });

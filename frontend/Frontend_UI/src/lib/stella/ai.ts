@@ -98,7 +98,7 @@ export function aiErrorMessage(err: unknown): string {
     NETWORK: '인터넷 연결을 확인해 주세요',
     TOO_LARGE: '사진이 너무 커요. 줄여서 보내 주세요',
     TOO_MANY_IMAGES: '사진은 한 번에 5장까지 보낼 수 있어요',
-    UNSUPPORTED_TYPE: '이 사진 형식은 읽을 수 없어요 (JPEG·PNG·WebP)',
+    UNSUPPORTED_TYPE: '이 사진 형식은 읽을 수 없어요 (JPEG, PNG, WebP)',
   };
   return fallback[err.code] ?? err.message;
 }

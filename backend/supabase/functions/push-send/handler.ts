@@ -72,8 +72,9 @@ export function createSender(deps: Deps) {
       // 토큰마다 메시지 하나 (한 사람이 기기 여러 대)
       const msgs: { n: Claimed; token: string; msg: ExpoMessage }[] = [];
       for (const n of claimed) {
+        const body = n.body?.replace(/ \u00b7 /g, ", ") ?? null;
         for (const token of n.tokens ?? []) {
-          msgs.push({ n, token, msg: { to: token, title: n.title, body: n.body, data: n.data ?? {}, sound: "default", priority: "high", channelId: "default" } });
+          msgs.push({ n, token, msg: { to: token, title: n.title, body, data: n.data ?? {}, sound: "default", priority: "high", channelId: "default" } });
         }
       }
       const outcome = new Map<string, { ok: boolean; error?: string; bad: string[] }>();

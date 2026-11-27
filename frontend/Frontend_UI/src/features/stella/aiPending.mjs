@@ -1,4 +1,4 @@
-import { insertBlock } from '../../../../../backend/local/src/document-blocks.mjs';
+import { insertBlock, moveBlock } from '../../../../../backend/local/src/document-blocks.mjs';
 import { blocksText } from '../../../../../backend/local/src/stella-documents.js';
 
 // AI-made blocks wait for the user's decision. The waiting marks are a device preference, never block fields:
@@ -90,25 +90,41 @@ function proposalBlock(p, newId) {
   return { id: newId(), type: p.kind === 'task' ? 'task' : 'paragraph', text, checked: false };
 }
 
-/** Keeps only waiting entries whose block still exists. */
-export const livePending = (pending, blocks) => (Array.isArray(pending) ? pending : []).filter(entry => blocks.some(block => block.id === entry.id));
+const sameBlock = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+/** Drop a preview if its target was independently edited or removed. */
+export const livePending = (pending, blocks) => (Array.isArray(pending) ? pending : []).filter(entry =>
+  blocks.some(block => block.id === entry.id && (!entry.original || sameBlock(entry.original, block))) &&
+  (entry.beforeId == null || blocks.some(block => block.id === entry.beforeId))
+);
+
+export function previewOrder(blocks, pending) {
+  return pending.reduce((list, entry) => 'beforeId' in entry ? moveBlock(list, entry.id, entry.beforeId) : list, blocks);
+}
 
 /**
- * Accept keeps the blocks and clears their marks; reject removes the blocks. Other blocks are never touched.
+ * Apply the chosen edits, or discard their previews and remove any legacy inserted proposals.
  * Returns { blocks, pending, entries } where entries are the decided waiting entries.
  */
 export function decide(blocks, pending, ids, accept) {
   const chosen = new Set(ids);
-  const entries = pending.filter(entry => chosen.has(entry.id));
+  const entries = livePending(pending, blocks).filter(entry => chosen.has(entry.id));
   const rest = pending.filter(entry => !chosen.has(entry.id));
   if (accept) {
     // A "replace" answer removes its target block only when the user accepts; rejecting keeps the original.
     // A "deletes" mark removes the marked block itself when accepted.
-    const replaced = new Set([...entries.map(entry => entry.replaces), ...entries.filter(entry => entry.deletes).map(entry => entry.id)].filter(Boolean));
-    return { blocks: replaced.size ? blocks.filter(block => !replaced.has(block.id)) : blocks, pending: rest, entries, replaced };
+    const removed = new Set([...entries.map(entry => entry.replaces), ...entries.filter(entry => entry.deletes).map(entry => entry.id)].filter(Boolean));
+    const edits = new Map(entries.filter(entry => entry.preview).map(entry => [entry.id, entry.preview]));
+    const replaced = new Set([...removed, ...edits.keys(), ...[...edits.values()].flat().map(block => block.id),
+      ...entries.filter(entry => 'beforeId' in entry).map(entry => entry.id)]);
+    const ordered = previewOrder(blocks, entries);
+    let next = replaced.size ? ordered.flatMap(block => removed.has(block.id) ? [] : edits.get(block.id) ?? [block]) : blocks;
+    if (!next.length) next = [{ id: 'body', type: 'paragraph', text: '', checked: false }];
+    return { blocks: next, pending: rest, entries, replaced };
   }
   // 거절: 새로 넣은 블록은 빼고, 삭제 표시만 붙은 기존 블록은 그대로 둔다
-  let next = blocks.filter(block => !entries.some(entry => entry.id === block.id && !entry.deletes));
+  const removed = new Set(entries.filter(entry => !entry.deletes && !entry.original).map(entry => entry.id));
+  let next = removed.size ? blocks.filter(block => !removed.has(block.id)) : blocks;
   if (!next.length) next = [{ id: 'body', type: 'paragraph', text: '', checked: false }];
   return { blocks: next, pending: rest, entries };
 }
@@ -121,12 +137,19 @@ function addWaiting(documents, memo, afterId, added, entries, { read, write }) {
   return saved;
 }
 
-/** Puts an AI answer after the target block as waiting blocks. replace: accepting also removes the target. Refuses when the document changed since the request. */
+/** Stage rewrites on the target, and place explicitly requested additions after it. */
 export function placeAnswer({ store, documents }, { memoId, revision, blockId, text, replace = false }, prefs, newId) {
   const memo = store.getMemo(memoId);
   if (!memo || memo.deletedAt || memo.revision !== revision) throw new Error('문서가 바뀌었습니다. 문서에서 다시 요청해 주세요.');
   const added = answerBlocks(text, newId);
-  return addWaiting(documents, memo, blockId, added, added.map(block => replace ? { id: block.id, replaces: blockId } : { id: block.id }), prefs);
+  if (!replace) return addWaiting(documents, memo, blockId, added, added.map(block => ({ id: block.id })), prefs);
+  if (!added.length) throw new Error('바뀌는 내용이 없습니다.');
+  const blocks = documents.blocksFor(memo);
+  const target = blocks.find(block => block.id === blockId);
+  if (!target) throw new Error('원본 블록을 찾을 수 없습니다.');
+  const preview = [{ ...added[0], id: blockId }, ...added.slice(1)];
+  writeWaiting(memo, blocks, [{ id: blockId, original: target, preview }], prefs);
+  return memo;
 }
 
 /**
@@ -163,12 +186,17 @@ export function saveBlocks(documents, memo, nextBlocks, changed) {
  * original: 지금 블록, next: 작업을 적용한 결과. 바뀐 블록은 새 판을 원래 블록 바로 아래에(수용하면 대체),
  * 새 블록은 그 자리에, 지운 블록은 그대로 두고 '수용하면 삭제' 표시, 옮긴 블록은 새 자리에 사본(수용하면 원래 자리 것을 대체).
  */
-export function proposeBlocks(documents, memo, original, next, { read, write }, newId) {
+function writeWaiting(memo, blocks, entries, { read, write }) {
+  const ids = new Set(entries.map(entry => entry.id));
+  const waiting = livePending(read(pendingKey(memo.id), []), blocks).filter(entry => !ids.has(entry.id));
+  write(pendingKey(memo.id), [...waiting, ...entries]);
+}
+
+export function proposeBlocks(documents, memo, original, next, prefs) {
   const byId = new Map(original.map(block => [block.id, block]));
   const nextIds = new Set(next.map(block => block.id));
-  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  let result = original.slice();
-  const entries = [];
+  const result = original.slice();
+  const entries = new Map();
   const insertAfter = (afterId, block) => {
     const at = afterId == null ? 0 : result.findIndex(item => item.id === afterId) + 1;
     result.splice(at, 0, block);
@@ -182,26 +210,22 @@ export function proposeBlocks(documents, memo, original, next, { read, write }, 
     const without = id => list => list.filter(item => item.id !== id).map(item => item.id).join();
     const moved = without(kept[i].id)(kept) === without(kept[i].id)(base) ? kept[i] : base[i];
     const position = next.findIndex(block => block.id === moved.id);
-    const copy = { ...moved, id: newId() };
-    insertAfter(position > 0 ? next[position - 1].id : null, copy);
-    entries.push({ id: copy.id, replaces: moved.id });
+    entries.set(moved.id, { id: moved.id, original: byId.get(moved.id), beforeId: next[position + 1]?.id ?? null });
   }
   next.forEach((block, i) => {
     const before = byId.get(block.id);
     if (!before) {   // 새 블록: 결과에서 바로 앞 블록 뒤에
       const previous = next.slice(0, i).reverse().find(item => result.some(r => r.id === item.id));
       insertAfter(previous?.id ?? null, block);
-      entries.push({ id: block.id });
-    } else if (!same(before, block)) {   // 바뀐 블록: 새 판을 원래 블록 아래에
-      const copy = { ...block, id: newId() };
-      insertAfter(block.id, copy);
-      entries.push({ id: copy.id, replaces: block.id });
+      entries.set(block.id, { id: block.id });
+    } else if (!sameBlock(before, block)) {
+      entries.set(block.id, { ...entries.get(block.id), id: block.id, original: before, preview: [block] });
     }
   });
-  for (const block of original) if (!nextIds.has(block.id)) entries.push({ id: block.id, deletes: true });
-  if (!entries.length) throw new Error('바뀌는 내용이 없습니다.');
-  const changed = new Set(entries.filter(entry => !entry.deletes).map(entry => entry.id));
-  const saved = saveBlocks(documents, memo, result, changed);
-  write(pendingKey(memo.id), [...livePending(read(pendingKey(memo.id), []), result), ...entries]);
+  for (const block of original) if (!nextIds.has(block.id)) entries.set(block.id, { id: block.id, original: block, deletes: true });
+  if (!entries.size) throw new Error('바뀌는 내용이 없습니다.');
+  const changed = new Set(next.filter(block => !byId.has(block.id)).map(block => block.id));
+  const saved = changed.size ? saveBlocks(documents, memo, result, changed) : memo;
+  writeWaiting(memo, result, [...entries.values()], prefs);
   return saved;
 }

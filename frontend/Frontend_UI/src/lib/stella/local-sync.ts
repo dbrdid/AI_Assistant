@@ -377,7 +377,7 @@ async function buildOps(db: SqlDb, ws: string, intent: LocalChange[]): Promise<{
     const rec = await db.get<RecordRow>(
       'select server_revision, server_data from stella_records where workspace_id = ? and entity = ? and key = ?', [ws, c.entity, c.id]);
     const rev = rec?.server_revision;
-    if (rev == null) throw new SyncError('NOT_FOUND', `서버에 없는 기록은 수정·삭제할 수 없습니다 (${c.entity} ${c.id})`);
+    if (rev == null) throw new SyncError('NOT_FOUND', `서버에 없는 기록은 수정하거나 삭제할 수 없습니다 (${c.entity} ${c.id})`);
     const tableBase = c.kind === 'update' && c.entity === 'projects' && 'table_properties' in c.data ? c.tableBase : undefined;
     let baseRevision = tableBase?.revision ?? rev;
     if (c.kind === 'update') {
@@ -553,7 +553,7 @@ export async function resolveConflict(ctx: SyncContext, outboxSeq: number, choic
       if (choice === 'merge' || choice === 'keep_both') {
         const merged = mergeIntent(intent, conflicts, parseBase(row.base), choice === 'keep_both');
         if (merged.unresolved.length) {
-          throw new SyncError('CANNOT_MERGE', `같은 칸을 양쪽에서 고쳤어요 (${merged.unresolved.map((u) => `${u.entity}.${u.field}`).join(', ')}): 고를 수 있는 것은 keep_mine·use_server·keep_both`,
+          throw new SyncError('CANNOT_MERGE', `같은 칸을 양쪽에서 고쳤어요 (${merged.unresolved.map((u) => `${u.entity}.${u.field}`).join(', ')}): 고를 수 있는 것은 keep_mine, use_server, keep_both`,
             { fields: merged.unresolved });
         }
         intent = merged.intent;

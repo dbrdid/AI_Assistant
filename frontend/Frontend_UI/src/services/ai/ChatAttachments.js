@@ -83,7 +83,7 @@ export function describe(asset) {
 
 export async function extract(item, signal) {
   const { asset } = item;
-  if (!item.kind) return { ...item, status: 'error', error: '읽을 수 없는 형식이에요 (사진·PDF·Word·PowerPoint·텍스트)' };
+  if (!item.kind) return { ...item, status: 'error', error: '읽을 수 없는 형식이에요 (사진, PDF, Word, PowerPoint, 텍스트)' };
   try {
     const declaredSize = Number(asset.size);
     if (item.kind === 'audio' && declaredSize > STT_MAX_BYTES) return { ...item, status: 'error', error: '녹음 파일은 25MB까지 처리할 수 있어요' };

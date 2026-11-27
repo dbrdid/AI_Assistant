@@ -53,7 +53,7 @@ export function planProjectCommand(tools, input, originalRequest) {
     const title = stated(match[1].trim());
     if (title.length > 100) throw new Error('프로젝트 이름은 100자 이내로 입력해 주세요.');
     if (tools.getProjects().some(project => project.title === title)) throw new Error('같은 이름의 프로젝트가 이미 있습니다.');
-    return proposal('새 프로젝트 만들기 · ' + title, () => {
+    return proposal('새 프로젝트 만들기, ' + title, () => {
       const created = tools.addProject({ title, status: '진행 전' });
       if (!created?.id) throw new Error('프로젝트를 만들지 못했습니다.');
       return { route: ROUTES.ProjectDetail, params: { projectId: created.id } };
@@ -64,7 +64,7 @@ export function planProjectCommand(tools, input, originalRequest) {
     const project = one(tools.getProjects(), stated(match[1].trim()), '프로젝트');
     const status = stated(match[2].trim());
     if (!PROJECT_STATUSES.includes(status)) throw new Error('상태는 ' + PROJECT_STATUSES.join(', ') + ' 중 하나로 입력해 주세요.');
-    return proposal('프로젝트 상태 변경 · ' + project.title + '\n' + (project.status || '없음') + ' → ' + status, () => {
+    return proposal('프로젝트 상태 변경, ' + project.title + '\n' + (project.status || '없음') + ' → ' + status, () => {
       if (!tools.updateProject(project.id, { status })) throw new Error('프로젝트 상태를 바꾸지 못했습니다.');
       return { route: ROUTES.ProjectDetail, params: { projectId: project.id } };
     });
@@ -72,7 +72,7 @@ export function planProjectCommand(tools, input, originalRequest) {
   match = LINK.exec(request);
   const task = one(tools.getTasks().filter(item => item.kind === 'task'), stated(match[1].trim()), '할 일');
   const project = one(tools.getProjects(), stated(match[2].trim()), '프로젝트');
-  return proposal('할 일을 프로젝트에 연결 · ' + task.title + ' → ' + project.title, () => {
+  return proposal('할 일을 프로젝트에 연결, ' + task.title + ' → ' + project.title, () => {
     tools.setTaskProject(task.id, project.id);
     if (tools.getTask(task.id)?.projectId !== project.id) throw new Error('연결 결과가 요청과 달라 확인이 필요합니다.');
     return { route: ROUTES.ProjectDetail, params: { projectId: project.id } };

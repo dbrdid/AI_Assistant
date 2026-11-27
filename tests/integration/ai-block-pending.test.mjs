@@ -101,16 +101,18 @@ test('a replace answer keeps the original until accepted; reject restores the do
   const { rt, memo, prefs, newId, blocks } = fixture(t);
   const before = blocks();
   placeAnswer(rt, { memoId: memo.id, revision: memo.revision, blockId: 'b1', text: '고친 문단', replace: true }, prefs, newId);
-  assert.deepEqual(blocks().map(b => b.text), ['첫 문단', '고친 문단', '둘째 문단']);
+  assert.deepEqual(blocks(), before);
   const waiting = livePending(prefs.read(pendingKey(memo.id), []), blocks());
-  assert.deepEqual(waiting, [{ id: 'ai-1', replaces: 'b1' }]);
+  assert.equal(waiting[0].id, 'b1');
+  assert.equal(waiting[0].preview[0].text, '고친 문단');
 
-  const rejected = decide(blocks(), waiting, ['ai-1'], false);
+  const rejected = decide(blocks(), waiting, ['b1'], false);
   assert.deepEqual(rejected.blocks, before);
-  const accepted = decide(blocks(), waiting, ['ai-1'], true);
+  const accepted = decide(blocks(), waiting, ['b1'], true);
   assert.deepEqual([...accepted.replaced], ['b1']);
   saveBlocks(rt.documents, rt.store.getMemo(memo.id), accepted.blocks, accepted.replaced);
   assert.deepEqual(blocks().map(b => b.text), ['고친 문단', '둘째 문단']);
+  assert.equal(blocks()[0].id, 'b1');
 });
 
 test('top tabs keep daily destinations; review, AI settings and tools stay reachable', () => {

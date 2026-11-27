@@ -9,7 +9,7 @@ export class StellaError extends Error {
     public readonly status?: number,
     public readonly details?: unknown,
   ) {
-    super(message);
+    super(message.replace(/[ \t]*\u00b7[ \t]*/g, ', '));
     this.name = 'StellaError';
   }
 }

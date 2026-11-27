@@ -159,7 +159,7 @@ export function createHandler(deps: Deps) {
 
       const src = await loadSource(deps, token, b);
       const kind: DocKind | null = detectKind(src.bytes, src.mime, src.name);
-      if (!kind) throw new HttpError(415, "UNSUPPORTED_TYPE", "PDF·Word(docx)·PowerPoint(pptx)만 읽을 수 있어요");
+      if (!kind) throw new HttpError(415, "UNSUPPORTED_TYPE", "PDF, Word(docx), PowerPoint(pptx)만 읽을 수 있어요");
       if (kind !== "PDF" && fromPage !== undefined && fromPage !== 1) {
         throw new HttpError(400, "INVALID_REQUEST", "from_page는 PDF에서만 씁니다");
       }

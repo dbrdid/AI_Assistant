@@ -7,7 +7,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import Icon from '../../../shared/components/Icon';
-import { Chip, CircleButton, Tag } from '../../../shared/components/Ui';
+import { Chip, CircleButton, InlineDeletePrompt, Tag } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import {
@@ -25,7 +25,6 @@ export default function TeamScreen({ navigation, route }) {
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const [moving, setMoving] = useState(false);
-  const [confirmDel, setConfirmDel] = useState(false);
   const [notice, setNotice] = useState('');
   // 그룹 창 (색 없이 이름·인원으로 구분): null(닫힘) · { id: null } 새 그룹 · { id } 기존 그룹
   const [groupEdit, setGroupEdit] = useState(null);
@@ -64,9 +63,7 @@ export default function TeamScreen({ navigation, route }) {
     setPicked([]);
     setNotice('');
   };
-  const startEdit = () => {
-    const m = members.find((x) => x.id === picked[0]);
-    if (!m) return;
+  const startEdit = (m) => {
     setEditId(m.id);
     setName(m.name);
     setRole(m.role);
@@ -99,9 +96,9 @@ export default function TeamScreen({ navigation, route }) {
           return (
             <Pressable
               key={m.id}
-              accessibilityRole={selecting ? 'checkbox' : 'text'}
+              accessibilityRole={selecting ? 'checkbox' : 'button'}
               accessibilityState={selecting ? { checked: on } : undefined}
-              onPress={() => selecting && toggle(m.id)}
+              onPress={() => selecting ? toggle(m.id) : startEdit(m)}
               onLongPress={() => {
                 setSelecting(true);
                 setPicked([m.id]);
@@ -109,7 +106,7 @@ export default function TeamScreen({ navigation, route }) {
               delayLongPress={350}
               style={[styles.row, on && styles.rowOn]}
             >
-              {selecting && <Icon name={on ? 'checkSquare' : 'square'} size={22} color={on ? colors.mintDark : colors.muted} />}
+              {selecting && <Icon name={on ? 'checkSquare' : 'square'} size={22} color={on ? colors.ink : colors.muted} />}
               <Text style={styles.name} numberOfLines={1}>{m.name}</Text>
               <Tag label={m.role} tone={m.role === '팀장' ? 'mint' : 'outline'} style={styles.roleTag} />
             </Pressable>
@@ -167,18 +164,16 @@ export default function TeamScreen({ navigation, route }) {
             <Pressable accessibilityRole="button" disabled={picked.length === 0 || others.length === 0} onPress={() => setMoving(true)} style={[styles.barBtn, (picked.length === 0 || others.length === 0) && styles.off]}>
               <Text style={styles.barText}>이동</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" disabled={picked.length !== 1} onPress={startEdit} style={[styles.barBtn, picked.length !== 1 && styles.off]}>
-              <Text style={styles.barText}>편집</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              disabled={picked.length === 0}
-              onPress={() => (wouldRemoveAllLeaders() ? setNotice('팀장은 모두 삭제할 수 없어요') : setConfirmDel(true))}
-              style={[styles.barBtn, styles.barDanger, picked.length === 0 && styles.off]}
-            >
-              <Text style={[styles.barText, { color: colors.coral }]}>삭제</Text>
-            </Pressable>
           </View>
+          {picked.length > 0 && <InlineDeletePrompt
+            question={`선택한 ${picked.length}명을 삭제할까요?`}
+            hint="이 프로젝트에서 팀원이 빠져요."
+            onDelete={() => {
+              if (wouldRemoveAllLeaders()) { setNotice('팀장은 모두 삭제할 수 없어요'); return; }
+              try { removeMembers(project.id, picked); exit(); }
+              catch (error) { setNotice(error.message || '팀원을 삭제하지 못했어요.'); }
+            }}
+          />}
         </View>
       )}
 
@@ -281,7 +276,7 @@ export default function TeamScreen({ navigation, route }) {
       <ConfirmDialog
         visible={confirmGroupDel}
         title={`'${editingGroup?.name ?? ''}' 그룹을 삭제할까요?`}
-        sub="이 그룹에만 공개한 문서·할 일은 다시 프로젝트 모두에게 보여요."
+        sub="이 그룹에만 공개한 문서와 할 일은 다시 프로젝트 모두에게 보여요."
         confirmText="삭제"
         danger
         onCancel={() => setConfirmGroupDel(false)}
@@ -292,19 +287,6 @@ export default function TeamScreen({ navigation, route }) {
         }}
       />
 
-      <ConfirmDialog
-        visible={confirmDel}
-        title={`선택한 ${picked.length}명을 삭제할까요?`}
-        sub="이 프로젝트에서 팀원이 빠져요."
-        confirmText="삭제"
-        danger
-        onCancel={() => setConfirmDel(false)}
-        onConfirm={() => {
-          removeMembers(project.id, picked);
-          setConfirmDel(false);
-          exit();
-        }}
-      />
     </View>
   );
 }
@@ -316,8 +298,8 @@ const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   count: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   selectText: { fontSize: font.body, fontWeight: '500', color: colors.mintDark },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, minHeight: 56 },
-  rowOn: { borderColor: colors.mint, backgroundColor: colors.mintSoft },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: 4, borderWidth: 1, borderColor: 'transparent', minHeight: 56 },
+  rowOn: { borderColor: '#fff' },
   name: { flex: 1, fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   roleTag: { alignSelf: 'center' },
   sub: { fontSize: font.body, fontWeight: '500', color: colors.muted },
@@ -330,7 +312,6 @@ const styles = StyleSheet.create({
   barCount: { fontSize: 13, color: colors.muted, textAlign: 'center', paddingTop: 4 },
   barRow: { flexDirection: 'row', gap: 4 },
   barBtn: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  barDanger: {},
   barText: { fontSize: 15, fontWeight: '500', color: colors.ink },
   off: { opacity: 0.4 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },

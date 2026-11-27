@@ -1004,7 +1004,7 @@ export default function MemoEditScreen({ navigation, route }) {
             <>
               <ScrollView style={styles.summaryScroll} nestedScrollEnabled>
                 {summaryLines(summary.text).map((ln, i) => (
-                  <Text key={i} style={styles.summaryText} selectable>{`· ${ln}`}</Text>
+                  <Text key={i} style={styles.summaryText} selectable>{ln}</Text>
                 ))}
               </ScrollView>
               {canEdit && <Pressable accessibilityRole="button" onPress={addSummary} style={({ pressed }) => [styles.summaryAdd, pressed && { opacity: 0.8 }]}>

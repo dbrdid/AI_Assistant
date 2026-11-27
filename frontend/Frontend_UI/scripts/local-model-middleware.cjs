@@ -73,7 +73,7 @@ function createLocalModelMiddleware({
       }
       if (!body || !models.includes(body.model) || typeof body.prompt !== 'string' || !body.prompt.trim() || body.prompt.length > 12000 || body.consent !== true) {
         send(400, {
-          error: '로컬 모델 선택·질문·전송 동의를 확인해 주세요'
+          error: '로컬 모델을 선택했는지, 질문을 입력하고 전송에 동의했는지 확인해 주세요'
         });
         return;
       }

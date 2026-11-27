@@ -60,11 +60,12 @@ export default function NoticeScreen({ navigation }) {
         ) : (
           list.map((n) => {
             const k = KIND[n.kind] || KIND.project;
+            const body = n.body?.replace(/ \u00b7 /g, ', ') ?? '';
             return (
               <Pressable
                 key={n.id}
                 accessibilityRole="button"
-                accessibilityLabel={`${k.label} 알림 ${n.title}. ${n.body}`}
+                accessibilityLabel={`${k.label} 알림 ${n.title}. ${body}`}
                 onPress={() => {
                   markRead(n.id);
                   if (n.route) navigation.navigate(n.route, n.params);
@@ -77,7 +78,7 @@ export default function NoticeScreen({ navigation }) {
                     {!n.read && <View style={styles.dot} />}
                     <Text style={styles.title} numberOfLines={1}>{n.title}</Text>
                   </View>
-                  <Text style={styles.body} numberOfLines={2}>{n.body}</Text>
+                  <Text style={styles.body} numberOfLines={2}>{body}</Text>
                   <Text style={styles.time}>{k.label}, {dateLabel(n.at)}</Text>
                 </View>
                 <Pressable accessibilityRole="button" accessibilityLabel="이 알림 지우기" onPress={() => removeNotice(n.id)} hitSlop={10}>

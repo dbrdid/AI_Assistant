@@ -123,7 +123,7 @@ export async function askMobileModel({ model, prompt, signal, commandRequest, gr
     const memory = device().memory();
     const candidates = loadCandidates(model, installed, memory, Platform.OS);
     checkAbort(controller.signal);
-    if (!candidates.length) throw new Error('추론 메모리가 부족합니다. 다른 앱을 닫거나 내 서버·클라우드 AI 연결을 사용해 주세요.' + DOCUMENTS_SAFE);
+    if (!candidates.length) throw new Error('추론 메모리가 부족합니다. 다른 앱을 닫거나 내 서버나 클라우드 AI를 사용해 주세요.' + DOCUMENTS_SAFE);
     const { initLlama } = require('llama.rn');
     let used, limits;
     for (const candidate of candidates) {

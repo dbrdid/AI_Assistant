@@ -12,7 +12,7 @@ import { deleteMemosForever, formatMD, memoTitle, restoreMemos, useTrashedMemos 
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { linkItems, projectOf, useProjects } from '../../../data/projects/ProjectStore';
 import Icon from '../../../shared/components/Icon';
-import { CircleButton, Tag } from '../../../shared/components/Ui';
+import { CircleButton, InlineDeletePrompt, Tag } from '../../../shared/components/Ui';
 
 export default function TrashScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -20,7 +20,7 @@ export default function TrashScreen({ navigation }) {
 
   const [selecting, setSelecting] = useState(false); // 선택 모드인가
   const [selected, setSelected] = useState([]);      // 선택한 메모 번호들
-  const [confirm, setConfirm] = useState(null);      // 'restore' | 'delete' | null (확인 창)
+  const [confirmRestore, setConfirmRestore] = useState(false);
   const [notice, setNotice] = useState('');
   const noticeTimer = useRef(null);
   useEffect(() => () => clearTimeout(noticeTimer.current), []);
@@ -50,16 +50,20 @@ export default function TrashScreen({ navigation }) {
     setSelected([]);
   };
 
-  const doConfirm = () => {
-    if (confirm === 'restore') {
-      restoreMemos(ids);
-      showNotice(`메모 ${ids.length}개를 복구했어요`);
-    } else if (confirm === 'delete') {
+  const restoreSelected = () => {
+    restoreMemos(ids);
+    showNotice(`메모 ${ids.length}개를 복구했어요`);
+    setConfirmRestore(false);
+    exitSelect();
+  };
+  const deleteSelected = () => {
+    try {
       deleteMemosForever(ids);
       showNotice(`메모 ${ids.length}개를 삭제했어요`);
+      exitSelect();
+    } catch (error) {
+      showNotice(error.message || '메모를 삭제하지 못했어요.');
     }
-    setConfirm(null);
-    exitSelect();
   };
 
   const none = ids.length === 0;
@@ -98,10 +102,13 @@ export default function TrashScreen({ navigation }) {
             return (
               <Pressable
                 key={m.id}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
+                accessibilityRole={selecting ? 'checkbox' : 'button'}
+                accessibilityState={selecting ? { checked: on } : undefined}
                 accessibilityLabel={`메모 ${memoTitle(m)}`}
-                onPress={() => selecting && toggle(m.id)}
+                onPress={() => {
+                  if (selecting) toggle(m.id);
+                  else { setSelecting(true); setSelected([m.id]); }
+                }}
                 onLongPress={() => {
                   if (!selecting) {
                     setSelecting(true);
@@ -110,7 +117,7 @@ export default function TrashScreen({ navigation }) {
                 }}
                 style={[styles.card, on && styles.cardOn]}
               >
-                {selecting && <Icon name={on ? 'checkSquare' : 'square'} size={24} color={on ? colors.mintDark : colors.muted} strokeWidth={on ? 2.2 : 1.8} />}
+                {selecting && <Icon name={on ? 'checkSquare' : 'square'} size={24} color={on ? colors.ink : colors.muted} strokeWidth={on ? 2.2 : 1.8} />}
                 <View style={styles.info}>
                   <Text style={styles.title} numberOfLines={1}>{memoTitle(m)}</Text>
                   <Text style={styles.date}>삭제 {formatMD(m.deletedAt)}, 수정 {formatMD(m.updatedAt)}</Text>
@@ -138,6 +145,7 @@ export default function TrashScreen({ navigation }) {
       {/* 선택 모드 아래 줄: 취소, 전체, 이동, 복구, 삭제 */}
       {selecting && (
         <View style={[styles.bar, { paddingBottom: insets.bottom + spacing.sm }]}>
+          <View style={styles.barRow}>
           <Pressable accessibilityRole="button" onPress={exitSelect} style={styles.barBtn}>
             <Text style={styles.barText}>취소</Text>
           </Pressable>
@@ -152,12 +160,11 @@ export default function TrashScreen({ navigation }) {
           >
             <Text style={styles.barText}>이동</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" disabled={none} onPress={() => setConfirm('restore')} style={[styles.barBtn, none && styles.off]}>
+          <Pressable accessibilityRole="button" disabled={none} onPress={() => setConfirmRestore(true)} style={[styles.barBtn, none && styles.off]}>
             <Text style={styles.barText}>복구</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" disabled={none} onPress={() => setConfirm('delete')} style={[styles.barBtn, none && styles.off]}>
-            <Text style={[styles.barText, { color: colors.coral }]}>삭제</Text>
-          </Pressable>
+          </View>
+          {!none && <InlineDeletePrompt question={`메모 ${ids.length}개를 영구 삭제할까요?`} onDelete={deleteSelected} />}
         </View>
       )}
 
@@ -182,20 +189,11 @@ export default function TrashScreen({ navigation }) {
       </Modal>
 
       <ConfirmDialog
-        visible={confirm === 'restore'}
+        visible={confirmRestore}
         title="메모를 복구하시겠습니까?"
         sub={restoreSub}
-        onCancel={() => setConfirm(null)}
-        onConfirm={doConfirm}
-      />
-      <ConfirmDialog
-        visible={confirm === 'delete'}
-        title="메모를 삭제하시겠습니까?"
-        sub="삭제한 메모는 복구할 수 없습니다"
-        confirmText="삭제"
-        danger
-        onCancel={() => setConfirm(null)}
-        onConfirm={doConfirm}
+        onCancel={() => setConfirmRestore(false)}
+        onConfirm={restoreSelected}
       />
     </View>
   );
@@ -226,7 +224,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     padding: spacing.lg,
   },
-  cardOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
+  cardOn: { borderColor: '#fff' },
   info: { flex: 1, gap: 6 },
   title: { fontSize: font.header, fontWeight: '600', color: colors.ink },
   date: { fontSize: font.caption, color: colors.muted },
@@ -246,7 +244,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
-  bar: { flexDirection: 'row', gap: 4, paddingHorizontal: 16, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.cream },
+  bar: { paddingHorizontal: 16, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.cream },
+  barRow: { flexDirection: 'row', gap: 4 },
   barBtn: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   barText: { fontSize: 15, fontWeight: '500', color: colors.ink },
   off: { opacity: 0.35 },

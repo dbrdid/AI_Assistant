@@ -31,6 +31,9 @@ const preferenceCache = new Map();
 const listeners = new Set();
 const sessionFlushers = new Set();
 export function registerSessionFlush(flush) { sessionFlushers.add(flush); return () => sessionFlushers.delete(flush); }
+export function flushSessionDrafts() {
+  for (const flush of sessionFlushers) flush({ analyze: false });
+}
 export const runtimeSubscribe = fn => { listeners.add(fn); return () => listeners.delete(fn); };
 const emit = () => { for (const fn of listeners) fn(); };
 // Adapters whose data lives outside the local store (server sync records, server RPC caches) call this after they change.
@@ -677,7 +680,7 @@ export async function closeSession(requireSynced = true) {
   const own = current;
   if (!own) return;
   // Persist mounted editor drafts while their original account DB is still open.
-  for (const flush of sessionFlushers) flush({ analyze: false });
+  flushSessionDrafts();
   if (requireSynced) {
     const status = await own.bridge.status();
     if (status.unsent > 0 || status.state === 'attention') throw new Error('미전송 변경이나 충돌이 있습니다. 동기화 후 로그아웃해 주세요');

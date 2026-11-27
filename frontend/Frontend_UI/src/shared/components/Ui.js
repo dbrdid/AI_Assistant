@@ -92,6 +92,17 @@ export function Card({ children, style, onPress, onLongPress, accessibilityLabel
   );
 }
 
+export function InlineDeletePrompt({ question, hint, onDelete }) {
+  return (
+    <View style={styles.inlineDelete}>
+      <Text style={styles.inlineDeleteQuestion}>{question}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={question + ' 삭제'} accessibilityHint={hint} onPress={onDelete} style={styles.inlineDeleteButton}>
+        <Text style={styles.inlineDeleteText}>삭제</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export function Chip({ label, active, onPress, style }) {
   return (
     <Pressable
@@ -154,6 +165,10 @@ export const uiStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  inlineDelete: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  inlineDeleteQuestion: { flex: 1, fontSize: font.caption, color: colors.muted },
+  inlineDeleteButton: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
+  inlineDeleteText: { fontSize: font.caption, fontWeight: '600', color: colors.coral },
   circle: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.line },
   badgeDot: { position: 'absolute', top: 7, right: 8, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.coral, borderWidth: 1, borderColor: colors.white },
   dock: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.cream },

@@ -186,7 +186,7 @@ export function documentErrorMessage(err: unknown): string {
   switch (code) {
     case 'TOO_LARGE': return '파일이 너무 커요 (첨부는 20MB까지)';
     case 'TOO_LARGE_INLINE': return '10MB 넘는 파일은 공유 공간에 첨부로 올린 뒤 읽을 수 있어요';
-    case 'UNSUPPORTED_TYPE': return 'PDF·Word(docx)·PowerPoint(pptx) 파일만 읽을 수 있어요 (옛 doc·ppt는 다시 저장해 주세요)';
+    case 'UNSUPPORTED_TYPE': return 'PDF, Word(docx), PowerPoint(pptx) 파일만 읽을 수 있어요 (이전 형식인 doc와 ppt는 다시 저장해 주세요)';
     case 'FILE_ENCRYPTED': return '암호가 걸린 PDF는 읽을 수 없어요';
     case 'FILE_DAMAGED': return '파일을 열 수 없어요 (손상된 파일일 수 있어요)';
     case 'ASSET_NOT_FOUND': return '파일을 찾을 수 없거나 볼 권한이 없어요';
@@ -204,7 +204,7 @@ export function documentNoticeText(d: Pick<DocumentText, 'noText' | 'emptyPages'
   if (d.noText) out.push('글자를 찾지 못했어요. 스캔한 문서라면 쪽을 사진으로 찍어 글자 인식을 써 주세요');
   else if (d.kind === 'PDF' && d.emptyPages.length > 0) {
     const shown = d.emptyPages.slice(0, 5).join(', ') + (d.emptyPages.length > 5 ? ` 외 ${d.emptyPages.length - 5}쪽` : '');
-    out.push(`글자가 없는 쪽: ${shown}쪽 (그림·스캔한 쪽이면 사진 글자 인식을 써 주세요)`);
+    out.push(`글자가 없는 쪽: ${shown}쪽 (그림이나 스캔한 쪽이면 사진 글자 인식을 써 주세요)`);
   }
   if (d.truncated) out.push('문서가 길어서 앞부분만 가져왔어요');
   if (d.kind === 'DOCX' && d.pageBasis !== 'NONE') out.push('Word 문서의 쪽 번호는 대략이에요');

@@ -291,7 +291,7 @@ export function tasksPdfSection(tasks: Array<{ title: string; status?: string | 
         text: t.title + (t.description?.trim() ? ` — ${t.description.trim()}` : ''),
         done: t.status === 'DONE',
         note: [t.due_at ? `마감 ${formatDateTime(t.due_at, { timeZone: opts.timeZone, allDay: !!t.all_day })}` : '',
-          t.assignee_name ?? '', t.priority ? `중요도 ${PRIORITY_KO[t.priority] ?? t.priority}` : ''].filter(Boolean).join(' · ') || undefined,
+          t.assignee_name ?? '', t.priority ? `중요도 ${PRIORITY_KO[t.priority] ?? t.priority}` : ''].filter(Boolean).join(', ') || undefined,
       })),
     }],
   };

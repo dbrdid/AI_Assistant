@@ -2,11 +2,14 @@
 // 'tabs': 길게 누른 채(HOLD_MS 동안 거의 안 움직임) 좌우로 밀기 → 위쪽 탭 막대에서 좌우로 고르기
 // 'page': 그냥 좌우로 밀기 → 같은 탭의 이웃 쪽(오늘, 개요, 빠른 입력 등)
 export const HOLD_MS = 350;
-export function swipeIntent({ heldMs, movedEarly, dx, dy }) {
+export function swipeIntent({ heldMs, movedEarly, dx, dy, claimed, startedVertically }) {
+  if (claimed || startedVertically || Math.abs(dx) <= Math.abs(dy) * 2) return null;
   if (heldMs >= HOLD_MS && !movedEarly && Math.abs(dx) > 12) return 'tabs';
   if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy) * 2) return 'page';
   return null;
 }
+
+export const isVerticalDrag = ({ dx, dy }) => Math.abs(dy) > 7 && Math.abs(dy) > Math.abs(dx) * 1.5;
 // 놓았을 때: 쪽 이동 방향 (-1 이전, 1 다음, 0 그대로)
 export const pageStep = dx => (dx <= -60 ? 1 : dx >= 60 ? -1 : 0);
 

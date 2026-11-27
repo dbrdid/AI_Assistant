@@ -467,7 +467,7 @@ export default function DocumentEditor({
   // 대상 블록이 사라지면(수용으로 바뀌었거나 지워짐) 시트를 닫는다
   useEffect(() => { if (aiBlockId && aiIndex < 0) setAiBlockId(null); }, [aiBlockId, aiIndex]);
   const pendingBlocks = livePending(pending, blocks);
-  const pendingIds = new Set(pendingBlocks.map(entry => entry.id));
+  const pendingById = new Map(pendingBlocks.map(entry => [entry.id, entry]));
   useEffect(() => {
     // A waiting block the user deleted by hand loses its mark; its proposal then shows in review again.
     if (memoId && pendingBlocks.length !== pending.length) { setPending(pendingBlocks); try { writePreference(pendingKey(memoId), pendingBlocks); } catch { /* retried on the next change */ } }
@@ -481,7 +481,7 @@ export default function DocumentEditor({
     setAiBlockId(block.id);
   }
   // 시트가 넣은 AI 제안을 문서에 다시 읽어 온다
-  function reloadFromStore(status = 'AI 제안을 넣었어요. 수용하거나 거절해 주세요') {
+  function reloadFromStore(status = '기기에 저장됨') {
     const memo = saved.current && getMemo(saved.current.id);
     if (!memo) return;
     replaceContent(memo, own.documents.blocksFor(memo));
@@ -496,7 +496,8 @@ export default function DocumentEditor({
       const result = decide(latest.current.blocks, pendingBlocks, ids, accept);
       const proposals = result.entries.map(entry => entry.proposalId).filter(Boolean);
       // Proposal outcomes are already kept in proposals; record only block answers for evaluation.
-      const answered = result.entries.filter(entry => !entry.proposalId).map(entry => latest.current.blocks.find(block => block.id === entry.id)).filter(Boolean);
+      const answered = result.entries.filter(entry => !entry.proposalId).flatMap(entry =>
+        entry.preview ?? latest.current.blocks.filter(block => block.id === entry.id));
       if (accept) {
         // reviewedRevision: this app moved the source revision on when it placed the block; the user approves what they see now.
         for (const id of proposals) approveProposal(id, {}, { reviewedRevision: getMemo(memo.id).revision });
@@ -506,9 +507,11 @@ export default function DocumentEditor({
           replaceContent(saved.current, own.documents.blocksFor(saved.current));
         }
       } else {
-        saved.current = saveBlocks(own.documents, getMemo(memo.id), result.blocks, new Set(ids));
+        if (result.blocks !== latest.current.blocks) {
+          saved.current = saveBlocks(own.documents, getMemo(memo.id), result.blocks, new Set(ids));
+          replaceContent(saved.current, own.documents.blocksFor(saved.current));
+        }
         for (const id of proposals) { try { setProposalStatus(id, 'rejected'); } catch { /* already handled elsewhere */ } }
-        replaceContent(saved.current, own.documents.blocksFor(saved.current));
       }
       writePreference(pendingKey(memo.id), result.pending);
       setPending(result.pending);
@@ -546,7 +549,7 @@ export default function DocumentEditor({
       setError(e.message);
     }
   }
-  return <KeyboardAvoidingView style={s.root} behavior="padding"><WorkspaceHeader title={own.store.getCurrentWorkspace().name} onBack={() => leave()} left={<IconButton name="menu" label="왼쪽 문서 탐색 열기" onPress={()=>setPanel("tree")}/>} right={<><IconButton name="link" label="할 일과 일정 연결" onPress={() => { if (attemptSave()) setLinkPicker(true); else setError("연결하기 전에 문서 내용을 작성해 주세요."); }} disabled={readOnly || missing} /><View ref={actionsButton} collapsable={false}><IconButton name="moreHorizontal" label="문서 작업 메뉴 열기" onPress={openActions} disabled={missing} /></View></>} />{error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}{missing ? <Text style={s.empty}>문서가 없거나 현재 공간에서 접근할 수 없습니다.</Text> : <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.page}>{ancestors.length > 0 && <View accessibilityLabel="상위 문서 경로" style={{flexDirection:'row',flexWrap:'wrap',alignItems:'center',marginBottom:12}}>{ancestors.map(parent => <Pressable key={parent.id} accessibilityRole="button" accessibilityLabel={`상위 문서 열기: ${parent.title || '제목 없는 문서'}`} onPress={() => openDocument(parent.id)} style={{flexDirection:'row',alignItems:'center',minHeight:44,maxWidth:'100%',gap:6,paddingRight:8}}><Text numberOfLines={1} style={[s.meta,{flexShrink:1}]}>{parent.title || '제목 없는 문서'}</Text><Icon name="chevronRight" size={14} color={c.subtle}/></Pressable>)}</View>}<TextInput accessibilityLabel="문서 제목" value={title} onChangeText={setTitle} onBlur={attemptSave} editable={!readOnly} placeholder="제목 없는 문서" placeholderTextColor={c.subtle} multiline scrollEnabled={false} onContentSizeChange={event => setTitleHeight(Math.max(58, event.nativeEvent.contentSize.height))} maxLength={200} style={[s.editorTitle, { height: titleHeight }]} /><GroupAccessRow kind="memo" id={saved.current?.id} textStyle={{ color: c.text }} /><Text accessibilityLiveRegion="polite" style={s.meta}>{readOnly ? '보기 전용 공간' : status}</Text>{[pendingDoc && ['AI가 만든 문서', decideDocument], pendingBlocks.length > 0 && [`AI 제안 ${pendingBlocks.length}개`, accept => decideBlocks(pendingBlocks.map(entry => entry.id), accept)]].filter(Boolean).map(([label, choose]) => <View key={label} style={{flexDirection:'row',alignItems:'center',gap:4,marginTop:8,paddingLeft:10,borderLeftWidth:2,borderLeftColor:c.accent,backgroundColor:c.raised,borderRadius:4}}><Text style={[s.meta,{flex:1,color:c.accent}]}>{label}</Text>{[['모두 수용', true], ['모두 거절', false]].map(([text, accept]) => <Pressable key={text} accessibilityRole="button" accessibilityLabel={`${label} ${text}`} disabled={readOnly} onPress={() => choose(accept)} style={{minHeight:44,justifyContent:'center',paddingHorizontal:8,opacity:readOnly ? 0.4 : 1}}><Text style={s.linkText}>{text}</Text></Pressable>)}</View>)}{editorMode === "blocks" ? <BlockEditor ref={blockEditorRef} blocks={blocks} onChange={applyBlocks} disabled={readOnly} onAskAI={askAI} pending={pendingIds} replacing={new Set(pendingBlocks.filter(entry => entry.replaces).map(entry => entry.id))} deleting={new Set(pendingBlocks.filter(entry => entry.deletes).map(entry => entry.id))} onDecide={decideBlocks} /> : <TextInput accessibilityLabel="문서 본문" value={body} onChangeText={text => applyBlocks([{
+  return <KeyboardAvoidingView style={s.root} behavior="padding"><WorkspaceHeader title={own.store.getCurrentWorkspace().name} onBack={() => leave()} left={<IconButton name="menu" label="왼쪽 문서 탐색 열기" onPress={()=>setPanel("tree")}/>} right={<><IconButton name="link" label="할 일과 일정 연결" onPress={() => { if (attemptSave()) setLinkPicker(true); else setError("연결하기 전에 문서 내용을 작성해 주세요."); }} disabled={readOnly || missing} /><View ref={actionsButton} collapsable={false}><IconButton name="moreHorizontal" label="문서 작업 메뉴 열기" onPress={openActions} disabled={missing} /></View></>} />{error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}{missing ? <Text style={s.empty}>문서가 없거나 현재 공간에서 접근할 수 없습니다.</Text> : <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.page}>{ancestors.length > 0 && <View accessibilityLabel="상위 문서 경로" style={{flexDirection:'row',flexWrap:'wrap',alignItems:'center',marginBottom:12}}>{ancestors.map(parent => <Pressable key={parent.id} accessibilityRole="button" accessibilityLabel={`상위 문서 열기: ${parent.title || '제목 없는 문서'}`} onPress={() => openDocument(parent.id)} style={{flexDirection:'row',alignItems:'center',minHeight:44,maxWidth:'100%',gap:6,paddingRight:8}}><Text numberOfLines={1} style={[s.meta,{flexShrink:1}]}>{parent.title || '제목 없는 문서'}</Text><Icon name="chevronRight" size={14} color={c.subtle}/></Pressable>)}</View>}<TextInput accessibilityLabel="문서 제목" value={title} onChangeText={setTitle} onBlur={attemptSave} editable={!readOnly} placeholder="제목 없는 문서" placeholderTextColor={c.subtle} multiline scrollEnabled={false} onContentSizeChange={event => setTitleHeight(Math.max(58, event.nativeEvent.contentSize.height))} maxLength={200} style={[s.editorTitle, { height: titleHeight }]} /><GroupAccessRow kind="memo" id={saved.current?.id} textStyle={{ color: c.text }} /><Text accessibilityLiveRegion="polite" style={s.meta}>{readOnly ? '보기 전용 공간' : status}</Text>{[pendingDoc && ['AI가 만든 문서', decideDocument]].filter(Boolean).map(([label, choose]) => <View key={label} style={{flexDirection:'row',alignItems:'center',gap:4,marginTop:8}}><Text style={[s.meta,{flex:1}]}>{label}</Text>{[['모두 수용', true], ['모두 거절', false]].map(([text, accept]) => <Pressable key={text} accessibilityRole="button" accessibilityLabel={`${label} ${text}`} disabled={readOnly} onPress={() => choose(accept)} style={{minHeight:44,justifyContent:'center',paddingHorizontal:8,opacity:readOnly ? 0.4 : 1}}><Text style={s.linkText}>{text}</Text></Pressable>)}</View>)}{editorMode === "blocks" ? <BlockEditor ref={blockEditorRef} blocks={blocks} onChange={applyBlocks} disabled={readOnly} onAskAI={askAI} pending={pendingById} onDecide={decideBlocks} /> : <TextInput accessibilityLabel="문서 본문" value={body} onChangeText={text => applyBlocks([{
         id: "body",
         type: "paragraph",
         text,

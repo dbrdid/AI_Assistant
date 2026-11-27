@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    borderBottomWidth: 1, borderBottomColor: colors.line, marginBottom: 8,
+    marginBottom: 8,
     paddingBottom: spacing.md,
     backgroundColor: colors.cream,
     minHeight: 40,
