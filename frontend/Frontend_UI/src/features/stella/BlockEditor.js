@@ -1,5 +1,5 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Keyboard, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 import { SheetModal } from '../../shared/components/Motion';
 import Icon from '../../shared/components/Icon';
@@ -31,18 +31,18 @@ const MARKERS = {
 const TEXT_STYLES = { heading: {fontSize:24,fontWeight:'600',lineHeight:34,paddingVertical:5} };
 const BODY_TEXT = {fontSize:16,fontWeight:'400',lineHeight:28,paddingVertical:8};
 function TextBody({block,index,ctx}) {
-  const {disabled,inputs,holdStart,holdEnd,setActive,changeText,skipSplit,closePicker}=ctx;
+  const {disabled,inputs,holdStart,holdEnd,setActive,changeText,skipSplit,closePicker,selections,splitAt}=ctx;
   const Marker=MARKERS[block.type];
   return <View style={{flexDirection:'row',gap:8,alignItems:'center'}}>
     {Marker?<Marker block={block} index={index} ctx={ctx}/>:null}
-    <TextInput numberOfLines={1} rows={1} onContentSizeChange={event=>{const height=event.nativeEvent.contentSize?.height;if(height && Platform.OS!=='web')inputs.current.get(block.id)?.setNativeProps?.({style:{height:Math.max(44,height)}});}} ref={input=>{if(input)inputs.current.set(block.id,input);else inputs.current.delete(block.id);}} accessibilityLabel={`블록 ${index+1} 내용`} editable={!disabled} onPressIn={()=>holdStart(index)} onPressOut={holdEnd} onFocus={()=>setActive(block.id)} value={block.text} onChangeText={text=>changeText(block,text)} onKeyPress={event=>{if(event.nativeEvent.key==='Enter')skipSplit.current=!!(event.shiftKey||event.nativeEvent.shiftKey);if(event.nativeEvent.key==='Escape')closePicker();}} multiline scrollEnabled={false} placeholder={index===0?'내용을 입력하세요...':block.id!==ctx.active?'빈 블록':''} placeholderTextColor={c.subtle} style={{flex:1,padding:0,...(Platform.OS==='web'?{fieldSizing:'content'}:{}),minHeight:44,color:block.checked?c.muted:c.text,textDecorationLine:block.checked?'line-through':'none',...(TEXT_STYLES[block.type]??BODY_TEXT),textAlignVertical:'center'}}/>
+    <TextInput numberOfLines={1} rows={1} onContentSizeChange={event=>{const height=event.nativeEvent.contentSize?.height;if(height && Platform.OS!=='web')inputs.current.get(block.id)?.setNativeProps?.({style:{height:Math.max(44,height)}});}} ref={input=>{if(input)inputs.current.set(block.id,input);else inputs.current.delete(block.id);}} accessibilityLabel={`블록 ${index+1} 내용`} editable={!disabled} onPressIn={()=>holdStart(index)} onPressOut={holdEnd} onFocus={()=>setActive(block.id)} value={block.text} onChangeText={text=>changeText(block,text)} onSelectionChange={event=>selections.current.set(block.id,event.nativeEvent.selection)} {...(Platform.OS!=='web'?{submitBehavior:'submit',returnKeyType:'none',onSubmitEditing:event=>splitAt(block,event.nativeEvent.text)}:{})} onKeyPress={event=>{if(event.nativeEvent.key==='Enter')skipSplit.current=!!(event.shiftKey||event.nativeEvent.shiftKey);if(event.nativeEvent.key==='Escape')closePicker();}} multiline scrollEnabled={false} placeholder={index===0?'내용을 입력하세요...':block.id!==ctx.active?'빈 블록':''} placeholderTextColor={c.subtle} style={{flex:1,padding:0,...(Platform.OS==='web'?{fieldSizing:'content'}:{}),minHeight:44,color:block.checked?c.muted:c.text,textDecorationLine:block.checked?'line-through':'none',...(TEXT_STYLES[block.type]??BODY_TEXT),textAlignVertical:'center'}}/>
   </View>;
 }
 const BODIES = { table: TableBody };
 const NO_PENDING = new Map();
 const BlockEditor = forwardRef(function BlockEditor({ blocks, onChange, disabled, onAskAI, pending = NO_PENDING, onDecide }, ref) {
   const [picker,setPicker] = useState(null), [active,setActive] = useState(null), [table,setTable] = useState(null), [error,setError] = useState(''), [drop,setDrop] = useState(null);
-  const inputs=useRef(new Map()), dragging=useRef(null), skipSplit=useRef(false), dragMoved=useRef(false), holdTimer=useRef(null);
+  const inputs=useRef(new Map()), dragging=useRef(null), skipSplit=useRef(false), selections=useRef(new Map()), lastEnter=useRef({id:null,at:0}), dragMoved=useRef(false), holdTimer=useRef(null);
   const askAI=disabled||!onAskAI?undefined:index=>{clearTimeout(holdTimer.current);dragging.current=null;setDrop(null);if(blocks[index]&&!pending.has(blocks[index].id))onAskAI(blocks[index],index);};
   // A TextInput has no onLongPress: hold ~450 ms without typing or lifting the finger.
   function holdStart(index){if(!askAI)return;clearTimeout(holdTimer.current);holdTimer.current=setTimeout(()=>askAI(index),450);}
@@ -56,13 +56,28 @@ const BlockEditor = forwardRef(function BlockEditor({ blocks, onChange, disabled
   function commit(next){if(disabled||JSON.stringify(next)===JSON.stringify(blocks))return;try{onChange(next);setError('');}catch(e){setError(e.message);}}
   function update(id,patch){commit(blocks.map(block=>block.id===id?{...block,...patch}:block));}
   function closePicker(){setPicker(null);}
+  function openAfterKeyboard(next){
+    if(!Keyboard.isVisible?.())return setPicker(next);
+    const sub=Keyboard.addListener('keyboardDidHide',()=>{sub.remove();clearTimeout(timer);setPicker(next);});
+    const timer=setTimeout(()=>{sub.remove();setPicker(next);},400);
+    Keyboard.dismiss();
+  }
   function changeText(block,text){
     holdEnd();
     if(disabled)return;
     if(text==='/'){update(block.id,{text});setPicker({id:block.id});return;}
     const parts=skipSplit.current?null:blockBreaks(block.text,text);
+    const typedEnter=parts&&text.length===block.text.length+1;
+    if(typedEnter&&lastEnter.current.id===block.id&&Date.now()-lastEnter.current.at<500)return;
+    if(typedEnter)lastEnter.current={id:block.id,at:Date.now()};
     skipSplit.current=false;
     try{if(parts){const next=splitBlock(blocks,block.id,text,randomUUID,parts);pendingFocus.current=next[blocks.findIndex(item=>item.id===block.id)+1]?.id;commit(next);}else update(block.id,{text});}catch(e){setError(e.message);}
+  }
+  function splitAt(block,typed){
+    if(disabled||(lastEnter.current.id===block.id&&Date.now()-lastEnter.current.at<500))return;
+    lastEnter.current={id:block.id,at:Date.now()};
+    const text=typed??block.text, sel=selections.current.get(block.id), start=Math.min(sel?.start??text.length,text.length), end=Math.min(Math.max(sel?.end??start,start),text.length);
+    try{const next=splitBlock(blocks,block.id,text,randomUUID,[text.slice(0,start),text.slice(end)]);pendingFocus.current=next[blocks.findIndex(item=>item.id===block.id)+1]?.id;commit(next);}catch(e){setError(e.message);}
   }
   function choose(type){
     if(disabled||!picker)return;
@@ -87,7 +102,7 @@ const BlockEditor = forwardRef(function BlockEditor({ blocks, onChange, disabled
   function dropBlock(before){if(disabled||!dragging.current)return;const id=dragging.current;dragging.current=null;setDrop(null);commit(moveBlock(blocks,id,before));}
   function resizeTable(rows){try{setTable({...table,block:{...table.block,rows:tableRows(rows)}});setError('');}catch(e){setError(e.message);}}
   function saveTable(){try{const block={...table.block,rows:tableRows(table.block.rows)};commit(table.new?insertBlock(blocks,table.after,block,table.first):blocks.map(item=>item.id===block.id?block:item));setActive(block.id);setTable(null);}catch(e){setError(e.message);}}
-  const ctx={active,disabled,askAI,setActive,setTable,update,inputs,holdStart,holdEnd,changeText,skipSplit,closePicker};
+  const ctx={active,disabled,askAI,setActive,setTable,update,inputs,holdStart,holdEnd,changeText,skipSplit,closePicker,selections,splitAt};
   const orderedBlocks = previewOrder(blocks, [...pending.values()]);
   const blockIndexes = new Map(blocks.map((block, index) => [block.id, index]));
   const action=(label,icon,onPress,inactive=false)=><Pressable key={label} accessibilityRole="button" accessibilityLabel={label} disabled={disabled||inactive} onPress={onPress} style={[s.menuRow,(disabled||inactive)&&{opacity:.35}]}><Icon name={icon} size={18} color={c.muted}/><Text style={s.menuLabel}>{label}</Text></Pressable>;
@@ -101,7 +116,7 @@ const BlockEditor = forwardRef(function BlockEditor({ blocks, onChange, disabled
       return <View key={block.id} onPointerEnter={()=>{if(dragging.current){dragMoved.current ||= dragging.current!==block.id;setDrop(block.id);}}} onPointerUp={()=>dropBlock(block.id)} style={proposal ? { borderWidth: 1, borderColor: '#fff', borderRadius: 4 } : { borderTopWidth: drop === block.id ? 2 : 0, borderTopColor: c.accent }}>
       <View style={{flexDirection:'row',gap:6,alignItems:'center'}}>
         {!disabled&&(proposal||block.id!==active)&&<View style={{width:32}} />}
-        {!disabled&&!proposal&&block.id===active&&<Pressable accessibilityRole="button" accessibilityLabel={`블록 ${index+1} 메뉴와 끌어서 옮기기`} accessibilityHint={askAI?'길게 누르면 이 블록으로 AI에게 요청합니다':undefined} onLongPress={askAI&&(()=>askAI(index))} delayLongPress={450} onPress={()=>{if(dragMoved.current){dragMoved.current=false;return;}setActive(block.id);setPicker({id:block.id});}} onPointerDown={event=>{if(Platform.OS==='web'&&event.nativeEvent?.button!==2){dragMoved.current=false;dragging.current=block.id;setActive(block.id);}}} onKeyDown={event=>{if(event.altKey&&['ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();move(event.key==='ArrowUp'?-1:1,block.id);}}} style={{width:32,minHeight:44,alignItems:'center',justifyContent:'center'}}><Text style={{color:c.muted,fontSize:22}}>⠿</Text></Pressable>}
+        {!disabled&&!proposal&&block.id===active&&<Pressable accessibilityRole="button" accessibilityLabel={`블록 ${index+1} 메뉴와 끌어서 옮기기`} accessibilityHint={askAI?'길게 누르면 이 블록으로 AI에게 요청합니다':undefined} onLongPress={askAI&&(()=>askAI(index))} delayLongPress={450} onPress={()=>{if(dragMoved.current){dragMoved.current=false;return;}setActive(block.id);openAfterKeyboard({id:block.id});}} onPointerDown={event=>{if(Platform.OS==='web'&&event.nativeEvent?.button!==2){dragMoved.current=false;dragging.current=block.id;setActive(block.id);}}} onKeyDown={event=>{if(event.altKey&&['ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();move(event.key==='ArrowUp'?-1:1,block.id);}}} style={{width:32,minHeight:44,alignItems:'center',justifyContent:'center'}}><Text style={{color:c.muted,fontSize:22}}>⠿</Text></Pressable>}
         <View style={{flex:1,minWidth:0}}>
           {(proposal?.preview ?? [block]).map(item => React.createElement(BODIES[item.type] ?? TextBody, { key: item.id, block: item, index, ctx: previewContext }))}
         </View>
