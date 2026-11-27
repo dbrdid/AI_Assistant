@@ -33,9 +33,12 @@ export default function SwipeRow({ actionLabel, onAction, children, style }) {
     [x],
   );
 
-  // 손가락이 TRIGGER 를 넘으면 뒤 버튼이 진해짐
-  const bg = x.interpolate({ inputRange: [-TRIGGER - 1, -TRIGGER, 0], outputRange: [colors.coral, colors.coralSoft, colors.coralSoft] });
-  const fg = x.interpolate({ inputRange: [-TRIGGER - 1, -TRIGGER, 0], outputRange: [colors.white, colors.coral, colors.coral] });
+  // 미루기는 지우기가 아니라서 붉은색 대신 회색. TRIGGER를 넘으면 밝아져 놓으면 실행됨을 알림
+  const bg = x.interpolate({ inputRange: [-TRIGGER - 1, -TRIGGER, 0], outputRange: [colors.actionBorder, colors.raised, colors.raised] });
+  const fg = x.interpolate({ inputRange: [-TRIGGER - 1, -TRIGGER, 0], outputRange: [colors.ink, colors.muted, colors.muted] });
+  // 가만히 있을 때는 뒤 버튼을 숨기고(줄 가장자리로 비치지 않게), 글자는 다 보일 만큼 밀었을 때만
+  const underOpacity = x.interpolate({ inputRange: [-12, 0], outputRange: [1, 0], extrapolate: 'clamp' });
+  const textOpacity = x.interpolate({ inputRange: [-REVEAL + 8, -48, 0], outputRange: [1, 0, 0], extrapolate: 'clamp' });
 
   return (
     <View
@@ -44,10 +47,10 @@ export default function SwipeRow({ actionLabel, onAction, children, style }) {
       accessibilityActions={[{ name: 'swipeAction', label: actionLabel }]}
       onAccessibilityAction={(e) => e.nativeEvent.actionName === 'swipeAction' && onAction()}
     >
-      <Animated.View style={[styles.under, { backgroundColor: bg }]}>
-        <Animated.Text style={[styles.underText, { color: fg }]}>{actionLabel}</Animated.Text>
+      <Animated.View style={[styles.under, { backgroundColor: bg, opacity: underOpacity }]}>
+        <Animated.Text style={[styles.underText, { color: fg, opacity: textOpacity }]}>{actionLabel}</Animated.Text>
       </Animated.View>
-      <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: x }] }}>
+      <Animated.View {...pan.panHandlers} style={{ backgroundColor: colors.cream, transform: [{ translateX: x }] }}>
         {children}
       </Animated.View>
     </View>
