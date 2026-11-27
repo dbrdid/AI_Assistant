@@ -167,7 +167,7 @@ export default function MonthCalendar({
                     }}
                     style={[styles.monthBtn, on && styles.monthBtnOn]}
                   >
-                    <Text style={[styles.monthBtnText, on && { color: colors.onPrimary, fontWeight: '600' }, (on) && { fontWeight: '700' }]}>{m + 1}월</Text>
+                    <Text style={[styles.monthBtnText, on && { color: colors.onPrimary, fontWeight: '600' }]}>{m + 1}월</Text>
                   </Pressable>
                 );
               })}
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  monthBtnOn: { backgroundColor: 'transparent', borderColor: colors.raised },
+  monthBtnOn: { backgroundColor: 'transparent', borderRadius: 0, borderBottomWidth: 2, borderBottomColor: colors.ink, borderColor: colors.raised },
   monthBtnText: { fontSize: 15, color: colors.ink, fontWeight: '500' },
   closeBtn: { minHeight: 44, borderRadius: radius.sm, borderWidth: 0, borderColor: colors.hairline, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
   closeText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },

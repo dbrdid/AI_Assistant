@@ -197,7 +197,7 @@ export default function SetupFlow({ user, onDone }) {
     const all = KEYS.every(([k]) => targets[k]);
     const chip = (label, on, onPress) => (
       <Pressable key={label} accessibilityRole="checkbox" accessibilityState={{ checked: on }} onPress={onPress} style={[styles.chip, on && styles.chipOn]}>
-        <Text style={[styles.chipText, on && { color: colors.onPrimary }, (on) && { fontWeight: '700' }]}>{label}</Text>
+        <Text style={[styles.chipText, on && { color: colors.onPrimary }]}>{label}</Text>
       </Pressable>
     );
     return (
@@ -249,7 +249,7 @@ export default function SetupFlow({ user, onDone }) {
     const allItems = KEYS.every(([k]) => items[k]);
     const chip = (label, on, onPress) => (
       <Pressable key={label} accessibilityRole="checkbox" accessibilityState={{ checked: on }} onPress={onPress} style={[styles.chip, on && styles.chipOn]}>
-        <Text style={[styles.chipText, on && { color: colors.onPrimary }, (on) && { fontWeight: '700' }]}>{label}</Text>
+        <Text style={[styles.chipText, on && { color: colors.onPrimary }]}>{label}</Text>
       </Pressable>
     );
     return (
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
   chev: { fontSize: 24, color: colors.muted },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: { minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: 4, backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  chipOn: { backgroundColor: 'transparent', borderColor: colors.actionBorder },
+  chipOn: { backgroundColor: 'transparent', borderRadius: 0, borderBottomWidth: 2, borderBottomColor: colors.ink, borderColor: colors.actionBorder },
   chipText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
   info: { padding: spacing.lg, borderRadius: radius.md, backgroundColor: colors.mintSoft, gap: 4 },
   infoTitle: { fontSize: font.body, fontWeight: '600', color: colors.mintDark },

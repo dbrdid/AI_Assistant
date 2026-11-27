@@ -663,7 +663,7 @@ export default function AiChatScreen({ navigation }) {
                   onPress={() => chooseRoute(id)}
                   style={[styles.option, on && styles.optionOn, off && { opacity: 0.5 }]}
                 >
-                  <Text style={[styles.optionName, (on) && { fontWeight: '700' }]}>{AI_ROUTE_LABEL[id]}{on ? ', 사용 중' : off ? ', 준비 중' : ''}</Text>
+                  <Text style={styles.optionName}>{AI_ROUTE_LABEL[id]}{on ? ', 사용 중' : off ? ', 준비 중' : ''}</Text>
                   <Text style={styles.optionSub}>
                     {id === 'external' ? '외부 AI 제공자가 답해요. 빠르고 사진 글자 인식도 돼요' : '팀 서버의 자체 모델이 답해요. 외부 AI로 넘기지 않아요 (서버 연결 후 사용)'}
                   </Text>
@@ -835,7 +835,7 @@ export default function AiChatScreen({ navigation }) {
                 <Pressable accessibilityRole="button" accessibilityLabel={`${c.pinnedAt ? '고정된 ' : ''}${c.title} 대화 열기`} onPress={() => openChat(c)} style={{ flex: 1, gap: 2 }}>
                   <View style={styles.historyTitleRow}>
                     {!!c.pinnedAt && <View style={styles.pinTag}><Text style={styles.pinTagText}>고정</Text></View>}
-                    <Text style={[styles.optionName, { flexShrink: 1 }, c.id === chatId && { fontWeight: '700' }]} numberOfLines={1}>{c.title}</Text>
+                    <Text style={[styles.optionName, { flexShrink: 1 }]} numberOfLines={1}>{c.title}</Text>
                   </View>
                   <Text style={styles.optionSub}>{when(c.updatedAt)}</Text>
                 </Pressable>
@@ -965,7 +965,7 @@ const styles = StyleSheet.create({
   sheetTitle: { fontSize: font.title - 2, fontWeight: '800', color: colors.ink, marginBottom: spacing.xs },
   sheetNote: { fontSize: font.caption, color: colors.muted, marginTop: spacing.xs, lineHeight: 17 },
   option: { padding: spacing.lg, borderRadius: radius.card, backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.line, gap: 2 },
-  optionOn: { borderColor: colors.mintDark, borderWidth: 0.5, backgroundColor: 'transparent'},
+  optionOn: { borderColor: colors.mintDark, borderWidth: 0.5, backgroundColor: 'transparent', borderRadius: 0, borderBottomWidth: 2, borderBottomColor: colors.ink},
   optionName: { fontSize: font.bodyLg - 1, fontWeight: '800', color: colors.ink },
   optionSub: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
   historySheet: { maxWidth: 420 },

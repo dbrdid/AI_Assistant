@@ -119,7 +119,7 @@ export default function AiSettingsForm({ onOpenUsage, contentStyle, compact = fa
             <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
               {WEEKDAY_NAMES.map((d) => (
                 <Pressable key={d} accessibilityRole="button" accessibilityState={{ selected: ai.weekly.day === d }} onPress={() => set({ weekly: { ...ai.weekly, day: d } })} style={[styles.chip, ai.weekly.day === d && styles.chipOn]}>
-                  <Text style={[styles.chipText, ai.weekly.day === d && styles.chipTextOn, (ai.weekly.day === d) && { fontWeight: '700' }]}>{d.charAt(0)}</Text>
+                  <Text style={[styles.chipText, ai.weekly.day === d && styles.chipTextOn]}>{d.charAt(0)}</Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   // 주간 브리핑 요일 칩 (Group 카드 안)
   chips: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   chip: { width: 42, height: 44, borderRadius: 4, backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  chipOn: { backgroundColor: 'transparent', borderColor: colors.actionBorder },
+  chipOn: { backgroundColor: 'transparent', borderRadius: 0, borderBottomWidth: 2, borderBottomColor: colors.ink, borderColor: colors.actionBorder },
   chipText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
   chipTextOn: { color: colors.onPrimary },
 });

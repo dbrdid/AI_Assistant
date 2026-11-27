@@ -181,7 +181,7 @@ export default function SubscriptionScreen({ navigation, route }) {
                   style={[styles.option, on && styles.optionOn]}
                 >
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={[styles.optionName, (on) && { fontWeight: '700' }]}>{PLANS[id].name}</Text>
+                    <Text style={styles.optionName}>{PLANS[id].name}</Text>
                     <Text style={styles.optionSub}>{sub ? planOptionText(sub, id) : ''}</Text>
                   </View>
                   {on && <Text style={styles.current}>현재</Text>}
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.sm },
   dialogTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink, marginBottom: spacing.sm },
   option: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, borderRadius: radius.card, backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.line },
-  optionOn: { borderColor: colors.actionBorder, backgroundColor: 'transparent'},
+  optionOn: { borderColor: colors.actionBorder, backgroundColor: 'transparent', borderRadius: 0, borderBottomWidth: 2, borderBottomColor: colors.ink},
   optionName: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   optionSub: { fontSize: font.caption, color: colors.muted },
   current: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, backgroundColor: colors.card, overflow: 'hidden' },
