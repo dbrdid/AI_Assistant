@@ -34,8 +34,9 @@ export default function SwipeRow({ actionLabel, onAction, children, style }) {
   );
 
   // 미루기는 지우기가 아니라서 붉은색 대신 회색. TRIGGER를 넘으면 밝아져 놓으면 실행됨을 알림
-  const bg = x.interpolate({ inputRange: [-TRIGGER - 1, -TRIGGER, 0], outputRange: [colors.actionBorder, colors.raised, colors.raised] });
-  const fg = x.interpolate({ inputRange: [-TRIGGER - 1, -TRIGGER, 0], outputRange: [colors.ink, colors.muted, colors.muted] });
+  // clamp: 실행 지점을 넘어 더 밀어도 색이 계속 밝아지지 않게 (없으면 하얗게 날아감)
+  const bg = x.interpolate({ inputRange: [-TRIGGER - 8, -TRIGGER, 0], outputRange: [colors.actionBorder, colors.raised, colors.raised], extrapolate: 'clamp' });
+  const fg = x.interpolate({ inputRange: [-TRIGGER - 8, -TRIGGER, 0], outputRange: [colors.ink, colors.muted, colors.muted], extrapolate: 'clamp' });
   // 가만히 있을 때는 뒤 버튼을 숨기고(줄 가장자리로 비치지 않게), 글자는 다 보일 만큼 밀었을 때만
   const underOpacity = x.interpolate({ inputRange: [-12, 0], outputRange: [1, 0], extrapolate: 'clamp' });
   const textOpacity = x.interpolate({ inputRange: [-REVEAL + 8, -48, 0], outputRange: [1, 0, 0], extrapolate: 'clamp' });
