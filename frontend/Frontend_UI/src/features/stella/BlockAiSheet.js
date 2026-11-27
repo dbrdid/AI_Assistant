@@ -7,7 +7,7 @@ import LocalModelScreen from './LocalModelScreen';
 import { palette as c, styles as s } from './theme';
 import { useKeyboardHeight } from '../../shared/hooks/useKeyboardHeight';
 
-export default function BlockAiSheet({ block, navigation, memoId, prepare, onPlaced, onClose }) {
+export default function BlockAiSheet({ block, navigation, memoId, prepare, onPlaced, onApplied, onClose }) {
   const { height } = useWindowDimensions();
   const keyboard = useKeyboardHeight();   // 입력칸이 키보드에 가리지 않게 시트를 키보드 위로
   const sheetHeight = Math.round(height * 0.45);
@@ -41,6 +41,6 @@ export default function BlockAiSheet({ block, navigation, memoId, prepare, onPla
         </Pressable>
       </View>
     </View>
-    <LocalModelScreen navigation={navigation} route={{ params: { memoId, block } }} sheet={{ prepare, onPlaced, onClose: close }} />
+    <LocalModelScreen navigation={navigation} route={{ params: { memoId, block } }} sheet={{ prepare, onPlaced, onApplied, onClose: close }} />
   </Animated.View>;
 }

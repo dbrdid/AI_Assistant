@@ -17,6 +17,7 @@ import { SheetModal } from '../../shared/components/Motion';
 import { commandGrammar, routeCommand } from './appCommands.mjs';
 import { routeProjectCommand } from './projectCommands.mjs';
 import { routeItemCommand } from './itemCommands.mjs';
+import InlineCommand from './InlineCommand';
 import { blockRequest, canAsk, placeAnswer, targetLine, targetRewrite } from './aiPending.mjs';
 
 const native = Platform.OS === 'android' || Platform.OS === 'ios';
@@ -138,7 +139,7 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
       const onBlock = routeCommand(reviewRequest);
       if (onBlock.command && !/^\d+\s*번\s*블록(?:을|를)?\s*.*블록.*(?:으)?로\s*수정$/.test(onBlock.command)) routed = onBlock;
     }
-    if (routed.command) { setReply({ command: routed.command, model: '규칙 해석 (AI 미사용)' }); return; }
+    if (routed.command) { sheet?.prepare(); setReply({ command: routed.command, model: '규칙 해석 (AI 미사용)' }); return; }
     if (commandMode && routed.clarify) { setError(routed.clarify); return; }
     if (!ready) { setError(provider === 'device' ? '먼저 기기 모델을 내려받아 주세요.' : provider === 'server' ? '서버 주소와 모델을 먼저 설정해 주세요.' : 'API 키를 먼저 입력해 주세요.'); return; }
     const mode = commandMode ? 'command' : 'chat';
@@ -163,7 +164,7 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
       else {
         const next = rewrite ? { text: rewrite, model: result.model } : { ...parsed, model: result.model };
         if (sheet && target && next.text && !next.question) useReply(true, next);
-        else setReply(next);
+        else { if (next.command) sheet?.prepare(); setReply(next); }
       }
     } catch (e) {
       if (active.current && !request.signal.aborted) setError(e.message);
@@ -279,9 +280,13 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
         {!ready && <Text style={s.connNote}>{PROVIDERS[provider].label} 연결을 마치면 보낼 수 있습니다. 아래 AI 연결에서 설정해 주세요.</Text>}
         {errorView}
         {!!reply && <View style={s.aiReply}><Text style={s.aiReplyLabel}>{reply.command ? '제안한 앱 작업' : reply.question ? 'AI 질문' : 'AI 답변'} ({reply.model})</Text>
-          <Text selectable style={s.proposalBody}>{reply.command || reply.text}</Text>
+          {reply.command
+            ? <InlineCommand key={reply.command + (reply.commands?.length ?? 1)} commands={reply.commands ?? [reply.command]} navigation={navigation}
+                originalRequest={target ? '"' + String(target.text ?? '').replace(/\s+/g, ' ').trim().slice(0, 300) + '" ' + reviewRequest : reviewRequest}
+                memoId={route?.params?.memoId} onLeave={() => sheet?.onClose()} onApplied={sheet?.onApplied} />
+            : <Text selectable style={s.proposalBody}>{reply.text}</Text>}
           <View style={s.aiActions}>
-            {reply.question ? null : reply.command ? <Pressable accessibilityRole="button" onPress={() => useReply()} style={s.aiSend}><Icon name="file" size={15} color={c.text} /><Text style={s.aiSendText}>앱 작업 검토</Text></Pressable> : <>
+            {reply.question || reply.command ? null : <>
               {!!target && <Pressable accessibilityRole="button" accessibilityHint="수용하기 전까지 원래 블록은 그대로 남습니다" onPress={() => useReply(true)} style={s.aiSend}><Icon name="edit" size={15} color={c.text} /><Text style={s.aiSendText}>이 블록 바꾸기</Text></Pressable>}
               <Pressable accessibilityRole="button" onPress={() => useReply()} style={target ? s.aiGhost : s.aiSend}><Icon name="plus" size={15} color={c.text} /><Text style={target ? s.aiGhostText : s.aiSendText}>{target ? '아래에 넣기' : '블록으로 넣기'}</Text></Pressable>
             </>}

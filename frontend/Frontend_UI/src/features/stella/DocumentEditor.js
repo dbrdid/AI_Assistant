@@ -481,12 +481,12 @@ export default function DocumentEditor({
     setAiBlockId(block.id);
   }
   // 시트가 넣은 AI 제안을 문서에 다시 읽어 온다
-  function reloadFromStore() {
+  function reloadFromStore(status = 'AI 제안을 넣었어요. 수용하거나 거절해 주세요') {
     const memo = saved.current && getMemo(saved.current.id);
     if (!memo) return;
     replaceContent(memo, own.documents.blocksFor(memo));
     setPending(readPreference(pendingKey(memo.id), []));
-    setStatus('AI 제안을 넣었어요. 수용하거나 거절해 주세요');
+    if (status) setStatus(status);
   }
   function decideBlocks(ids, accept) {
     if (readOnly) return;
@@ -595,5 +595,5 @@ export default function DocumentEditor({
     </View></Modal><ConfirmDialog visible={Boolean(childToDelete)} title="하위 문서를 휴지통으로 옮길까요?" sub={`${childToDelete?.title || '제목 없는 문서'}은 휴지통에서 복원할 수 있습니다. 그 아래의 문서는 현재 문서 아래로 옮겨 보존합니다.`} confirmText="휴지통으로 이동" danger onCancel={() => {setChildToDelete(null);setPanel("tree");}} onConfirm={deleteChild}/><ConfirmDialog visible={Boolean(localConfirm)} title="이 PC의 모델로 요약할까요?" sub={`${localConfirm || "로컬 모델"}에 현재 문서 본문을 전송합니다. 결과는 승인 대기 제안으로 저장하며 원문은 변경하지 않습니다.`} confirmText="요약 제안 만들기" onCancel={() => setLocalConfirm(null)} onConfirm={summarizeLocally} /><EditorTools request={toolsRequest} onRequestHandled={() => setToolsRequest(null)} favorite={favorite} onFavorite={toggleFavorite} editorMode={editorMode} onToggleEditor={() => { setEditorMode(value => value === "blocks" ? "text" : "blocks"); setTools(false); }} visible={tools} memoId={saved.current?.id} draft={latest.current} onClose={() => setTools(false)} flush={attemptSave} readOnly={readOnly} onReplace={replaceContent} navigation={navigation} onAdvanced={() => leave("advanced")} /><SheetModal visible={exportPicker} onClose={() => { if (!exporting) setExportPicker(false); }} label="파일로 내보내기"><View style={s.titleRow}><Text style={s.sectionTitle}>파일로 내보내기</Text><IconButton name="x" label="내보내기 닫기" disabled={Boolean(exporting)} onPress={() => setExportPicker(false)} /></View><Text style={s.meta}>{Platform.OS === 'web' ? '고른 형식으로 내려받습니다. PDF는 인쇄 창에서 저장합니다.' : '파일을 만든 뒤 공유 창이 열립니다. 메일, 드라이브, 메신저로 보내거나 파일에 저장할 수 있습니다.'}</Text><ScrollView showsVerticalScrollIndicator={false}>{EXPORT_FORMATS.map(f => <Pressable key={f.id} accessibilityRole="button" accessibilityLabel={`${f.label} 파일로 내보내기`} accessibilityState={{ busy: exporting === f.id, disabled: Boolean(exporting) }} disabled={Boolean(exporting)} onPress={() => exportDocument(f.id)} style={[s.menuRow, exporting && exporting !== f.id && { opacity: .45 }]}><Icon name="file" size={18} color={c.muted} /><Text style={[s.menuLabel, { flex: 1 }]}>{f.label}</Text><Text style={s.meta}>{exporting === f.id ? '만드는 중' : '.' + f.extension}</Text></Pressable>)}</ScrollView></SheetModal><SheetModal visible={linkPicker} onClose={() => setLinkPicker(false)} label="할 일과 일정 연결"><View style={s.titleRow}><Text style={s.sectionTitle}>할 일과 일정 연결</Text><IconButton name="x" label="연결 관리 닫기" onPress={() => setLinkPicker(false)} /></View><ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>{tasks.map(task => <Pressable key={task.id} accessibilityRole="checkbox" accessibilityState={{
           checked: linked.some(item => item.id === task.id)
         }} onPress={() => toggleLink(task.id)} style={s.menuRow}><Icon name={linked.some(item => item.id === task.id) ? "checkSquare" : "square"} size={20} color={c.text} /><Text style={s.menuLabel}>{task.title}</Text></Pressable>)}{!tasks.length && <Text style={s.empty}>연결할 할 일이나 일정이 없습니다.\n작업 공간 메뉴에서 먼저 만들어 주세요.</Text>}</ScrollView></SheetModal>{aiBlock && saved.current && <BlockAiSheet key={aiBlock.id} block={aiBlock} navigation={navigation} memoId={saved.current.id}
-    prepare={() => { const memo = attemptSave(); return memo ? { revision: memo.revision } : null; }} onPlaced={reloadFromStore} onClose={() => setAiBlockId(null)} />}</KeyboardAvoidingView>;
+    prepare={() => { const memo = attemptSave(); return memo ? { revision: memo.revision } : null; }} onPlaced={() => reloadFromStore()} onApplied={() => reloadFromStore('')} onClose={() => setAiBlockId(null)} />}</KeyboardAvoidingView>;
 }

@@ -1,15 +1,13 @@
 import React, { useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { randomUUID } from 'expo-crypto';
-import { runtime, maybeRuntime } from '../../integration/runtime';
+import { maybeRuntime } from '../../integration/runtime';
 import { useMemos } from '../../data/memos/MemoStore';
 import { ROUTES } from '../../navigation/routes';
 import { WorkspaceHeader, PrimaryButton } from './WorkspaceScreen';
-import { examples, planCommand, routeCommand, screens } from './appCommands.mjs';
-import { splitRequest } from './commandSteps.mjs';
-import { planProjectCommand, projectExamples, routeProjectCommand } from './projectCommands.mjs';
-import { itemExamples, planItemCommand } from './itemCommands.mjs';
-import { addProject, getProjects, setItemProject, updateProject } from '../../data/projects/ProjectStore';
+import { examples, routeCommand, screens } from './appCommands.mjs';
+import { projectExamples, routeProjectCommand } from './projectCommands.mjs';
+import { itemExamples } from './itemCommands.mjs';
+import { useCommandPlanner } from './InlineCommand';
 import { metrics } from '../../integration/s22Gate';
 import { palette as c, styles as s } from './theme';
 
@@ -24,29 +22,13 @@ export default function AppCommandScreen({ navigation, route }) {
   // AI가 순서대로 제안한 여러 작업: 하나씩 검토·승인하고, 승인하면 다음 작업을 바로 준비한다
   const [queue, setQueue] = useState(() => (route.params?.commands ?? []).slice(1));
   const total = route.params?.commands?.length ?? 1;
-  const owner = useRef(runtime()).current;
-  const workspaceId = useRef(owner.store.getCurrentWorkspace().id).current;
-  const canAccess = maybeRuntime() === owner && owner.store.getCurrentWorkspace().id === workspaceId && !owner.closedSpaces.has(workspaceId);
+  // 검사·계획은 AI 시트의 바로 승인과 같은 것을 쓴다
+  const planner = useCommandPlanner(total);
+  const owner = planner.owner;
+  const canAccess = planner.canAccess();
   const memo = canAccess && memos.find(item => item.id === memoId);
-  const projectTools = {
-    getProjects, addProject, updateProject,
-    getTasks: () => owner.store.getTasks(), getTask: id => owner.store.getTask(id),
-    setTaskProject: (taskId, projectId) => setItemProject('task', taskId, projectId),
-    canWrite: () => {
-      const ws = owner.store.getCurrentWorkspace();
-      return maybeRuntime() === owner && ws.id === workspaceId && !owner.closedSpaces.has(workspaceId) && (ws.personal || ws.roleCode !== 'VIEWER');
-    },
-  };
-  const planFor = (text, original, target = memoId) => planProjectCommand(projectTools, text, original)
-    ?? planItemCommand(owner, text, { memoId: target, originalRequest: original, canWrite: projectTools.canWrite })
-    ?? planCommand(owner, text, target, randomUUID, original);
-  // 여러 작업이면 원래 요청을 작업별 조각으로 나눠, 이 작업과 맞는 조각으로 같은 검사를 한다
-  const planStep = (text, original, target = memoId) => {
-    if (total <= 1 || !original) return planFor(text, original, target);
-    let last;
-    for (const part of [...splitRequest(original), original]) { try { return planFor(text, part, target); } catch (error) { last = error; } }
-    throw last;
-  };
+  const planFor = (text, original, target = memoId) => planner.planFor(text, original, target);
+  const planStep = (text, original, target = memoId) => planner.planStep(text, original, target);
   function clear() { setPlan(null); setMessage(''); }
   // Device-only evaluation record for untouched model commands; user-typed commands are not AI results.
   const fromModel = useRef(false);
