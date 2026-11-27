@@ -1,7 +1,7 @@
 // 탭 화면을 감싸는 좌우 제스처.
 // 좌우로 밀기: 같은 탭 안의 쪽 이동. 길게 누른 채 좌우로 밀기: 위쪽 탭 막대에서 탭 고르기.
 // 길게 누르고 있으면(밀기 전에도) 지금 탭에 테두리가 켜지고, 손가락을 좌우로 옮기면 테두리가 따라 움직인다. 떼면 그 탭으로 이동한다. 위쪽 탭 버튼은 그대로 눌러도 된다.
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { PanResponder, View } from 'react-native';
 import { HOLD_MS, pageStep, relativePick, swipeIntent } from './swipeIntent.mjs';
 
@@ -32,9 +32,11 @@ export default function SwipeNav({ tabs, current, onTab, onPage, onPreview, chil
     }
     return true;
   };
-  const reset = () => { clearTimeout(holdTimer.current); latest.current.onPreview?.(null); mode.current = null; touch.current = null; };
+  const reset = () => { granted.current = false; clearTimeout(holdTimer.current); latest.current.onPreview?.(null); mode.current = null; touch.current = null; };
   // 손을 뗐는데 탭 고르기가 아니면(길게 누르기만 함) 켜 둔 테두리를 끈다
-  const release = () => { clearTimeout(holdTimer.current); if (mode.current !== 'tabs') latest.current.onPreview?.(null); };
+  const granted = useRef(false);     // 이 끌기를 실제로 잡았는지 (못 잡았으면 놓을 때 여기서 정리)
+  const release = () => { clearTimeout(holdTimer.current); if (mode.current !== 'tabs' || !granted.current) reset(); };
+  useEffect(() => () => clearTimeout(holdTimer.current), []);
   const end = (g) => {
     if (mode.current === 'page') latest.current.onPage(pageStep(g.dx));
     if (mode.current === 'tabs') {
@@ -48,6 +50,8 @@ export default function SwipeNav({ tabs, current, onTab, onPage, onPreview, chil
     onMoveShouldSetPanResponderCapture: (_, g) => { const s = touch.current; return !!s && Date.now() - s.t >= HOLD_MS && !s.movedEarly && decide(g); },
     onMoveShouldSetPanResponder: (_, g) => decide(g),
     onPanResponderTerminationRequest: () => false,
+    onPanResponderGrant: () => { granted.current = true; },
+    onPanResponderReject: () => reset(),
     onPanResponderMove: (_, g) => { if (mode.current === 'tabs') pickAt(g.moveX); },
     onPanResponderRelease: (_, g) => end(g),
     onPanResponderTerminate: reset,

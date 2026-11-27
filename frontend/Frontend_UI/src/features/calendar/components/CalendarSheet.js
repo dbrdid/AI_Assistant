@@ -285,7 +285,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
     onStartShouldSetPanResponderCapture: () => true,
     onPanResponderGrant: () => setPanelDragging(true),
     onPanResponderTerminationRequest: () => false,
-    onPanResponderTerminate: () => { setPanelDragging(false); movePanel(liftBase.current < 0); },
+    onPanResponderTerminate: () => { pendingMove.current = null; setPanelDragging(false); movePanel(liftBase.current < 0); },
     onPanResponderMove: (_, g) => { liftNow.current = Math.min(liftBase.current < 0 ? 0 : 160, Math.max(-panelTopRef.current, liftBase.current + g.dy)); lift.setValue(liftNow.current); },
     onPanResponderRelease: (_, g) => {
       setPanelDragging(false);
@@ -296,7 +296,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
       if (!far) return movePanel(expanded);
       const visual = panelTopRef.current + liftNow.current;   // 놓은 순간 패널의 화면상 위치
       if (g.dy > 0) {
-        if (expanded) movePanel(false);
+        if (expanded || detailedRef.current) movePanel(false);
         else { pendingMove.current = { visual, target: 'normal' }; setDetailed(true); }   // 달력 크게: 커진 달력 아래로 이어서 내려감
       } else if (detailedRef.current) {
         // 맨 아래에서 올림: 보통 자리의 절반보다 높이 올렸거나 빠르게 밀면 달력을 접고 끝까지, 아니면 보통 자리

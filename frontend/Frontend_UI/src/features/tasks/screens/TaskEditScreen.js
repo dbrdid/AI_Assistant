@@ -141,7 +141,7 @@ export default function TaskEditScreen({ navigation, route }) {
   const [overlap, setOverlap] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   // 공개 그룹에서 '보기' 권한만 있으면 저장·삭제를 막음 (서버도 거절함)
-  const viewOnly = useItemAccess('task', existing?.id) === 'view';
+  const viewOnly = ['view', 'unknown'].includes(useItemAccess('task', existing?.id));
   const [pending, setPending] = useState(null); // 겹침 확인 뒤 저장할 값
 
   // 화면 상태(종일·여러 날)를 반영한 저장 값

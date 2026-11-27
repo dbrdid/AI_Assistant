@@ -39,6 +39,7 @@ export const hasSessionKey = provider => sessionKeys.has(provider);
 // 앱이 시작할 때 setRelayFactory(key => relayFetch)를 넣어 둔다 (테스트에서는 비워 둠).
 let relayFactory = null;
 const relays = new Map();            // 키 → relayFetch (같은 실행 동안 재사용)
+const bridgeKeys = new Map();        // 계정 브리지 id → 마지막으로 받은 연결 키
 const routeCache = new Map();        // 서버 주소 → { direct, at }
 const DIRECT_PROBE_MS = 2500, ROUTE_TTL_MS = 60000;
 export const setRelayFactory = factory => { relayFactory = factory; relays.clear(); routeCache.clear(); };
@@ -51,18 +52,21 @@ export const accountBridgeId = url => /^https?:\/\/([0-9a-f-]{36})\.atria-bridge
 async function serverFetch(connection, fetchImpl, signal) {
   const bridgeId = accountBridgeId(connection.serverUrl);
   if (bridgeId) {
-    const key = bridgeResolver ? await bridgeResolver(bridgeId) : null;
+    const fresh = bridgeResolver ? await bridgeResolver(bridgeId).catch(() => null) : null;
+    if (fresh) bridgeKeys.set(bridgeId, fresh);
+    const key = fresh ?? bridgeKeys.get(bridgeId);
     if (!key || !relayFactory) throw new Error('이 계정에서 PC 브리지를 찾지 못했습니다. PC에서 atria-bridge login과 serve를 실행해 주세요.');
     if (!relays.has(key)) relays.set(key, relayFactory(key));
     return relays.get(key);
   }
   const key = sessionKeys.get('server');
-  if (!connection.viaBridge || !relayFactory || !key) return fetchImpl;
+  const viaBridge = connection.viaBridge ?? !!key;
+  if (!viaBridge || !relayFactory || !key) return fetchImpl;
   const base = serverBase(connection.serverUrl), cached = routeCache.get(base);
   let direct = cached && Date.now() - cached.at < ROUTE_TTL_MS ? cached.direct : null;
   if (direct === null) {
     const probe = withTimeout(signal, DIRECT_PROBE_MS);
-    try { await fetchImpl(base + '/models', { headers: { authorization: 'Bearer ' + key }, signal: probe.signal }); direct = true; }
+    try { direct = (await fetchImpl(base + '/models', { headers: { authorization: 'Bearer ' + key }, signal: probe.signal })).ok; }
     catch { direct = false; } finally { probe.done(); }
     routeCache.set(base, { direct, at: Date.now() });
   }

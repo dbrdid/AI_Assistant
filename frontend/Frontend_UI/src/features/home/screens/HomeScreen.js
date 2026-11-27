@@ -31,8 +31,6 @@ import { CircleButton } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { selectHomeScheduleEvents } from '../utils/HomeSchedule.mjs';
 
-const MAX_LEN = 2000;
-const CAPTURE_HEIGHT = 64; // 입력줄 높이 (안내 띠를 그 위에 띄우는 데 씀)
 
 // 초 → "01:05"
 const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
@@ -72,7 +70,7 @@ export default function HomeScreen({ navigation, route }) {
   };
 
   // ---------- AI 제안 (목록에서 바로 처리) + 아래 안내 띠 ----------
-  const actions = useProposalActions(navigation, { bottom: CAPTURE_HEIGHT + spacing.sm });
+  const actions = useProposalActions(navigation);
   const snack = actions.snack;
   const [reviewOpen, setReviewOpen] = useState(false);
   const waiting = useProposals().filter((p) => p.status === 'pending' && !actions.hidden.has(p.id));
@@ -262,19 +260,5 @@ const styles = StyleSheet.create({
   mine: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
   late: { fontSize: font.caption, fontWeight: '500', color: colors.coral },
 
-  capture: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: CAPTURE_HEIGHT, paddingHorizontal: 16, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.cream },
-  inputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', minHeight: 44 },
-  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 110, minHeight: 44, paddingRight: 8 },
-  spaceChipText: { flexShrink: 1, fontSize: 14, color: colors.muted },
-  input: { flex: 1, minHeight: 44, maxHeight: 120, paddingHorizontal: 8, paddingVertical: 10, fontSize: 15, lineHeight: 22, color: colors.ink, textAlignVertical: 'center' },
-  iconBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  round: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
-  ghost: { borderWidth: 0, backgroundColor: 'transparent', marginBottom: 2 },
-  stop: { backgroundColor: colors.coralSoft },
 
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.48)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xs },
-  sheetTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink, marginBottom: spacing.sm },
-  sheetRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 50, paddingHorizontal: spacing.md, borderRadius: radius.md },
-  sheetText: { flex: 1, fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
 });

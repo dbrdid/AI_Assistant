@@ -97,7 +97,7 @@ export default function DocumentEditor({
   const workspaceId = useRef(own.store.getCurrentWorkspace().id).current;
   // 보기 전용 멤버, 또는 이 문서의 공개 그룹에서 '보기' 권한만 있는 사람은 읽기만
   const groupAccess = useItemAccess('memo', memoId);
-  const readOnly = own.store.getCurrentWorkspace().roleCode === 'VIEWER' || groupAccess === 'view';
+  const readOnly = own.store.getCurrentWorkspace().roleCode === 'VIEWER' || groupAccess === 'view' || groupAccess === 'unknown';
   const latest = useRef({
     title,
     body,

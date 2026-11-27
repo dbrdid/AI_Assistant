@@ -202,8 +202,9 @@ export async function itemAccessOf(kind, id) {
 /** 화면용: 그룹·공개 범위가 바뀌면 다시 계산 */
 export function useItemAccess(kind, id) {
   const projects = useProjects();
-  const [access, setAccess] = useState('open');
-  useEffect(() => { let alive = true; itemAccessOf(kind, id).then(a => alive && setAccess(a)).catch(() => {}); return () => { alive = false; }; }, [kind, id, projects]);
+  // 공유 공간의 기존 항목은 확인이 끝날 때까지 'unknown'(읽기 전용으로 다룸): 그사이 자동 저장이 서버에서 거절되지 않게
+  const [access, setAccess] = useState(() => (id && maybeRuntime()?.store.getCurrentWorkspace()?.serverId ? 'unknown' : 'open'));
+  useEffect(() => { let alive = true; itemAccessOf(kind, id).then(a => alive && setAccess(a)).catch(() => alive && setAccess('open')); return () => { alive = false; }; }, [kind, id, projects]);
   return access;
 }
 

@@ -8,6 +8,7 @@ import { useFiles } from '../../data/files/FileStore';
 import GraphCanvas from './GraphCanvas';
 import SearchDock from './SearchDock';
 import SwipeNav from './SwipeNav';
+import { itemAccessOf } from '../../data/projects/ProjectStore';
 import { useNoteRecorder } from '../record/components/useNoteRecorder';
 import ProposalCard from '../proposal/components/ProposalCard';
 import { runtime, useValue, readPreference, writePreference } from '../../data/hooks';
@@ -231,7 +232,8 @@ export default function WorkspaceScreen({
   const [rowMenu, setRowMenu] = useState(null);       // 문서 줄의 … 메뉴를 연 문서
   const [rowDelete, setRowDelete] = useState(null);   // 휴지통으로 옮길지 묻는 문서
   const canEdit = spaces.current?.roleCode !== 'VIEWER';
-  const onMore = canEdit ? memo => setRowMenu(memo) : undefined;
+  // 공개 그룹에서 보기 권한만 있는 문서는 메뉴에서 삭제·즐겨찾기를 뺀다 (서버가 거절하고 보내기 줄이 막힘)
+  const onMore = canEdit ? memo => { itemAccessOf('memo', memo.id).then(access => setRowMenu({ ...memo, viewOnly: access === 'view' })).catch(() => setRowMenu({ ...memo, viewOnly: true })); } : undefined;
   // 문서 줄 삭제: 편집기의 하위 문서 삭제와 같은 휴지통 이동 (그 아래 문서는 한 단계 위로 올려 보존). 되돌리기로 복원
   function trashRow() {
     const memo = rowDelete;
@@ -399,9 +401,10 @@ export default function WorkspaceScreen({
     : <>{!bodyOnly && header()}{content}</>}{actions.snack.view}{note.sheet}
       <SheetModal visible={!!rowMenu} onClose={() => setRowMenu(null)} label="문서 메뉴"><View style={s.handle} />
         <Text style={[s.sectionTitle, { textAlign: 'center', marginBottom: 8 }]} numberOfLines={1}>{rowMenu ? memoTitle(rowMenu) : ''}</Text>
-        {rowMenu && [[rowMenu.favorite ? '즐겨찾기 해제' : '즐겨찾기에 추가', rowMenu.favorite ? 'starFilled' : 'star', () => setFavorites([rowMenu.id], !rowMenu.favorite)],
+        {rowMenu && [
+          ...(rowMenu.viewOnly ? [] : [[rowMenu.favorite ? '즐겨찾기 해제' : '즐겨찾기에 추가', rowMenu.favorite ? 'starFilled' : 'star', () => setFavorites([rowMenu.id], !rowMenu.favorite)]]),
           ['하위 문서 추가', 'plus', () => go(ROUTES.MemoEdit, { parentId: rowMenu.id })],
-          ['휴지통으로 이동', 'trash', () => setRowDelete(rowMenu)]].map(([label, icon, run]) =>
+          ...(rowMenu.viewOnly ? [] : [['휴지통으로 이동', 'trash', () => setRowDelete(rowMenu)]])].map(([label, icon, run]) =>
           <Pressable key={label} accessibilityRole="button" onPress={() => { setRowMenu(null); run(); }} style={s.menuRow}>
             <Icon name={icon} size={18} color={c.muted} /><Text style={s.menuLabel}>{label}</Text>
           </Pressable>)}
