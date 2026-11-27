@@ -103,10 +103,12 @@ export function decide(blocks, pending, ids, accept) {
   const rest = pending.filter(entry => !chosen.has(entry.id));
   if (accept) {
     // A "replace" answer removes its target block only when the user accepts; rejecting keeps the original.
-    const replaced = new Set(entries.map(entry => entry.replaces).filter(Boolean));
+    // A "deletes" mark removes the marked block itself when accepted.
+    const replaced = new Set([...entries.map(entry => entry.replaces), ...entries.filter(entry => entry.deletes).map(entry => entry.id)].filter(Boolean));
     return { blocks: replaced.size ? blocks.filter(block => !replaced.has(block.id)) : blocks, pending: rest, entries, replaced };
   }
-  let next = blocks.filter(block => !entries.some(entry => entry.id === block.id));
+  // 거절: 새로 넣은 블록은 빼고, 삭제 표시만 붙은 기존 블록은 그대로 둔다
+  let next = blocks.filter(block => !entries.some(entry => entry.id === block.id && !entry.deletes));
   if (!next.length) next = [{ id: 'body', type: 'paragraph', text: '', checked: false }];
   return { blocks: next, pending: rest, entries };
 }
@@ -154,4 +156,52 @@ export function saveBlocks(documents, memo, nextBlocks, changed) {
   const kept = list => JSON.stringify(list.filter(block => !changed.has(block.id)));
   if (kept(documents.blocksFor(memo)) !== kept(nextBlocks)) throw new Error('주변 블록이 바뀌었습니다. 문서를 확인해 주세요.');
   return documents.saveContent(memo.id, { title: memo.title, body: blocksText(nextBlocks), blocks: nextBlocks }, memo.revision);
+}
+
+/**
+ * AI 앱 작업이 바꾼 블록을 문서 안의 대기 제안으로: 바로 저장하지 않고, 바뀐 곳을 강조해 문서에서 수용·거절한다.
+ * original: 지금 블록, next: 작업을 적용한 결과. 바뀐 블록은 새 판을 원래 블록 바로 아래에(수용하면 대체),
+ * 새 블록은 그 자리에, 지운 블록은 그대로 두고 '수용하면 삭제' 표시, 옮긴 블록은 새 자리에 사본(수용하면 원래 자리 것을 대체).
+ */
+export function proposeBlocks(documents, memo, original, next, { read, write }, newId) {
+  const byId = new Map(original.map(block => [block.id, block]));
+  const nextIds = new Set(next.map(block => block.id));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  let result = original.slice();
+  const entries = [];
+  const insertAfter = (afterId, block) => {
+    const at = afterId == null ? 0 : result.findIndex(item => item.id === afterId) + 1;
+    result.splice(at, 0, block);
+  };
+  // 옮기기: 같은 블록들, 같은 내용, 순서만 다름
+  const kept = next.filter(block => byId.has(block.id));
+  const orderChanged = kept.some((block, i) => block.id !== original.filter(item => nextIds.has(item.id))[i]?.id);
+  if (orderChanged) {
+    const base = original.filter(item => nextIds.has(item.id));
+    const i = kept.findIndex((block, k) => block.id !== base[k].id);
+    const without = id => list => list.filter(item => item.id !== id).map(item => item.id).join();
+    const moved = without(kept[i].id)(kept) === without(kept[i].id)(base) ? kept[i] : base[i];
+    const position = next.findIndex(block => block.id === moved.id);
+    const copy = { ...moved, id: newId() };
+    insertAfter(position > 0 ? next[position - 1].id : null, copy);
+    entries.push({ id: copy.id, replaces: moved.id });
+  }
+  next.forEach((block, i) => {
+    const before = byId.get(block.id);
+    if (!before) {   // 새 블록: 결과에서 바로 앞 블록 뒤에
+      const previous = next.slice(0, i).reverse().find(item => result.some(r => r.id === item.id));
+      insertAfter(previous?.id ?? null, block);
+      entries.push({ id: block.id });
+    } else if (!same(before, block)) {   // 바뀐 블록: 새 판을 원래 블록 아래에
+      const copy = { ...block, id: newId() };
+      insertAfter(block.id, copy);
+      entries.push({ id: copy.id, replaces: block.id });
+    }
+  });
+  for (const block of original) if (!nextIds.has(block.id)) entries.push({ id: block.id, deletes: true });
+  if (!entries.length) throw new Error('바뀌는 내용이 없습니다.');
+  const changed = new Set(entries.filter(entry => !entry.deletes).map(entry => entry.id));
+  const saved = saveBlocks(documents, memo, result, changed);
+  write(pendingKey(memo.id), [...livePending(read(pendingKey(memo.id), []), result), ...entries]);
+  return saved;
 }
