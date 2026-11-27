@@ -4,15 +4,16 @@
 
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
+import { SheetModal } from '../../../shared/components/Motion';
 import { deleteMemosForever, formatMD, memoTitle, restoreMemos, useTrashedMemos } from '../../../data/memos/MemoStore';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { linkItems, projectOf, useProjects } from '../../../data/projects/ProjectStore';
 import Icon from '../../../shared/components/Icon';
-import { CircleButton, InlineDeletePrompt, Tag } from '../../../shared/components/Ui';
+import { CircleButton, InlineDeletePrompt } from '../../../shared/components/Ui';
 
 export default function TrashScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -49,14 +50,27 @@ export default function TrashScreen({ navigation }) {
     setSelecting(false);
     setSelected([]);
   };
+  useEffect(() => {
+    if (!selecting) return undefined;
+    return navigation.registerHardwareBackGuard?.(() => {
+      exitSelect();
+      return false;
+    });
+  }, [navigation, selecting]);
 
   const restoreSelected = () => {
-    restoreMemos(ids);
-    showNotice(`메모 ${ids.length}개를 복구했어요`);
     setConfirmRestore(false);
-    exitSelect();
+    if (!ids.length) return;
+    try {
+      restoreMemos(ids);
+      showNotice(`메모 ${ids.length}개를 복구했어요`);
+      exitSelect();
+    } catch (error) {
+      showNotice(error.message || '메모를 복구하지 못했어요.');
+    }
   };
   const deleteSelected = () => {
+    if (!ids.length) return;
     try {
       deleteMemosForever(ids);
       showNotice(`메모 ${ids.length}개를 삭제했어요`);
@@ -78,7 +92,7 @@ export default function TrashScreen({ navigation }) {
     <View style={styles.root}>
       <ScreenHeader
         title="휴지통"
-        onBack={navigation.goBack}
+        onBack={selecting ? exitSelect : navigation.goBack}
         right={
           !selecting && memos.length > 0 ? (
             <CircleButton icon="checkSquare" label="메모 선택" onPress={() => setSelecting(true)} />
@@ -86,19 +100,17 @@ export default function TrashScreen({ navigation }) {
         }
       />
 
-      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}>
-        <Text style={styles.count}>
-          {selecting ? `${ids.length}개 선택` : '복구하거나 완전히 삭제할 수 있어요'}
-        </Text>
+      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}>
+        {selecting && <Text accessibilityLiveRegion="polite" style={styles.count}>{ids.length}개 선택</Text>}
 
         {memos.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>휴지통이 비어 있어요</Text>
-            <Text style={styles.emptySub}>삭제한 메모가 여기에 모여요</Text>
           </View>
         ) : (
           memos.map((m) => {
             const on = ids.includes(m.id);
+            const project = projectOf('memos', m.id);
             return (
               <Pressable
                 key={m.id}
@@ -115,17 +127,17 @@ export default function TrashScreen({ navigation }) {
                     setSelected([m.id]);
                   }
                 }}
-                style={[styles.card, on && styles.cardOn]}
+                style={[styles.row, on && styles.rowSelected]}
               >
-                {selecting && <Icon name={on ? 'checkSquare' : 'square'} size={24} color={on ? colors.ink : colors.muted} strokeWidth={on ? 2.2 : 1.8} />}
+                <Icon name={selecting ? (on ? 'checkSquare' : 'square') : 'file'} size={18} color={on ? colors.ink : colors.muted} />
                 <View style={styles.info}>
                   <Text style={styles.title} numberOfLines={1}>{memoTitle(m)}</Text>
                   <Text style={styles.date}>삭제 {formatMD(m.deletedAt)}, 수정 {formatMD(m.updatedAt)}</Text>
-                  {projectOf('memos', m.id) && <Tag label={projectOf('memos', m.id).title} style={styles.tag} />}
+                  {project && <Text style={styles.date} numberOfLines={1}>{project.title}</Text>}
                   {m.body.trim().length > 0 && <Text style={styles.body} numberOfLines={2}>{m.body}</Text>}
                   {m.strokes && m.strokes.length > 0 && (
                     <View style={styles.inkRow}>
-                      <Icon name="pencil" size={13} color={colors.mintDark} />
+                      <Icon name="pencil" size={13} color={colors.muted} />
                       <Text style={styles.ink}>손글씨 포함</Text>
                     </View>
                   )}
@@ -168,25 +180,20 @@ export default function TrashScreen({ navigation }) {
         </View>
       )}
 
-      {/* 복구 / 삭제 확인 창 (스토리보드 63·64장) */}
-      <Modal transparent visible={moving} animationType="fade" onRequestClose={() => setMoving(false)}>
-        <View style={styles.backdrop}>
-          <View style={styles.dialog} accessibilityViewIsModal>
-            <Text style={styles.dialogTitle}>옮길 프로젝트</Text>
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 300 }} contentContainerStyle={{ gap: spacing.sm }}>
-              {projects.length === 0 && <Text style={styles.dialogSub}>이 공간에 프로젝트가 없어요.</Text>}
-              {projects.map((project) => (
-                <Pressable key={project.id} accessibilityRole="button" onPress={() => moveToProject(project.id)} style={styles.dialogOption}>
-                  <Text style={styles.dialogOptionText} numberOfLines={1}>{project.title}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-            <Pressable accessibilityRole="button" onPress={() => setMoving(false)} style={styles.dialogOption}>
-              <Text style={[styles.dialogOptionText, { textAlign: 'center' }]}>취소</Text>
+      <SheetModal visible={moving} onClose={() => setMoving(false)} label="옮길 프로젝트">
+        <Text style={styles.dialogTitle}>옮길 프로젝트</Text>
+        <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 300 }}>
+          {projects.length === 0 && <Text style={styles.dialogSub}>이 공간에 프로젝트가 없어요.</Text>}
+          {projects.map((project) => (
+            <Pressable key={project.id} accessibilityRole="button" onPress={() => moveToProject(project.id)} style={styles.dialogOption}>
+              <Text style={styles.dialogOptionText} numberOfLines={1}>{project.title}</Text>
             </Pressable>
-          </View>
-        </View>
-      </Modal>
+          ))}
+        </ScrollView>
+        <Pressable accessibilityRole="button" onPress={() => setMoving(false)} style={styles.dialogOption}>
+          <Text style={[styles.dialogOptionText, { textAlign: 'center' }]}>취소</Text>
+        </Pressable>
+      </SheetModal>
 
       <ConfirmDialog
         visible={confirmRestore}
@@ -200,38 +207,34 @@ export default function TrashScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.md },
-  dialogTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink },
+  dialogTitle: { fontSize: font.header, fontWeight: '600', color: colors.ink, marginBottom: spacing.sm },
   dialogSub: { fontSize: font.body, color: colors.muted },
-  dialogOption: { minHeight: 46, justifyContent: 'center', paddingHorizontal: spacing.lg, borderRadius: radius.sm, borderWidth: 0, borderColor: colors.line, backgroundColor: colors.card },
+  dialogOption: { minHeight: 46, justifyContent: 'center', paddingHorizontal: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
   dialogOptionText: { fontSize: font.bodyLg, color: colors.ink },
   root: { flex: 1, backgroundColor: colors.cream },
-  list: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, gap: spacing.md },
+  list: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, gap: 2 },
   count: { fontSize: font.caption, color: colors.muted },
 
   empty: { alignItems: 'center', paddingTop: 80, gap: spacing.sm },
   emptyTitle: { fontSize: 13, fontWeight: '400', color: colors.subtle },
-  emptySub: { fontSize: font.body, color: colors.muted },
-
-  card: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.card,
-    borderRadius: radius.card,
+    gap: spacing.sm,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: colors.line,
-    padding: spacing.lg,
+    borderColor: 'transparent',
+    minHeight: 52,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: 6,
   },
-  cardOn: { borderColor: '#fff' },
-  info: { flex: 1, gap: 6 },
-  title: { fontSize: font.header, fontWeight: '600', color: colors.ink },
+  rowSelected: { borderColor: colors.ink },
+  info: { flex: 1, gap: 2 },
+  title: { fontSize: 15, fontWeight: '500', color: colors.ink },
   date: { fontSize: font.caption, color: colors.muted },
   body: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
-  tag: { maxWidth: 200 },
   inkRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  ink: { fontSize: font.caption, color: colors.mintDark, fontWeight: '500' },
+  ink: { fontSize: font.caption, color: colors.muted },
 
   notice: { position: 'absolute', left: spacing.lg, right: spacing.lg, alignItems: 'center' },
   noticeText: {

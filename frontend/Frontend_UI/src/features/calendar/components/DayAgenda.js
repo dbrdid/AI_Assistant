@@ -1,12 +1,10 @@
 // ============================================================
 // DayAgenda.js — 캘린더에서 선택한 날짜의 정보와 일정 목록
 // ============================================================
-// Figma 시안: '15일 일요일' + '오늘 · 일정 1 · 할 일 2' + 오른쪽 '+ 추가' 알약
-// 항목 카드: 왼쪽 시간(시작/끝) · 색 막대(일정 = 민트, 할 일 = 진녹색, 완료 = 흐린 선) · 제목 · 아이콘 설명 · 할 일은 오른쪽 체크박스
-
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Icon from '../../../shared/components/Icon';
+import ScheduleRow from './ScheduleRow';
 import { InlineDeletePrompt } from '../../../shared/components/Ui';
 import { useClaimSwipeGesture } from '../../../shared/hooks/useClaimSwipeGesture';
 import { colors, font, spacing } from '../../../shared/theme/theme';
@@ -14,7 +12,7 @@ import { WEEKDAYS_LONG, toKey } from '../utils/DateUtils';
 import { relativeTime } from '../utils/relativeTime.mjs';
 import { classify, deleteTask, occursOn, shortDate, taskIn, toggleDone } from '../../../data/tasks/TaskStore';
 
-// spaces: 여러 공간을 합쳐 볼 때 { 공간 id: { name, color } } (색 막대·공간 이름에 씀). 한 공간뿐이면 null
+// spaces: 여러 공간을 한 목록에 표시할 때 사용하는 공간 정보.
 export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarText, onAdd, onEdit }) {
   const claimSwipe = useClaimSwipeGesture();
   const key = toKey(selected);
@@ -90,45 +88,26 @@ export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarT
           const open = selectedItem === t;
           const isEvent = t.kind === 'event';
           const c = classify(t, todayKey);
-          // 설명 줄: 일정은 📍장소, 할 일은 '할 일 · 프로젝트(또는 완료/초과)'
-          const subIcon = isEvent ? (t.place ? 'pin' : 'calendar') : 'checkCircle';
           const span = t.endDate ? `${shortDate(t.date)}~${shortDate(t.endDate)}` : null; // 여러 날 일정
           const space = spaces ? spaces[t.workspaceId] : null;
           // 오늘 일정: 시작까지 남은 시간 또는 진행 중 남은 시간 (Notion 캘린더의 예정, 남음 표시)
           const rel = isEvent && !done && key === todayKey ? relativeTime(t.start, t.end, nowMinutes) : null;
-          const subText = isEvent
-            ? [rel, space?.name, span, t.place || (span || space || rel ? null : '일정'), t.project].filter(Boolean).join(', ')
-            : [space?.name ?? '할 일', done ? '완료' : t.project, c === 'overdue' ? '초과' : null].filter(Boolean).join(', ');
-          // 색 막대: 여러 공간이면 공간 색, 아니면 일정 = 민트 · 할 일 = 진녹색
-          const barColor = done ? colors.line : space ? space.color : isEvent ? colors.mint : colors.mintDark;
+          const details = isEvent
+            ? [space?.name, span, t.place, rel, t.project]
+            : [space?.name ?? '할 일', done ? '완료' : t.project, c === 'overdue' ? '초과' : null];
           const toggle = () => (t.workspaceId ? taskIn(t, 'toggleDone', t.id) : toggleDone(t.id)); // 합쳐 볼 때는 그 항목의 공간에서
           return (
             <View key={t.id} style={[styles.item, open && styles.itemOpen]}>
               <View style={styles.itemMain}>
-                <Pressable
+                <ScheduleRow
+                  item={t}
+                  details={details}
+                  selected={open}
+                  overdue={c === 'overdue'}
                   style={styles.itemBody}
-                  accessibilityRole={selectedItem ? 'checkbox' : 'button'}
-                  accessibilityState={selectedItem ? { checked: open } : undefined}
-                  accessibilityLabel={`${t.title} ${isEvent ? '일정' : '할 일'}`}
                   onPress={() => (selectedItem ? select(t) : onEdit(t))}
                   onLongPress={() => { claimSwipe(); select(t); }}
-                  delayLongPress={350}
-                >
-                  {selectedItem && <Icon name={open ? 'checkSquare' : 'square'} size={20} color={open ? colors.ink : colors.muted} />}
-                  {/* 시간: 시작(굵게) / 끝(흐리게) */}
-                  <View style={styles.timeCol}>
-                    <Text style={[styles.timeStart, !t.start && styles.timeAllDay]}>{t.start || '종일'}</Text>
-                    {t.end ? <Text style={styles.timeEnd}>{t.end}</Text> : null}
-                  </View>
-                  <View style={[styles.bar, { backgroundColor: barColor }]} />
-                  <View style={styles.textCol}>
-                    <Text style={[styles.itemTitle, done && styles.itemTitleDone]} numberOfLines={1}>{t.title}</Text>
-                    <View style={styles.metaRow}>
-                      <Icon name={subIcon} size={14} color={c === 'overdue' ? colors.coral : colors.muted} />
-                      <Text style={[styles.itemMeta, c === 'overdue' && { color: colors.coral }]} numberOfLines={1}>{subText}</Text>
-                    </View>
-                  </View>
-                </Pressable>
+                />
                 {/* 완료 체크박스 (할 일만) */}
                 {!isEvent && (
                   <Pressable
@@ -179,16 +158,7 @@ const styles = StyleSheet.create({
   item: { paddingVertical: 6, paddingHorizontal: 8, marginHorizontal: -8, borderRadius: 4, borderWidth: 1, borderColor: 'transparent', gap: spacing.sm },
   itemOpen: { borderColor: '#fff' },
   itemMain: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  itemBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 44 },
-  timeCol: { width: 46, gap: 2 },
-  timeStart: { fontSize: font.body, fontWeight: '600', color: colors.ink },
-  timeAllDay: { fontSize: font.caption, fontWeight: '400', color: colors.muted },
-  timeEnd: { fontSize: 13, color: colors.muted },
-  bar: { width: 2, alignSelf: 'stretch', borderRadius: 4, minHeight: 36 },
-  textCol: { flex: 1, gap: 4 },
-  itemTitle: { fontSize: 15, fontWeight: '500', color: colors.ink },
-  itemTitleDone: { color: colors.muted, textDecorationLine: 'line-through' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  itemBody: { flex: 1 },
   itemMeta: { flex: 1, fontSize: 13, color: colors.muted },
   check: { width: 32, height: 44, alignItems: 'center', justifyContent: 'center' },
 

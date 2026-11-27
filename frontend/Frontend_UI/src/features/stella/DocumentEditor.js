@@ -33,7 +33,10 @@ export default function DocumentEditor({
     if (metrics) requestAnimationFrame(() => metrics.record('document_open', { ms: Date.now() - openedAt, blocks: latest.current.blocks.length }));
   }, []);
   const memoId = route.params?.memoId;
-  const [original] = useState(() => memoId ? getMemo(memoId) : null);
+  // A route in the back stack may point to a document trashed from another editor.
+  const [original] = useState(() => memoId
+    ? runtime().documents.listDocuments().find(document => document.id === memoId)
+    : null);
   const [title, setTitle] = useState(original?.title ?? '');
   const [titleHeight, setTitleHeight] = useState(58);
   const [body, setBody] = useState(original?.body ?? '');

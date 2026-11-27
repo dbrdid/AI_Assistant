@@ -121,8 +121,9 @@ export default function AgendaCompareScreen({ navigation, route }) {
                   onPress={() => { setPid(p.id); setDay(today); setOpen({}); }}
                   style={[styles.chip, p.id === project.id && styles.chipOn]}
                 >
-                  <Text style={[styles.chipText, p.id === project.id && { color: colors.onPrimary }]} numberOfLines={1}>
-                    {p.members.length >= 2 ? '👥 ' : ''}{p.title || '(제목 없음)'}
+                  {p.members.length >= 2 && <Icon name="users" size={14} color={colors.muted} />}
+                  <Text style={[styles.chipText, p.id === project.id && { fontWeight: '700' }]} numberOfLines={1}>
+                    {p.title || '(제목 없음)'}
                   </Text>
                 </Pressable>
               ))}
@@ -231,9 +232,9 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   chips: { gap: spacing.sm, paddingVertical: spacing.xs },
-  chip: { maxWidth: 220, paddingHorizontal: spacing.lg, minHeight: 44, borderRadius: 4, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  chipOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
-  chipText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
+  chip: { flexDirection: 'row', gap: spacing.xs, maxWidth: 220, paddingHorizontal: spacing.sm, minHeight: 44, borderRadius: 4, borderWidth: 1, borderColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
+  chipOn: { borderColor: colors.ink },
+  chipText: { flexShrink: 1, fontSize: font.body, fontWeight: '500', color: colors.ink },
   dayRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   arrow: { width: 44, height: 44, borderRadius: 4, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   dayText: { fontSize: font.title, fontWeight: '600', color: colors.ink },

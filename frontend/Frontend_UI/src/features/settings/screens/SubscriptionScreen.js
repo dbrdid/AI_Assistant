@@ -231,9 +231,9 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   dialog: { width: '100%', maxWidth: 360, backgroundColor: colors.cream, borderRadius: radius.card, padding: spacing.xl, gap: spacing.sm },
   dialogTitle: { fontSize: font.title, fontWeight: '600', color: colors.ink, marginBottom: spacing.sm },
-  option: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
-  optionOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
+  option: { flexDirection: 'row', alignItems: 'center', minHeight: 48, padding: spacing.sm, borderRadius: radius.sm, borderWidth: 1, borderColor: 'transparent' },
+  optionOn: { borderColor: colors.ink },
   optionName: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   optionSub: { fontSize: font.caption, color: colors.muted },
-  current: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, backgroundColor: colors.card, overflow: 'hidden' },
+  current: { fontSize: font.caption, fontWeight: '500', color: colors.muted, paddingHorizontal: 8 },
 });

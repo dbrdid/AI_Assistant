@@ -22,8 +22,9 @@ const TODAY_TIPS = [
 import { useSettings } from '../../../data/settings/SettingsStore';
 import { enterSpace, useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import { useProposals } from '../../../data/proposals/ProposalStore';
-import { classify, lastDate, occursOn, taskIn, useAllTasks } from '../../../data/tasks/TaskStore';
+import { classify, lastDate, occursOn, shortDate, taskIn, useAllTasks } from '../../../data/tasks/TaskStore';
 import { WEEKDAYS_LONG, toKey } from '../../calendar/utils/DateUtils';
+import ScheduleRow from '../../calendar/components/ScheduleRow';
 import { ROUTES } from '../../../navigation/routes';
 import Icon from '../../../shared/components/Icon';
 import SpaceTag from '../../../shared/components/SpaceTag';
@@ -167,25 +168,14 @@ export default function HomeScreen({ navigation, route }) {
         {events.length === 0 ? (
           <Text style={styles.empty}>오늘은 일정이 없어요</Text>
         ) : (
-          events.map((t) => {
-            const color = spaces[t.workspaceId]?.color ?? colors.mint;
-            return (
-              <Pressable key={t.id} accessibilityRole="button" accessibilityLabel={`${t.start || '종일'} ${t.title}${multi ? `, ${spaces[t.workspaceId]?.fullName ?? ''}` : ''}`} onPress={() => openTask(t)} style={styles.eventRow}>
-                <Text style={[styles.eventTime, { color: multi ? color : colors.mintDark }, !t.start && styles.allDay]}>{t.start || '종일'}</Text>
-                <View style={[styles.eventCard, { borderLeftColor: color }, t.status === '완료' && { opacity: 0.55 }]}>
-                  <Text style={styles.itemTitle} numberOfLines={1}>{t.title}</Text>
-                  <View style={styles.subRow}>
-                    {multi && <SpaceTag space={spaces[t.workspaceId]} />}
-                    {!!(t.place || t.end || t.endDate) && (
-                      <Text style={styles.itemSub} numberOfLines={1}>
-                        {[t.place, t.end ? `${t.end}까지` : '', t.endDate ? `${Number(t.endDate.slice(5, 7))}/${Number(t.endDate.slice(8))}까지` : ''].filter(Boolean).join(', ')}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-              </Pressable>
-            );
-          })
+          events.map(t => (
+            <ScheduleRow
+              key={t.id}
+              item={t}
+              details={[spaces[t.workspaceId]?.name, t.endDate ? `${shortDate(t.endDate)}까지` : null, t.place]}
+              onPress={() => openTask(t)}
+            />
+          ))
         )}
 
         {/* ---------- 오늘 할 일 (기한 지난 것 포함) ---------- */}
@@ -244,12 +234,7 @@ const styles = StyleSheet.create({
   addLinkText: { fontSize: font.caption, fontWeight: '500', color: colors.muted },
   empty: { fontSize: 13, color: colors.subtle ?? colors.muted, paddingVertical: spacing.xs },
 
-  eventRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  eventTime: { width: 44, fontSize: font.body, fontWeight: '600' },
-  allDay: { fontSize: font.caption, color: colors.muted },
-  eventCard: { flex: 1, minHeight: 44, justifyContent: 'center', gap: 3, paddingHorizontal: spacing.md, paddingVertical: 6, borderLeftWidth: 2 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  itemTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   itemSub: { flexShrink: 1, fontSize: font.caption, color: colors.muted },
   highlight: { fontSize: font.body, color: colors.ink, lineHeight: 20, marginBottom: spacing.xs },
 

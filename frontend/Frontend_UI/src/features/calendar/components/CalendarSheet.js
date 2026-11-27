@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Animated,
   BackHandler,
+  Keyboard,
   PanResponder,
   Pressable,
   ScrollView,
@@ -14,6 +15,7 @@ import {
 } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import { useClaimSwipeGesture } from '../../../shared/hooks/useClaimSwipeGesture';
+import { useKeyboardHeight } from '../../../shared/hooks/useKeyboardHeight';
 import { HOLD_MS, isVerticalDrag } from '../../stella/swipeIntent.mjs';
 import { colors, font, spacing, FILL } from '../../../shared/theme/theme';
 import { CircleButton } from '../../../shared/components/Ui';
@@ -180,6 +182,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
   const tasks = useMemo(() => (spaceView === 'all' ? allTasks : allTasks.filter((t) => t.workspaceId === spaceView)), [allTasks, spaceView]);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
+  const keyboardHeight = useKeyboardHeight();
   const todayKey = toKey(today);
   const holidays = useMemo(() => getHolidays(cursor.year), [cursor.year]);
   const selectedKey = toKey(selected);
@@ -216,10 +219,11 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
   );
   const matches = useMemo(() => (searching ? searchTasks(tasks, query) : []), [searching, tasks, query]);
   const highlight = useMemo(() => new Set(matches.map((t) => t.date)), [matches]);
-  const closeSearch = () => {
+  const closeSearch = useCallback(() => {
+    Keyboard.dismiss();
     setSearching(false);
     setQuery('');
-  };
+  }, []);
 
   // ---------- 6) 화면 그리기 ----------
   // 시트가 올라올수록 뒤 배경이 어두워지게: y 가 closedY → 0 으로 갈 때 투명도 0 → 0.35
@@ -300,10 +304,14 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
     },
   })).current;
   useEffect(() => {
-    if (!panelExpanded && !detailed) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setDetailed(false); movePanel(false); return true; });
+    if (!searching && !panelExpanded && !detailed) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (searching) closeSearch();
+      else { setDetailed(false); movePanel(false); }
+      return true;
+    });
     return () => sub.remove();
-  }, [panelExpanded, detailed]);
+  }, [searching, closeSearch, panelExpanded, detailed]);
   const headerActions = (
     <>
           {/* 오늘이 이미 선택되어 보이면 숨김 (Notion 캘린더의 오늘 버튼과 같은 동작) */}
@@ -377,7 +385,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
         {!embedded && <View {...hideHead} style={[styles.side, styles.sideRight, { top: headTop }]}>{headerActions}</View>}
 
         {/* 달력 본문 */}
-        <View style={{ flex: 1 }}>
+        <View style={[styles.calendarBody, searching && { marginBottom: keyboardHeight }]}>
           <MonthCalendar
             year={cursor.year}
             month={cursor.month}
@@ -389,13 +397,24 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
             marks={marks}
             holidays={holidays}
             highlight={searching ? highlight : undefined}
+            search={searching ? (
+              <CalendarSearch
+                query={query}
+                onChange={setQuery}
+                matches={matches}
+                onPick={t => {
+                  Keyboard.dismiss();
+                  goToDate(fromKey(t.date));
+                }}
+                onClose={closeSearch}
+              />
+            ) : null}
             onPickMonth={(yy, mm) => goToDate(new Date(yy, mm, 1))}
             actions={embedded ? headerActions : null}
-            scrollEnabled={!panelDragging && !detailed} // 달력 크게일 때는 끌기가 달력 스크롤에 뺏기지 않게 스크롤을 끔
+            scrollEnabled={searching || (!panelDragging && !detailed)}
             detailed={detailed}
           >
-            {/* 선택한 날의 일정 / 검색 결과: 위쪽이 둥근 흰 시트 (아래 안전영역만큼 띄움) */}
-            <Animated.View onLayout={(e) => {
+            {!searching && <Animated.View onLayout={(e) => {
                 const y = e.nativeEvent.layout.y;
                 panelTopRef.current = y;
                 if (!detailed) normalTopRef.current = y;
@@ -413,30 +432,17 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
                   <View style={styles.bar} />
                 </Pressable>
               </View>
-              {searching ? (
-                <CalendarSearch
-                  query={query}
-                  onChange={setQuery}
-                  matches={matches}
-                  onPick={(t) => goToDate(fromKey(t.date))}
-                  onClose={closeSearch}
-                />
-              ) : (
-                <>
-                  {/* 공간: 모든 공간·개인·팀을 한 목록에서 고름 */}
-                  {spaceList.length > 1 && <SpaceFilter value={spaceView} onChange={setSpaceView} spaces={spaceList.map((w) => ({ id: w.id, name: spaces[w.id]?.name ?? w.name }))} style={styles.spaceChipsBar} />}
-                  <DayAgenda
-                    selected={selected}
-                    tasks={tasks}
-                    spaces={spaceList.length > 1 ? spaces : null}
-                    holidayName={holidays[selectedKey]}
-                    lunarText={formatLunar(selected)}
-                    onAdd={(k) => onAddTask && onAddTask(k)}
-                    onEdit={(t) => onEditTask && onEditTask(t)}
-                  />
-                </>
-              )}
-            </Animated.View>
+              {spaceList.length > 1 && <SpaceFilter value={spaceView} onChange={setSpaceView} spaces={spaceList.map((w) => ({ id: w.id, name: spaces[w.id]?.name ?? w.name }))} style={styles.spaceChipsBar} />}
+              <DayAgenda
+                selected={selected}
+                tasks={tasks}
+                spaces={spaceList.length > 1 ? spaces : null}
+                holidayName={holidays[selectedKey]}
+                lunarText={formatLunar(selected)}
+                onAdd={(k) => onAddTask && onAddTask(k)}
+                onEdit={(t) => onEditTask && onEditTask(t)}
+              />
+            </Animated.View>}
           </MonthCalendar>
         </View>
 
@@ -497,6 +503,7 @@ const styles = StyleSheet.create({
   sheet: {position:'absolute',left:0,right:0,bottom:0,backgroundColor:colors.cream,borderTopLeftRadius:4,borderTopRightRadius:4,shadowColor:'#000000',shadowOpacity:0,shadowRadius:14,shadowOffset:{width:0,height:-3},elevation:0},
   // 캘린더 화면: 화면 전체를 덮으므로 모서리를 둥글게 하지 않음
   sheetFull: { borderTopLeftRadius: 0, borderTopRightRadius: 0 },
+  calendarBody: { flex: 1 },
   grab: { paddingBottom: spacing.md },
   barWrap: { height: HOME_BAR, alignItems: 'center', justifyContent: 'center' },
   bar: { width: 40, height: 4, borderRadius: 4, backgroundColor: colors.line },

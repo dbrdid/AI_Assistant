@@ -28,6 +28,7 @@ export default function MonthCalendar({
   onNext,
   onPickMonth,
   actions = null,
+  search,
   scrollEnabled = true,
   detailed = false, // 칸을 키워 일정 제목을 보여 줌 // 달 이름 줄 오른쪽에 함께 둘 버튼 (탭 안 캘린더: 오늘, 검색)
   children,
@@ -63,6 +64,8 @@ export default function MonthCalendar({
             <CircleButton icon="chevronRight" label="다음 달" onPress={onNext} size={34} iconSize={18} />
           </View>
         </View>
+
+        {search ? <View style={styles.search}>{search}</View> : null}
 
         {/* ---------- 2) 요일 줄 (일요일만 코랄) ---------- */}
         <View style={[styles.weekRow, styles.weekHead]}>
@@ -192,6 +195,7 @@ const styles = StyleSheet.create({
   monthBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   month: { fontSize: 18, fontWeight: '600', letterSpacing: -0.3, color: colors.ink },
   monthNav: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  search: { marginBottom: spacing.md },
   // 한 주(7칸)를 가로로 나란히
   weekRow: { flexDirection: 'row' },
   weekHead: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line, marginBottom: 6 },

@@ -6,6 +6,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import Icon from '../../../shared/components/Icon';
+import ScheduleRow from './ScheduleRow';
 import { shortDate, tagText } from '../../../data/tasks/TaskStore';
 import { toKey } from '../utils/DateUtils';
 
@@ -38,21 +39,12 @@ export default function CalendarSearch({ query, onChange, matches, onPick, onClo
         <>
           <Text style={styles.count}>일정 {matches.length}개</Text>
           {matches.map((t) => (
-            <Pressable
+            <ScheduleRow
               key={t.id}
-              accessibilityRole="button"
-              accessibilityLabel={`${t.title}, ${shortDate(t)}`}
+              item={t}
+              details={[shortDate(t), tagText(t, todayKey), t.place]}
               onPress={() => onPick(t)}
-              style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.mintSoft }]}
-            >
-              <Text style={styles.date}>{shortDate(t)}</Text>
-              <View style={styles.body}>
-                <Text style={styles.title} numberOfLines={1}>{t.title}</Text>
-                <Text style={styles.meta} numberOfLines={1}>
-                  {[t.start, tagText(t, todayKey), t.place].filter(Boolean).join(', ')}
-                </Text>
-              </View>
-            </Pressable>
+            />
           ))}
         </>
       )}
@@ -76,19 +68,4 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: font.bodyLg, color: colors.ink, paddingVertical: 8 },
   hint: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
   count: { fontSize: font.caption, fontWeight: '500', color: colors.muted },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.card,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  date: { fontSize: font.body, fontWeight: '600', color: colors.mintDark, minWidth: 44 },
-  body: { flex: 1, gap: 2 },
-  title: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
-  meta: { fontSize: 13, color: colors.muted },
 });

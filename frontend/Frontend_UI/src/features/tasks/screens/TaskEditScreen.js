@@ -7,7 +7,7 @@
 // 중요도 · 상태 · 담당자 · 프로젝트 · 설명(할 일은 장소도)은 '더보기' 안에 접혀 있습니다.
 
 import React, { useEffect, useState, useRef } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import Icon from '../../../shared/components/Icon';
@@ -20,6 +20,7 @@ import { projectOf, setItemProject, useItemAccess, useProjects } from '../../../
 import GroupAccessRow from '../../project/components/GroupAccessRow';
 import { enterSpace, useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import {SheetModal} from '../../../shared/components/Motion';
+import { useKeyboardHeight } from '../../../shared/hooks/useKeyboardHeight';
 
 const KINDS = [{ id: 'event', label: '일정' }, { id: 'task', label: '할 일' }];
 
@@ -28,22 +29,32 @@ const dateLabel = (k) => {
   return `${d.getMonth() + 1}월 ${d.getDate()}일 ${WEEKDAYS_LONG[d.getDay()]}`;
 };
 
+function useOptionSheet() {
+  const keyboardHeight = useKeyboardHeight();
+  const [requested, setRequested] = useState(false);
+  const openSheet = () => {
+    Keyboard.dismiss();
+    setRequested(true);
+  };
+  return { visible: requested && keyboardHeight === 0, openSheet, closeSheet: () => setRequested(false) };
+}
+
 export function Chips({ label, options, value, onChange }) {
-  const [open,setOpen]=useState(false);
+  const { visible, openSheet, closeSheet } = useOptionSheet();
   return (
-    <><Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${value}`} onPress={()=>setOpen(true)} style={styles.line}>
+    <><Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${value}`} onPress={openSheet} style={styles.line}>
       <Icon name={label==='알림'?'bell':label==='중요도'?'flag':'checkSquare'} size={18} color={colors.muted}/><Text style={styles.lineLabel}>{label}</Text><Text style={styles.lineValue}>{value}</Text><Icon name="chevronDown" size={15} color={colors.muted}/>
-    </Pressable><SheetModal visible={open} onClose={()=>setOpen(false)} label={`${label} 선택`}><View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",minHeight:44}}><Text style={styles.label}>{label}</Text><Pressable accessibilityRole="button" accessibilityLabel={`${label} 선택 닫기`} onPress={()=>setOpen(false)} style={{minWidth:44,minHeight:44,alignItems:"center",justifyContent:"center"}}><Icon name="x" size={18} color={colors.muted}/></Pressable></View><ScrollView showsVerticalScrollIndicator={false}>{options.map(option=><Pressable key={option} accessibilityRole="radio" accessibilityState={{checked:value===option}} accessibilityLabel={option} onPress={()=>{onChange(option);setOpen(false);}} style={styles.line}><Text style={styles.lineValue}>{option}</Text><View style={{flex:1}}/>{value===option&&<Icon name="check" size={18} color={colors.ink}/>}</Pressable>)}</ScrollView></SheetModal></>
+    </Pressable><SheetModal visible={visible} onClose={closeSheet} label={`${label} 선택`}><View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",minHeight:44}}><Text style={styles.label}>{label}</Text><Pressable accessibilityRole="button" accessibilityLabel={`${label} 선택 닫기`} onPress={closeSheet} style={{minWidth:44,minHeight:44,alignItems:"center",justifyContent:"center"}}><Icon name="x" size={18} color={colors.muted}/></Pressable></View><ScrollView showsVerticalScrollIndicator={false}>{options.map(option=><Pressable key={option} accessibilityRole="radio" accessibilityState={{checked:value===option}} accessibilityLabel={option} onPress={()=>{onChange(option);closeSheet();}} style={styles.line}><Text style={styles.lineValue}>{option}</Text><View style={{flex:1}}/>{value===option&&<Icon name="check" size={18} color={colors.ink}/>}</Pressable>)}</ScrollView></SheetModal></>
   );
 }
 
 // 공간: 다른 속성 줄과 같은 한 줄, 누르면 아래 시트에서 고른다 (Notion 캘린더의 캘린더 선택 줄)
 function SpaceLine({ list, spaces, current, onPick }) {
-  const [open, setOpen] = useState(false);
+  const { visible, openSheet, closeSheet } = useOptionSheet();
   return (
-    <><Pressable accessibilityRole="button" accessibilityLabel={`공간: ${current.name}`} onPress={() => setOpen(true)} style={styles.line}>
+    <><Pressable accessibilityRole="button" accessibilityLabel={`공간: ${current.name}`} onPress={openSheet} style={styles.line}>
       <Icon name="users" size={18} color={colors.muted} /><Text style={styles.lineLabel}>공간</Text><Text style={styles.lineValue} numberOfLines={1}>{current.name}</Text><Icon name="chevronDown" size={15} color={colors.muted} />
-    </Pressable><SheetModal visible={open} onClose={() => setOpen(false)} label="공간 선택"><View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}><Text style={styles.label}>공간</Text><Pressable accessibilityRole="button" accessibilityLabel="공간 선택 닫기" onPress={() => setOpen(false)} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={18} color={colors.muted} /></Pressable></View><ScrollView showsVerticalScrollIndicator={false}>{list.map((w) => { const s = spaces[w.id]; const on = w.id === current.id; return <Pressable key={w.id} accessibilityRole="radio" accessibilityState={{ checked: on, disabled: s.readOnly }} accessibilityLabel={s.name} disabled={s.readOnly} onPress={() => { onPick(w.id); setOpen(false); }} style={[styles.line, s.readOnly && { opacity: 0.4 }]}><Text style={[styles.lineValue, { flex: 1 }]} numberOfLines={1}>{s.name}</Text>{on && <Icon name="check" size={18} color={colors.ink} />}</Pressable>; })}</ScrollView></SheetModal></>
+    </Pressable><SheetModal visible={visible} onClose={closeSheet} label="공간 선택"><View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}><Text style={styles.label}>공간</Text><Pressable accessibilityRole="button" accessibilityLabel="공간 선택 닫기" onPress={closeSheet} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Icon name="x" size={18} color={colors.muted} /></Pressable></View><ScrollView showsVerticalScrollIndicator={false}>{list.map((w) => { const s = spaces[w.id]; const on = w.id === current.id; return <Pressable key={w.id} accessibilityRole="radio" accessibilityState={{ checked: on, disabled: s.readOnly }} accessibilityLabel={s.name} disabled={s.readOnly} onPress={() => { onPick(w.id); closeSheet(); }} style={[styles.line, s.readOnly && { opacity: 0.4 }]}><Text style={[styles.lineValue, { flex: 1 }]} numberOfLines={1}>{s.name}</Text>{on && <Icon name="check" size={18} color={colors.ink} />}</Pressable>; })}</ScrollView></SheetModal></>
   );
 }
 

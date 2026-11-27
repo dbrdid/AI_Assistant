@@ -10,6 +10,7 @@ import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { pendingOf, useProposals } from '../../../data/proposals/ProposalStore';
 import { WEEKDAYS_LONG, toKey } from '../../calendar/utils/DateUtils';
+import ScheduleRow from '../../calendar/components/ScheduleRow';
 import { classify, shortDate, tagText, useTasks } from '../../../data/tasks/TaskStore';
 
 function Section({ title, count, open, onToggle, children }) {
@@ -38,18 +39,12 @@ export default function BriefingScreen({ navigation }) {
   const empty = today.length + soon.length + overdue.length + proposals.length === 0;
 
   const row = (t) => (
-    <Pressable
+    <ScheduleRow
       key={t.id}
-      accessibilityRole="button"
+      item={t}
+      details={[t.date !== todayKey ? shortDate(t) : null, tagText(t, todayKey), t.place]}
       onPress={() => navigation.navigate(ROUTES.TaskEdit, { taskId: t.id })}
-      style={styles.row}
-    >
-      <Text style={styles.rowTime}>{t.date === todayKey ? t.start || '종일' : shortDate(t)}</Text>
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text style={[styles.rowTitle, t.status === '완료' && styles.done]} numberOfLines={1}>{t.title}</Text>
-        <Text style={styles.rowMeta} numberOfLines={1}>{[tagText(t, todayKey), t.place].filter(Boolean).join(', ')}</Text>
-      </View>
-    </Pressable>
+    />
   );
 
   return (
@@ -103,9 +98,5 @@ const styles = StyleSheet.create({
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 28 },
   sectionTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   flip: { transform: [{ rotate: '180deg' }] },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.cream, borderWidth: 1, borderColor: colors.line },
-  rowTime: { minWidth: 48, fontSize: font.body, fontWeight: '600', color: colors.mintDark },
-  rowTitle: { fontSize: font.body, fontWeight: '600', color: colors.ink },
   rowMeta: { fontSize: font.caption, color: colors.muted },
-  done: { color: colors.muted, textDecorationLine: 'line-through' },
 });

@@ -8,7 +8,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
-import { CircleButton, DashedButton, IconTile } from '../../../shared/components/Ui';
+import { CircleButton, DashedButton } from '../../../shared/components/Ui';
+import Icon from '../../../shared/components/Icon';
 import { ROUTES } from '../../../navigation/routes';
 import { deleteWorkspace, switchWorkspace, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 
@@ -59,10 +60,10 @@ export default function WorkspaceScreen({ navigation }) {
               onPress={() => pick(w)}
               onLongPress={() => !w.personal && setDelId(w.id)}
               delayLongPress={450}
-              style={({ pressed }) => [styles.card, on && styles.cardOn, pressed && !on && { backgroundColor: colors.mintSoft }]}
+              style={({ pressed }) => [styles.card, on && styles.cardOn, pressed && !on && { opacity: 0.7 }]}
             >
               {/* 개인 공간은 자물쇠, 조직 공간은 사람들 */}
-              <IconTile icon={w.personal ? 'lock' : 'users'} size={40} bg={on ? colors.white : colors.mintSoft} />
+              <Icon name={w.personal ? 'lock' : 'users'} size={18} color={colors.muted} />
               <View style={{ flex: 1, gap: 3 }}>
                 <Text style={styles.name} numberOfLines={1}>{w.name}</Text>
                 <Text style={styles.sub} numberOfLines={1}>
@@ -70,11 +71,7 @@ export default function WorkspaceScreen({ navigation }) {
                 </Text>
                 {!w.personal && !!w.desc && <Text style={styles.desc} numberOfLines={2}>{w.desc}</Text>}
               </View>
-              {on && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>현재</Text>
-                </View>
-              )}
+              {on && <Text style={styles.badgeText}>현재</Text>}
             </Pressable>
           );
         })}
@@ -116,13 +113,12 @@ export default function WorkspaceScreen({ navigation }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
-  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, minHeight: 64 },
-  cardOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
+  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.sm, borderRadius: radius.sm, borderWidth: 1, borderColor: 'transparent', minHeight: 52 },
+  cardOn: { borderColor: colors.ink },
   name: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   sub: { fontSize: font.body, color: colors.muted },
   desc: { fontSize: font.caption, color: colors.muted },
-  badge: { paddingHorizontal: spacing.md, minHeight: 26, borderRadius: radius.pill, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
-  badgeText: { fontSize: font.caption, fontWeight: '600', color: colors.onPrimary },
+  badgeText: { fontSize: font.caption, color: colors.muted },
   hint: { fontSize: font.caption, color: colors.muted, lineHeight: 18, marginTop: spacing.sm },
   notice: { position: 'absolute', left: spacing.xl, right: spacing.xl, bottom: spacing.xl, backgroundColor: colors.action, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
   noticeText: { color: colors.onPrimary, fontSize: font.body },
