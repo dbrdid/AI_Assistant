@@ -62,13 +62,15 @@ export function SheetModal({visible,onClose,onClosed,label,children,style}){
   // 하단 시스템 탐색 막대에 마지막 항목이 가리지 않도록 그 높이만큼 아래 여백을 더한다.
   const insets=useInsets();
   const keyboard=useKeyboardHeight(); // 입력칸이 있는 시트는 키보드 위로
+  // 시트 높이만큼 아래에서 올라오고 내려감 (흐려지며 사라지지 않게). 재기 전에는 넉넉한 값
+  const [sheetH,setSheetH]=useState(600);
   useEffect(()=>{if(!mounted)closedCallback.current?.();},[mounted]);
-  useEffect(()=>{if(visible)setMounted(true);const motion=Animated.timing(progress,{toValue:visible?1:0,duration:visible?220:160,easing:Easing.out(Easing.cubic),useNativeDriver:Platform.OS!=='web'});motion.start(({finished})=>{if(finished&&!visible)setMounted(false);});return()=>motion.stop();},[visible,progress]);
+  useEffect(()=>{if(visible)setMounted(true);const motion=Animated.timing(progress,{toValue:visible?1:0,duration:visible?240:220,easing:visible?Easing.out(Easing.cubic):Easing.in(Easing.quad),useNativeDriver:Platform.OS!=='web'});motion.start(({finished})=>{if(finished&&!visible)setMounted(false);});return()=>motion.stop();},[visible,progress]);
   return <Modal visible={mounted} transparent animationType="none" onRequestClose={onClose}><View style={styles.overlay}>
     <Pressable accessibilityRole="button" accessibilityLabel={`${label} 바깥 영역 닫기`} onPress={onClose} style={StyleSheet.absoluteFill}>
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:'#000',opacity:progress.interpolate({inputRange:[0,1],outputRange:[0,.48]})}]}/>
     </Pressable>
-    <Animated.View accessibilityViewIsModal accessibilityLabel={label} style={[styles.sheet,{paddingBottom:28+insets.bottom+keyboard},style,{opacity:progress,transform:[{translateY:Animated.add(progress.interpolate({inputRange:[0,1],outputRange:[32,0]}),drag)}]}]}>{children}{strip}</Animated.View>
+    <Animated.View accessibilityViewIsModal accessibilityLabel={label} style={[styles.sheet,{paddingBottom:28+insets.bottom+keyboard},style,{transform:[{translateY:Animated.add(progress.interpolate({inputRange:[0,1],outputRange:[sheetH+40,0]}),drag)}]}]} onLayout={e=>{const h=Math.round(e.nativeEvent.layout.height);if(h&&h!==sheetH)setSheetH(h);}}>{children}{strip}</Animated.View>
   </View></Modal>;
 }
 const styles=StyleSheet.create({overlay:{flex:1,justifyContent:'flex-end'},sheet:{width:'100%',maxWidth:412,alignSelf:'center',backgroundColor:colors.card,borderTopLeftRadius:14,borderTopRightRadius:14,borderTopWidth:1,borderColor:colors.line,maxHeight:'86%',padding:20,paddingBottom:28}});
