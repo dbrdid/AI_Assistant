@@ -3,7 +3,7 @@
     "name": "Atria",
     "slug": "planner",
     "scheme": "ai-assistant-planner",
-    "version": "0.0.8",
+    "version": "0.0.9",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
