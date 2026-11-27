@@ -404,6 +404,8 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
                 else if (liftBase.current < 0) { liftBase.current = -y; liftNow.current = -y; lift.setValue(-y); }
               }}
               style={[styles.panel, { paddingBottom: insets.bottom + spacing.xxl, transform: [{ translateY: lift }] }]}>
+              {/* 패널을 위로 옮기면 아래 끝도 같이 올라가므로, 그 아래를 같은 바탕으로 덮어 달력이 비치지 않게 */}
+              <View pointerEvents="none" style={styles.panelFill} />
               <View {...panelPan.panHandlers}>
                 <Pressable accessibilityRole="button" accessibilityLabel={panelExpanded ? '일정 목록 내리기' : detailed ? '일정 목록 다시 보기' : '일정 목록 크게 보기'}
                   onPress={() => { if (detailed) setDetailed(false); else movePanel(!panelExpanded); }}
@@ -512,6 +514,7 @@ const styles = StyleSheet.create({
 
   // 선택한 날의 일정 시트 (흰 바탕 + 둥근 위쪽 + 손잡이 막대)
   panel: {flexGrow:1,marginTop:spacing.xs,paddingHorizontal:20,backgroundColor:colors.cream,borderTopLeftRadius:0,borderTopRightRadius:0,shadowColor:'#000000',shadowOpacity:0,shadowRadius:12,shadowOffset:{width:0,height:-2},elevation:0,borderTopWidth:1,borderColor:colors.line},
+  panelFill: { position: 'absolute', left: 0, right: 0, top: '100%', height: 2000, backgroundColor: colors.cream },
   panelBarWrap: { height: 28, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs },
   spaceChipsBar: { flexGrow: 0, flexShrink: 0, marginBottom: spacing.md },
 

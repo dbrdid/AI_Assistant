@@ -7,7 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Icon from '../../../shared/components/Icon';
-import { Card, InlineDeletePrompt } from '../../../shared/components/Ui';
+import { InlineDeletePrompt } from '../../../shared/components/Ui';
 import { useClaimSwipeGesture } from '../../../shared/hooks/useClaimSwipeGesture';
 import { colors, font, spacing } from '../../../shared/theme/theme';
 import { WEEKDAYS_LONG, toKey } from '../utils/DateUtils';
@@ -103,7 +103,7 @@ export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarT
           const barColor = done ? colors.line : space ? space.color : isEvent ? colors.mint : colors.mintDark;
           const toggle = () => (t.workspaceId ? taskIn(t, 'toggleDone', t.id) : toggleDone(t.id)); // 합쳐 볼 때는 그 항목의 공간에서
           return (
-            <Card key={t.id} style={[styles.item, open && styles.itemOpen]}>
+            <View key={t.id} style={[styles.item, open && styles.itemOpen]}>
               <View style={styles.itemMain}>
                 <Pressable
                   style={styles.itemBody}
@@ -144,7 +144,7 @@ export default function DayAgenda({ selected, tasks, spaces, holidayName, lunarT
                 )}
               </View>
 
-            </Card>
+            </View>
           );
         })
       )}
@@ -176,15 +176,15 @@ const styles = StyleSheet.create({
 
   empty: { fontSize: font.body, color: colors.muted, paddingVertical: spacing.sm },
 
-  item: { paddingVertical: 12, paddingHorizontal: spacing.lg, gap: spacing.sm },
-  itemOpen: { borderWidth: 1, borderColor: '#fff' },
+  item: { paddingVertical: 6, paddingHorizontal: 8, marginHorizontal: -8, borderRadius: 4, borderWidth: 1, borderColor: 'transparent', gap: spacing.sm },
+  itemOpen: { borderColor: '#fff' },
   itemMain: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   itemBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 44 },
   timeCol: { width: 46, gap: 2 },
-  timeStart: { fontSize: 15, fontWeight: '600', color: colors.ink },
-  timeAllDay: { fontSize: 13, color: colors.muted },
+  timeStart: { fontSize: font.body, fontWeight: '600', color: colors.ink },
+  timeAllDay: { fontSize: font.caption, fontWeight: '400', color: colors.muted },
   timeEnd: { fontSize: 13, color: colors.muted },
-  bar: { width: 3, alignSelf: 'stretch', borderRadius: 4, minHeight: 36 },
+  bar: { width: 2, alignSelf: 'stretch', borderRadius: 4, minHeight: 36 },
   textCol: { flex: 1, gap: 4 },
   itemTitle: { fontSize: 15, fontWeight: '500', color: colors.ink },
   itemTitleDone: { color: colors.muted, textDecorationLine: 'line-through' },
