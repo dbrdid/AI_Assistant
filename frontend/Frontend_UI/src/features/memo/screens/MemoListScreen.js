@@ -345,7 +345,7 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
           </View>
         )}
 
-        {/* 공간: '모두'는 따로, 개인·팀은 목록에서 고름 */}
+        {/* 공간: 모든 공간·개인·팀을 한 목록에서 고름 */}
         {!selecting && multi && <SpaceFilter value={space} onChange={pickSpace} spaces={spaceList.map((w) => ({ id: w.id, name: spaces[w.id]?.name ?? w.name }))} style={styles.chips} />}
 
         {/* 걸러보기 칩 (프로젝트 칩은 한 공간을 골랐을 때만: 프로젝트는 공간 안에 있음) */}

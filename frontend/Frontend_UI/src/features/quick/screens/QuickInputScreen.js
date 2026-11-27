@@ -166,7 +166,7 @@ export default function QuickInputScreen({ navigation, route }) {
       <View style={styles.tabs}>
         {[{ id: 'memo', label: '메모' }, { id: 'file', label: '사진과 문서' }].map((t) => (
           <Pressable key={t.id} accessibilityRole="tab" accessibilityState={{ selected: tab === t.id }} onPress={() => setTab(t.id)} style={[styles.tab, tab === t.id && styles.tabOn]}>
-            <Text style={[styles.tabText, tab === t.id && { color: colors.onPrimary }]}>{t.label}</Text>
+            <Text style={[styles.tabText, tab === t.id && { color: colors.ink, fontWeight: '700' }]}>{t.label}</Text>
           </Pressable>
         ))}
       </View>
@@ -222,7 +222,7 @@ export default function QuickInputScreen({ navigation, route }) {
           <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
             {FILTERS.map((f) => (
               <Pressable key={f.id} accessibilityRole="button" accessibilityState={{ selected: filter === f.id }} onPress={() => setFilter(f.id)} style={[styles.chip, filter === f.id && styles.chipOn]}>
-                <Text style={[styles.chipText, filter === f.id && { color: colors.onPrimary }]}>{f.label}</Text>
+                <Text style={[styles.chipText, filter === f.id && { color: colors.ink, fontWeight: '700' }]}>{f.label}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -256,10 +256,10 @@ export default function QuickInputScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   // 메모 / 사진 문서 전환: 밝은 채움 대신 Stella 필터처럼 밑줄로 선택을 표시
-  tabs: { flexDirection: 'row', gap: 20, marginHorizontal: 20, marginBottom: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
-  tab: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabOn: { borderBottomColor: colors.ink },
-  tabText: { fontSize: 13, fontWeight: '500', color: colors.ink },
+  tabs: { flexDirection: 'row', gap: 20, marginHorizontal: 20, marginBottom: spacing.md },
+  tab: { minHeight: 44, justifyContent: 'center' },
+  tabOn: {},
+  tabText: { fontSize: 12, color: colors.muted },
   content: { paddingHorizontal: 20, paddingBottom: spacing.xxl, gap: spacing.sm },
   memo: { minHeight: 180, paddingVertical: 8, paddingHorizontal: 2, fontSize: 16, color: colors.ink, lineHeight: 24 },
   counter: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
@@ -273,10 +273,10 @@ const styles = StyleSheet.create({
   miniText: { fontSize: font.caption, fontWeight: '500', color: colors.ink },
   remove: { fontSize: 18, color: colors.muted, paddingHorizontal: 4 },
   sectionTitle: { fontSize: 12, fontWeight: '400', color: colors.muted, marginTop: spacing.lg },
-  filters: { gap: spacing.sm, paddingVertical: spacing.xs },
-  chip: { minHeight: 44, paddingHorizontal: 14, borderRadius: 17, backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.hairline, alignItems: 'center', justifyContent: 'center' },
-  chipOn: { backgroundColor: colors.raised, borderColor: colors.raised },
-  chipText: { fontSize: 13, fontWeight: '500', color: colors.ink },
+  filters: { gap: 20 },
+  chip: { minHeight: 44, justifyContent: 'center' },
+  chipOn: {},
+  chipText: { fontSize: 12, color: colors.muted },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: 14, paddingVertical: 12, borderRadius: radius.lg, backgroundColor: colors.card, minHeight: 52 },
   rowOn: { backgroundColor: colors.raised },
   box: { fontSize: 24, color: colors.muted },

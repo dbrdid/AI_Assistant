@@ -287,18 +287,17 @@ export const styles = StyleSheet.create({
   filters: {
     flexDirection: 'row',
     gap: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: c.line,
     marginTop: 17
   },
   filter: {
     minHeight: 44,
-    justifyContent: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent'
+    justifyContent: 'center'
   },
-  filterOn: {
-    borderBottomColor: c.text
+  filterOn: {},
+  // 고른 항목: 글자만 밝고 굵게 (밑줄·배경 없음)
+  filterTextOn: {
+    color: c.text,
+    fontWeight: '700'
   },
   filterText: {
     color: c.muted,

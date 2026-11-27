@@ -259,18 +259,11 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: font.bodyLg, color: colors.ink, paddingVertical: 10 },
 
   // 종류 칩
-  filters: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
-  filterChip: {
-    paddingHorizontal: spacing.md + 2,
-    paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-  },
-  filterChipOn: { backgroundColor: colors.action, borderColor: colors.actionBorder },
-  filterText: { fontSize: font.body, color: colors.ink },
-  filterTextOn: { color: colors.white, fontWeight: '500' },
+  filters: { flexDirection: 'row', gap: 20, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
+  filterChip: { minHeight: 44, justifyContent: 'center' },
+  filterChipOn: {},
+  filterText: { fontSize: 12, color: colors.muted },
+  filterTextOn: { color: colors.ink, fontWeight: '700' },
 
   // 검색어 없을 때
   idle: { paddingHorizontal: spacing.lg, gap: spacing.xl },

@@ -302,9 +302,7 @@ export default function WorkspaceScreen({
   if (mode === 'documents') {
     content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={list} keyExtractor={memo => memo.id} contentContainerStyle={s.page} keyboardShouldPersistTaps="handled" ListHeaderComponent={<>{intro}<View style={s.search}><Icon name="search" size={17} color={c.muted} /><TextInput autoFocus={requestSearch} accessibilityLabel="문서 검색" placeholder="제목이나 내용으로 검색" placeholderTextColor={c.subtle} value={query} onChangeText={setQuery} style={s.searchInput} />{query ? <IconButton name="x" label="검색어 지우기" onPress={() => setQuery('')} /> : null}</View><View style={s.filters}>{[['all', '모든 문서'], ['favorites', '즐겨찾기']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{
           selected: filter === key
-        }} onPress={() => setFilter(key)} style={[s.filter, filter === key && s.filterOn]}><Text style={[s.filterText, filter === key && {
-            color: c.text
-          }]}>{label}</Text></Pressable>)}</View></>} renderItem={({
+        }} onPress={() => setFilter(key)} style={[s.filter, filter === key && s.filterOn]}><Text style={[s.filterText, filter === key && s.filterTextOn]}>{label}</Text></Pressable>)}</View></>} renderItem={({
       item
     }) => <DocumentRow memo={item} compact={!query} onMore={onMore} onPress={() => open(item)} hasChildren={parentIds.has(item.id)} collapsed={collapsed.has(item.id)} onToggle={() => setCollapsed(previous => {
       const next = new Set(previous);
@@ -317,9 +315,7 @@ export default function WorkspaceScreen({
     const items = proposals.filter(p => p.status === reviewTab && shown(p));
     content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={items} keyExtractor={p => p.id} contentContainerStyle={s.page} ListHeaderComponent={<>{intro}<View style={s.filters}>{[['pending', '확인 대기'], ['hold', '보류']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{
           selected: reviewTab === key
-        }} onPress={() => setReviewTab(key)} style={[s.filter, reviewTab === key && s.filterOn]}><Text style={[s.filterText, reviewTab === key && {
-            color: c.text
-          }]}>{label}</Text></Pressable>)}</View></>} renderItem={({
+        }} onPress={() => setReviewTab(key)} style={[s.filter, reviewTab === key && s.filterOn]}><Text style={[s.filterText, reviewTab === key && s.filterTextOn]}>{label}</Text></Pressable>)}</View></>} renderItem={({
       item: p
     }) => <View style={s.proposal}><Text style={[s.meta, {
         color: c.accent

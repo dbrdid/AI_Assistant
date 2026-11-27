@@ -428,7 +428,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
                 />
               ) : (
                 <>
-                  {/* 공간: '모두'는 따로, 개인·팀은 목록에서 고름 */}
+                  {/* 공간: 모든 공간·개인·팀을 한 목록에서 고름 */}
                   {spaceList.length > 1 && <SpaceFilter value={spaceView} onChange={setSpaceView} spaces={spaceList.map((w) => ({ id: w.id, name: spaces[w.id]?.name ?? w.name }))} style={styles.spaceChipsBar} />}
                   <DayAgenda
                     selected={selected}

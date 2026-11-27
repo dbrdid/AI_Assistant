@@ -150,11 +150,11 @@ export default function TasksScreen({ navigation }) {
         </Pressable>
         {!!myName && (
           <Pressable accessibilityRole="tab" accessibilityState={{ selected: mineOnly }} onPress={() => setMineOnly((v) => !v)} style={[st.filter, mineOnly && st.filterOn]}>
-            <Text style={[st.filterText, mineOnly && { color: colors.ink }]}>내 담당</Text>
+            <Text style={[st.filterText, mineOnly && st.filterTextOn]}>내 담당</Text>
           </Pressable>
         )}
         <View style={{ flex: 1 }} />
-        {/* 공간: '모두'는 따로, 개인·팀은 목록에서 고름 */}
+        {/* 공간: 모든 공간·개인·팀을 한 목록에서 고름 */}
         {multi && <SpaceFilter value={space} onChange={setSpace} spaces={spaceList.map((w) => ({ id: w.id, name: spaces[w.id]?.name ?? w.name }))} />}
         {embedded && (
           <Pressable accessibilityRole="button" accessibilityLabel="할 일 추가" onPress={addTask} hitSlop={6} style={styles.spacePick}>

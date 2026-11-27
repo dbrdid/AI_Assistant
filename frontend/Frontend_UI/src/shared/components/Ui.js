@@ -167,10 +167,10 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 14, fontWeight: '600' },
   card: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, padding: spacing.lg },
   // 선택 전 칩은 면 없이 흐린 글자, 선택된 칩만 낮은 대비의 면으로 표시한다(밝은 채움 금지).
-  chip: { minHeight: 44, paddingHorizontal: 4, marginRight: 8, justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  chipActive: { borderBottomColor: colors.ink },
+  chip: { minHeight: 44, marginRight: 20, justifyContent: 'center' },
+  chipActive: {},
   chipText: { fontSize: 12, color: colors.muted },
-  chipTextActive: { color: colors.ink },
+  chipTextActive: { color: colors.ink, fontWeight: '700' },
   tag: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, backgroundColor: colors.mintSoft },
   tagOutline: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.pill },
   tagMuted: { backgroundColor: colors.raised, borderRadius: radius.pill },

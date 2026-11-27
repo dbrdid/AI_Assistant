@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   list: {padding:spacing.lg,gap:12,paddingBottom:spacing.xxl,paddingHorizontal:20},
   count: { fontSize: 12, color: colors.muted },
   // 탭
-  tabs: { flexDirection: 'row', gap: spacing.sm },
+  tabs: { flexDirection: 'row' },
   // 파일이 없을 때 안내
   // 빈 상태는 큰 제목 대신 Stella 문서 목록처럼 낮은 대비의 안내 두 줄
   empty: {alignItems:'flex-start',paddingTop:24,paddingHorizontal:4,gap:4},
