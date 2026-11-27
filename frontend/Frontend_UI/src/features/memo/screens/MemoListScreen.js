@@ -626,7 +626,7 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
                     setMenuOpen(false);
                     if (!active) navigation.navigate(it.route);
                   }}
-                  style={({ pressed }) => [styles.menuItem, pressed && { opacity: 0.6 }]}
+                  style={({ pressed }) => [styles.menuItem, (active || pressed) && { backgroundColor: colors.mintSoft }]}
                 >
                   <Text style={[styles.menuText, active && { color: colors.mintDark, fontWeight: '600' }]}>{it.label}</Text>
                 </Pressable>
@@ -649,7 +649,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: font.bodyLg, color: colors.ink, paddingVertical: 8 },
   chips: { gap: spacing.sm, paddingVertical: 2 },
   spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, maxWidth: 160, paddingHorizontal: 4 },
-  spaceChipOn: { borderColor: colors.actionBorder, backgroundColor: 'transparent', borderRadius: 0, borderBottomWidth: 2, borderBottomColor: colors.ink},
+  spaceChipOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
   spaceChipText: { flexShrink: 1, fontSize: 12, color: colors.ink },
   chip: { maxWidth: 180 },
   tools: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },

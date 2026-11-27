@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   evLabel: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
   evText: { fontSize: font.body, color: colors.ink, lineHeight: 21 },
   hl: { backgroundColor: '#474022' },
-  primary: { minHeight: 52, borderRadius: radius.md, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center', marginTop: spacing.lg },
+  primary: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', marginTop: spacing.lg },
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   ghost: { minHeight: 48, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   ghostText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },

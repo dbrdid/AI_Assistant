@@ -21,7 +21,7 @@ export default function ConfirmDialog({ visible, title, sub, confirmText = 'í™•ì
             <Pressable
               accessibilityRole="button"
               onPress={onConfirm}
-              style={[styles.btn, { backgroundColor: 'transparent' }]}
+              style={[styles.btn, { backgroundColor: danger ? colors.coralSoft : colors.action }]}
             >
               <Text style={styles.confirmText}>{confirmText}</Text>
             </Pressable>
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
   sub: { fontSize: font.body, color: colors.muted, lineHeight: 20 },
   buttons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   btn: { flex: 1, minHeight: 46, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
-  cancel: { backgroundColor: 'transparent' },
+  cancel: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   cancelText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
   confirmText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
 });

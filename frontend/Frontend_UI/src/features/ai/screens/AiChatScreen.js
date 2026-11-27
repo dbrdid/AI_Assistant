@@ -144,7 +144,7 @@ function MessageBubble({ message, onOpenSource, onMakeDoc, onProject }) {
                   accessibilityLabel={src.route ? `출처 ${src.type === 'memo' ? '메모' : '일정'} ${src.title} 열기` : `첨부 ${src.title}`}
                   disabled={!src.route}
                   onPress={() => onOpenSource(src)}
-                  style={({ pressed }) => [styles.sourceChip, pressed && { opacity: 0.6 }]}
+                  style={({ pressed }) => [styles.sourceChip, pressed && { backgroundColor: colors.mintSoft }]}
                 >
                   {/* 종류는 아이콘으로 구분 (메모 = 문서, 일정 = 달력, 첨부 = 클립) */}
                   <Icon name={sourceIcon(src)} size={15} color={colors.mintDark} />
@@ -863,7 +863,7 @@ const styles = StyleSheet.create({
   headerTitleWrap: { position: 'absolute', left: 112, right: 112, height: 40, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: font.header, fontWeight: '800', color: colors.ink },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  pressed: { opacity: 0.6 },
+  pressed: { backgroundColor: colors.mintSoft },
   rowIconBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   menuBackdrop: { flex: 1 },
   menu: { position: 'absolute', right: spacing.lg, minWidth: 220, paddingVertical: spacing.sm, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, ...shadow.float, shadowColor: '#263935', shadowOpacity: 0.14 },
@@ -896,13 +896,13 @@ const styles = StyleSheet.create({
   usageNum: { fontSize: font.caption, color: colors.muted },
   usageTrack: { height: 8, borderRadius: 4, backgroundColor: colors.line, overflow: 'hidden' },
   usageFill: { height: 8, borderRadius: 4 },
-  routeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.line },
+  routeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
   routeText: { fontSize: font.caption + 1, fontWeight: '700', color: colors.ink },
-  newChatBtn: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 999, backgroundColor: 'transparent'},
+  newChatBtn: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.mintSoft },
   newChatText: { fontSize: font.body, fontWeight: '700', color: colors.mintDark },
   notice: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.lg, marginBottom: spacing.sm, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.coralSoft, borderWidth: 1, borderColor: colors.coral },
   noticeText: { flex: 1, fontSize: font.caption + 1, color: colors.ink, lineHeight: 19 },
-  noticeBtn: { paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: 'transparent'},
+  noticeBtn: { paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.action },
   noticeBtnText: { fontSize: font.caption, fontWeight: '800', color: colors.onPrimary },
   banner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.lg, marginBottom: spacing.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.mintSoft },
   bannerText: { flex: 1, fontSize: font.caption + 1, color: colors.ink },
@@ -927,8 +927,8 @@ const styles = StyleSheet.create({
   aiBubble: { maxWidth: '100%', paddingVertical: 2 },
   form: { gap: spacing.sm, marginTop: spacing.xs },
   formRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  formChip: { minHeight: 36, paddingHorizontal: 14, borderRadius: 18, backgroundColor: 'transparent', justifyContent: 'center' },
-  formChipStrong: { backgroundColor: 'transparent'},
+  formChip: { minHeight: 36, paddingHorizontal: 14, borderRadius: 18, backgroundColor: colors.raised, justifyContent: 'center' },
+  formChipStrong: { backgroundColor: colors.action },
   formChipText: { fontSize: font.body, color: colors.muted },
   formNote: { fontSize: font.caption + 1, color: colors.muted, lineHeight: 19 },
   aiText: { fontSize: font.bodyLg, color: colors.ink, lineHeight: 22 },
@@ -940,7 +940,7 @@ const styles = StyleSheet.create({
   sourcesLabel: { fontSize: font.caption, color: colors.muted },
   sourceChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   // 출처 칩: 흰 바탕 + 테두리, 아이콘 + 굵은 제목
-  sourceChip: { flexDirection: 'row', alignItems: 'center', gap: 5, maxWidth: '100%', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.line },
+  sourceChip: { flexDirection: 'row', alignItems: 'center', gap: 5, maxWidth: '100%', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
   sourceText: { flexShrink: 1, fontSize: font.caption + 1, fontWeight: '800', color: colors.ink },
 
   // ----- 보내기 전 첨부 -----
@@ -964,8 +964,8 @@ const styles = StyleSheet.create({
   sheet: { width: '100%', maxWidth: 380, backgroundColor: colors.cream, borderRadius: radius.lg + 4, padding: spacing.xl, gap: spacing.sm, borderWidth: 1, borderColor: colors.line },
   sheetTitle: { fontSize: font.title - 2, fontWeight: '800', color: colors.ink, marginBottom: spacing.xs },
   sheetNote: { fontSize: font.caption, color: colors.muted, marginTop: spacing.xs, lineHeight: 17 },
-  option: { padding: spacing.lg, borderRadius: radius.card, backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.line, gap: 2 },
-  optionOn: { borderColor: colors.mintDark, borderWidth: 0.5, backgroundColor: 'transparent', borderRadius: 0, borderBottomWidth: 2, borderBottomColor: colors.ink},
+  option: { padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line, gap: 2 },
+  optionOn: { borderColor: colors.mintDark, borderWidth: 0.5, backgroundColor: colors.mintSoft },
   optionName: { fontSize: font.bodyLg - 1, fontWeight: '800', color: colors.ink },
   optionSub: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
   historySheet: { maxWidth: 420 },

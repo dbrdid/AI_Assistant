@@ -78,7 +78,7 @@ export function Line({ icon, label, value, onPress, right, muted }) {
   );
   if (!onPress) return <View style={styles.line}>{body}</View>;
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={value ? `${label} ${value}` : label} onPress={onPress} style={({ pressed }) => [styles.line, pressed && { opacity: 0.6 }]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={value ? `${label} ${value}` : label} onPress={onPress} style={({ pressed }) => [styles.line, pressed && { backgroundColor: colors.mintSoft }]}>
       {body}
     </Pressable>
   );
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({headerSaveText:{fontSize:16,fontWeight:'600',c
   field: { gap: spacing.sm },
   label: {fontSize:14,fontWeight:'500',color:colors.muted},
   input: {minHeight:46,borderRadius:0,borderWidth:0,borderColor:colors.line,backgroundColor:colors.cream,paddingHorizontal:0,fontSize:font.bodyLg,color:colors.ink,borderBottomWidth:1},
-  pickBtn: {flex:1,minHeight:46,flexDirection:'row',alignItems:'center',gap:spacing.sm,borderRadius:0,borderWidth:0,borderColor:colors.line,backgroundColor: 'transparent',paddingHorizontal:0,borderBottomWidth:1},
+  pickBtn: {flex:1,minHeight:46,flexDirection:'row',alignItems:'center',gap:spacing.sm,borderRadius:0,borderWidth:0,borderColor:colors.line,backgroundColor:colors.cream,paddingHorizontal:0,borderBottomWidth:1},
   pickText: { fontSize: font.bodyLg, color: colors.ink },
   timeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   tilde: { fontSize: font.bodyLg, color: colors.muted },
