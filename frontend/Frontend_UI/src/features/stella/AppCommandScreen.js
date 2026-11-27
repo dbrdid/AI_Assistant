@@ -8,6 +8,7 @@ import { WorkspaceHeader, PrimaryButton } from './WorkspaceScreen';
 import { examples, planCommand, routeCommand, screens } from './appCommands.mjs';
 import { splitRequest } from './commandSteps.mjs';
 import { planProjectCommand, projectExamples, routeProjectCommand } from './projectCommands.mjs';
+import { itemExamples, planItemCommand } from './itemCommands.mjs';
 import { addProject, getProjects, setItemProject, updateProject } from '../../data/projects/ProjectStore';
 import { metrics } from '../../integration/s22Gate';
 import { palette as c, styles as s } from './theme';
@@ -36,7 +37,9 @@ export default function AppCommandScreen({ navigation, route }) {
       return maybeRuntime() === owner && ws.id === workspaceId && !owner.closedSpaces.has(workspaceId) && (ws.personal || ws.roleCode !== 'VIEWER');
     },
   };
-  const planFor = (text, original, target = memoId) => planProjectCommand(projectTools, text, original) ?? planCommand(owner, text, target, randomUUID, original);
+  const planFor = (text, original, target = memoId) => planProjectCommand(projectTools, text, original)
+    ?? planItemCommand(owner, text, { memoId: target, originalRequest: original, canWrite: projectTools.canWrite })
+    ?? planCommand(owner, text, target, randomUUID, original);
   // 여러 작업이면 원래 요청을 작업별 조각으로 나눠, 이 작업과 맞는 조각으로 같은 검사를 한다
   const planStep = (text, original, target = memoId) => {
     if (total <= 1 || !original) return planFor(text, original, target);
@@ -117,7 +120,7 @@ export default function AppCommandScreen({ navigation, route }) {
         {row(queue.length ? '이 작업과 남은 작업 모두 취소' : '취소', () => { clear(); setQueue([]); })}</View>}
       {!!message && <Text accessibilityRole="alert" style={s.note}>{message}</Text>}
       {row(showHelp ? '사용 예시 닫기' : '지원 작업과 사용 예시', () => setShowHelp(!showHelp))}
-      {showHelp && <><Text selectable style={s.proposalBody}>{[...examples, ...projectExamples].join('\n')}</Text>
+      {showHelp && <><Text selectable style={s.proposalBody}>{[...examples, ...projectExamples, ...itemExamples].join('\n')}</Text>
         <Text style={s.note}>화면 열기: {Object.keys(screens).join(', ')}. 파일 선택, 공유, 권한, 결제 및 계정 변경은 해당 화면에서 직접 확인하세요.</Text></>}
     </ScrollView></View>;
 }

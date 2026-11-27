@@ -16,6 +16,7 @@ import Icon from '../../shared/components/Icon';
 import { SheetModal } from '../../shared/components/Motion';
 import { commandGrammar, routeCommand } from './appCommands.mjs';
 import { routeProjectCommand } from './projectCommands.mjs';
+import { routeItemCommand } from './itemCommands.mjs';
 import { blockRequest, canAsk, placeAnswer, targetLine, targetRewrite } from './aiPending.mjs';
 
 const native = Platform.OS === 'android' || Platform.OS === 'ios';
@@ -130,10 +131,12 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
     if (!inScope()) { setError('계정 또는 공간이 바뀌었습니다. 다시 열어 주세요.'); return; }
     setError(''); setReply(null);
     // Clear requests skip the model. Chat mode ignores routing clarifications so ordinary questions still reach the AI.
-    let routed = routeProjectCommand(prompt).command ? routeProjectCommand(prompt) : routeCommand(prompt);
+    const item = routeItemCommand(prompt, target);
+    let routed = routeProjectCommand(prompt).command ? routeProjectCommand(prompt) : item.command ? item : routeCommand(prompt);
     if (!routed.command && target) {
+      // "이 블록을 X로 변경해줘"를 블록 글을 "이 블록을 X"로 고치는 명령으로 잘못 읽은 경우는 버리고 AI에게 맡긴다
       const onBlock = routeCommand(reviewRequest);
-      if (onBlock.command) routed = onBlock;
+      if (onBlock.command && !/^\d+\s*번\s*블록(?:을|를)?\s*.*블록.*(?:으)?로\s*수정$/.test(onBlock.command)) routed = onBlock;
     }
     if (routed.command) { setReply({ command: routed.command, model: '규칙 해석 (AI 미사용)' }); return; }
     if (commandMode && routed.clarify) { setError(routed.clarify); return; }

@@ -1,5 +1,6 @@
 import { commandPrompt, examples, screens } from '../features/stella/appCommands.mjs';
 import { projectExamples } from '../features/stella/projectCommands.mjs';
+import { itemExamples } from '../features/stella/itemCommands.mjs';
 
 // One gateway for every AI: it adds the app's instructions, and whatever comes back is only text.
 // App changes still go through routeCommand/planCommand, user approval and the post-save checks.
@@ -85,7 +86,7 @@ const CHAT_SYSTEM = GATEWAY_SYSTEM + '\n'
   + '여러 작업이 필요하면 실행할 순서대로 한 줄에 하나씩 "앱 작업: <명령>"을 최대 ' + MAX_STEPS + '줄 출력한다. 새로 만든 문서에 블록을 넣으려면 "문서 만들기" 줄 다음에 블록 줄을 쓴다. '
   + '날짜는 YYYY-MM-DD로 쓰고, "내일"처럼 날짜가 정해지지 않았거나 값이 부족하면 명령 대신 "질문: "으로 시작하는 한 줄로 필요한 값을 짧게 되묻는다. '
   + '블록 번호와 문서 제목은 사용자가 말한 것만 쓴다. 요청 앞에 "대상: 현재 문서의 N번 블록" 줄이 있으면 그 블록 번호를 그대로 쓴다.\n'
-  + '형식:\n' + [...examples, ...projectExamples].join('\n') + '\n열 수 있는 화면: ' + Object.keys(screens).join(', ') + '\n'
+  + '형식:\n' + [...examples, ...projectExamples, ...itemExamples].join('\n') + '\n열 수 있는 화면: ' + Object.keys(screens).join(', ') + '\n'
   + '대상 블록의 글을 요약, 번역, 다듬기, 늘리기, 맞춤법 교정처럼 글 자체를 바꿔 달라는 요청은 앱 작업이 아니다. 이때는 바뀐 글만 출력한다 (설명, 따옴표, 머리말 없이). 사용자가 미리 보고 바꿀지 정한다.\n'
   + '앱 작업이 아닌 질문에는 한국어로 짧고 정확하게 답한다. 모르는 내용은 모른다고 답한다.';
 
@@ -103,7 +104,7 @@ export function gatewayMessages(request, mode, now = new Date()) {
 // 지원 명령의 머리 부분 모양 (예시에서 만든다): '일정 추가 2026-12-02 15:00: 낭독회' → /^일정 추가 \d{4}-\d{2}-\d{2} \d{2}:\d{2}\s*[:：]/
 const escape = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const COMMAND_SHAPES = [
-  ...[...examples, ...projectExamples].map(example => {
+  ...[...examples, ...projectExamples, ...itemExamples].map(example => {
     const [head, value] = example.split(/[:：]\s/);
     const pattern = escape(head).replace(/\d{4}-\d{2}-\d{2}/g, '\\d{4}-\\d{2}-\\d{2}').replace(/\d{2}:\d{2}/g, '\\d{2}:\\d{2}').replace(/\d+(번|행|열)/g, '\\d+$1');
     return new RegExp('^' + pattern + (value === undefined ? '$' : '\\s*[:：]\\s*\\S'));
