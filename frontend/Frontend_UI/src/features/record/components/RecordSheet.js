@@ -117,7 +117,7 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
                 <View style={styles.titleIcon}><Icon name="mic" size={20} color={colors.mintDark} /></View>
                 <Text style={styles.title}>{sheet.state === 'saved' ? '녹음을 저장했어요' : '녹음 파일을 저장하지 못했어요'}</Text>
               </View>
-              <Text style={styles.sub}>{fmt(sheet.seconds || 0)}{sheet.folder ? `, 휴대폰 ${sheet.folder} 폴더에 저장됐어요` : sheet.fileId ? ', 파일 보관함에 보관돼요' : ''}</Text>
+              <Text style={styles.sub}>{fmt(sheet.seconds || 0)}{sheet.folder ? ` · ${sheet.folder}` : ''}</Text>
               {sheet.state === 'save_error' && (
                 <>
                   <Text accessibilityLiveRegion="polite" style={styles.error}>{sheet.saveError || '저장 위치의 권한을 확인해 주세요.'}</Text>
@@ -160,7 +160,6 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
                   )}
                   {busy && !!progress && <Text accessibilityLiveRegion="polite" style={styles.sub}>{progress}</Text>}
                   {!!error && <Text style={styles.error}>{error.message}</Text>}
-                  {phase === 'idle' && <Text style={styles.hint}>녹음을 외부 AI로 보내 글자로 바꾸고 메모로 저장해요. 10분이 넘는 녹음은 2분씩 나눠 보내고, 변환이 끝난 녹음은 서버에서 바로 지워져요.</Text>}
                 </>
               )}
               {!!sheet.fileId && <Pressable accessibilityRole="button" onPress={onOpenFiles} style={styles.ghost}><Text style={styles.ghostText}>파일 보관함 보기</Text></Pressable>}

@@ -16,6 +16,7 @@ import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets'
 import { colors, font, spacing, FILL } from '../../../shared/theme/theme';
 import { CircleButton } from '../../../shared/components/Ui';
 import MonthCalendar from './MonthCalendar';
+import SpaceFilter from '../../../shared/components/SpaceFilter';
 import DayAgenda from './DayAgenda';
 import CalendarSearch from './CalendarSearch';
 import { WEEKDAYS, formatLunar, isSameDay, toKey, fromKey } from '../utils/DateUtils';
@@ -182,14 +183,8 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
   const allTasks = useAllTasks();
   const spaces = useSpaceInfo();
   const { list: spaceList } = useWorkspaces();
-  const [hiddenSpaces, setHiddenSpaces] = useState(() => new Set());
-  const tasks = useMemo(() => (hiddenSpaces.size ? allTasks.filter((t) => !hiddenSpaces.has(t.workspaceId)) : allTasks), [allTasks, hiddenSpaces]);
-  const toggleSpace = (id) => setHiddenSpaces((s) => {
-    const n = new Set(s);
-    if (n.has(id)) n.delete(id);
-    else n.add(id);
-    return n.size >= spaceList.length ? new Set() : n; // 전부 끄면 다시 모두 보기
-  });
+  const [spaceView, setSpaceView] = useState('all'); // 'all' 또는 공간 하나
+  const tasks = useMemo(() => (spaceView === 'all' ? allTasks : allTasks.filter((t) => t.workspaceId === spaceView)), [allTasks, spaceView]);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
   const todayKey = toKey(today);
@@ -269,9 +264,19 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
   // 손잡이를 아래로 내리면 일정 패널을 아래로 접고 달력 칸을 키워 일정 제목까지 보여 준다
   const [detailed, setDetailed] = useState(false);
   const detailedRef = useRef(false); detailedRef.current = detailed; // 끄는 동안 달력 스크롤을 멈춰 손잡이가 손가락을 따라가게
+  const normalTopRef = useRef(0);   // 달력 보통 크기일 때 패널 위치 (달력 크게 → 위로 올릴 때 목표를 정함)
+  const liftNow = useRef(0);        // 지금 패널이 옮겨진 거리 (손가락 위치)
+  // 달력 크기가 바뀌는 단계(달력 크게 ↔ 보통)는 패널 자리도 바뀐다. 바뀐 자리에서 손가락이 있던 곳부터 이어서 움직이게
+  // 화면상 위치를 기억해 두고, 새 자리가 잡히면(onLayout) 거기서 목표로 미끄러지게 한다
+  const pendingMove = useRef(null); // { visual, target: 'normal' | 'expanded' }
+  const slideTo = (to) => {
+    liftBase.current = to; liftNow.current = to;
+    setPanelExpanded(to < 0);
+    Animated.spring(lift, { toValue: to, bounciness: 0, speed: 16, useNativeDriver: true }).start();
+  };
   const movePanel = (expand) => {
     const to = expand ? -panelTopRef.current : 0;
-    liftBase.current = to;
+    liftBase.current = to; liftNow.current = to;
     setPanelExpanded(expand);
     Animated.spring(lift, { toValue: to, bounciness: 0, speed: 16, useNativeDriver: true }).start();
   };
@@ -281,7 +286,7 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
     onPanResponderGrant: () => setPanelDragging(true),
     onPanResponderTerminationRequest: () => false,
     onPanResponderTerminate: () => { setPanelDragging(false); movePanel(liftBase.current < 0); },
-    onPanResponderMove: (_, g) => lift.setValue(Math.min(liftBase.current < 0 ? 0 : 160, Math.max(-panelTopRef.current, liftBase.current + g.dy))),
+    onPanResponderMove: (_, g) => { liftNow.current = Math.min(liftBase.current < 0 ? 0 : 160, Math.max(-panelTopRef.current, liftBase.current + g.dy)); lift.setValue(liftNow.current); },
     onPanResponderRelease: (_, g) => {
       setPanelDragging(false);
       const expanded = liftBase.current < 0;
@@ -289,9 +294,18 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
       // 높이의 1/4 이상(내릴 때는 80) 또는 빠르게 밀면 한 단계 넘어감: 덮기 ↔ 제자리 ↔ 달력 크게
       const far = Math.abs(g.vy) > 0.6 || (g.dy > 0 ? g.dy > 80 : -g.dy > panelTopRef.current / 4);
       if (!far) return movePanel(expanded);
-      if (g.dy > 0) { if (expanded) movePanel(false); else { setDetailed(true); movePanel(false); } }
-      else if (detailedRef.current) { setDetailed(false); movePanel(false); }
-      else movePanel(true);
+      const visual = panelTopRef.current + liftNow.current;   // 놓은 순간 패널의 화면상 위치
+      if (g.dy > 0) {
+        if (expanded) movePanel(false);
+        else { pendingMove.current = { visual, target: 'normal' }; setDetailed(true); }   // 달력 크게: 커진 달력 아래로 이어서 내려감
+      } else if (detailedRef.current) {
+        // 맨 아래에서 올림: 보통 자리의 절반보다 높이 올렸거나 빠르게 밀면 달력을 접고 끝까지, 아니면 보통 자리
+        const top = normalTopRef.current;
+        const target = !top || visual < top / 2 || g.vy < -1.2 ? 'expanded' : 'normal';
+        pendingMove.current = { visual, target };
+        if (top) lift.setValue(visual - top);   // 새 자리가 잡히기 전 한 프레임도 손가락 자리에
+        setDetailed(false);
+      } else movePanel(true);
     },
   })).current;
   useEffect(() => {
@@ -387,11 +401,18 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
             highlight={searching ? highlight : undefined}
             onPickMonth={(yy, mm) => goToDate(new Date(yy, mm, 1))}
             actions={embedded ? headerActions : null}
-            scrollEnabled={!panelDragging}
+            scrollEnabled={!panelDragging && !detailed} // 달력 크게일 때는 끌기가 달력 스크롤에 뺏기지 않게 스크롤을 끔
             detailed={detailed}
           >
             {/* 선택한 날의 일정 / 검색 결과: 위쪽이 둥근 흰 시트 (아래 안전영역만큼 띄움) */}
-            <Animated.View onLayout={(e) => { panelTopRef.current = e.nativeEvent.layout.y; if (liftBase.current < 0) { liftBase.current = -panelTopRef.current; lift.setValue(liftBase.current); } }}
+            <Animated.View onLayout={(e) => {
+                const y = e.nativeEvent.layout.y;
+                panelTopRef.current = y;
+                if (!detailed) normalTopRef.current = y;
+                const pending = pendingMove.current;
+                if (pending) { pendingMove.current = null; lift.setValue(pending.visual - y); slideTo(pending.target === 'expanded' ? -y : 0); }
+                else if (liftBase.current < 0) { liftBase.current = -y; liftNow.current = -y; lift.setValue(-y); }
+              }}
               style={[styles.panel, { paddingBottom: insets.bottom + spacing.xxl, transform: [{ translateY: lift }] }]}>
               <View {...panelPan.panHandlers} accessible accessibilityRole="button" accessibilityLabel={panelExpanded ? '일정 목록 내리기' : detailed ? '일정 목록 다시 보기' : '일정 목록 크게 보기'}
                 accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={() => movePanel(!panelExpanded)} style={styles.panelBarWrap}>
@@ -407,22 +428,8 @@ export default function CalendarSheet({ calendar, startFull = false, onReachTop,
                 />
               ) : (
                 <>
-                  {/* 공간 칩: 눌러서 그 공간 일정을 켜고 끔 (구글 캘린더의 캘린더 목록처럼) */}
-                  {spaceList.length > 1 && (
-                    <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} style={styles.spaceChipsBar} contentContainerStyle={styles.spaceChips}>
-                      <Pressable accessibilityRole="button" accessibilityState={{ selected: hiddenSpaces.size === 0 }} onPress={() => setHiddenSpaces(new Set())} style={[styles.spaceChip, hiddenSpaces.size === 0 && styles.spaceChipAll]}>
-                        <Text style={[styles.spaceChipText, hiddenSpaces.size !== 0 && { color: colors.muted }]}>모두</Text>
-                      </Pressable>
-                      {spaceList.map((w) => {
-                        const on = !hiddenSpaces.has(w.id);
-                        return (
-                          <Pressable key={w.id} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={`${w.name} 일정 보기`} onPress={() => toggleSpace(w.id)} style={[styles.spaceChip, !on && styles.spaceChipOff]}>
-                            <Text style={[styles.spaceChipText, !on && { color: colors.muted, textDecorationLine: 'line-through' }]} numberOfLines={1}>{spaces[w.id]?.name}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </ScrollView>
-                  )}
+                  {/* 공간: '모두'는 따로, 개인·팀은 목록에서 고름 */}
+                  {spaceList.length > 1 && <SpaceFilter value={spaceView} onChange={setSpaceView} spaces={spaceList.map((w) => ({ id: w.id, name: spaces[w.id]?.name ?? w.name }))} style={styles.spaceChipsBar} />}
                   <DayAgenda
                     selected={selected}
                     tasks={tasks}
@@ -517,11 +524,6 @@ const styles = StyleSheet.create({
   panel: {flexGrow:1,marginTop:spacing.xs,paddingHorizontal:20,backgroundColor:colors.cream,borderTopLeftRadius:0,borderTopRightRadius:0,shadowColor:'#000000',shadowOpacity:0,shadowRadius:12,shadowOffset:{width:0,height:-2},elevation:0,borderTopWidth:1,borderColor:colors.line},
   panelBarWrap: { height: 28, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs },
   spaceChipsBar: { flexGrow: 0, flexShrink: 0, marginBottom: spacing.md },
-  spaceChips: { gap: spacing.lg, alignItems: 'center' },
-  spaceChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, maxWidth: 160, paddingHorizontal: 4 },
-  spaceChipAll: {},
-  spaceChipOff: {},
-  spaceChipText: { flexShrink: 1, fontSize: 12, color: colors.ink },
 
   // 홈의 '이번 주' 띠 (흰 바탕, 시트와 같은 둥근 위쪽)
   peek: {

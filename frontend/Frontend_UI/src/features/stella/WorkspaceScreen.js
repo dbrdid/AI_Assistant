@@ -8,13 +8,14 @@ import { useFiles } from '../../data/files/FileStore';
 import GraphCanvas from './GraphCanvas';
 import SearchDock from './SearchDock';
 import SwipeNav from './SwipeNav';
+import { useNoteRecorder } from '../record/components/useNoteRecorder';
 import ProposalCard from '../proposal/components/ProposalCard';
 import { runtime, useValue, readPreference, writePreference } from '../../data/hooks';
 import { randomUUID } from 'expo-crypto';
 import { isPlaced, placeProposal } from './aiPending.mjs';
 import Icon from '../../shared/components/Icon';
 import { useInsets } from '../../shared/hooks/useInsets';
-import { useMemos, memoTitle } from '../../data/memos/MemoStore';
+import { useMemos, memoTitle, setFavorites } from '../../data/memos/MemoStore';
 import { useProposals } from '../../data/proposals/ProposalStore';
 import { useSpaceInfo, useWorkspaces, switchWorkspace } from '../../data/workspaces/WorkspaceStore';
 import ConfirmDialog from '../../shared/components/ConfirmDialog';
@@ -96,7 +97,7 @@ export function WorkspaceHeader({
         flexShrink: 1
       }}><Text style={s.brandTitle} numberOfLines={1}>{title}</Text><Text style={s.brandSub}>Atria{LOCAL_PREVIEW ? ', 로컬 미리보기' : ''}</Text></View><Icon name="chevronDown" size={14} color={c.muted} /></Pressable><View style={s.actions}>{right || <>{onSearch && <IconButton name="search" label="문서 검색" onPress={onSearch} />}</>}</View></View>;
 }
-function DocumentRow({ memo, onPress, hasChildren, collapsed, onToggle, compact = false }) {
+function DocumentRow({ memo, onPress, hasChildren, collapsed, onToggle, onMore, compact = false }) {
   const title = memoTitle(memo);
   const [showEmpty, setShowEmpty] = useState(false);
   const expanded = hasChildren ? !collapsed : showEmpty;
@@ -112,6 +113,9 @@ function DocumentRow({ memo, onPress, hasChildren, collapsed, onToggle, compact 
           <Text style={s.meta}>{memo.favorite ? '즐겨찾기, ' : ''}{new Date(memo.updatedAt).toLocaleDateString('ko-KR')}, 기기 저장</Text></>}
       </View>
     </Pressable>
+    {onMore && <Pressable accessibilityRole="button" accessibilityLabel={`${title} 더 보기`} onPress={() => onMore(memo)} style={s.iconButton}>
+        <Icon name="moreHorizontal" size={18} color={c.muted} />
+      </Pressable>}
     {onToggle &&
       <Pressable accessibilityRole="button" accessibilityLabel={`${expanded ? '접기' : '펼치기'}: ${title}`}
           accessibilityState={{ expanded }} onPress={hasChildren ? onToggle : () => setShowEmpty(open => !open)} style={s.iconButton}>
@@ -159,7 +163,7 @@ const DOCUMENT_MODES = { [ROUTES.Memos]: 'documents', [ROUTES.Relations]: 'relat
 const pagerOverflow = Platform.OS === 'web' ? 'clip' : 'hidden';
 
 // 자체 입력줄이 있는 쪽 (오늘: 메모, 첨부, 녹음 입력줄 / 빠른 입력: 저장 줄)은 공통 하단을 겹쳐 그리지 않는다
-const OWN_BOTTOM_BAR = new Set([ROUTES.Today]);
+const OWN_BOTTOM_BAR = new Set();
 
 function PageRail({ index, pages, header, renderPage, keepVisited = false }) {
   const position = useRef(new Animated.Value(index)).current;
@@ -210,6 +214,7 @@ export default function WorkspaceScreen({
   favoritesOnly = false
 }) {
   const insets = useInsets();
+  const note = useNoteRecorder((name, params) => go(name, params), insets.bottom);
   const memoRows = useMemos();
   const files = useFiles();
   const documents = useValue(() => runtime().documents.listDocuments());
@@ -223,6 +228,20 @@ export default function WorkspaceScreen({
   const appUpdate = useAppUpdate();
   const [menu, setMenu] = useState(false);
   const [tabPreview, setTabPreview] = useState(null); // 길게 눌러 좌우로 고르는 중인 탭
+  const [rowMenu, setRowMenu] = useState(null);       // 문서 줄의 … 메뉴를 연 문서
+  const [rowDelete, setRowDelete] = useState(null);   // 휴지통으로 옮길지 묻는 문서
+  const canEdit = spaces.current?.roleCode !== 'VIEWER';
+  const onMore = canEdit ? memo => setRowMenu(memo) : undefined;
+  // 문서 줄 삭제: 편집기의 하위 문서 삭제와 같은 휴지통 이동 (그 아래 문서는 한 단계 위로 올려 보존). 되돌리기로 복원
+  function trashRow() {
+    const memo = rowDelete;
+    setRowDelete(null);
+    if (!memo) return;
+    try {
+      runtime().documents.trash(memo.id);
+      actions.snack.show(`“${memoTitle(memo)}”을 휴지통으로 옮겼어요`, { label: '되돌리기', onPress: () => { try { runtime().store.restoreMemos([memo.id]); } catch (e) { actions.snack.show(e.message); } } });
+    } catch (e) { actions.snack.show(e.message); }
+  }
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState(new Set());
   const [filter, setFilter] = useState(favoritesOnly ? 'favorites' : 'all');
@@ -274,8 +293,9 @@ export default function WorkspaceScreen({
   const titleOf = new Map(memos.map(memo => [memo.id, memoTitle(memo)]));
   const parentOf = new Map(documents.map(document => [document.id, document.parentId]));
   const searchDocs = memos.map(memo => ({ id: memo.id, title: memoTitle(memo), body: memo.body || '', updatedAt: memo.updatedAt, createdAt: memo.createdAt ?? memo.updatedAt, parent: titleOf.get(parentOf.get(memo.id)) || '' }));
-  const askDock = <SearchDock docs={searchDocs} bottomInset={insets.bottom} onOpen={id => go(ROUTES.MemoEdit, { memoId: id })} onAskAI={() => go(ROUTES.AiChat)}
-    onNew={kind => kind === 'note' ? go(ROUTES.Home, { subpage: ROUTES.Today, startRecording: Date.now() }) : go(kind === 'chat' ? ROUTES.AiChat : ROUTES.MemoEdit)} />;
+  // AI 노트: 지금 탭에서 바로 녹음 (녹음 중에는 하단 막대 자리에 녹음 막대)
+  const askDock = note.recording ? note.bar : <SearchDock docs={searchDocs} bottomInset={insets.bottom} onOpen={id => go(ROUTES.MemoEdit, { memoId: id })} onAskAI={() => go(ROUTES.AiChat)}
+    onNew={kind => kind === 'note' ? note.start() : go(kind === 'chat' ? ROUTES.AiChat : ROUTES.MemoEdit)} />;
   let content;
   if (mode === 'documents') {
     content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={list} keyExtractor={memo => memo.id} contentContainerStyle={s.page} keyboardShouldPersistTaps="handled" ListHeaderComponent={<>{intro}<View style={s.search}><Icon name="search" size={17} color={c.muted} /><TextInput autoFocus={requestSearch} accessibilityLabel="문서 검색" placeholder="제목이나 내용으로 검색" placeholderTextColor={c.subtle} value={query} onChangeText={setQuery} style={s.searchInput} />{query ? <IconButton name="x" label="검색어 지우기" onPress={() => setQuery('')} /> : null}</View><View style={s.filters}>{[['all', '모든 문서'], ['favorites', '즐겨찾기']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{
@@ -284,7 +304,7 @@ export default function WorkspaceScreen({
             color: c.text
           }]}>{label}</Text></Pressable>)}</View></>} renderItem={({
       item
-    }) => <DocumentRow memo={item} compact={!query} onPress={() => open(item)} hasChildren={parentIds.has(item.id)} collapsed={collapsed.has(item.id)} onToggle={() => setCollapsed(previous => {
+    }) => <DocumentRow memo={item} compact={!query} onMore={onMore} onPress={() => open(item)} hasChildren={parentIds.has(item.id)} collapsed={collapsed.has(item.id)} onToggle={() => setCollapsed(previous => {
       const next = new Set(previous);
       if (next.has(item.id)) next.delete(item.id);else next.add(item.id);
       return next;
@@ -318,11 +338,11 @@ export default function WorkspaceScreen({
           {memos.slice(0, 6).map(memo => <RecentDocument key={memo.id} memo={memo} photo={files.find(file => file.id === memo.photos?.[0])} onPress={() => open(memo)} />)}
         </ScrollView></HomeSection>}
         {memos.some(memo => memo.favorite) && <HomeSection title="즐겨찾기">
-          {memos.filter(memo => memo.favorite).slice(0, 5).map(memo => <DocumentRow key={memo.id} memo={memo} compact onPress={() => open(memo)} />)}
+          {memos.filter(memo => memo.favorite).slice(0, 5).map(memo => <DocumentRow key={memo.id} memo={memo} compact onMore={onMore} onPress={() => open(memo)} />)}
           {memos.filter(memo => memo.favorite).length > 5 && <Pressable accessibilityRole="button" style={s.link} onPress={() => go(ROUTES.Favorites)}><Text style={s.linkText}>모두 보기</Text></Pressable>}
         </HomeSection>}
         <HomeSection title={current?.personal ? '개인 문서' : '공간 문서'}>
-          {list.slice(0, 20).map(memo => <DocumentRow key={memo.id} memo={memo} compact onPress={() => open(memo)} hasChildren={parentIds.has(memo.id)} collapsed={collapsed.has(memo.id)} onToggle={() => setCollapsed(previous => { const next = new Set(previous); if (next.has(memo.id)) next.delete(memo.id); else next.add(memo.id); return next; })} />)}
+          {list.slice(0, 20).map(memo => <DocumentRow key={memo.id} memo={memo} compact onMore={onMore} onPress={() => open(memo)} hasChildren={parentIds.has(memo.id)} collapsed={collapsed.has(memo.id)} onToggle={() => setCollapsed(previous => { const next = new Set(previous); if (next.has(memo.id)) next.delete(memo.id); else next.add(memo.id); return next; })} />)}
           {list.length > 20 && <Pressable accessibilityRole="button" style={s.link} onPress={() => go(ROUTES.Memos)}><Text style={s.linkText}>모든 문서 보기</Text></Pressable>}
           {!documents.length && <Text style={s.emptyInline}>아직 작성한 문서가 없습니다.</Text>}
         </HomeSection>
@@ -376,7 +396,18 @@ export default function WorkspaceScreen({
         <PageRail index={pagerIndex} pages={TABS} keepVisited header={tab => header(tab.route)} renderPage={renderTab} />
       </SwipeNav>
       {!OWN_BOTTOM_BAR.has(TABS[pagerIndex]?.pages[subIndexOf(TABS[pagerIndex], pagerIndex)]?.route) && askDock}</>
-    : <>{!bodyOnly && header()}{content}</>}{actions.snack.view}<SheetModal visible={menu} onClose={() => setMenu(false)} label="작업 공간 메뉴"><View style={s.handle} /><View style={s.titleRow}><Text style={s.sectionTitle}>나의 작업 공간</Text><IconButton name="x" label="메뉴 닫기" onPress={() => setMenu(false)} /></View><ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4 }}>
+    : <>{!bodyOnly && header()}{content}</>}{actions.snack.view}{note.sheet}
+      <SheetModal visible={!!rowMenu} onClose={() => setRowMenu(null)} label="문서 메뉴"><View style={s.handle} />
+        <Text style={[s.sectionTitle, { textAlign: 'center', marginBottom: 8 }]} numberOfLines={1}>{rowMenu ? memoTitle(rowMenu) : ''}</Text>
+        {rowMenu && [[rowMenu.favorite ? '즐겨찾기 해제' : '즐겨찾기에 추가', rowMenu.favorite ? 'starFilled' : 'star', () => setFavorites([rowMenu.id], !rowMenu.favorite)],
+          ['하위 문서 추가', 'plus', () => go(ROUTES.MemoEdit, { parentId: rowMenu.id })],
+          ['휴지통으로 이동', 'trash', () => setRowDelete(rowMenu)]].map(([label, icon, run]) =>
+          <Pressable key={label} accessibilityRole="button" onPress={() => { setRowMenu(null); run(); }} style={s.menuRow}>
+            <Icon name={icon} size={18} color={c.muted} /><Text style={s.menuLabel}>{label}</Text>
+          </Pressable>)}
+      </SheetModal>
+      <ConfirmDialog visible={!!rowDelete} title="문서를 휴지통으로 옮길까요?" sub={`${rowDelete ? memoTitle(rowDelete) : ''}은 휴지통에서 복원할 수 있습니다. 그 아래의 문서는 한 단계 위로 옮겨 보존합니다.`}
+        confirmText="휴지통으로 이동" danger onCancel={() => setRowDelete(null)} onConfirm={trashRow} /><SheetModal visible={menu} onClose={() => setMenu(false)} label="작업 공간 메뉴"><View style={s.handle} /><View style={s.titleRow}><Text style={s.sectionTitle}>나의 작업 공간</Text><IconButton name="x" label="메뉴 닫기" onPress={() => setMenu(false)} /></View><ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4 }}>
       {/* 공간 / AI / 관리 세 묶음. 묶음마다 둥근 면 안에 같은 높이의 행, 아이콘 열과 글자 시작점을 맞춘다. */}
       {[['공간', [...spaces.list.map(space => ({ key: space.id, label: space.name, icon: space.personal ? 'home' : 'users', checked: space.id === current?.id, onPress: () => {
           if (space.id === current?.id) return setMenu(false);

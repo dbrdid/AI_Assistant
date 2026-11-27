@@ -135,7 +135,6 @@ export default function SetupFlow({ user, onDone }) {
               </View>
             </View>
           ))}
-          <Text style={styles.note}>AI가 찾은 내용은 사용자가 직접 확인한 뒤에만 반영돼요.</Text>
         </ScrollView>
         {footer('다음', next, { extra: <Pressable accessibilityRole="button" onPress={() => setStep(1)} style={styles.textBtn}><Text style={styles.textBtnText}>소개 건너뛰기</Text></Pressable> })}
       </View>
@@ -149,7 +148,6 @@ export default function SetupFlow({ user, onDone }) {
         {header('1/3', true, false)}
         <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.body}>
           <Text style={styles.q}>앱의 사용 목적을 선택해주세요</Text>
-          <Text style={styles.note}>여러 개를 고를 수 있어요. 선택하지 않아도 넘어갈 수 있어요. 고른 만큼 시작용 메모 템플릿을 만들어 드려요.</Text>
           {PURPOSES.map((p) => {
             const on = hasPurpose(purpose, p.id);
             return (
@@ -207,7 +205,6 @@ export default function SetupFlow({ user, onDone }) {
         {header('AI 설정 (2/3)', true, true)}
         <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.body}>
           <Text style={styles.q}>AI가 자동으로 찾을 항목</Text>
-          <Text style={styles.note}>선택한 항목만 분석 결과에 포함돼요. 권장값이 미리 선택되어 있어요.</Text>
           <View style={styles.chipRow}>
             {chip('전체', all, () => setTargets(all ? { schedule: false, task: false, person: false, place: false } : { schedule: true, task: true, person: true, place: true }))}
             {KEYS.map(([k, l]) => chip(l, targets[k], () => setTargets((t) => ({ ...t, [k]: !t[k] }))))}
@@ -307,7 +304,6 @@ export default function SetupFlow({ user, onDone }) {
             {!!stateText[perm[k]] && <Text style={[styles.permState, perm[k] === 'denied' && { color: colors.coral }]}>{stateText[perm[k]]}</Text>}
           </View>
         ))}
-        <Text style={styles.note}>선택 권한은 거부해도 앱을 쓸 수 있고, 나중에 설정 &gt; 보안 및 권한에서 바꿀 수 있어요.</Text>
       </ScrollView>
       {footer('허용 및 시작', start, { busy })}
       <Modal transparent visible={!!denied} animationType="fade" onRequestClose={() => setDenied(null)}>

@@ -69,8 +69,6 @@ export default function NotificationSettingsScreen({ navigation }) {
           {n.dndOn && <Row label="시작" value={n.dndStart} onPress={() => setPicker('dndStart')} />}
           {n.dndOn && <Row label="끝" value={n.dndEnd} onPress={() => setPicker('dndEnd')} />}
         </Group>
-        {n.dndOn && <Text style={styles.note}>시작이 끝보다 늦으면 다음 날 아침까지로 계산해요 (예: 22:00 ~ 06:30)</Text>}
-        <Text style={styles.note}>일정이나 할 일에서 알림 시각을 고르면 휴대폰 알림이 예약돼요. 알림을 고르지 않은 일정은 일간 브리핑 시간(없으면 1시간 전)에 앱 알림함에 표시돼요.</Text>
         
 
         <SectionTitle>서버 알림 (공유 공간)</SectionTitle>

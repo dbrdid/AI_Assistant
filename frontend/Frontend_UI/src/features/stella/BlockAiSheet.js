@@ -35,7 +35,7 @@ export default function BlockAiSheet({ block, navigation, memoId, prepare, onPla
       <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 2 }}><View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: c.subtle }} /></View>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 20, paddingRight: 8, minHeight: 44 }}>
         <Icon name="sparkles" size={16} color={c.muted} />
-        <Text numberOfLines={1} style={[s.meta, { flex: 1, marginLeft: 8 }]}>{block.index + 1}번 블록에 AI 요청. 답은 문서에 제안으로 들어가요</Text>
+        <View style={{ flex: 1 }} />
         <Pressable accessibilityRole="button" accessibilityLabel="AI 요청 닫기" onPress={close} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="x" size={18} color={c.muted} />
         </Pressable>

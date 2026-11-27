@@ -94,7 +94,6 @@ export default function FilesScreen({ navigation, route }) {
             return <Chip key={key} label={STORAGE_INFO[key].label} active={on} onPress={() => setTab(key)} />;
           })}
         </View>
-        <Text style={styles.count}>{tab === 'local' && Platform.OS !== 'web' ? '기기에서 고른 파일은 원본을 그대로 두고 연결만 해요. 처음 저장할 때 다운로드 폴더를 한 번 고르면 앱에서 찍은 사진이 그곳에 저장돼요.' + (Platform.OS === 'android' ? ' 녹음은 휴대폰 Recordings/Atria 폴더에 저장돼요.' : '') : STORAGE_INFO[tab].desc}</Text>
 
         {(tab === 'local' || shared) && (
           <DashedButton
@@ -141,7 +140,7 @@ export default function FilesScreen({ navigation, route }) {
                     {reading[f.id] ? <ActivityIndicator size="small" color={colors.mintDark} /> : null}
                     <Text style={styles.smallBtnText}>{reading[f.id] ? '읽는 중…' : '내용 인식'}</Text>
                   </Pressable>
-                  <Text style={styles.note}>{readError[f.id] || '내용을 읽어 두면 글자로도 검색돼요'}</Text>
+                  {!!readError[f.id] && <Text style={styles.note}>{readError[f.id]}</Text>}
                 </View>
               ) : (
                 <Text style={styles.note}>파일 이름으로 검색돼요</Text>

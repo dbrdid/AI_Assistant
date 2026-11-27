@@ -670,7 +670,6 @@ export default function AiChatScreen({ navigation }) {
                 </Pressable>
               );
             })}
-            <Text style={styles.sheetNote}>AI를 바꾸면 그 AI로 자료를 보내는 허용을 다시 받아요.</Text>
           </View>
         </Pressable>
       </Modal>
@@ -724,7 +723,6 @@ export default function AiChatScreen({ navigation }) {
                 })}
               </>
             )}
-            <Text style={styles.sheetNote}>매달 1일(한국 시간)에 다시 채워져요. 요금제를 바꾸면 한도도 바로 바뀌어요.</Text>
             <Pressable accessibilityRole="button" onPress={() => { setPanel(null); navigation.navigate(ROUTES.Subscription); }} style={styles.option}>
               <Text style={styles.optionName}>요금제 보기</Text>
             </Pressable>
@@ -765,7 +763,7 @@ export default function AiChatScreen({ navigation }) {
       {/* ---------- 업로드된 파일 (아래에서 머리글 바로 아래까지 올라오는 창) ---------- */}
       <UpSheet visible={panel === 'files'} top={headerBottom} title="업로드된 파일" onClose={() => setPanel(null)}>
         {chatUploads.length === 0 ? (
-          <Text style={styles.historyEmpty}>이 대화에 올린 사진·파일이 없어요. 입력창 왼쪽 + 버튼으로 올릴 수 있어요.</Text>
+          <Text style={styles.historyEmpty}>올린 사진·파일이 없어요</Text>
         ) : (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: spacing.sm }}>
             {chatUploads.map((u) => (
@@ -788,7 +786,6 @@ export default function AiChatScreen({ navigation }) {
             ))}
           </ScrollView>
         )}
-        <Text style={styles.sheetNote}>파일은 저장하지 않고, 꺼낸 글자만 이 대화 동안 질문과 함께 보내요. 누르면 그 파일을 올린 질문으로 이동해요.</Text>
       </UpSheet>
 
       <UpSheet visible={panel === 'archive'} top={headerBottom} title="파일 보관함에서 선택" onClose={() => setPanel(null)}>
@@ -825,13 +822,12 @@ export default function AiChatScreen({ navigation }) {
             })}
           </ScrollView>
         )}
-        <Text style={styles.sheetNote}>선택한 파일을 기준으로 답하고 앱의 메모·일정·할 일은 함께 검색하지 않아요. AI 전송 동의가 필요합니다.</Text>
       </UpSheet>
 
       {/* ---------- 이전 대화 (오른쪽에서 밀려 나오는 창) ---------- */}
       <SlidePanel visible={panel === 'history'} title="이전 대화" onClose={() => setPanel(null)}>
         {chats.length === 0 ? (
-          <Text style={styles.historyEmpty}>아직 저장된 대화가 없어요. 질문하면 이 기기에 자동으로 저장돼요.</Text>
+          <Text style={styles.historyEmpty}>저장된 대화가 없어요</Text>
         ) : (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: spacing.sm }}>
             {sortChats(chats).map((c) => (
@@ -853,7 +849,6 @@ export default function AiChatScreen({ navigation }) {
             ))}
           </ScrollView>
         )}
-        <Text style={styles.sheetNote}>대화는 이 기기에만, 지금 공간별로 최대 50개 저장돼요.</Text>
       </SlidePanel>
     </KeyboardAvoidingView>
   );

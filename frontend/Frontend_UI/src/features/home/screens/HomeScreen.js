@@ -6,29 +6,21 @@
 // 맨 아래: 바로 쓰는 입력줄 (어느 공간에 쓸지 고르는 칩 · 글 메모 저장 · 사진 · 카메라 · 녹음)
 
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
-import { useKeyboardHeight } from '../../../shared/hooks/useKeyboardHeight';
 import { useScreenEntry } from '../../../navigation/ScreenEntry';
 import Bell from '../../notice/components/Bell';
-import RecordSheet from '../../record/components/RecordSheet';
 import { styles as st } from '../../stella/theme';
 import ProposalCard from '../../proposal/components/ProposalCard';
 import { useProposalActions } from '../../proposal/useProposalActions';
-import { useRecorder } from '../../../services/device/Recorder';
-import RecordingBar from '../../record/components/RecordingBar';
 import OnceTip from '../../../shared/components/OnceTip';
 
 const TODAY_TIPS = [
-  { id: 'swipe-nav', text: '화면을 좌우로 밀면 오늘·개요·빠른 입력을 오가요. 길게 누른 채 밀면 옆에 홈·업무·문서 메뉴가 나와요.' },
-  { id: 'capture-bar', text: '아래 입력줄에 적으면 메모로 저장돼요. 마이크로 녹음하고, 카메라로 사진을 바로 남길 수 있어요.' },
+  { id: 'swipe-nav', text: '화면을 좌우로 밀면 오늘·개요·빠른 입력을 오가요. 길게 누른 채 좌우로 밀면 위쪽 메뉴에서 홈·업무·문서를 골라요.' },
   { id: 'space-switch', text: '왼쪽 위 프로필을 누르면 개인·팀 공간을 바꾸고 설정을 열 수 있어요. 팀 공간에서는 위쪽에 공간 색 줄이 보여요.' },
 ];
-import { analyzeText } from '../../../services/ai/AiAnalyze';
-import { addRecording } from '../../../data/files/FileStore';
-import { addUsage, useSettings } from '../../../data/settings/SettingsStore';
+import { useSettings } from '../../../data/settings/SettingsStore';
 import { enterSpace, useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
-import { addMemo } from '../../../data/memos/MemoStore';
 import { useProposals } from '../../../data/proposals/ProposalStore';
 import { classify, lastDate, occursOn, taskIn, useAllTasks } from '../../../data/tasks/TaskStore';
 import { WEEKDAYS_LONG, toKey } from '../../calendar/utils/DateUtils';
@@ -38,7 +30,6 @@ import SpaceTag from '../../../shared/components/SpaceTag';
 import { CircleButton } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { selectHomeScheduleEvents } from '../utils/HomeSchedule.mjs';
-import { MAX_RECORDING_SECONDS } from '../../../lib/stella/recordings';
 
 const MAX_LEN = 2000;
 const CAPTURE_HEIGHT = 64; // 입력줄 높이 (안내 띠를 그 위에 띄우는 데 씀)
@@ -62,7 +53,6 @@ function SectionHead({ title, onAdd, addLabel }) {
 
 export default function HomeScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
-  const keyboard = useKeyboardHeight(); // 메모 입력줄을 키보드 위로
   // 상단 탭 안의 '오늘'에서는 탭 줄의 S 버튼과 겹치는 '나' 버튼과 상단 여백을 빼고 날짜를 제목으로 쓴다.
   const { embedded } = useScreenEntry();
   const go = (route, params) => navigation.navigate(route, params);
@@ -122,93 +112,7 @@ export default function HomeScreen({ navigation, route }) {
     return { w, text: parts.length ? parts.join(', ') : '이번 주 예정 없음', alert: late > 0 };
   });
 
-  // ---------- 입력줄: 어느 공간에 쓸지 + 글 메모 ----------
-  const [target, setTarget] = useState(null); // 공간 id (null = 개인 공간)
-  const targetId = target && spaces[target] && !spaces[target].readOnly ? target : personalId;
-  const [pickSpace, setPickSpace] = useState(false);
-  const [text, setText] = useState('');
-  const saveMemo = () => {
-    const body = text.trim();
-    if (!body) return;
-    let memo;
-    try {
-      enterSpace(targetId); // 그 공간에 저장하고, AI 분석 결과(제안)도 그 공간에 쌓임
-      memo = addMemo({ title: '', body, taskIds: [] });
-    } catch (e) {
-      snack.show(e.code === 'read_only' ? '보기 전용 공간에는 쓸 수 없어요' : '메모를 저장하지 못했어요');
-      return;
-    }
-    setText('');
-    const where = multi ? `${spaces[targetId]?.name ?? ''}에 ` : '';
-    snack.show(`${where}메모를 저장했어요`, { label: '열기', onPress: () => go(ROUTES.MemoEdit, { memoId: memo.id }) });
-    // AI 자동 분석이 켜져 있으면 일정·할 일 후보를 찾아 위의 제안 카드로 보여 줌
-    analyzeText({ sourceType: 'memo', sourceId: memo.id }).then((r) => {
-      if (r && r.added) snack.show(`AI가 일정과 할 일 ${r.added}건을 찾았어요`, { label: '확인', onPress: () => go(ROUTES.Proposals) });
-    });
-  };
-
-  // ---------- 입력줄: 녹음 (끝나면 파일 보관함에 저장하고 안내 창) ----------
-  const rec = useRecorder();
-  const [recording, setRecording] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const [paused, setPaused] = useState(false);   // 일시정지 동안은 시간도 멈춤
-  const [recSheet, setRecSheet] = useState(null); // { state, uri, seconds, fileId }
-  const recBusy = useRef(false); // 시작/종료 처리 중에 또 눌러도 무시
-  useEffect(() => {
-    if (!recording || paused) return undefined;
-    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, [recording, paused]);
-  // 서버가 받는 최대 길이(3시간)가 되면 녹음을 끝내고 정리 창을 띄움
-  const toggleRef = useRef(null);
-  useEffect(() => {
-    if (recording && seconds >= MAX_RECORDING_SECONDS) void toggleRef.current?.();
-  }, [recording, seconds]);
-  // 하단 새로 만들기 > AI 노트: 오늘 화면으로 와서 바로 녹음 시작 (값은 누를 때마다 바뀌는 시각)
-  const startRequest = route?.params?.startRecording;
-  useEffect(() => { if (startRequest && !recording) toggleRecording(); }, [startRequest]); // eslint-disable-line react-hooks/exhaustive-deps
-  const toggleRecording = async () => {
-    if (recBusy.current) return;
-    recBusy.current = true;
-    try {
-      if (recording) {
-        setRecording(false);
-        setPaused(false);
-        const uri = await rec.stop();
-        if (!uri) return setRecSheet({ state: 'error' });
-        // 저장하지 못해도 녹음 듣기와 변환은 그대로 됨. 실패 이유를 보여 주고 다시 저장할 수 있게 함
-        let saved = null;
-        let saveError = '';
-        try { saved = await addRecording(uri, seconds); }
-        catch (error) { saveError = error?.message || '녹음 파일을 저장하지 못했어요.'; }
-        addUsage('voice', Math.max(1, Math.ceil(seconds / 60))); // 녹음 이용량은 분 단위
-        setRecSheet({ state: saved ? 'saved' : 'save_error', uri: saved?.uri || uri, seconds, fileId: saved?.id ?? null, folder: saved?.recordingFolder, saveError });
-      } else {
-        const r = await rec.start();
-        if (!r.ok) return setRecSheet({ state: r.reason === 'denied' ? 'denied' : 'error' });
-        setSeconds(0);
-        setRecording(true);
-      }
-    } finally {
-      recBusy.current = false;
-    }
-  };
-
-  toggleRef.current = toggleRecording;
-  const retrySaveRecording = async () => {
-    const current = recSheet;
-    if (current?.state !== 'save_error' || current.saving) return;
-    setRecSheet({ ...current, saving: true, saveError: '' });
-    try {
-      const saved = await addRecording(current.uri, current.seconds);
-      setRecSheet({ ...current, state: 'saved', uri: saved.uri || current.uri, fileId: saved.id, folder: saved.recordingFolder, saving: false, saveError: '' });
-    } catch (error) {
-      setRecSheet({ ...current, saving: false, saveError: error?.message || '녹음 파일을 저장하지 못했어요.' });
-    }
-  };
-
   const dateText = `${now.getMonth() + 1}월 ${now.getDate()}일 ${WEEKDAYS_LONG[now.getDay()]}`;
-  const targetSpace = spaces[targetId];
 
   return (
     <KeyboardAvoidingView style={styles.root}>
@@ -317,84 +221,6 @@ export default function HomeScreen({ navigation, route }) {
         )}
       </ScrollView>
 
-      {/* ---------- 입력줄 ---------- */}
-      <View style={[styles.capture, { paddingBottom: keyboard ? keyboard + insets.bottom + 6 : 10 + insets.bottom }]}>
-        {recording ? (
-          <>
-            <RecordingBar recorder={rec.recorder} seconds={seconds} paused={paused}
-              onPause={() => rec.pause() && setPaused(true)} onResume={() => rec.resume() && setPaused(false)} onStop={toggleRecording} />
-          </>
-        ) : (
-          <>
-            <View style={styles.inputWrap}>
-              {multi && targetSpace && (
-                <Pressable accessibilityRole="button" accessibilityLabel={`저장할 공간 ${targetSpace.fullName}, 눌러서 바꾸기`} onPress={() => setPickSpace(true)} hitSlop={6} style={styles.spaceChip}>
-                  <Text style={styles.spaceChipText} numberOfLines={1}>{targetSpace.name}</Text>
-                  <Icon name="chevronDown" size={12} color={colors.muted} />
-                </Pressable>
-              )}
-              <TextInput
-                accessibilityLabel="메모 입력"
-                style={styles.input}
-                value={text}
-                onChangeText={(v) => setText(v.slice(0, MAX_LEN))}
-                placeholder="메모"
-                placeholderTextColor={colors.muted}
-                multiline
-                maxLength={MAX_LEN}
-              />
-            </View>
-            {text.trim() ? (
-              <Pressable accessibilityRole="button" accessibilityLabel="메모 저장" onPress={saveMemo} style={styles.iconBtn}>
-                <Icon name="arrowUp" size={21} color={colors.ink} strokeWidth={2.2} />
-              </Pressable>
-            ) : (
-              <>
-                <CircleButton icon="paperclip" label="사진이나 문서 올리기" size={44} iconSize={20} color={colors.muted} onPress={() => go(ROUTES.QuickInput, { tab: 'file' })} style={styles.ghost} />
-                <CircleButton icon="camera" label="카메라" size={44} iconSize={20} color={colors.muted} onPress={() => go(ROUTES.Camera)} style={styles.ghost} />
-                <Pressable accessibilityRole="button" accessibilityLabel="녹음 시작" onPress={toggleRecording} style={styles.iconBtn}>
-                  <Icon name="mic" size={21} color={colors.ink} strokeWidth={2} />
-                </Pressable>
-              </>
-            )}
-          </>
-        )}
-      </View>
-
-      {/* ---------- 저장할 공간 고르기 ---------- */}
-      <Modal transparent visible={pickSpace} animationType="fade" onRequestClose={() => setPickSpace(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setPickSpace(false)} accessibilityLabel="닫기">
-          <View style={styles.sheet} accessibilityViewIsModal>
-            <Text style={styles.sheetTitle}>저장할 공간</Text>
-            {spacesList.map((w) => {
-              const s = spaces[w.id];
-              const on = w.id === targetId;
-              return (
-                <Pressable
-                  key={w.id}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: on, disabled: s.readOnly }}
-                  disabled={s.readOnly}
-                  onPress={() => { setTarget(w.id); setPickSpace(false); }}
-                  style={[styles.sheetRow, on && { backgroundColor: colors.mintSoft }, s.readOnly && { opacity: 0.4 }]}
-                >
-                  <Text style={styles.sheetText} numberOfLines={1}>{w.name}</Text>
-                  {s.readOnly ? <Text style={styles.itemSub}>보기 전용</Text> : on ? <Icon name="check" size={18} color={colors.mintDark} /> : null}
-                </Pressable>
-              );
-            })}
-          </View>
-        </Pressable>
-      </Modal>
-
-      <RecordSheet
-        sheet={recSheet}
-        onClose={() => setRecSheet(null)}
-        onOpenFiles={() => { setRecSheet(null); go(ROUTES.Files); }}
-        onOpenMemo={(memoId) => { setRecSheet(null); go(ROUTES.MemoEdit, { memoId }); }}
-        onOpenProposals={() => { setRecSheet(null); go(ROUTES.Proposals); }}
-        onRetrySave={retrySaveRecording}
-      />
       {snack.view}
     </KeyboardAvoidingView>
   );

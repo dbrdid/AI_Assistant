@@ -138,7 +138,6 @@ export default function TeamScreen({ navigation, route }) {
                 <Text style={styles.selectText}>+ 그룹</Text>
               </Pressable>
             </View>
-            {groups.length === 0 && <Text style={styles.sub}>그룹을 만들면 문서·할 일을 그룹에만 보여 줄 수 있어요.</Text>}
             {groups.map((g) => (
               <Pressable key={g.id} accessibilityRole="button" accessibilityLabel={`${g.name} 그룹, ${g.members.length}명`} onPress={() => openGroup(g)} style={styles.row}>
                 <Icon name="users" size={18} color={colors.muted} />

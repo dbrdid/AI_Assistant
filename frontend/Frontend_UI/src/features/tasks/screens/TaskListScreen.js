@@ -10,6 +10,7 @@ import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { useScreenEntry } from '../../../navigation/ScreenEntry';
 import { styles as st } from '../../stella/theme';
 import Icon from '../../../shared/components/Icon';
+import SpaceFilter from '../../../shared/components/SpaceFilter';
 import { SheetModal } from '../../../shared/components/Motion';
 import { BottomCreate, Tag } from '../../../shared/components/Ui';
 import { useSnackbar } from '../../../shared/components/Snackbar';
@@ -133,8 +134,7 @@ export default function TasksScreen({ navigation }) {
     );
   };
 
-  const [picker, setPicker] = useState(null); // 'status' | 'space'
-  const spaceOptions = [{ id: 'all', name: '모든 공간' }, ...spaceList.map((w) => ({ id: w.id, name: spaces[w.id]?.name, color: spaces[w.id]?.color }))];
+  const [picker, setPicker] = useState(null); // 'status'
   const addTask = () => navigation.navigate(ROUTES.TaskEdit, { date: today, kind: 'task', ...(space !== 'all' ? { workspaceId: space } : {}) });
   return (
     <View style={styles.root}>
@@ -154,12 +154,8 @@ export default function TasksScreen({ navigation }) {
           </Pressable>
         )}
         <View style={{ flex: 1 }} />
-        {multi && (
-          <Pressable accessibilityRole="button" accessibilityLabel={`공간 ${spaceOptions.find((o) => o.id === space)?.name ?? '모든 공간'}, 눌러서 고르기`} onPress={() => setPicker('space')} hitSlop={6} style={styles.spacePick}>
-            <Text style={st.filterText} numberOfLines={1}>{spaceOptions.find((o) => o.id === space)?.name ?? '모든 공간'}</Text>
-            <Icon name="chevronDown" size={12} color={colors.muted} />
-          </Pressable>
-        )}
+        {/* 공간: '모두'는 따로, 개인·팀은 목록에서 고름 */}
+        {multi && <SpaceFilter value={space} onChange={setSpace} spaces={spaceList.map((w) => ({ id: w.id, name: spaces[w.id]?.name ?? w.name }))} />}
         {embedded && (
           <Pressable accessibilityRole="button" accessibilityLabel="할 일 추가" onPress={addTask} hitSlop={6} style={styles.spacePick}>
             <Icon name="plus" size={14} color={colors.muted} />
@@ -167,12 +163,12 @@ export default function TasksScreen({ navigation }) {
           </Pressable>
         )}
       </View>
-      <SheetModal visible={!!picker} onClose={() => setPicker(null)} label={picker === 'space' ? '공간 고르기' : '보기 고르기'}>
+      <SheetModal visible={!!picker} onClose={() => setPicker(null)} label="보기 고르기">
         <View style={st.handle} />
-        {(picker === 'space' ? spaceOptions : [{ id: 'open', name: '진행 중' }, { id: 'done', name: '완료' }]).map((o) => {
-          const on = picker === 'space' ? o.id === space : o.id === tab;
+        {[{ id: 'open', name: '진행 중' }, { id: 'done', name: '완료' }].map((o) => {
+          const on = o.id === tab;
           return (
-            <Pressable key={o.id} accessibilityRole="radio" accessibilityState={{ checked: on }} onPress={() => { (picker === 'space' ? setSpace : setTab)(o.id); setPicker(null); }} style={st.menuRow}>
+            <Pressable key={o.id} accessibilityRole="radio" accessibilityState={{ checked: on }} onPress={() => { setTab(o.id); setPicker(null); }} style={st.menuRow}>
               <Text style={[st.menuLabel, { flex: 1 }]}>{o.name}</Text>
               {on && <Icon name="check" size={16} color={colors.ink} />}
             </Pressable>

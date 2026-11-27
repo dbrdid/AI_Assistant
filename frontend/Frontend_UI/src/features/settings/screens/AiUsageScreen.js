@@ -78,7 +78,6 @@ export default function AiUsageScreen({ navigation }) {
         <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.Subscription)} style={styles.btn}>
           <Text style={styles.btnText}>요금제 변경</Text>
         </Pressable>
-        <Text style={styles.note}>AI 사용량은 서버 기준이며, 매달 1일에 초기화돼요. 프로젝트 초대는 계정 기준 월간 횟수예요.</Text>
       </ScrollView>
     </View>
   );

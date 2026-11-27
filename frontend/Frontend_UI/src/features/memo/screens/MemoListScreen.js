@@ -1,5 +1,6 @@
 import { WorkspaceHeader } from '../../stella/WorkspaceScreen';
 import TabBar from '../../../navigation/TabBar';
+import SpaceFilter from '../../../shared/components/SpaceFilter';
 // ============================================================
 // MemoListScreen.js — 메모 화면 (메모 목록)
 // ============================================================
@@ -344,19 +345,8 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
           </View>
         )}
 
-        {/* 공간 칩: 모든 공간 또는 한 공간만 */}
-        {!selecting && multi && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-            {[{ id: 'all', name: '모든 공간' }, ...spaceList.map((w) => ({ id: w.id, name: spaces[w.id]?.name, color: spaces[w.id]?.color }))].map((s) => {
-              const on = space === s.id;
-              return (
-                <Pressable key={s.id} accessibilityRole="button" accessibilityState={{ selected: on }} onPress={() => pickSpace(s.id)} style={styles.spaceChip}>
-                  <Text style={[styles.spaceChipText, !on && { color: colors.muted }]} numberOfLines={1}>{s.name}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        )}
+        {/* 공간: '모두'는 따로, 개인·팀은 목록에서 고름 */}
+        {!selecting && multi && <SpaceFilter value={space} onChange={pickSpace} spaces={spaceList.map((w) => ({ id: w.id, name: spaces[w.id]?.name ?? w.name }))} style={styles.chips} />}
 
         {/* 걸러보기 칩 (프로젝트 칩은 한 공간을 골랐을 때만: 프로젝트는 공간 안에 있음) */}
         {!selecting && (
