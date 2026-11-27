@@ -100,7 +100,7 @@ export default function ProposalConfirmScreen({ navigation, route }) {
             <Text style={styles.label}>메모 미리보기</Text>
             <TextInput style={[styles.input, { minHeight: 120, textAlignVertical: 'top' }]} multiline value={f.body} onChangeText={set('body')} placeholderTextColor={colors.muted} accessibilityLabel="메모 본문" />
             <Pressable accessibilityRole="button" onPress={() => (paid ? notice.show('자료 분석은 서버가 연결되면 사용할 수 있어요') : navigation.navigate(ROUTES.Subscription))} style={styles.locked}>
-              <Text style={styles.lockedTitle}>{paid ? '✦ AI 자동 이미지' : '🔒 AI 자동 이미지'}</Text>
+              <Text style={styles.lockedTitle}>{paid ? 'AI 자동 이미지' : '🔒 AI 자동 이미지'}</Text>
               <Text style={styles.lockedSub}>{paid ? '서버 연결 후 사용할 수 있어요' : '이미지 포함 저장은 Pro / Team  ›'}</Text>
             </Pressable>
           </>
