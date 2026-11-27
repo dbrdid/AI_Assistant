@@ -159,7 +159,7 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
       if (parsed.clarify) setError(parsed.clarify);
       else {
         const next = rewrite ? { text: rewrite, model: result.model } : { ...parsed, model: result.model };
-        if (sheet && target && next.text) useReply(true, next);
+        if (sheet && target && next.text && !next.question) useReply(true, next);
         else setReply(next);
       }
     } catch (e) {
@@ -172,7 +172,7 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
   function useReply(replace = false, answer = reply) {
     try {
       if (!inScope()) throw new Error('계정 또는 공간이 바뀌었습니다. 다시 열어 주세요.');
-      if (answer.command) { sheet?.onClose(); navigation.navigate(ROUTES.AppCommand, { command: answer.command, commands: answer.commands, originalRequest: target ? targetLine(target) + '\n' + reviewRequest : reviewRequest, memoId: route?.params?.memoId }); }
+      if (answer.command) { sheet?.onClose(); navigation.navigate(ROUTES.AppCommand, { command: answer.command, commands: answer.commands, originalRequest: target ? '"' + String(target.text ?? '').replace(/\s+/g, ' ').trim().slice(0, 300) + '" ' + reviewRequest : reviewRequest, memoId: route?.params?.memoId }); }
       else {
         // 시트: 문서의 지금 판(편집 중인 내용을 먼저 저장)에 넣는다
         const revision = sheet ? sheet.prepare()?.revision : route.params.revision;
@@ -275,10 +275,10 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
         </View>
         {!ready && <Text style={s.connNote}>{PROVIDERS[provider].label} 연결을 마치면 보낼 수 있습니다. 아래 AI 연결에서 설정해 주세요.</Text>}
         {errorView}
-        {!!reply && <View style={s.aiReply}><Text style={s.aiReplyLabel}>{reply.command ? '제안한 앱 작업' : 'AI 답변'} ({reply.model})</Text>
+        {!!reply && <View style={s.aiReply}><Text style={s.aiReplyLabel}>{reply.command ? '제안한 앱 작업' : reply.question ? 'AI 질문' : 'AI 답변'} ({reply.model})</Text>
           <Text selectable style={s.proposalBody}>{reply.command || reply.text}</Text>
           <View style={s.aiActions}>
-            {reply.command ? <Pressable accessibilityRole="button" onPress={() => useReply()} style={s.aiSend}><Icon name="file" size={15} color={c.text} /><Text style={s.aiSendText}>앱 작업 검토</Text></Pressable> : <>
+            {reply.question ? null : reply.command ? <Pressable accessibilityRole="button" onPress={() => useReply()} style={s.aiSend}><Icon name="file" size={15} color={c.text} /><Text style={s.aiSendText}>앱 작업 검토</Text></Pressable> : <>
               {!!target && <Pressable accessibilityRole="button" accessibilityHint="수용하기 전까지 원래 블록은 그대로 남습니다" onPress={() => useReply(true)} style={s.aiSend}><Icon name="edit" size={15} color={c.text} /><Text style={s.aiSendText}>이 블록 바꾸기</Text></Pressable>}
               <Pressable accessibilityRole="button" onPress={() => useReply()} style={target ? s.aiGhost : s.aiSend}><Icon name="plus" size={15} color={c.text} /><Text style={target ? s.aiGhostText : s.aiSendText}>{target ? '아래에 넣기' : '블록으로 넣기'}</Text></Pressable>
             </>}

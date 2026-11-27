@@ -78,6 +78,8 @@ test('server addresses accept origins or /v1 bases only', async () => {
 test('a local model reply in exact command shape without the 앱 작업 prefix is still a command; rewritten text stays text', () => {
   assert.deepEqual(readReply('일정 추가 2026-11-27 15:00: Dentist checkup', 'chat'), { command: '일정 추가 2026-11-27 15:00: Dentist checkup' });
   assert.deepEqual(readReply('할 일 추가 2026-11-27: 포스터 제출', 'chat'), { command: '할 일 추가 2026-11-27: 포스터 제출' });
+  // 되묻는 답은 블록에 넣을 글이 아니라 질문으로 표시
+  assert.deepEqual(readReply('질문: 할 일 날짜를 알려주세요.', 'chat'), { text: '할 일 날짜를 알려주세요.', question: true });
   assert.deepEqual(readReply('문서 만들기: 회의록', 'chat'), { command: '문서 만들기: 회의록' });
   assert.deepEqual(readReply('3번 블록 삭제', 'chat'), { command: '3번 블록 삭제' });
   assert.deepEqual(readReply('캘린더 열어줘', 'chat'), { command: '캘린더 열어줘' });

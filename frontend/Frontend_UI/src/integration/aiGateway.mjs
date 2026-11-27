@@ -79,7 +79,7 @@ const CHAT_SYSTEM = GATEWAY_SYSTEM + '\n'
   + '사용자가 앱에서 무엇을 만들거나 바꾸거나 열어 달라고 하면 설명 없이 한 줄만 출력한다: "앱 작업: <명령>"\n'
   + '<명령>은 아래 형식 중 하나와 정확히 같은 모양이어야 하며 예시 값은 요청에 있는 값으로 바꾼다. '
   + '여러 작업이 필요하면 실행할 순서대로 한 줄에 하나씩 "앱 작업: <명령>"을 최대 ' + MAX_STEPS + '줄 출력한다. 새로 만든 문서에 블록을 넣으려면 "문서 만들기" 줄 다음에 블록 줄을 쓴다. '
-  + '날짜는 YYYY-MM-DD로 쓰고, "내일"처럼 날짜가 정해지지 않았거나 값이 부족하면 명령 대신 필요한 값을 짧게 되묻는다. '
+  + '날짜는 YYYY-MM-DD로 쓰고, "내일"처럼 날짜가 정해지지 않았거나 값이 부족하면 명령 대신 "질문: "으로 시작하는 한 줄로 필요한 값을 짧게 되묻는다. '
   + '블록 번호와 문서 제목은 사용자가 말한 것만 쓴다. 요청 앞에 "대상: 현재 문서의 N번 블록" 줄이 있으면 그 블록 번호를 그대로 쓴다.\n'
   + '형식:\n' + [...examples, ...projectExamples].join('\n') + '\n열 수 있는 화면: ' + Object.keys(screens).join(', ') + '\n'
   + '대상 블록의 글을 요약, 번역, 다듬기, 늘리기, 맞춤법 교정처럼 글 자체를 바꿔 달라는 요청은 앱 작업이 아니다. 이때는 바뀐 글만 출력한다 (설명, 따옴표, 머리말 없이). 사용자가 미리 보고 바꿀지 정한다.\n'
@@ -118,6 +118,7 @@ export function readReply(text, mode) {
   const steps = lines.filter(item => /^앱\s*작업\s*[:：]/.test(item)).map(item => item.replace(/^앱\s*작업\s*[:：]\s*/, '').trim()).filter(Boolean).slice(0, MAX_STEPS);
   if (steps.length > 1) return { command: steps[0], commands: steps };
   if (steps.length) return { command: steps[0] };
+  if (/^질문\s*[:：]/.test(lines[0] ?? '')) return { text: raw.replace(/^[\s"'`“”*>-]*질문\s*[:：]\s*/, '').trim(), question: true };
   // 작은 로컬 모델은 "앱 작업:" 머리말을 빼먹기도 한다. 한 줄 답이 지원 명령의 모양과 같으면 명령으로 본다.
   // (어느 경우든 앱 작업 화면에서 원문 대조와 사용자 승인을 거친다)
   if (lines.length === 1 && COMMAND_SHAPES.some(shape => shape.test(lines[0]))) return { command: lines[0] };
