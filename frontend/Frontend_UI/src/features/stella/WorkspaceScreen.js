@@ -222,6 +222,7 @@ export default function WorkspaceScreen({
   const [reviewOpen, setReviewOpen] = useState(false);
   const appUpdate = useAppUpdate();
   const [menu, setMenu] = useState(false);
+  const [tabPreview, setTabPreview] = useState(null); // 길게 눌러 좌우로 고르는 중인 탭
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState(new Set());
   const [filter, setFilter] = useState(favoritesOnly ? 'favorites' : 'all');
@@ -262,7 +263,7 @@ export default function WorkspaceScreen({
   const requestSearch = route?.params?.search === true;
   const selectedTab = { home: ROUTES.Home, documents: ROUTES.Memos, relations: ROUTES.Relations, review: ROUTES.Proposals }[mode];
   const standalone = pagerIndex === undefined && (mode === 'review' || mode === 'relations');
-  const header = (highlight = selectedTab) => standalone ? <WorkspaceHeader title={title} onBack={() => navigation.goBack()} /> : <><WorkspaceHeader title={current?.name || '나의 작업 공간'} onMenu={() => setMenu(true)} team={!current || current.personal ? null : { name: current.name, color: spaceInfo[current.id]?.color ?? c.accent }} tabs={!favoritesOnly && <TabBar current={highlight} onSelect={navigation.selectTab || navigation.navigate} />} onSearch={mode === "documents" ? undefined : () => go(ROUTES.Memos, {
+  const header = (highlight = selectedTab) => standalone ? <WorkspaceHeader title={title} onBack={() => navigation.goBack()} /> : <><WorkspaceHeader title={current?.name || '나의 작업 공간'} onMenu={() => setMenu(true)} team={!current || current.personal ? null : { name: current.name, color: spaceInfo[current.id]?.color ?? c.accent }} tabs={!favoritesOnly && <TabBar current={highlight} preview={tabPreview} onSelect={navigation.selectTab || navigation.navigate} />} onSearch={mode === "documents" ? undefined : () => go(ROUTES.Memos, {
       search: true
     })} />{error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}</>;
   const intro = standalone ? null : <><View style={s.titleRow}><Text accessibilityRole="header" style={s.title}>{title}</Text></View></>;
@@ -367,7 +368,7 @@ export default function WorkspaceScreen({
           route={{ name: page.route, params: i === pagerIndex ? route?.params ?? {} : {} }} /></ScreenEntryProvider>;
       }} />;
   };  return <View style={s.root}>{pagerIndex !== undefined
-    ? <><SwipeNav tabs={TABS} current={TABS[pagerIndex]?.route} onTab={route => (navigation.selectTab || navigation.navigate)(route)}
+    ? <><SwipeNav tabs={TABS} current={TABS[pagerIndex]?.route} onPreview={setTabPreview} onTab={route => (navigation.selectTab || navigation.navigate)(route)}
         onPage={step => {
           const pages = TABS[pagerIndex].pages, next = subIndexOf(TABS[pagerIndex], pagerIndex) + step;
           if (step && next >= 0 && next < pages.length) navigation.setParams({ subpage: pages[next].route });

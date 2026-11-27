@@ -35,14 +35,17 @@ function NavigationTab({ item, selected, onSelect }) {
     </Animated.View>
   </Pressable></Animated.View>;
 }
-export default function TabBar({ current, onSelect }) {
-  return <View accessibilityRole="tablist" accessibilityLabel="주 탐색" style={styles.bar}>
-    {TABS.map(item => <NavigationTab key={item.route} item={item} selected={item.route === current} onSelect={onSelect} />)}
+// preview: 길게 눌러 좌우로 고르는 중인 탭. 고르는 동안 막대에 테두리를 두르고 그 탭을 펼친다
+export default function TabBar({ current, preview, onSelect }) {
+  const shown = preview ?? current;
+  return <View accessibilityRole="tablist" accessibilityLabel="주 탐색" style={[styles.bar, preview && styles.picking]}>
+    {TABS.map(item => <NavigationTab key={item.route} item={item} selected={item.route === shown} onSelect={onSelect} />)}
   </View>;
 }
 
 const styles = StyleSheet.create({
-  bar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  bar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 26, borderWidth: 1, borderColor: 'transparent' },
+  picking: { borderColor: palette.muted },
   tab: { minHeight: 44, borderRadius: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 6, backgroundColor: 'transparent' },
   selected: { backgroundColor: palette.raised },
   expandedContent: { position: 'absolute', alignSelf: 'center', width: 180, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
