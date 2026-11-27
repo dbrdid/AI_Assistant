@@ -1,6 +1,6 @@
 // 탭 화면을 감싸는 좌우 제스처.
-// 좌우로 밀기: 같은 탭 안의 쪽 이동. 길게 누른 채 좌우로 밀기: 위쪽 탭 막대에 테두리가 생기고,
-// 손가락을 좌우로 옮기면 선택(펼친 탭)이 따라 움직인다. 떼면 그 탭으로 이동한다. 위쪽 탭 버튼은 그대로 눌러도 된다.
+// 좌우로 밀기: 같은 탭 안의 쪽 이동. 길게 누른 채 좌우로 밀기: 위쪽 탭 막대에서 탭 고르기.
+// 길게 누르고 있으면(밀기 전에도) 지금 탭에 테두리가 켜지고, 손가락을 좌우로 옮기면 테두리가 따라 움직인다. 떼면 그 탭으로 이동한다. 위쪽 탭 버튼은 그대로 눌러도 된다.
 import React, { useRef } from 'react';
 import { PanResponder, View } from 'react-native';
 import { HOLD_MS, pageStep, relativePick, swipeIntent } from './swipeIntent.mjs';
@@ -11,6 +11,7 @@ export default function SwipeNav({ tabs, current, onTab, onPage, onPreview, chil
   const touch = useRef(null);       // { t, x, y, movedEarly }
   const mode = useRef(null);        // 'page' | 'tabs'
   const latest = useRef({}); latest.current = { tabs, current, onTab, onPage, onPreview };
+  const holdTimer = useRef(null);  // 길게 누름이 확정되면 바로 테두리를 켬
   const anchor = useRef({ x: 0, start: 0, pick: -1 }); // 처음 좌우로 민 위치와 그때의 탭
   const pickAt = (pageX) => {
     const r = relativePick({ anchor: anchor.current.x, y: pageX, start: anchor.current.start, count: latest.current.tabs.length, row: STEP });
@@ -31,7 +32,9 @@ export default function SwipeNav({ tabs, current, onTab, onPage, onPreview, chil
     }
     return true;
   };
-  const reset = () => { if (mode.current === 'tabs') latest.current.onPreview?.(null); mode.current = null; touch.current = null; };
+  const reset = () => { clearTimeout(holdTimer.current); latest.current.onPreview?.(null); mode.current = null; touch.current = null; };
+  // 손을 뗐는데 탭 고르기가 아니면(길게 누르기만 함) 켜 둔 테두리를 끈다
+  const release = () => { clearTimeout(holdTimer.current); if (mode.current !== 'tabs') latest.current.onPreview?.(null); };
   const end = (g) => {
     if (mode.current === 'page') latest.current.onPage(pageStep(g.dx));
     if (mode.current === 'tabs') {
@@ -51,10 +54,18 @@ export default function SwipeNav({ tabs, current, onTab, onPage, onPreview, chil
   })).current;
 
   return <View style={{ flex: 1 }} {...pan.panHandlers}
-    onTouchStart={e => { touch.current = { t: Date.now(), x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, movedEarly: false }; mode.current = null; }}
+    onTouchStart={e => {
+      touch.current = { t: Date.now(), x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, movedEarly: false }; mode.current = null;
+      clearTimeout(holdTimer.current);
+      holdTimer.current = setTimeout(() => {
+        if (touch.current && !touch.current.movedEarly && !mode.current) latest.current.onPreview?.(latest.current.current);
+      }, HOLD_MS);
+    }}
+    onTouchEnd={release}
+    onTouchCancel={release}
     onTouchMove={e => {
       const s = touch.current;
-      if (s && !s.movedEarly && Date.now() - s.t < HOLD_MS && Math.hypot(e.nativeEvent.pageX - s.x, e.nativeEvent.pageY - s.y) > 10) s.movedEarly = true;
+      if (s && !s.movedEarly && Date.now() - s.t < HOLD_MS && Math.hypot(e.nativeEvent.pageX - s.x, e.nativeEvent.pageY - s.y) > 10) { s.movedEarly = true; clearTimeout(holdTimer.current); }
     }}>
     {children}
   </View>;
