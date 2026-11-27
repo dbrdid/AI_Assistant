@@ -1,5 +1,4 @@
 // AI 채팅 아이콘 (react-native-svg로 그려서 기기·웹에서 모양이 같음). 지금은 고정(압정)만 쓴다
-import React from 'react';
 import Svg, { Path } from 'react-native-svg';
 import { colors } from '../../../shared/theme/theme';
 

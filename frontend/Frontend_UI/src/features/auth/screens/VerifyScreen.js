@@ -2,7 +2,7 @@
 // VerifyScreen.js — 이메일 인증 . 회원가입 · 비밀번호 재설정
 // ============================================================
 
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { sendCode, verifyCode } from '../../../services/auth/AuthApi';

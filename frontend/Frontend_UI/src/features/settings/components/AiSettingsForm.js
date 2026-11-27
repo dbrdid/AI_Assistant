@@ -3,7 +3,7 @@
 //   onOpenUsage: '이용량'을 눌렀을 때 (설정 화면: 이용량 화면으로 이동, AI 채팅: 사용량 창)
 // ============================================================
 
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, font, spacing } from '../../../shared/theme/theme';
 import { LOCAL_AI_AVAILABLE, PLANS, WEEKDAY_NAMES, getSettings, setAiRoute, setAiTransmission, updateSettings } from '../../../data/settings/SettingsStore';

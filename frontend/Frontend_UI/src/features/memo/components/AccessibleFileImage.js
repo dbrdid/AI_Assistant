@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Image, Platform } from 'react-native';
 import { releaseDeviceAccess, resolveDeviceReference } from '../../../../modules/device-file-access';
 

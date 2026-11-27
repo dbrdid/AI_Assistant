@@ -6,7 +6,7 @@
 //   할 일 : 기한 · 시간(선택) · 알림
 // 중요도 · 상태 · 담당자 · 프로젝트 · 설명(할 일은 장소도)은 '더보기' 안에 접혀 있습니다.
 
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';

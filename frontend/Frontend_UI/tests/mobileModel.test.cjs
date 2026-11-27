@@ -10,7 +10,7 @@ test('native service publishes verified downloads, handles memory pressure, and 
   let digest, completionStarted, finishCompletion;
   let stops = 0, releases = 0, loadError, lastParams, tokenCount = 1;
   class File {
-    constructor(directory, name) { this.uri = name; }
+    constructor(_directory, name) { this.uri = name; }
     get size() { return stored.get(this.uri) || 0; }
     get exists() { return stored.has(this.uri); }
     delete() { stored.delete(this.uri); }

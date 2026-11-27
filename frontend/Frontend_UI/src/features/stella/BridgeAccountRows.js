@@ -1,6 +1,6 @@
 // 내 서버 → 같은 계정에 로그인된 PC 브리지 (atria-bridge login). 연결 문자열 없이 고르면 중계로 연결된다.
 // PC에 뜬 코드를 여기서 승인하면 그 PC 브리지가 이 계정에 등록된다. 브리지가 하나뿐이면 자동으로 고른다.
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import Icon from '../../shared/components/Icon';
 import { accountBridgeId, accountBridgeUrl } from '../../integration/aiGateway.mjs';

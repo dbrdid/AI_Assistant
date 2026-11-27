@@ -2,7 +2,6 @@
 // MoreScreen.js — '나' (홈 왼쪽 위 프로필): 내 계정 · AI · 도구 · 설정 모음
 // ============================================================
 
-import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { Group, Row, SectionTitle } from '../../../shared/components/SettingsUi';

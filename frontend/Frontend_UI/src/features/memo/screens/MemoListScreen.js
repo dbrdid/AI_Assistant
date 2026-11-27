@@ -1,10 +1,10 @@
 import { WorkspaceHeader } from '../../stella/WorkspaceScreen';
-import TabBar from '../../../navigation/TabBar';
+import TabBar, { TAB_BAR_HEIGHT } from '../../../navigation/TabBar';
 // ============================================================
 // MemoListScreen.js — 메모 화면 (메모 목록)
 // ============================================================
 
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
@@ -291,11 +291,12 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
 
   const title = favoritesOnly ? '즐겨찾기' : '모든 메모';
   const currentRoute = favoritesOnly ? ROUTES.Favorites : ROUTES.Memos;
+  const showMainTabs = !bodyOnly && !favoritesOnly;
   const none = ids.length === 0;
 
   return (
     <View style={styles.root}>
-      {!bodyOnly && !favoritesOnly && <WorkspaceHeader title={spaceList.find(item => item.id === space)?.name || "나의 문서"} onMenu={() => navigation.navigate(ROUTES.Workspace)} tabs={<TabBar current={ROUTES.Memos} onSelect={navigation.selectTab || navigation.navigate} />} />}
+      {!bodyOnly && !favoritesOnly && <WorkspaceHeader title={spaceList.find(item => item.id === space)?.name || "나의 문서"} onMenu={() => navigation.navigate(ROUTES.Workspace)} />}
       <ScreenHeader
         title={selecting ? `${ids.length}개 선택` : title}
         onBack={selecting ? exitSelect : navigation.goBack}
@@ -480,7 +481,7 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
 
       {/* 삭제 직후 "되돌리기" 안내 */}
       {undoCount > 0 && !selecting && (
-        <View style={[styles.snack, { bottom: insets.bottom + spacing.xl }]}>
+        <View style={[styles.snack, { bottom: spacing.xl + (showMainTabs ? TAB_BAR_HEIGHT + insets.bottom : insets.bottom) }]}>
           <Text style={styles.snackText}>
             {undoCount > 1 ? `메모 ${undoCount}개를 휴지통으로 이동했어요` : '휴지통으로 이동했어요'}
             {!!blocked && `\n${blocked}`}
@@ -491,14 +492,14 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
         </View>
       )}
       {!!blocked && (undoCount === 0 || selecting) && (
-        <View pointerEvents="none" style={[styles.snack, { bottom: insets.bottom + spacing.xl }]}>
+        <View pointerEvents="none" style={[styles.snack, { bottom: spacing.xl + (showMainTabs ? TAB_BAR_HEIGHT + insets.bottom : insets.bottom) }]}>
           <Text style={styles.snackText}>{blocked}</Text>
         </View>
       )}
 
       {/* 새 메모 버튼: 홈 개요와 같은 하단 도크 오른쪽 (선택 모드에서는 숨김) */}
       {!selecting && canCreateMemo && (
-        <View style={[styles.bar, { justifyContent: 'flex-end', paddingBottom: Math.max(10, insets.bottom) }]}><Pressable
+        <View style={[styles.bar, { justifyContent: 'flex-end', paddingBottom: showMainTabs ? 10 : Math.max(10, insets.bottom) }]}><Pressable
           accessibilityRole="button"
           accessibilityLabel="새 메모 쓰기"
           onPress={() => {
@@ -515,7 +516,7 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
 
       {/* 선택 모드 아래 줄: 취소, 전체, 즐겨찾기, 삭제 */}
       {selecting && (
-        <View style={[styles.bar, { paddingBottom: insets.bottom + spacing.sm }]}>
+        <View style={[styles.bar, { paddingBottom: (showMainTabs ? 0 : insets.bottom) + spacing.sm }]}>
           <Pressable accessibilityRole="button" onPress={() => setSelected(allSelected ? [] : memos.map((m) => m.id))} style={styles.barBtn}>
             <Text style={styles.barText}>{allSelected ? '해제' : '전체'}</Text>
           </Pressable>
@@ -550,6 +551,8 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
           </Pressable>
         </View>
       )}
+
+      {showMainTabs && <TabBar current={ROUTES.Memos} onSelect={navigation.selectTab || navigation.navigate} />}
 
       <Modal transparent visible={sortOpen} animationType="fade" onRequestClose={() => setSortOpen(false)}>
         <View style={styles.dialogBackdrop}>

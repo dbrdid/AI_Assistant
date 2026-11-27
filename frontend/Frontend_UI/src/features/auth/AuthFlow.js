@@ -3,7 +3,7 @@
 // ============================================================
 
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BackHandler, View } from 'react-native';
 import { colors } from '../../shared/theme/theme';
 import { completeReset, completeSignup } from '../../services/auth/AuthApi';

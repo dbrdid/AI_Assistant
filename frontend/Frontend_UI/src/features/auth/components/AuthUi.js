@@ -3,14 +3,14 @@
 // ============================================================
 
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import Icon from '../../../shared/components/Icon';
 import { CircleButton } from '../../../shared/components/Ui';
 
-export function AuthFrame({ title, subtitle, onBack, children }) {
+export function AuthFrame({ title, subtitle, onBack, centerHeader = false, children }) {
   const insets = useSafeAreaInsets();
   return (
     <KeyboardAvoidingView behavior="padding" style={[styles.root, { paddingTop: insets.top + spacing.md }]}>
@@ -20,8 +20,8 @@ export function AuthFrame({ title, subtitle, onBack, children }) {
         </View>
       ) : null}
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl }]} keyboardShouldPersistTaps="handled">
-        <Text style={styles.brand}>Atria</Text>
-        <Text style={styles.title} accessibilityRole="header">{title}</Text>
+        <Text style={[styles.brand, centerHeader && styles.centeredHeader]}>Atria</Text>
+        <Text style={[styles.title, centerHeader && styles.centeredHeader]} accessibilityRole="header">{title}</Text>
         {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
         {children}
       </ScrollView>
@@ -114,6 +114,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   back: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, alignItems: 'flex-start' },
   content: {width:'100%',maxWidth:420,alignSelf:'center',paddingHorizontal:28,paddingTop:28,gap:18},
+  centeredHeader: { textAlign: 'center' },
   brand: { fontSize: 15, fontWeight: '600', color: colors.muted, letterSpacing: 0.2, marginBottom: -10 },
   title: { fontSize: 24, lineHeight: 32, fontWeight: '600', color: colors.ink },
   subtitle: { fontSize: font.body, color: colors.muted, lineHeight: 21, marginTop: -spacing.sm },

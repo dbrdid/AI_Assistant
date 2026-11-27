@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { memoTitle } from '../../../data/memos/MemoStore';
 import { rankSearchRows, searchTerms } from '../../../data/memos/memoSearch.mjs';

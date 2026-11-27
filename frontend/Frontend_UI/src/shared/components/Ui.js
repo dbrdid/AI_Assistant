@@ -10,7 +10,6 @@
 //   DashedButton : 점선 테두리 '+ 추가' 버튼
 //   StatBox      : 아이콘 + 이름 + 숫자 상자 (오늘 일정 3 등)
 
-import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Icon from './Icon';
 import { colors, font, radius, spacing } from '../theme/theme';

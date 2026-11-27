@@ -2,7 +2,7 @@
 // WorkspaceInviteScreen.js — 워크스페이스 초대
 // ============================================================
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';

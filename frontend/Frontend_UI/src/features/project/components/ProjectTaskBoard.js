@@ -1,4 +1,3 @@
-import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { alertUser } from '../../../data/alert';
 import { STATUSES, updateTask } from '../../../data/tasks/TaskStore';

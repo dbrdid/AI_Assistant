@@ -77,7 +77,7 @@ export function createAIService({ store, gateway, getSession, getPolicy, newId }
     }
   }
 
-  async function analyzeMemo(id, { preview = false, signal } = {}) {
+  async function analyzeMemo(id, { preview = false, signal, requireReview = false } = {}) {
     if (signal?.aborted) throw error('CANCELLED');
     const session = getSession();
     const source = store.getMemo(id);
@@ -132,7 +132,7 @@ export function createAIService({ store, gateway, getSession, getPolicy, newId }
       // 자동 저장(설정 > AI 확인 방식): 원문 근거 검사를 통과한 일정, 할 일 중 날짜가 있고 중복, 시간 충돌이 없는 것만 바로 저장.
       // 요약(메모 제안)과 확인이 필요한 것은 작업 검토에 남긴다.
       let saved = 0;
-      if (latest.confirmMode === 'auto') {
+      if (!requireReview && latest.confirmMode === 'auto') {
         for (const proposal of proposals) {
           // 작업 검토 화면과 같은 기준: 메모에 없던 시각이 들어간 결과도 사람이 확인
           if (proposal.kind === 'memo' || unstatedTimeWarning(proposal, snapshot.text) || reviewReason(proposal, {

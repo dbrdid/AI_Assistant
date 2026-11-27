@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 import { Chip, PillButton } from '../../../shared/components/Ui';

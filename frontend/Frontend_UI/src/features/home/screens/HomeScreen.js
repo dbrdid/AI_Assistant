@@ -5,7 +5,7 @@
 // 위에서부터: 나 · 날짜 · AI · 검색 · 알림 / AI 제안 카드 / 팀 공간 요약 / 오늘 일정 / 오늘 할 일
 // 맨 아래: 바로 쓰는 입력줄 (어느 공간에 쓸지 고르는 칩 · 글 메모 저장 · 사진 · 카메라 · 녹음)
 
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import { useKeyboardHeight } from '../../../shared/hooks/useKeyboardHeight';
@@ -20,7 +20,7 @@ import RecordingBar from '../../record/components/RecordingBar';
 import OnceTip from '../../../shared/components/OnceTip';
 
 const TODAY_TIPS = [
-  { id: 'swipe-nav', text: '화면을 좌우로 밀면 오늘·개요·빠른 입력을 오가요. 길게 누른 채 밀면 옆에 홈·업무·문서 메뉴가 나와요.' },
+  { id: 'swipe-nav-tabs', text: '좌우로 밀면 메뉴 안의 화면이 바뀌어요. 길게 누른 채 좌우로 밀면 탭이 바뀌어요.' },
   { id: 'capture-bar', text: '아래 입력줄에 적으면 메모로 저장돼요. 마이크로 녹음하고, 카메라로 사진을 바로 남길 수 있어요.' },
   { id: 'space-switch', text: '왼쪽 위 프로필을 누르면 개인·팀 공간을 바꾸고 설정을 열 수 있어요. 팀 공간에서는 위쪽에 공간 색 줄이 보여요.' },
 ];
@@ -97,19 +97,69 @@ export default function HomeScreen({ navigation, route }) {
   const todos = tasks
     .filter((t) => t.kind !== 'event' && (occursOn(t, todayKey) || classify(t, todayKey) === 'overdue'))
     .sort((a, b) => (a.status === '완료') - (b.status === '완료') || a.date.localeCompare(b.date));
+  const [hiddenDoneIds, setHiddenDoneIds] = useState(() => new Set());
+  const completionTimers = useRef(new Map());
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks;
+  useEffect(() => () => {
+    completionTimers.current.forEach(clearTimeout);
+    completionTimers.current.clear();
+  }, []);
+  const visibleEvents = events.filter((t) => t.status !== '완료' || !hiddenDoneIds.has(t.id));
+  const visibleTodos = todos.filter((t) => t.status !== '완료' || !hiddenDoneIds.has(t.id));
   const left = todos.filter((t) => t.status !== '완료').length;
   // 지금 진행 중인 일정과 바로 다음 일정 (완료한 일정 제외)
   const nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const scheduleHighlights = selectHomeScheduleEvents(events.filter((t) => t.status !== '완료'), nowHM);
 
+  const clearCompletionTimer = (id) => {
+    const timer = completionTimers.current.get(id);
+    if (timer) clearTimeout(timer);
+    completionTimers.current.delete(id);
+  };
+  const showDoneAgain = (id) => {
+    setHiddenDoneIds((current) => {
+      if (!current.has(id)) return current;
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
+  };
   const toggle = (t) => {
+    const completing = t.status !== '완료';
     try {
       taskIn(t, 'toggleDone', t.id);
     } catch (e) {
       snack.show(e.code === 'read_only' ? '보기 전용 공간이라 바꿀 수 없어요' : '바꾸지 못했어요');
       return;
     }
-    if (t.status !== '완료') snack.show(`“${t.title}” 완료`, { label: '되돌리기', onPress: () => taskIn(t, 'toggleDone', t.id) });
+    clearCompletionTimer(t.id);
+    if (!completing) {
+      showDoneAgain(t.id);
+      snack.hide();
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      completionTimers.current.delete(t.id);
+      const current = tasksRef.current.find((item) => item.id === t.id);
+      if (current?.status === '완료') {
+        setHiddenDoneIds((ids) => new Set(ids).add(t.id));
+      }
+    }, 5000);
+    completionTimers.current.set(t.id, timer);
+    snack.show(`“${t.title}” 완료`, {
+      label: '되돌리기',
+      onPress: () => {
+        try {
+          taskIn(t, 'toggleDone', t.id);
+          clearCompletionTimer(t.id);
+          showDoneAgain(t.id);
+        } catch (e) {
+          snack.show(e.code === 'read_only' ? '보기 전용 공간이라 바꿀 수 없어요' : '되돌리지 못했어요');
+        }
+      },
+    }, { durationMs: 5000 });
   };
 
   // 팀 공간 요약: 오늘 일정 수 · 남은 할 일 수 (실제 기록으로 계산)
@@ -217,7 +267,7 @@ export default function HomeScreen({ navigation, route }) {
         {!embedded && <Pressable accessibilityRole="button" accessibilityLabel="나, 설정" onPress={() => go(ROUTES.More)} hitSlop={6} style={({ pressed }) => [styles.me, pressed && { opacity: 0.7 }]}>
           <Text style={styles.meText}>{myName ? myName.charAt(0) : '나'}</Text>
         </Pressable>}
-        <View style={{ flex: 1 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={styles.date} accessibilityRole="header" numberOfLines={1}>{dateText}</Text>
           {multi && <Text style={styles.scope}>모든 공간, 개인 + 팀 {teams.length}개</Text>}
         </View>
@@ -262,15 +312,16 @@ export default function HomeScreen({ navigation, route }) {
             {`${state === 'ongoing' ? '진행 중' : '다음 일정'}, ${event.start}${event.end ? `~${event.end}` : ''} ${event.title}`}
           </Text>
         ))}
-        {events.length === 0 ? (
+        {visibleEvents.length === 0 ? (
           <Text style={styles.empty}>오늘은 일정이 없어요</Text>
         ) : (
-          events.map((t) => {
+          visibleEvents.map((t) => {
             const color = spaces[t.workspaceId]?.color ?? colors.mint;
+            const done = t.status === '완료';
             return (
-              <Pressable key={t.id} accessibilityRole="button" accessibilityLabel={`${t.start || '종일'} ${t.title}${multi ? `, ${spaces[t.workspaceId]?.fullName ?? ''}` : ''}`} onPress={() => openTask(t)} style={styles.eventRow}>
+              <View key={t.id} style={styles.eventRow}>
                 <Text style={[styles.eventTime, { color: multi ? color : colors.mintDark }, !t.start && styles.allDay]}>{t.start || '종일'}</Text>
-                <View style={[styles.eventCard, { borderLeftColor: color }, t.status === '완료' && { opacity: 0.55 }]}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`${t.start || '종일'} ${t.title}${multi ? `, ${spaces[t.workspaceId]?.fullName ?? ''}` : ''}`} onPress={() => openTask(t)} style={[styles.eventCard, { borderLeftColor: color }, done && { opacity: 0.55 }]}>
                   <Text style={styles.itemTitle} numberOfLines={1}>{t.title}</Text>
                   <View style={styles.subRow}>
                     {multi && <SpaceTag space={spaces[t.workspaceId]} />}
@@ -280,18 +331,21 @@ export default function HomeScreen({ navigation, route }) {
                       </Text>
                     )}
                   </View>
-                </View>
-              </Pressable>
+                </Pressable>
+                <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: done }} accessibilityLabel={`${t.title} 완료 표시`} onPress={() => toggle(t)} hitSlop={10} style={styles.eventToggle}>
+                  <Icon name={done ? 'checkSquare' : 'square'} size={22} color={done ? colors.mintDark : colors.muted} />
+                </Pressable>
+              </View>
             );
           })
         )}
 
         {/* ---------- 오늘 할 일 (기한 지난 것 포함) ---------- */}
         <SectionHead title={left ? `오늘 할 일, ${left}개 남음` : '오늘 할 일'} addLabel="오늘 할 일 추가" onAdd={() => go(ROUTES.TaskEdit, { date: todayKey, kind: 'task' })} />
-        {todos.length === 0 ? (
+        {visibleTodos.length === 0 ? (
           <Text style={styles.empty}>오늘 할 일이 없어요</Text>
         ) : (
-          todos.map((t) => {
+          visibleTodos.map((t) => {
             const done = t.status === '완료';
             const late = !done && lastDate(t) < todayKey ? daysBetween(lastDate(t), todayKey) : 0;
             const mineTag = !!myName && !!t.assignee && t.assignee.trim() === myName; // 담당자가 내 이름이면 (이름으로만 비교)
@@ -318,7 +372,7 @@ export default function HomeScreen({ navigation, route }) {
       </ScrollView>
 
       {/* ---------- 입력줄 ---------- */}
-      <View style={[styles.capture, { paddingBottom: keyboard ? keyboard + insets.bottom + 6 : 10 + insets.bottom }]}>
+      <View style={[styles.capture, { paddingBottom: keyboard ? keyboard + insets.bottom + 6 : 10 + (embedded ? 0 : insets.bottom) }]}>
         {recording ? (
           <>
             <RecordingBar recorder={rec.recorder} seconds={seconds} paused={paused}
@@ -405,7 +459,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: 20, paddingBottom: spacing.sm },
   me: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center' },
   meText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
-  date: { fontSize: 24, fontWeight: '600', letterSpacing: -0.4, color: colors.ink },
+  date: { flexShrink: 1, fontSize: 18, fontWeight: '600', letterSpacing: -0.4, color: colors.ink },
   scope: { fontSize: font.caption, color: colors.muted },
   content: { paddingHorizontal: 20, paddingTop: spacing.sm, paddingBottom: spacing.xxl * 2, gap: spacing.sm },
 
@@ -422,6 +476,7 @@ const styles = StyleSheet.create({
 
   eventRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   eventTime: { width: 44, fontSize: font.body, fontWeight: '600' },
+  eventToggle: { width: 32, height: 44, alignItems: 'center', justifyContent: 'center' },
   allDay: { fontSize: font.caption, color: colors.muted },
   eventCard: { flex: 1, minHeight: 44, justifyContent: 'center', gap: 3, paddingHorizontal: spacing.md, paddingVertical: 6, borderLeftWidth: 2 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

@@ -3,7 +3,7 @@
 // ============================================================
 
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';

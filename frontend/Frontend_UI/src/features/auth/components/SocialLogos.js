@@ -1,5 +1,4 @@
 // SocialLogos.js — 소셜 로그인 버튼 왼쪽에 붙는 로고 (각 회사의 로그인 버튼 가이드 모양)
-import React from 'react';
 import Svg, { Path } from 'react-native-svg';
 
 // Google "G" (4색)

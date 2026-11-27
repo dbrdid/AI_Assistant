@@ -2,7 +2,6 @@
 // CalendarScreen.js — 캘린더 화면 (하단 탭 '캘린더')
 // ============================================================
 
-import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import CalendarSheet from '../components/CalendarSheet';
 import { useLeadAction, useScreenEntry } from '../../../navigation/ScreenEntry';

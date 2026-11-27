@@ -4,7 +4,7 @@
 // 위에서부터: 멤버 · 초대 / 회의 안건 · 파일 / 진행 중 프로젝트 / 다가오는 일정·할 일 / 최근 메모
 // 들어오면 이 공간을 "현재 공간"으로 바꿔서, 프로젝트·파일·안건처럼 공간별 화면이 이 공간 것을 보여 줍니다.
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import Icon from '../../../shared/components/Icon';
@@ -18,7 +18,6 @@ import { useProjects } from '../../../data/projects/ProjectStore';
 import { createInvite, inviteUrl } from '../../../lib/stella/workspaces';
 import { toKey } from '../../calendar/utils/DateUtils';
 
-const ROLE = { OWNER: '관리자', EDITOR: '멤버', VIEWER: '보기 전용' };
 // 멤버 화면(SpaceMembersScreen)과 같은 무채색 아바타
 function Avatar({ name, i, size = 30 }) {
   return (

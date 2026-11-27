@@ -1,6 +1,6 @@
 // 오른쪽에서 왼쪽으로 밀려 들어오는 창 (AI 채팅의 이전 대화 · AI 설정)
 //   폭: 화면의 1/4. 폰처럼 좁은 화면에서는 글이 읽히도록 최소 300 (화면보다 넓어지지 않게 화면의 90%까지)
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import { CircleButton } from '../../../shared/components/Ui';

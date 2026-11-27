@@ -2,7 +2,7 @@
 // ErrorViews.js — 오류 안내 화면/창 모음
 // ============================================================
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { isOnline, setOfflineMode } from '../../../services/device/Network';

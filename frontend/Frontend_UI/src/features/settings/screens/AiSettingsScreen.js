@@ -2,7 +2,6 @@
 // AiSettingsScreen.js — AI 및 브리핑 설정 (내용은 AiSettingsForm, AI 채팅의 오른쪽 창과 같음)
 // ============================================================
 
-import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { colors } from '../../../shared/theme/theme';

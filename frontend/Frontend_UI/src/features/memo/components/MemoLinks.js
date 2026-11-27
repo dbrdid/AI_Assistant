@@ -2,7 +2,6 @@
 // MemoLinks.js — 메모에 연결된 일정·할 일 줄
 // ============================================================
 
-import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { colors, font, spacing } from '../../../shared/theme/theme';

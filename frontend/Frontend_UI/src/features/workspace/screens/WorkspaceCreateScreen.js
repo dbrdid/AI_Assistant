@@ -2,7 +2,7 @@
 // WorkspaceCreateScreen.js — 새 워크스페이스 만들기
 // ============================================================
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';

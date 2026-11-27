@@ -1,6 +1,6 @@
 // Atria AI 책 아이콘: 펼친 책의 오른쪽 장이 가운데(책등)를 축으로 넘어간다.
 // 평소에는 천천히, 답을 만드는 중(busy)에는 빠르게 넘긴다.
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Animated, Easing, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { colors } from '../../../shared/theme/theme';

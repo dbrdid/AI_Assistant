@@ -2,7 +2,7 @@
 // PhotoStrip.js — 메모에 붙은 사진 줄 (메모 편집 화면 제목 아래)
 // ============================================================
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import AccessibleFileImage from './AccessibleFileImage';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';

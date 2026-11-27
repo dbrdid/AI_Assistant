@@ -4,7 +4,7 @@
 // Figma 시안: '15일 일요일' + '오늘 · 일정 1 · 할 일 2' + 오른쪽 '+ 추가' 알약
 // 항목 카드: 왼쪽 시간(시작/끝) · 색 막대(일정 = 민트, 할 일 = 진녹색, 완료 = 흐린 선) · 제목 · 아이콘 설명 · 할 일은 오른쪽 체크박스
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import Icon from '../../../shared/components/Icon';

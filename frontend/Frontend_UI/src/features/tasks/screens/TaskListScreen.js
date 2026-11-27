@@ -4,7 +4,7 @@
 // 진행 중인 항목을 날짜별로 묶어 보여 줍니다: 기한 지남 · 오늘 · 내일 · 이번 주 · 나중에
 // 왼쪽으로 밀면 내일(또는 하루 뒤)로 미루고, 완료·미루기는 '되돌리기'로 취소할 수 있어요.
 
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { useScreenEntry } from '../../../navigation/ScreenEntry';

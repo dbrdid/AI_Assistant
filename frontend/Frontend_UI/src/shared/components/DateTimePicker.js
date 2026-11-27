@@ -4,7 +4,7 @@
 //   DatePickerModal : 월 달력에서 날짜 선택 (‹ › 로 달 이동)
 //   TimePickerModal : 시 / 분(5분 단위) 목록에서 선택, "지우기" 로 시간 없음 처리
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, font, radius, spacing } from '../theme/theme';
 import { WEEKDAYS, fromKey, isSameDay, monthMatrix, toKey } from '../../features/calendar/utils/DateUtils';

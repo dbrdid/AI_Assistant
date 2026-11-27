@@ -3,7 +3,7 @@
 //   이전 대화(기기에 저장) · 새 채팅 · 사진/파일 첨부 · 클라우드/로컬 AI 선택
 // ============================================================
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,

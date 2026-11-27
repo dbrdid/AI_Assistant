@@ -3,7 +3,7 @@ import { SheetModal } from '../../../shared/components/Motion';
 // MemoEditScreen.js — 메모 쓰기 / 편집 화면
 // ============================================================
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   AppState,

@@ -2,7 +2,7 @@
 // BriefingScreen.js — 오늘의 브리핑
 // ============================================================
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import Icon from '../../../shared/components/Icon';

@@ -3,7 +3,7 @@
 // ============================================================
 
 
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';

@@ -66,6 +66,27 @@ test('real local store + cloud-shaped response yields only pending proposals and
   assert.equal(t.store.getMemos().length, 2);
 });
 
+test('recording analysis can require review even when the general setting auto-saves', async () => {
+  const t = world();
+  t.policy({ route: 'self_hosted', allowedProviders: ['self_hosted'], consent: { self_hosted: true }, confirmMode: 'auto' });
+  t.response(async () => ({
+    ok: true,
+    request_id: 'fixture',
+    draft: {
+      summary: '확인할 요약',
+      tasks: [{ title: '회의 준비', due_date: '2026-11-30', due_time: '', description: '' }],
+      events: [],
+    },
+  }));
+
+  const result = await t.service.analyzeMemo(t.source.id, { requireReview: true });
+
+  assert.equal(result.saved, 0);
+  assert.equal(result.pending, result.added);
+  assert.equal(t.store.getTasks().length, 0);
+  assert.ok(t.store.getProposals().every((proposal) => proposal.status === 'pending'));
+});
+
 test('source edit while awaiting provider rejects even an otherwise valid response', async () => {
   const t = world();
   t.response(async () => { t.store.updateMemo(t.source.id, { body: 'new source' }); return { ok: true, draft: { summary: 'old summary', tasks: [], events: [] } }; });

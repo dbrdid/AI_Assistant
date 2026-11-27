@@ -1,8 +1,8 @@
 import { SheetModal } from "../../shared/components/Motion";
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Animated, Easing, Platform, FlatList, Image, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useAppUpdate } from '../../services/update/AppUpdate';
-import TabBar from '../../navigation/TabBar';
+import TabBar, { TAB_BAR_HEIGHT } from '../../navigation/TabBar';
 import { ScreenEntryProvider } from '../../navigation/ScreenEntry';
 import { useFiles } from '../../data/files/FileStore';
 import GraphCanvas from './GraphCanvas';
@@ -24,6 +24,7 @@ import { filterDocuments } from './model.mjs';
 import { readMemoBlocks } from '../memo/utils/memoBlocks.mjs';
 import { readMemoReference } from '../memo/utils/memoReferences.mjs';
 import { palette as c, styles as s } from './theme';
+import { spacing } from '../../shared/theme/theme';
 import { LOCAL_PREVIEW } from '../../integration/mode';
 import { useSettings } from '../../data/settings/SettingsStore';
 
@@ -74,27 +75,33 @@ export function WorkspaceHeader({
   onSearch,
 
   right,
-  tabs,
   team = null // 팀 공간이면 { name, color }: 개인 공간과 한눈에 구분되게
 }) {
   const insets = useInsets();
   const initial = profileInitial(useSettings().profile?.name);
-  if (tabs) return <View style={[s.navigationHeader, { paddingTop: insets.top + 10 }, team && { borderBottomWidth: 2, borderBottomColor: team.color }]}>
-    <Pressable accessibilityRole="button" accessibilityLabel={`작업 공간 메뉴 열기: ${title}${team ? ', 팀 공간' : ', 개인 공간'}`} hitSlop={{ left: 6, right: 6 }} onPress={onMenu} style={s.workspaceAvatar}>
-      <Text style={[s.workspaceInitial, team && { borderWidth: 2, borderColor: team.color, lineHeight: 26 }]}>{initial}</Text>
-      {team && <Text numberOfLines={1} style={{ position: 'absolute', bottom: -6, fontSize: 9, fontWeight: '700', color: c.background, backgroundColor: team.color, borderRadius: 6, paddingHorizontal: 4, overflow: 'hidden' }}>팀</Text>}
-    </Pressable>
-    {tabs}
-  </View>;
-  const headerStyle = [s.header, { paddingTop: insets.top + 8 }];
+  const headerStyle = [s.header, { paddingTop: insets.top + 8 }, team && { borderBottomWidth: 2, borderBottomColor: team.color }];
   if (onBack) return <View style={headerStyle}>
     <View style={[s.actions, { flex: 1 }]}>{left}<IconButton name="chevronLeft" label="뒤로 가기" onPress={onBack} /></View>
     <Text numberOfLines={1} style={[s.brandTitle, { flexShrink: 1, maxWidth: '32%', textAlign: 'center' }]}>{title}</Text>
     <View style={[s.actions, { flex: 1, justifyContent: 'flex-end' }]}>{right || (onSearch && <IconButton name="search" label="문서 검색" onPress={onSearch} />)}</View>
   </View>;
-  return <View style={headerStyle}>{left}<Pressable accessibilityRole="button" accessibilityLabel="작업 공간 메뉴 열기" onPress={onMenu} style={s.brand}><Text style={s.brandMark}>{initial}</Text><View style={{
-        flexShrink: 1
-      }}><Text style={s.brandTitle} numberOfLines={1}>{title}</Text><Text style={s.brandSub}>Atria{LOCAL_PREVIEW ? ', 로컬 미리보기' : ''}</Text></View><Icon name="chevronDown" size={14} color={c.muted} /></Pressable><View style={s.actions}>{right || <>{onSearch && <IconButton name="search" label="문서 검색" onPress={onSearch} />}</>}</View></View>;
+  return <View style={headerStyle}>
+    <View style={{ width: 44 }}>{left}</View>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`작업 공간 메뉴 열기: ${title}`}
+      onPress={onMenu}
+      style={[s.brand, { flex: 1, minWidth: 0, height: 48, justifyContent: 'center' }]}
+    >
+      <Text style={s.brandMark}>{initial}</Text>
+      <View style={{ alignItems: 'center', flexShrink: 1, minWidth: 0, maxWidth: 210 }}>
+        <Text style={[s.brandTitle, { textAlign: 'center', maxWidth: '100%' }]} numberOfLines={1}>{title}</Text>
+        <Text style={s.brandSub}>Atria{LOCAL_PREVIEW ? ', 로컬 미리보기' : ''}</Text>
+      </View>
+      <Icon name="chevronDown" size={14} color={c.muted} />
+    </Pressable>
+    <View style={[s.actions, { width: 44, justifyContent: 'flex-end' }]}>{right || <>{onSearch && <IconButton name="search" label="문서 검색" onPress={onSearch} />}</>}</View>
+  </View>;
 }
 function DocumentRow({ memo, onPress, hasChildren, collapsed, onToggle, compact = false }) {
   const title = memoTitle(memo);
@@ -105,7 +112,7 @@ function DocumentRow({ memo, onPress, hasChildren, collapsed, onToggle, compact 
     <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress}
       style={({ pressed }) => [{ flex: 1, minHeight: 44, flexDirection: 'row',
         alignItems: 'center', gap: 8, paddingVertical: compact ? 0 : 6, opacity: pressed ? .6 : 1 }]}>
-      <Icon name="file" size={18} color={c.muted} />
+      <Icon name={documentIcon(memo)} size={18} color={c.muted} />
       <View style={{ flex: 1 }}>
         <Text style={s.rowTitle} numberOfLines={1}>{title}</Text>
         {!compact && <><Text style={s.rowBody} numberOfLines={1}>{memo.body || '필기나 첨부가 있는 문서'}</Text>
@@ -120,13 +127,6 @@ function DocumentRow({ memo, onPress, hasChildren, collapsed, onToggle, compact 
     </View>
     {onToggle && !hasChildren && expanded && <Text style={{ marginLeft: 38, marginBottom: 6, fontSize: 12, color: c.muted }}>하위 문서 없음</Text>}
   </View>;
-}
-function SectionHead({
-  title,
-  label,
-  onPress
-}) {
-  return <View style={s.sectionHead}><Text accessibilityRole="header" style={s.sectionTitle}>{title}</Text>{onPress && <Pressable accessibilityRole="button" onPress={onPress} style={s.link}><Text style={s.linkText}>{label}</Text><Icon name="chevronRight" size={14} color={c.muted} /></Pressable>}</View>;
 }
 function HomeSection({ title, children, action }) {
   const [expanded, setExpanded] = useState(true);
@@ -144,7 +144,7 @@ function RecentDocument({ memo, photo, onPress }) {
   return <Pressable accessibilityRole="button" accessibilityLabel={memoTitle(memo)} onPress={onPress} style={({ pressed }) => [s.recentCard, pressed && { opacity: .65 }]}>
     {photo?.uri && !imageFailed && <View style={s.recentCover}><Image source={{ uri: photo.uri }} resizeMode="cover" style={s.recentImage} onError={() => setImageFailed(true)} /></View>}
     <View style={s.recentCardContent}>
-      <View style={s.recentCardHeading}><Icon name="file" size={16} color={c.subtle} /><Text style={s.recentTitle} numberOfLines={2}>{memoTitle(memo)}</Text></View>
+      <View style={s.recentCardHeading}><Icon name={documentIcon(memo)} size={16} color={c.subtle} /><Text style={s.recentTitle} numberOfLines={2}>{memoTitle(memo)}</Text></View>
       {!!excerpt && <Text style={s.recentExcerpt} numberOfLines={3}>{excerpt}</Text>}
     </View>
   </Pressable>;
@@ -154,6 +154,25 @@ const SPACE_TOOLS = [[ROUTES.Spaces, '공유 공간 관리', 'users', '공간'],
   [ROUTES.Trash, '휴지통', 'trash', '관리'], [ROUTES.Backup, '백업 및 복원', 'cloud', '관리'], [ROUTES.Settings, '설정', 'settings', '관리'], [ROUTES.More, '모든 도구', 'grid', '관리']];
 const EMBEDDED_ENTRY = { tabRoot: true, goBack: null, embedded: true };
 const DOCUMENT_MODES = { [ROUTES.Memos]: 'documents', [ROUTES.Relations]: 'relations', [ROUTES.Proposals]: 'review' };
+const DOCUMENT_TYPE_ICONS = {
+  recording: 'mic',
+  record: 'mic',
+  audio: 'mic',
+  file: 'file',
+  memo: 'pencil',
+  note: 'pencil',
+  image: 'image',
+  photo: 'image',
+  event: 'calendar',
+  task: 'checkSquare',
+  project: 'grid',
+};
+
+function documentIcon(memo) {
+  const type = String(memo.documentType ?? memo.type ?? memo.kind ?? memo.sourceType ?? '').toLowerCase();
+  if (type) return DOCUMENT_TYPE_ICONS[type] || 'grid';
+  return /^녹음(?:\s|$)/.test(memoTitle(memo)) ? 'mic' : 'pencil';
+}
 
 // Web overflow:hidden can scroll focused descendants in addition to the pager transform.
 const pagerOverflow = Platform.OS === 'web' ? 'clip' : 'hidden';
@@ -210,6 +229,8 @@ export default function WorkspaceScreen({
   favoritesOnly = false
 }) {
   const insets = useInsets();
+  const standalone = pagerIndex === undefined && (mode === 'review' || mode === 'relations');
+  const showMainTabs = !standalone && !favoritesOnly && !bodyOnly;
   const memoRows = useMemos();
   const files = useFiles();
   const documents = useValue(() => runtime().documents.listDocuments());
@@ -218,7 +239,7 @@ export default function WorkspaceScreen({
   const spaceInfo = useSpaceInfo();
   const [switchTo, setSwitchTo] = useState(null); // 바꿀 공간 (확인 대기)
   const memos = memoRows;
-  const actions = useProposalActions(navigation);
+  const actions = useProposalActions(navigation, { bottom: showMainTabs ? TAB_BAR_HEIGHT + insets.bottom + spacing.lg : spacing.lg });
   const [reviewOpen, setReviewOpen] = useState(false);
   const appUpdate = useAppUpdate();
   const [menu, setMenu] = useState(false);
@@ -261,8 +282,8 @@ export default function WorkspaceScreen({
   const title = mode === 'documents' ? '문서' : mode === 'relations' ? '문서 관계' : mode === 'review' ? '작업 검토' : '작업 공간';
   const requestSearch = route?.params?.search === true;
   const selectedTab = { home: ROUTES.Home, documents: ROUTES.Memos, relations: ROUTES.Relations, review: ROUTES.Proposals }[mode];
-  const standalone = pagerIndex === undefined && (mode === 'review' || mode === 'relations');
-  const header = (highlight = selectedTab) => standalone ? <WorkspaceHeader title={title} onBack={() => navigation.goBack()} /> : <><WorkspaceHeader title={current?.name || '나의 작업 공간'} onMenu={() => setMenu(true)} team={!current || current.personal ? null : { name: current.name, color: spaceInfo[current.id]?.color ?? c.accent }} tabs={!favoritesOnly && <TabBar current={highlight} onSelect={navigation.selectTab || navigation.navigate} />} onSearch={mode === "documents" ? undefined : () => go(ROUTES.Memos, {
+  const activeTab = pagerIndex !== undefined ? TABS[pagerIndex]?.route : selectedTab || ROUTES.Home;
+  const header = () => standalone ? <WorkspaceHeader title={title} onBack={() => navigation.goBack()} /> : <><WorkspaceHeader title={current?.name || '나의 작업 공간'} onMenu={() => setMenu(true)} team={!current || current.personal ? null : { name: current.name, color: spaceInfo[current.id]?.color ?? c.accent }} onSearch={mode === "documents" || pagerIndex !== undefined ? undefined : () => go(ROUTES.Memos, {
       search: true
     })} />{error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}</>;
   const intro = standalone ? null : <><View style={s.titleRow}><Text accessibilityRole="header" style={s.title}>{title}</Text></View></>;
@@ -273,7 +294,9 @@ export default function WorkspaceScreen({
   const titleOf = new Map(memos.map(memo => [memo.id, memoTitle(memo)]));
   const parentOf = new Map(documents.map(document => [document.id, document.parentId]));
   const searchDocs = memos.map(memo => ({ id: memo.id, title: memoTitle(memo), body: memo.body || '', updatedAt: memo.updatedAt, createdAt: memo.createdAt ?? memo.updatedAt, parent: titleOf.get(parentOf.get(memo.id)) || '' }));
-  const askDock = <SearchDock docs={searchDocs} bottomInset={insets.bottom} onOpen={id => go(ROUTES.MemoEdit, { memoId: id })} onAskAI={() => go(ROUTES.AiChat)}
+  const askDock = <SearchDock docs={searchDocs} bottomInset={showMainTabs ? 0 : insets.bottom}
+    bottomOffset={showMainTabs ? TAB_BAR_HEIGHT + insets.bottom : 0}
+    onOpen={id => go(ROUTES.MemoEdit, { memoId: id })} onAskAI={() => go(ROUTES.AiChat)}
     onNew={kind => kind === 'note' ? go(ROUTES.Home, { subpage: ROUTES.Today, startRecording: Date.now() }) : go(kind === 'chat' ? ROUTES.AiChat : ROUTES.MemoEdit)} />;
   let content;
   if (mode === 'documents') {
@@ -372,10 +395,11 @@ export default function WorkspaceScreen({
           const pages = TABS[pagerIndex].pages, next = subIndexOf(TABS[pagerIndex], pagerIndex) + step;
           if (step && next >= 0 && next < pages.length) navigation.setParams({ subpage: pages[next].route });
         }}>
-        <PageRail index={pagerIndex} pages={TABS} keepVisited header={tab => header(tab.route)} renderPage={renderTab} />
+        <PageRail index={pagerIndex} pages={TABS} keepVisited header={header} renderPage={renderTab} />
       </SwipeNav>
       {!OWN_BOTTOM_BAR.has(TABS[pagerIndex]?.pages[subIndexOf(TABS[pagerIndex], pagerIndex)]?.route) && askDock}</>
-    : <>{!bodyOnly && header()}{content}</>}{actions.snack.view}<SheetModal visible={menu} onClose={() => setMenu(false)} label="작업 공간 메뉴"><View style={s.handle} /><View style={s.titleRow}><Text style={s.sectionTitle}>나의 작업 공간</Text><IconButton name="x" label="메뉴 닫기" onPress={() => setMenu(false)} /></View><ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4 }}>
+    : <>{!bodyOnly && header()}{content}</>}{showMainTabs && <TabBar current={activeTab} onSelect={navigation.selectTab || navigation.navigate} />}
+    {actions.snack.view}<SheetModal visible={menu} onClose={() => setMenu(false)} label="작업 공간 메뉴"><View style={s.handle} /><View style={s.titleRow}><Text style={s.sectionTitle}>나의 작업 공간</Text><IconButton name="x" label="메뉴 닫기" onPress={() => setMenu(false)} /></View><ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4 }}>
       {/* 공간 / AI / 관리 세 묶음. 묶음마다 둥근 면 안에 같은 높이의 행, 아이콘 열과 글자 시작점을 맞춘다. */}
       {[['공간', [...spaces.list.map(space => ({ key: space.id, label: space.name, icon: space.personal ? 'home' : 'users', checked: space.id === current?.id, onPress: () => {
           if (space.id === current?.id) return setMenu(false);

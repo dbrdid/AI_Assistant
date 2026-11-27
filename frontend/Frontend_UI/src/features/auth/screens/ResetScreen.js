@@ -2,7 +2,7 @@
 // ResetScreen.js — 비밀번호 재설정
 // ============================================================
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { precheckReset, sendCode } from '../../../services/auth/AuthApi';
 import { AuthButton, AuthDialog, AuthField, AuthFrame } from '../components/AuthUi';
 

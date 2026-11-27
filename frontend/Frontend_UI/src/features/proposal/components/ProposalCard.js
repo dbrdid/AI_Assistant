@@ -1,8 +1,7 @@
 // ============================================================
-// ProposalCard.js — AI 제안 카드 하나 (종류 · 제목 · 일시 · 근거 + [추가][수정][보류][무시])
+// ProposalCard.js — AI 제안 카드 하나 (종류 · 제목 · 일시 · 근거 + [확인][수정][보류][무시])
 // ============================================================
 
-import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Icon from '../../../shared/components/Icon';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
@@ -57,7 +56,7 @@ export default function ProposalCard({ p, actions, showHold = true, tone = 'card
         </View>
       )}
       <View style={styles.row}>
-        <Btn primary label={reason ? '확인하고 추가' : '추가'} onPress={() => actions.add(p)} />
+        <Btn primary label="확인" onPress={() => actions.add(p)} />
         {!reason && <Btn label="수정" onPress={() => actions.edit(p)} />}
         {showHold && p.status !== 'hold' && <Btn label="보류" onPress={() => actions.hold(p)} />}
         <Btn danger label="무시" onPress={() => actions.dismiss(p)} />

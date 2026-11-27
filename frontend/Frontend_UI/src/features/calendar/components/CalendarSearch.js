@@ -2,7 +2,6 @@
 // CalendarSearch.js — 캘린더 일정 검색
 // ============================================================
 
-import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import Icon from '../../../shared/components/Icon';

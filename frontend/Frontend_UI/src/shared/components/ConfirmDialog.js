@@ -3,7 +3,6 @@
 // ============================================================
 
 
-import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, font, radius, spacing } from '../theme/theme';
 

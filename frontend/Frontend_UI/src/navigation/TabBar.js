@@ -1,13 +1,16 @@
 // ============================================================
-// TabBar.js — 선택한 화면의 이름을 펼치는 상단 탐색
+// TabBar.js — 선택한 화면의 이름을 펼치는 하단 탐색
 // ============================================================
 
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import Icon from '../shared/components/Icon';
+import { useInsets } from '../shared/hooks/useInsets';
 
 import { TABS } from './routes';
 import { palette } from '../features/stella/theme';
+
+export const TAB_BAR_HEIGHT = 56;
 
 function NavigationTab({ item, selected, onSelect }) {
   const width = useRef(new Animated.Value(selected ? 2.6 : 1)).current;
@@ -36,13 +39,15 @@ function NavigationTab({ item, selected, onSelect }) {
   </Pressable></Animated.View>;
 }
 export default function TabBar({ current, onSelect }) {
-  return <View accessibilityRole="tablist" accessibilityLabel="주 탐색" style={styles.bar}>
+  const insets = useInsets();
+  return <View accessibilityRole="tablist" accessibilityLabel="주 탐색"
+    style={[styles.bar, { height: TAB_BAR_HEIGHT + insets.bottom, paddingBottom: insets.bottom }]}>
     {TABS.map(item => <NavigationTab key={item.route} item={item} selected={item.route === current} onSelect={onSelect} />)}
   </View>;
 }
 
 const styles = StyleSheet.create({
-  bar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  bar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 6, paddingHorizontal: 12, borderTopWidth: 1, borderTopColor: palette.line, backgroundColor: palette.background },
   tab: { minHeight: 44, borderRadius: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 6, backgroundColor: 'transparent' },
   selected: { backgroundColor: palette.raised },
   expandedContent: { position: 'absolute', alignSelf: 'center', width: 180, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },

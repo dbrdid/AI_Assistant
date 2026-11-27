@@ -3,7 +3,6 @@
 // ============================================================
 // Figma 시안: 왼쪽 동그란 흰 버튼(‹, 탭 첫 화면에는 없음) · 가운데 제목 · 오른쪽 자리(동그란 버튼/알약 버튼)
 
-import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../hooks/useInsets';
 import { colors, font, spacing } from '../theme/theme';

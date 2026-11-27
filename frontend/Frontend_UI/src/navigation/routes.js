@@ -32,7 +32,7 @@ export const ROUTES = {
   Backup: 'Backup',       // 백업·복원
   Trash: 'Trash',         // 휴지통
   Notices: 'Notices',     // 알림 (홈의 🔔)
-  Proposals: 'Proposals',             // AI 제안 확인 목록 (검증 필요)
+  Proposals: 'Proposals',             // AI 제안 확인 목록
   ProposalConfirm: 'ProposalConfirm', // AI 제안 하나 확인
   More: 'More',           // '나' (홈 왼쪽 위 프로필): AI · 도구 · 설정 모음
   Spaces: 'Spaces',       // 하단 탭 '공간': 공간(팀) 목록
@@ -63,9 +63,10 @@ export const TABS = [
     { route: ROUTES.Today, label: '오늘' }, { route: ROUTES.Home, label: '개요' },
     { route: ROUTES.QuickInput, label: '빠른 입력' },
   ] },
-  // 업무를 문서보다 앞에 둔다. 업무 탭을 누르면 캘린더가 먼저 보임 (할 일 목록은 두 번째 쪽)
+  // 업무 탭에서 캘린더와 할 일 목록을 제공한다.
   { route: ROUTES.Tasks, label: '업무', icon: 'checkSquare', pages: [
-    { route: ROUTES.Calendar, label: '캘린더' }, { route: ROUTES.Tasks, label: '할 일' },
+    { route: ROUTES.Calendar, label: '캘린더' },
+    { route: ROUTES.Tasks, label: '할 일' },
   ] },
   { route: ROUTES.Memos, label: '문서', icon: 'file', pages: [
     // 즐겨찾기는 문서 목록 안의 '즐겨찾기' 필터로 본다 (따로 쪽을 두지 않음)

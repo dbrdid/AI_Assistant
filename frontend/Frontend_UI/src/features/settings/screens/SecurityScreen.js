@@ -3,7 +3,7 @@
 // ============================================================
 
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import ScreenHeader from '../../../shared/components/ScreenHeader';

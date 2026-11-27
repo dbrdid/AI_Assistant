@@ -2,7 +2,7 @@
 // ProposalConfirmScreen.js — AI 제안 확인 (스토리보드 99~101장)
 // ============================================================
 
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';

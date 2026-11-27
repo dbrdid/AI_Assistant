@@ -1,6 +1,6 @@
 // 문서·할 일의 공개 범위: 프로젝트 모두 또는 고른 그룹만 (Notion 공유 메뉴의 "접근 권한" 줄처럼 한 줄 + 아래 시트)
 // 그룹이 있는 공유 프로젝트의 저장된 항목에서만 보인다. 서버가 권한을 다시 확인하고, 실패하면 시트에 이유를 보여 준다.
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import Icon from '../../../shared/components/Icon';
 import { SheetModal } from '../../../shared/components/Motion';

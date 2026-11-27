@@ -2,7 +2,7 @@
 // CameraScreen.js — 카메라
 // ============================================================
 
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import ScreenHeader from '../../../shared/components/ScreenHeader';

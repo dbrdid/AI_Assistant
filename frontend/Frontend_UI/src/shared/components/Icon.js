@@ -5,7 +5,6 @@
 // 이모지·글자 기호(☰ ‹ › ✦ 등) 대신 이 아이콘을 쓰면 기기·웹에서 모양이 똑같이 보입니다.
 // 새 아이콘이 필요하면 아래 PATHS 에 24x24 기준 path 를 추가하세요.
 
-import React from 'react';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { colors } from '../theme/theme';
 

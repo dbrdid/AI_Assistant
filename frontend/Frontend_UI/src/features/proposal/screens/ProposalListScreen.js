@@ -2,7 +2,7 @@
 // ProposalListScreen.js — AI 제안 확인 목록 (목록에서 바로 추가 · 수정 · 보류 · 무시)
 // ============================================================
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
@@ -19,7 +19,7 @@ export default function ProposalListScreen({ navigation }) {
   const [confirmAll, setConfirmAll] = useState(false);
   const visible = all.filter((p) => !actions.hidden.has(p.id));
   const list = visible.filter((p) => p.status === tab);
-  const count = (s) => visible.filter((p) => p.status === s).length;
+  const count = (status) => visible.filter((p) => p.status === status).length;
   const ready = list.filter((p) => !reviewReason(p));
 
   return (
@@ -30,17 +30,38 @@ export default function ProposalListScreen({ navigation }) {
         right={ready.length > 1 ? <PillButton kind="text" label="모두 추가" onPress={() => setConfirmAll(true)} /> : null}
       />
       <View style={styles.tabs}>
-        {[['pending', '확인 대기'], ['hold', '보류']].map(([k, label]) => (
-          <Pressable key={k} accessibilityRole="tab" accessibilityState={{ selected: tab === k }} onPress={() => setTab(k)} style={[styles.tab, tab === k && styles.tabOn]}>
-            <Text style={[styles.tabText, tab === k && styles.tabTextOn]}>{label} {count(k)}</Text>
+        {[
+          ['pending', '확인 대기'],
+          ['hold', '보류'],
+        ].map(([key, label]) => (
+          <Pressable
+            key={key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === key }}
+            onPress={() => setTab(key)}
+            style={[styles.tab, tab === key && styles.tabOn]}
+          >
+            <Text style={[styles.tabText, tab === key && styles.tabTextOn]}>
+              {label} {count(key)}
+            </Text>
           </Pressable>
         ))}
       </View>
-      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.body}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.body}
+      >
         {list.length === 0 && (
-          <Text style={styles.empty}>{tab === 'pending' ? '확인할 AI 제안이 없어요.\n메모나 녹음에서 일정이 보이면 여기에 알려드려요.' : '보류한 제안이 없어요.'}</Text>
+          <Text style={styles.empty}>
+            {tab === 'pending'
+              ? '확인할 AI 제안이 없어요.\n메모나 녹음에서 일정이 보이면 여기에 알려드려요.'
+              : '보류한 제안이 없어요.'}
+          </Text>
         )}
-        {list.map((p) => <ProposalCard key={p.id} p={p} actions={actions} />)}
+        {list.map((proposal) => (
+          <ProposalCard key={proposal.id} p={proposal} actions={actions} />
+        ))}
       </ScrollView>
 
       {actions.snack.view}

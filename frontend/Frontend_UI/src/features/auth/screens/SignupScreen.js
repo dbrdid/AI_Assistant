@@ -2,7 +2,7 @@
 // SignupScreen.js — 회원가입
 // ============================================================
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { precheckSignup, sendCode } from '../../../services/auth/AuthApi';

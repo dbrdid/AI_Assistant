@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 import { runtime, maybeRuntime } from '../../integration/runtime';

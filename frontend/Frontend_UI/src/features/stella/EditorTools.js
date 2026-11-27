@@ -1,5 +1,5 @@
 import { SheetModal } from "../../shared/components/Motion";
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { runtime } from '../../integration/runtime';
 import { getMemo } from '../../data/memos/MemoStore';

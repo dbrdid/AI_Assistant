@@ -4,7 +4,7 @@
 //   <SwipeRow actionLabel="내일로" onAction={...}>{줄 내용}</SwipeRow>
 // 화면 읽기 사용자는 같은 동작을 accessibilityActions(이름: actionLabel)로 실행할 수 있습니다.
 
-import React, { useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { Animated, PanResponder, StyleSheet, View } from 'react-native';
 import { colors, font, radius } from '../../../shared/theme/theme';
 

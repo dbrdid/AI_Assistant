@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { PanResponder, Platform, Pressable, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useValue, runtime, readPreference, writePreference } from '../../data/hooks';

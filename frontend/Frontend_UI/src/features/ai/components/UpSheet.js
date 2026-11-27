@@ -1,6 +1,6 @@
 // 아래에서 위로 올라오는 창 (AI 채팅의 업로드된 파일 목록)
 //   top: 창의 위쪽 끝 (AI 채팅 머리글 바로 아래까지 올라오게 머리글 높이를 넘겨 받음)
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useDragClose } from '../../../shared/components/Motion';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';

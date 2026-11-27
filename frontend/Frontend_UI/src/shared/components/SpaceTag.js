@@ -3,7 +3,6 @@
 // ============================================================
 //   <SpaceTag space={spaces[item.workspaceId]} />   space: useSpaceInfo() 의 한 항목. 없으면 아무것도 안 그림
 
-import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, font } from '../theme/theme';
 

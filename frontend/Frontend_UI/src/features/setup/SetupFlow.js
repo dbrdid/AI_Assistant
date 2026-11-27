@@ -3,7 +3,7 @@
 // ============================================================
 
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../../shared/hooks/useInsets';
 import { colors, font, radius, spacing } from '../../shared/theme/theme';

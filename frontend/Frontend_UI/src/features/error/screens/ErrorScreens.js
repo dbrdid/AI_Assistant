@@ -2,7 +2,6 @@
 // ErrorScreens.js — 오류 안내
 // ============================================================
 
-import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import { colors, spacing } from '../../../shared/theme/theme';

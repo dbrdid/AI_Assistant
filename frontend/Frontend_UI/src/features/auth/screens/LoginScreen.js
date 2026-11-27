@@ -2,7 +2,7 @@
 // LoginScreen.js — 로그인
 // ============================================================
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { enabledProviders } from '../../../lib/stella/auth';
 import { colors, font, spacing } from '../../../shared/theme/theme';
@@ -44,18 +44,9 @@ export default function LoginScreen({ prefillEmail = '', notice = '', onSignup, 
   };
 
   return (
-    <AuthFrame title="로그인">
+    <AuthFrame title="로그인" centerHeader>
       {!!notice && <View style={styles.notice}><Text style={styles.noticeText}>{notice}</Text></View>}
       {/* 서버에서 켜진 소셜 로그인만 보여 준다 (꺼진 것을 누르면 "provider is not enabled" 오류) */}
-      {(providers.google || providers.kakao) && <>
-        <View style={styles.socials}>
-          {providers.google && <AuthButton kind="google" logo={<GoogleLogo />} label="Google로 계속하기" onPress={() => social('Google')} />}
-          {providers.kakao && <AuthButton kind="kakao" logo={<KakaoLogo />} label="카카오로 계속하기" onPress={() => social('카카오')} />}
-        </View>
-        <View style={styles.orRow}>
-          <View style={styles.line} /><Text style={styles.or}>또는 이메일로</Text><View style={styles.line} />
-        </View>
-      </>}
       <AuthField label="이메일" value={email} onChangeText={setEmail} keyboardType="email-address" placeholder="example@email.com" />
       <AuthField label="비밀번호" value={password} onChangeText={setPassword} secure placeholder="비밀번호" />
       <View style={styles.optionRow}>
@@ -64,6 +55,16 @@ export default function LoginScreen({ prefillEmail = '', notice = '', onSignup, 
         </Pressable>
       </View>
       <AuthButton label="로그인" onPress={submit} busy={busy} disabled={!email.trim() || !password} />
+
+      {(providers.google || providers.kakao) && <>
+        <View style={styles.orRow}>
+          <View style={styles.line} /><Text style={styles.or}>또는 소셜 계정으로</Text><View style={styles.line} />
+        </View>
+        <View style={styles.socials}>
+          {providers.google && <AuthButton kind="google" logo={<GoogleLogo />} label="Google로 계속하기" onPress={() => social('Google')} />}
+          {providers.kakao && <AuthButton kind="kakao" logo={<KakaoLogo />} label="카카오로 계속하기" onPress={() => social('카카오')} />}
+        </View>
+      </>}
 
       <View style={styles.signup}>
         <Text style={styles.signupHint}>계정이 없으신가요?</Text><Pressable accessibilityRole="button" accessibilityLabel="계정 만들기" onPress={onSignup} style={{minHeight:44,justifyContent:"center"}}><Text style={styles.signupLink}>계정 만들기</Text></Pressable>

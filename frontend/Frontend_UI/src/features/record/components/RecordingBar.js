@@ -1,6 +1,6 @@
 // 녹음 중 입력줄 (Notion AI 회의록의 녹음 줄처럼): 실제 소리 크기를 따라 움직이는 막대 · 경과 시간 · 일시정지 · 끝내기
 // 녹음 중에만 그려지므로 소리 크기 확인(useAudioRecorderState)도 그동안만 돈다.
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAudioRecorderState } from 'expo-audio';
 import Icon from '../../../shared/components/Icon';

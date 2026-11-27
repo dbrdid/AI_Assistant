@@ -4,7 +4,6 @@
 // 공간을 누르면 그 공간의 홈(SpaceHomeScreen)으로 갑니다. 오늘·캘린더·할 일·메모 탭은 모든 공간을 합쳐 보여 주므로
 // 여기서 "전환"하지 않아도 됩니다.
 
-import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import Icon from '../../../shared/components/Icon';
@@ -12,7 +11,6 @@ import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import { occursOn, useAllTasks } from '../../../data/tasks/TaskStore';
-import { useAllMemos } from '../../../data/memos/MemoStore';
 import { toKey } from '../../calendar/utils/DateUtils';
 
 // Notion 워크스페이스 아이콘처럼 무채색 작은 사각형 + 첫 글자 (색 배경 타일 대신)
@@ -32,14 +30,11 @@ export default function SpacesScreen({ navigation }) {
   const { list } = useWorkspaces();
   const spaces = useSpaceInfo();
   const tasks = useAllTasks();
-  const memos = useAllMemos();
   const today = toKey(new Date());
 
   const statsOf = (id) => {
     const mine = tasks.filter((t) => t.workspaceId === id);
-    const left = mine.filter((t) => t.status !== '완료').length;
     const todayN = mine.filter((t) => t.status !== '완료' && occursOn(t, today)).length;
-    const memoN = memos.filter((m) => m.workspaceId === id).length;
     // 디자인 지시: 화면에 건수 장식을 상시 노출하지 않는다. 오늘 할 일이 있을 때만 알려 준다.
     return todayN ? '오늘 할 일이 있어요' : '';
   };

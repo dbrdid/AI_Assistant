@@ -3,7 +3,7 @@
 // ============================================================
 
 
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import Svg, { Path, Rect } from 'react-native-svg';
@@ -65,24 +65,26 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
   const [error, setError] = useState(null); // { code, message }
   const [result, setResult] = useState(null); // { text, memoId, added, analyzeError }
   const job = useRef(null); // 녹음 하나의 변환 작업 (다시 시도할 때 업로드를 다시 하지 않도록 이어서 씀)
+  const conversionStarted = useRef(false);
   const [progress, setProgress] = useState('');   // 긴 녹음: 나누기, 구간 올리기, 서버 변환 진행 문구
   useEffect(() => {
     setPhase('idle'); setError(null); setResult(null); setProgress('');
+    conversionStarted.current = false;
     job.current = sheet?.uri ? newTranscribeJob(sheet.uri, sheet.seconds) : null;
   }, [sheet]);
-  if (!sheet) return null;
   const busy = phase === 'upload' || phase === 'analyze';
 
   const convert = async () => {
-    if (busy || !job.current) return;
+    if (conversionStarted.current || !job.current) return;
+    conversionStarted.current = true;
     setError(null);
     setPhase('upload');
     const r = await transcribeRecording(job.current, { onProgress: (p) => setProgress(p.text) });
     setProgress('');
     job.current = r.job;
-    if (!r.ok) { setError({ code: r.code, message: r.message }); setPhase('error'); return; }
+    if (!r.ok) { conversionStarted.current = false; setError({ code: r.code, message: r.message }); setPhase('error'); return; }
     const text = r.text.trim();
-    if (!text) { setError({ code: 'EMPTY', message: '녹음에서 알아들을 수 있는 말이 없었어요' }); setPhase('error'); return; }
+    if (!text) { conversionStarted.current = false; setError({ code: 'EMPTY', message: '녹음에서 알아들을 수 있는 말이 없었어요' }); setPhase('error'); return; }
     // 받아 적은 글은 메모로 남기고, 그 메모에서 일정·할 일을 찾아 AI 제안으로 만듦
     let memoId = null;
     const timeTitle = memoTitleFor();
@@ -93,12 +95,16 @@ export default function RecordSheet({ sheet, onClose, onOpenFiles, onOpenMemo, o
     setResult({ text, memoId, added: 0, missing, analyzeError: null });
     if (!memoId) { setPhase('done'); return; }
     setPhase('analyze');
-    const a = await analyzeText({ sourceType: 'memo', sourceId: memoId, explicit: true });
+    // Finalize the title before analysis so its update cannot invalidate proposal source revisions.
+    await titleRecording(memoId, timeTitle);
+    const a = await analyzeText({ sourceType: 'memo', sourceId: memoId, explicit: true, requireReview: true });
     setResult({ text, memoId, missing, added: a.added ?? 0, saved: a.saved ?? 0, pending: a.pending ?? a.added ?? 0, analyzeError: a.error ?? null });
     setPhase('done');
-    // 분석이 끝난 뒤 제목을 내용으로 바꿈 (분석 중에 제목이 바뀌면 분석이 원문 변경으로 멈추므로 순서를 지킴)
-    titleRecording(memoId, timeTitle);
   };
+  useEffect(() => {
+    if (sheet?.state === 'saved') void convert();
+  }, [sheet]);
+  if (!sheet) return null;
   // 외부 AI 보내기 동의 후 바로 다시 변환
   const allowAndConvert = async () => {
     try { await setAiTransmission('external', true); } catch (e) { setError({ code: 'CONSENT', message: e.message }); return; }

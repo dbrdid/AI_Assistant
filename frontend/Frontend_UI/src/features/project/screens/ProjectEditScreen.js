@@ -2,7 +2,7 @@
 // ProjectEditScreen.js — 프로젝트 추가 / 편집
 // ============================================================
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';

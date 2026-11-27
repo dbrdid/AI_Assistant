@@ -6,9 +6,6 @@ const c = palette;
 export const styles = StyleSheet.create({
   blockTypeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 12 },
   blockTypeOption: { width: '48%', minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: c.surface, borderRadius: 7 },
-  navigationHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: c.background },
-  workspaceAvatar: { width: 32, height: 44, alignItems: 'center', justifyContent: 'center' },
-  workspaceInitial: { color: c.text, backgroundColor: '#343638', width: 30, height: 30, borderRadius: 15, textAlign: 'center', lineHeight: 30, fontSize: 16, fontWeight: '600', fontFamily: 'Georgia' },
   homePage: { paddingHorizontal: 20, paddingTop: 0, paddingBottom: 30 },
   homeSection: { marginBottom: 25 },
   homeSectionHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
@@ -94,12 +91,12 @@ export const styles = StyleSheet.create({
   brandMark: {
     color: c.text,
     backgroundColor: '#343638',
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     borderRadius: 4,
     textAlign: 'center',
-    lineHeight: 32,
-    fontSize: 21,
+    lineHeight: 36,
+    fontSize: 22,
     fontWeight: '700',
     fontFamily: 'Georgia'
   },

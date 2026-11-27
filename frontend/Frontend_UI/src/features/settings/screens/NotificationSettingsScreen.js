@@ -2,7 +2,7 @@
 // NotificationSettingsScreen.js — 알림 설정
 // ============================================================
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { colors, font, spacing } from '../../../shared/theme/theme';

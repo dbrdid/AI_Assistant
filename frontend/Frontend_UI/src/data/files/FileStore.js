@@ -3,7 +3,6 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Directory, File, Paths } from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Linking, Platform } from 'react-native';
-import * as Sharing from 'expo-sharing';
 import { list, saveList, scoped, useValue, runtime, maybeRuntime, runtimeSubscribe, readPreference, writePreference, emitRuntime } from '../hooks';
 import * as engine from '../../lib/stella/local-sync';
 import { supabase } from '../../lib/stella/supabase';

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Keyboard, Linking, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 import { runtime, maybeRuntime, gateway, readPreference, writePreference, aiPolicy } from '../../integration/runtime';
@@ -26,7 +26,6 @@ const CONSENT = {
   openai: '입력한 내용을 내 OpenAI 계정으로 전송',
   anthropic: '입력한 내용을 내 Anthropic 계정으로 전송',
 };
-const field = [s.editorBody, { minHeight: 44 }];
 const CARD_INFO = {
   device: { name: '이 기기', icon: 'lock', desc: '휴대폰 안에서 실행, 내용이 밖으로 나가지 않아요' },
   server: { name: '내 서버', icon: 'link', desc: 'Ollama·LM Studio 같은 내 컴퓨터의 AI' },
@@ -71,8 +70,6 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
   const provider = connection.provider === 'device' && !native ? 'server' : connection.provider;
   const aiRequest = target ? targetLine(target) + '\n' + prompt : prompt; // what the AI sees
   const reviewRequest = target ? blockRequest(target, prompt) : prompt; // the review screen verifies against this form
-  const keyProvider =['openai', 'anthropic', 'server'].includes(provider) ? provider : null;
-
   function update(patch) {
     const next = { ...connection, ...patch };
     setConnection(next); setReply(null); setError(''); setConsent(false);

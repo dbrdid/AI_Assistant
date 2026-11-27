@@ -2,7 +2,7 @@
 // WorkspacePicker.js — 홈에서 바로 여는 "워크스페이스" 창
 // ============================================================
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useDragClose } from '../../../shared/components/Motion';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';

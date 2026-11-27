@@ -6,7 +6,7 @@ import AiChatScreen from '../features/ai/screens/AiChatScreen';
 // AppNavigator.js — "어떤 화면을 보여줄지" 를 정하는 직접 만든 간단한 화면 이동기
 // ============================================================
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, Linking, Platform, StyleSheet, View } from 'react-native';
 import { parseInviteCode } from '../lib/stella/invites';
 import StellaWorkspaceScreen from '../features/stella/WorkspaceScreen';
@@ -14,7 +14,6 @@ import { ScreenMotion } from '../shared/components/Motion';
 import TodayScreen from '../features/home/screens/HomeScreen';
 const HomeScreen = props => <StellaWorkspaceScreen {...props} />;
 const RelationsScreen = props => <StellaWorkspaceScreen {...props} mode="relations" />;
-const ReviewScreen = props => <StellaWorkspaceScreen {...props} mode="review" />;
 import MoreScreen from '../features/more/screens/MoreScreen';
 import SpacesScreen from '../features/spaces/screens/SpacesScreen';
 import SpaceHomeScreen from '../features/spaces/screens/SpaceHomeScreen';
@@ -43,8 +42,8 @@ import NoticeScreen from '../features/notice/screens/NoticeScreen';
 import { onNotificationTap } from '../services/notify/Notify';
 import { getTask } from '../data/tasks/TaskStore';
 import { getProject } from '../data/projects/ProjectStore';
-import ProposalListScreen from '../features/proposal/screens/ProposalListScreen';
 import ProposalConfirmScreen from '../features/proposal/screens/ProposalConfirmScreen';
+import ProposalListScreen from '../features/proposal/screens/ProposalListScreen';
 import { AnalysisFailedScreen, NetworkErrorScreen, ServerErrorScreen } from '../features/error/screens/ErrorScreens';
 import QuickInputScreen from '../features/quick/screens/QuickInputScreen';
 import SettingsScreen from '../features/settings/screens/SettingsScreen';
@@ -64,9 +63,7 @@ import { ScreenEntryProvider } from './ScreenEntry';
 // ------------------------------------------------------------
 // 진짜로 만들어진 화면 목록: { 화면 이름: 화면 컴포넌트 }
 // ------------------------------------------------------------
-// 여기에 등록된 화면은 그 화면을, 등록되지 않은 화면은 임시 화면(PlaceholderScreen)을 보여줍니다.
-// 나중에 다른 화면(예: 할 일)을 만들면 이 목록에 한 줄만 추가하면 됩니다.
-//   예)  [ROUTES.Tasks]: TasksScreen,
+// 등록된 화면은 해당 화면을, 등록되지 않은 화면은 임시 화면(PlaceholderScreen)을 보여줍니다.
 // 즐겨찾기 = 메모 화면을 "즐겨찾기만" 보이게 해서 재사용
 const FavoritesScreen = props => <StellaWorkspaceScreen {...props} mode="documents" favoritesOnly />;
 
@@ -82,7 +79,7 @@ const REAL_SCREENS = {
   [ROUTES.ServerError]: ServerErrorScreen,
   [ROUTES.AnalysisFailed]: AnalysisFailedScreen,
   [ROUTES.Notices]: NoticeScreen,                          // 홈 🔔 > 알림
-  [ROUTES.Proposals]: ReviewScreen,                  // AI 제안 확인 목록
+  [ROUTES.Proposals]: ProposalListScreen,             // AI 제안 확인 목록
   [ROUTES.ProposalConfirm]: ProposalConfirmScreen,         // AI 제안 하나 확인
   [ROUTES.Camera]: CameraScreen,                           // 홈 구슬 > 카메라
   [ROUTES.AgendaCompare]: AgendaCompareScreen,             // 홈 구슬 > 안건 비교

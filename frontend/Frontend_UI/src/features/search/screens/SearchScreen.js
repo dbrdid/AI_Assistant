@@ -13,7 +13,7 @@
 // props (AppNavigator 가 넣어줌)
 //   navigation : 화면 이동 도구 { navigate, goBack }
 
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import {

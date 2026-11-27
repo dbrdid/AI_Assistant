@@ -143,7 +143,7 @@ function setLinks(ctx, memoId, taskIds) {
   }
 }
 
-function checkFields(ctx, input) {
+function checkFields(input) {
   const v = {};
   if ('title' in input) v.title = text(input.title, 'title', LIMITS.memoTitle);
   if ('body' in input) v.body = text(input.body, 'body', LIMITS.body);
@@ -172,7 +172,7 @@ function queuePhoto(ctx, memoId, photoId, position) {
 /** 현재 워크스페이스에 메모를 만듦. 제목·본문·손글씨 중 하나는 있어야 함 */
 export function addMemo(ctx, input) {
   onlyKeys(input, [...FIELDS, 'parentMemoId']);
-  const v = checkFields(ctx, input);
+  const v = checkFields(input);
   const parentMemoId = 'parentMemoId' in input ? input.parentMemoId : null;
   if (parentMemoId !== null) requireActiveParent(ctx, parentMemoId);
   const title = v.title ?? '', body = v.body ?? '', strokes = v.strokes ?? '[]', photos = v.photos ?? '[]';
@@ -199,7 +199,7 @@ export function addMemo(ctx, input) {
 export function updateMemo(ctx, memoId, patch, { expectedRevision } = {}) {
   const current = requireMemo(ctx, memoId);
   onlyKeys(patch, FIELDS, 'patch');
-  const v = checkFields(ctx, patch);
+  const v = checkFields(patch);
   if (expectedRevision !== undefined && positiveInt(expectedRevision, 'expectedRevision') !== current.revision) fail('revision_conflict');
   const title = v.title ?? current.title, body = v.body ?? current.body, strokes = v.strokes ?? current.strokes;
   const contentChanged = title !== current.title || body !== current.body || strokes !== current.strokes;

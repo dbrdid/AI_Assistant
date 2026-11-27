@@ -13,7 +13,7 @@ import { supabase } from '../lib/stella/supabase';
 import { listMyWorkspaces } from '../lib/stella/workspaces';
 import { listNoteFavorites, setNoteFavorites } from '../lib/stella/favorites';
 import { createAIService } from './ai-service';
-import { CHAT_LIMITS, answerQuery, askAssistant, excerptFor, planQuery, rankRecords, todayIn } from '../lib/stella/ai-chat';
+import { CHAT_LIMITS, answerQuery, askAssistant, excerptFor, planQuery, rankRecords, toSources, todayIn } from '../lib/stella/ai-chat';
 import { requireTransmission } from '../../../../shared/contracts/ai-policy.js';
 import { selectChatSources } from './ChatSourceScope.mjs';
 import { retryPlan, transcribeErrorMessage, transcribeUploaded, uploadRecording } from '../lib/stella/transcribe';

@@ -2,7 +2,7 @@
 // SelectionOverlay.js — 손글씨 변환할 "영역"을 손가락으로 끌어서 지정하는 투명 덮개
 // ============================================================
 
-import React, { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
 import { colors, FILL } from '../../../shared/theme/theme';
 

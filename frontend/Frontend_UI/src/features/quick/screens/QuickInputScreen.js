@@ -2,7 +2,7 @@
 // QuickInputScreen.js — 빠른 입력
 // ============================================================
 
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ScreenHeader from '../../../shared/components/ScreenHeader';

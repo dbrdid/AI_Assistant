@@ -2,7 +2,7 @@
 // AiUsageScreen.js — AI 이용량
 // ============================================================
 
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';

@@ -3,11 +3,11 @@
 // ============================================================
 // 사용법:
 //   const snack = useSnackbar();
-//   snack.show('완료했어요', { label: '되돌리기', onPress: () => ... });
+//   snack.show('완료했어요', { label: '되돌리기', onPress: () => ... }, { durationMs: 5000 });
 //   return <View>...{snack.view}</View>;   // 화면 맨 끝에 놓기
 // 버튼이 있으면 4초, 없으면 2.4초 뒤에 사라집니다.
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, font, radius, spacing } from '../theme/theme';
 
@@ -20,10 +20,10 @@ export function useSnackbar({ bottom = spacing.lg } = {}) {
     clearTimeout(timer.current);
     setState(null);
   }, []);
-  const show = useCallback((text, action) => {
+  const show = useCallback((text, action, { durationMs } = {}) => {
     clearTimeout(timer.current);
     setState({ text, action });
-    timer.current = setTimeout(() => setState(null), action ? 4000 : 2400);
+    timer.current = setTimeout(() => setState(null), durationMs ?? (action ? 4000 : 2400));
   }, []);
 
   const view = state ? (

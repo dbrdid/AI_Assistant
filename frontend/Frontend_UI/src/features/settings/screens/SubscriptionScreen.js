@@ -3,7 +3,7 @@
 // ============================================================
 
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 import ScreenHeader from '../../../shared/components/ScreenHeader';

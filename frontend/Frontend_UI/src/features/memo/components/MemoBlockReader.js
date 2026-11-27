@@ -1,4 +1,3 @@
-import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { memoTitle } from '../../../data/memos/MemoStore';
 import { colors, font, spacing } from '../../../shared/theme/theme';

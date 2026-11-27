@@ -1,6 +1,6 @@
 // 한 번만 보이는 사용법 안내 (Notion 페이지 안 콜아웃처럼 조용한 한 줄 상자).
 // "확인"을 누르면 이 기기에서 다시 보이지 않는다. 같은 화면에 안내가 여러 개면 순서대로 하나씩.
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Icon from './Icon';
 import { readPreference, writePreference } from '../../integration/runtime';

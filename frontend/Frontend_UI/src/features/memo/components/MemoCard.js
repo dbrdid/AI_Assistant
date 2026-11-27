@@ -2,7 +2,6 @@
 // MemoCard.js — 메모 미리보기
 // ============================================================
 
-import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';

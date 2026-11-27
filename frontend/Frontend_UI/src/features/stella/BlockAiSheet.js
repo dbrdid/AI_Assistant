@@ -1,6 +1,6 @@
 // 문서 아래에서 반쯤 올라오는 블록 AI 시트. 문서는 위에 그대로 보이고, 답은 바로 문서에 AI 제안으로 들어가
 // 사용자가 문서에서 보며 수용하거나 거절한다. 손잡이를 아래로 끌거나 뒤로 가기, X로 닫는다.
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Animated, BackHandler, PanResponder, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import Icon from '../../shared/components/Icon';
 import LocalModelScreen from './LocalModelScreen';

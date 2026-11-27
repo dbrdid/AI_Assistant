@@ -38,7 +38,7 @@ export const nextField = values => PROJECT_TEMPLATE.find(field => !(field.key in
 
 /** 지금까지 고른 항목만 한 줄씩 */
 export function summary(values) {
-  const due = values.due ? values.due.replace(/^(\d+)-(\d+)-(\d+)$/, (_, y, m, d) => `${Number(m)}월 ${Number(d)}일`) : '정하지 않음';
+  const due = values.due ? values.due.replace(/^\d+-(\d+)-(\d+)$/, (_, m, d) => `${Number(m)}월 ${Number(d)}일`) : '정하지 않음';
   return [['title', `이름: ${values.title}`], ['status', `상태: ${values.status}`], ['priority', `중요도: ${values.priority}`], ['due', `마감: ${due}`]]
     .filter(([key]) => key in values).map(([, line]) => line).join('\n');
 }
