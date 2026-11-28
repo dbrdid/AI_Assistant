@@ -478,65 +478,67 @@ export default function QuickInputScreen({ navigation, route }) {
             </Pressable>
             {canLink && (
               <Text style={styles.counter}>
-                {isProjectLinked(picked) ? '여기에 놓으면 프로젝트 연결이 해제돼요' : !projects.length ? '프로젝트를 만들면 메모와 할 일을 바로 연결할 수 있어요' : '항목을 길게 눌러 프로젝트로 끌어 놓으세요'}
+                {isProjectLinked(picked) ? '여기에 놓으면 프로젝트 연결이 해제돼요' : !projects.length ? '아래 프로젝트에서 + 를 눌러 만든 뒤 항목을 연결하세요' : '항목을 길게 눌러 프로젝트로 끌어 놓으세요'}
               </Text>
             )}
-            {projects.length === 0 ? (
-              canLink && (
-                <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.ProjectEdit)} style={styles.createProjectLink}>
-                  <Icon name="plus" size={15} color={colors.ink} />
-                  <Text style={styles.createProjectText}>프로젝트 만들기</Text>
+            <ScrollView showsHorizontalScrollIndicator={false} horizontal contentContainerStyle={styles.filters}>
+              {FILTERS.map((f) => (
+                <Pressable key={f.id} accessibilityRole="button" accessibilityState={{ selected: filter === f.id }} onPress={() => { setPicked(null); setFilter(f.id); }} style={styles.chip}>
+                  <Text style={[styles.chipText, filter === f.id && { color: colors.ink, fontWeight: '700' }]}>{f.label}</Text>
                 </Pressable>
-              )
-            ) : (
-              <>
-                <ScrollView showsHorizontalScrollIndicator={false} horizontal contentContainerStyle={styles.filters}>
-                  {FILTERS.map((f) => (
-                    <Pressable key={f.id} accessibilityRole="button" accessibilityState={{ selected: filter === f.id }} onPress={() => { setPicked(null); setFilter(f.id); }} style={styles.chip}>
-                      <Text style={[styles.chipText, filter === f.id && { color: colors.ink, fontWeight: '700' }]}>{f.label}</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-                {candidates.length ? candidates.map(row => sourceRow(row)) : <Text style={styles.counter}>연결할 항목이 없어요</Text>}
-              </>
-            )}
+              ))}
+            </ScrollView>
+            {candidates.length ? candidates.map(row => sourceRow(row)) : <Text style={styles.counter}>연결할 항목이 없어요</Text>}
           </View>
           </ScrollView>
         </View>
-        {projects.length > 0 && (
-          <View ref={projectArea} collapsable={false}
-            onLayout={event => setLaidOutPanelHeight(Math.floor(event.nativeEvent.layout.height))}
-            style={[styles.projectArea, panelHeight === null
-              ? { maxHeight: availableHeight ? defaultPanelHeight : '28%' }
-              : { height: clampPanelHeight(panelHeight) }]}>
+        <View ref={projectArea} collapsable={false}
+          onLayout={event => setLaidOutPanelHeight(Math.floor(event.nativeEvent.layout.height))}
+          style={[styles.projectArea, panelHeight === null
+            ? { maxHeight: availableHeight ? defaultPanelHeight : '28%' }
+            : { height: clampPanelHeight(panelHeight) }]}>
+          <View style={styles.projectHeader}>
             <ProjectResizeHandle {...panelHandleProps} style={Platform.OS === 'web'
               ? { ...styles.panelHandle, display: 'flex', flexDirection: 'column', touchAction: 'none', cursor: 'ns-resize', userSelect: 'none' }
               : styles.panelHandle}>
               <View style={styles.panelHandleMark} />
               <Text style={styles.projectTitle}>프로젝트</Text>
             </ProjectResizeHandle>
-            <ScrollView scrollEnabled={!dragging} showsVerticalScrollIndicator persistentScrollbar={Platform.OS === 'android'}
-              keyboardShouldPersistTaps="handled">
-              {projects.map(project => (
-                <View key={project.id}>
-                  <View ref={view => {
-                    if (view) projectTargets.current.set(project.id, view);
-                    else projectTargets.current.delete(project.id);
-                  }} collapsable={false}>
-                    <Pressable accessibilityRole="button" accessibilityLabel={`${project.title}, 연결할 프로젝트`}
-                      accessibilityState={{ disabled: !picked }} disabled={!picked}
-                      onPress={() => changeProjectLink(picked, project.id, true)}
-                      style={[styles.row, hoveredTarget === project.id && styles.rowOn]}>
-                      <Icon name="folder" size={18} color={colors.muted} />
-                      <Text numberOfLines={1} style={styles.rowTitle}>{project.title}</Text>
-                    </Pressable>
-                  </View>
-                  {grouped.get(project.id).map(row => sourceRow(row, true))}
-                </View>
-              ))}
-            </ScrollView>
+            {canLink && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="프로젝트 추가"
+                onPress={() => navigation.navigate(ROUTES.ProjectEdit)}
+                hitSlop={6}
+                style={({ pressed }) => [styles.projectAddBtn, pressed && { opacity: 0.6 }]}
+              >
+                <Icon name="plus" size={16} color={colors.muted} />
+              </Pressable>
+            )}
           </View>
-        )}
+          <ScrollView scrollEnabled={!dragging} showsVerticalScrollIndicator persistentScrollbar={Platform.OS === 'android'}
+            keyboardShouldPersistTaps="handled">
+            {projects.length === 0 ? (
+              <Text style={styles.projectEmpty}>아직 프로젝트가 없어요</Text>
+            ) : projects.map(project => (
+              <View key={project.id}>
+                <View ref={view => {
+                  if (view) projectTargets.current.set(project.id, view);
+                  else projectTargets.current.delete(project.id);
+                }} collapsable={false}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`${project.title}, 연결할 프로젝트`}
+                    accessibilityState={{ disabled: !picked }} disabled={!picked}
+                    onPress={() => changeProjectLink(picked, project.id, true)}
+                    style={[styles.row, hoveredTarget === project.id && styles.rowOn]}>
+                    <Icon name="folder" size={18} color={colors.muted} />
+                    <Text numberOfLines={1} style={styles.rowTitle}>{project.title}</Text>
+                  </Pressable>
+                </View>
+                {grouped.get(project.id).map(row => sourceRow(row, true))}
+              </View>
+            ))}
+          </ScrollView>
+        </View>
         {/* 하단 줄: 홈 개요 도크와 같은 자리. 왼쪽 상태, 오른쪽 저장 */}
         {!embedded && <BottomBar style={{ justifyContent: 'space-between' }}>
           <Text style={[styles.counter, tab === 'memo' && body.length >= MAX_LEN && { color: colors.coral }]}>
@@ -590,9 +592,12 @@ const styles = StyleSheet.create({
   rowCopy: { flex: 1, gap: 2 },
   childRow: { marginLeft: 18, minHeight: 42 },
   projectArea: { marginHorizontal: 20, marginBottom: spacing.sm, borderTopWidth: 1, borderColor: colors.line, overflow: 'hidden' },
+  projectHeader: { position: 'relative', justifyContent: 'center' },
   panelHandle: { height: 42, flexShrink: 0, justifyContent: 'center', gap: 4 },
   panelHandleMark: { alignSelf: 'center', width: 30, height: 3, borderRadius: 2, backgroundColor: colors.muted },
   projectTitle: { fontSize: font.caption, color: colors.muted, paddingHorizontal: 10 },
+  projectAddBtn: { position: 'absolute', right: 0, top: 0, width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
+  projectEmpty: { fontSize: font.caption, color: colors.muted, paddingHorizontal: 10, paddingVertical: 8 },
   dragPreview: { position: 'absolute', top: 0, left: 0, zIndex: 10, width: 160, paddingHorizontal: 10, paddingVertical: 9, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.ink, backgroundColor: colors.card },
   rowTitle: { fontSize: 15, fontWeight: '500', color: colors.ink },
   rowSub: { fontSize: font.caption, color: colors.muted },
