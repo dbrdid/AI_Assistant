@@ -22,7 +22,7 @@ import { useProposals } from '../../data/proposals/ProposalStore';
 import { enterSpace, useSpaceInfo, useWorkspaces, switchWorkspace } from '../../data/workspaces/WorkspaceStore';
 import ConfirmDialog from '../../shared/components/ConfirmDialog';
 import { useProposalActions } from '../proposal/useProposalActions';
-import { ROUTES, TABS } from '../../navigation/routes';
+import { ROUTES, SPACE_TOOLS, TABS } from '../../navigation/routes';
 import { documentSubtitle, duplicateTitleSet, filterDocuments } from './model.mjs';
 import { readMemoBlocks } from '../memo/utils/memoBlocks.mjs';
 import { readMemoReference } from '../memo/utils/memoReferences.mjs';
@@ -165,9 +165,6 @@ function RecentDocument({ memo, photo, onPress, duplicate = false }) {
     </View>
   </Pressable>;
 }
-// Notion처럼 공간 단위 항목(검토·AI 연결·공유·휴지통·설정)은 좌상단 작업 공간 메뉴에 모은다.
-const SPACE_TOOLS = [[ROUTES.Spaces, '공유 공간 관리', 'users', '공간'], [ROUTES.Proposals, '작업 검토', 'checkSquare', 'AI'], [ROUTES.LocalModel, 'AI 연결', 'sparkles', 'AI'],
-  [ROUTES.Trash, '휴지통', 'trash', '관리'], [ROUTES.Backup, '백업 및 복원', 'cloud', '관리'], [ROUTES.Settings, '설정', 'settings', '관리'], [ROUTES.More, '모든 도구', 'grid', '관리']];
 const EMBEDDED_ENTRY = { tabRoot: true, goBack: null, embedded: true };
 const DOCUMENT_MODES = { [ROUTES.Memos]: 'documents', [ROUTES.Relations]: 'relations', [ROUTES.Proposals]: 'review' };
 
@@ -239,7 +236,6 @@ export default function WorkspaceScreen({
   const [switchTo, setSwitchTo] = useState(null); // 바꿀 공간 (확인 대기)
   const memos = memoRows;
   const actions = useProposalActions(navigation);
-  const [reviewOpen, setReviewOpen] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState(null);
   const appUpdate = useAppUpdate();
   const [menu, setMenu] = useState(false);
@@ -366,7 +362,7 @@ export default function WorkspaceScreen({
   } else {
     content = <>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.homePage}>
-        {memos.length > 0 && <HomeSection title="최근 문서"><ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.recentRail} contentContainerStyle={s.recentRailContent}>
+        {memos.length > 5 && <HomeSection title="최근 문서"><ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.recentRail} contentContainerStyle={s.recentRailContent}>
           {memos.slice(0, 6).map(memo => <RecentDocument key={memo.id} memo={memo} duplicate={duplicateTitles.has(memoTitle(memo))} photo={files.find(file => file.id === memo.photos?.[0])} onPress={() => open(memo)} />)}
         </ScrollView></HomeSection>}
         {memos.some(memo => memo.favorite) && <HomeSection title="즐겨찾기">
@@ -378,9 +374,6 @@ export default function WorkspaceScreen({
           {list.length > 20 && <Pressable accessibilityRole="button" style={s.link} onPress={() => go(ROUTES.Memos)}><Text style={s.linkText}>모든 문서 보기</Text></Pressable>}
           {!documents.length && <Text style={s.emptyInline}>아직 작성한 문서가 없습니다.</Text>}
         </HomeSection>
-        {waiting.length > 0 && <Pressable accessibilityRole="button" accessibilityState={{ expanded: reviewOpen }} onPress={() => { setReviewOpen(v => !v); setSelectedProposal(null); }} style={s.homeReview}><Icon name="checkSquare" size={18} color={c.muted} /><Text style={s.rowTitle}>검토할 작업</Text><Text style={s.linkText}>{waiting.length}</Text><Icon name={reviewOpen ? 'chevronUp' : 'chevronDown'} size={14} color={c.subtle} /></Pressable>}
-        {/* 검토할 작업은 따로 페이지로 가지 않고 이 자리에서 펼쳐 저장, 보류, 무시 */}
-        {reviewOpen && waiting.map(p => renderProposal(p))}
         {appUpdate && <Pressable accessibilityRole="button" accessibilityLabel={`새 버전 ${appUpdate.version} 받기`} onPress={() => Linking.openURL(appUpdate.url)} style={s.homeReview}><Icon name="arrowUp" size={18} color={c.muted} /><Text style={s.rowTitle}>새 버전 {appUpdate.version}</Text><Text style={s.linkText}>받기</Text></Pressable>}
       </ScrollView>
       {!embedded && askDock}

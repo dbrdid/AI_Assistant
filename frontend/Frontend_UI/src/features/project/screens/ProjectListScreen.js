@@ -98,12 +98,8 @@ export default function ProjectsScreen({ navigation }) {
       <ScreenHeader
         title={selecting ? `${ids.length}개 선택` : '프로젝트'}
         onBack={selecting ? exitSelect : navigation.goBack}
-        // 탭 안에서는 큰 제목 대신 오른쪽 동작만: 추가 (선택 중이면 선택 개수). 아래 '+' 줄은 두지 않음
-        right={embedded ? (selecting
-          ? <Text style={styles.hint}>{ids.length}개 선택</Text>
-          : <Pressable accessibilityRole="button" accessibilityLabel="프로젝트 생성" onPress={() => navigation.navigate(ROUTES.ProjectEdit)} hitSlop={6} style={styles.addRow}>
-              <Icon name="plus" size={14} color={colors.muted} /><Text style={styles.addText}>추가</Text>
-            </Pressable>) : undefined}
+        // 탭 안에서는 하단 새로 만들기(연필) 메뉴와 중복되는 상단 '+ 추가'를 숨기고, 다중 선택 시 개수만 표시한다.
+        right={embedded && selecting ? <Text style={styles.hint}>{ids.length}개 선택</Text> : undefined}
       />
       <View ref={viewport} collapsable={false} style={styles.viewport} onTouchMove={moveDrag}
         onTouchEnd={() => { if (drag.current) finishDrag(); }} onTouchCancel={() => { if (drag.current) finishDrag(); }}>

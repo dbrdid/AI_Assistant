@@ -77,36 +77,30 @@ export const TABS = [
     { route: ROUTES.Projects, label: '프로젝트' },
   ] },
 ];
-// '나' 화면(홈 왼쪽 위 프로필)의 목록. 묶음(section)마다 한 카드로 보입니다
+// 좌상단 작업 공간 메뉴: 공간 전환 아래에 두는 공간·AI·관리 항목
+export const SPACE_TOOLS = [
+  [ROUTES.Spaces, '공유 공간 관리', 'users', '공간'],
+  [ROUTES.Proposals, '작업 검토', 'checkSquare', 'AI'],
+  [ROUTES.LocalModel, 'AI 연결', 'sparkles', 'AI'],
+  [ROUTES.Trash, '휴지통', 'trash', '관리'],
+  [ROUTES.Backup, '백업 및 복원', 'cloud', '관리'],
+  [ROUTES.Settings, '설정', 'settings', '관리'],
+  [ROUTES.More, '모든 도구', 'grid', '관리'],
+];
+// '모든 도구' 화면: 상단 탭·하단 도크·작업 공간 메뉴와 겹치지 않는 고급 도구만 둔다.
 export const MORE_SECTIONS = [
   {
-    title: 'AI',
+    title: '고급 도구',
     items: [
-      { route: ROUTES.AiChat, label: 'AI 채팅', icon: 'message' },
-      { route: ROUTES.Proposals, label: 'AI 제안 확인', icon: 'sparkles' },
-      { route: ROUTES.LocalModel, label: 'AI 연결', icon: 'sparkles' },
-    ],
-  },
-  {
-    title: '도구',
-    items: [
-      { route: ROUTES.Search, label: '검색', icon: 'search' },
       { route: ROUTES.Relations, label: '문서 관계', icon: 'link' },
       { route: ROUTES.AdvancedMemos, label: '가져오기와 내보내기', icon: 'arrowUp' },
       { route: ROUTES.AgendaCompare, label: '안건 비교', icon: 'compare' },
-      { route: ROUTES.QuickInput, label: '사진, 문서 올리기', icon: 'arrowUp', params: { tab: 'file' } },
-      { route: ROUTES.Favorites, label: '즐겨찾기', icon: 'star' },
-      { route: ROUTES.Files, label: '파일 보관함', icon: 'paperclip' },
-      { route: ROUTES.Trash, label: '휴지통', icon: 'trash' },
-    ],
-  },
-  {
-    title: '계정',
-    items: [
-      { route: ROUTES.Backup, label: '백업 및 복원', icon: 'cloud' },
-      { route: ROUTES.Settings, label: '설정', icon: 'settings' },
     ],
   },
 ];
 
-export const ROUTE_LABELS = { ...Object.fromEntries([...TABS, ...MORE_SECTIONS.flatMap((s) => s.items)].map((i) => [i.route, i.label])), [ROUTES.More]: '모든 도구' };
+export const ROUTE_LABELS = {
+  ...Object.fromEntries(SPACE_TOOLS.map(([route, label]) => [route, label])),
+  ...Object.fromEntries([...TABS, ...MORE_SECTIONS.flatMap((s) => s.items)].map((i) => [i.route, i.label])),
+  [ROUTES.More]: '모든 도구',
+};

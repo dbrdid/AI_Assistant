@@ -5,7 +5,7 @@ import { createStellaDocumentStore } from '../../backend/local/src/stella-docume
 import { createDocumentWorkspace } from '../../frontend/Frontend_UI/src/integration/documentWorkspace.mjs';
 import { blockRequest, canAsk, decide, isPlaced, livePending, pendingDocKey, pendingKey, placeAnswer, placeProposal, saveBlocks, targetLine, targetRewrite } from '../../frontend/Frontend_UI/src/features/stella/aiPending.mjs';
 import { gatewayMessages } from '../../frontend/Frontend_UI/src/integration/aiGateway.mjs';
-import { ROUTES, TABS, MORE_SECTIONS } from '../../frontend/Frontend_UI/src/navigation/routes.js';
+import { ROUTES, TABS, SPACE_TOOLS, MORE_SECTIONS, ROUTE_LABELS } from '../../frontend/Frontend_UI/src/navigation/routes.js';
 import { planCommand, routeCommand, screens } from '../../frontend/Frontend_UI/src/features/stella/appCommands.mjs';
 
 function fixture(t) {
@@ -85,7 +85,11 @@ test('long-press target context reaches the gateway and the AI menus are gone', 
   const line = targetLine({ index: 2, type: 'task', text: '보고서\n제출' });
   assert.equal(line, '대상: 현재 문서의 3번 블록(체크): "보고서 제출"');
   assert.ok(gatewayMessages(line + '\n이거 내일로 미뤄줘', 'chat').user.startsWith(line));
-  const menu = [...TABS.flatMap(tab => tab.pages), ...MORE_SECTIONS.flatMap(section => section.items)].map(item => item.route);
+  const menu = [
+    ...TABS.flatMap(tab => tab.pages).map(item => item.route),
+    ...SPACE_TOOLS.map(([route]) => route),
+    ...MORE_SECTIONS.flatMap(section => section.items).map(item => item.route),
+  ];
   assert.equal(menu.includes(ROUTES.Ai), false);
   assert.equal(menu.includes(ROUTES.AppCommand), false);
   assert.ok(menu.includes(ROUTES.LocalModel) && menu.includes(ROUTES.Proposals));
@@ -115,10 +119,20 @@ test('a replace answer keeps the original until accepted; reject restores the do
   assert.equal(blocks()[0].id, 'b1');
 });
 
-test('top tabs keep daily destinations; review, AI settings and tools stay reachable', () => {
+test('top tabs keep daily destinations; review, AI settings and tools stay reachable without menu duplication', () => {
   assert.deepEqual(TABS.map(tab => tab.route), [ROUTES.Home, ROUTES.Tasks, ROUTES.Memos, ROUTES.Projects]);
-  const more = MORE_SECTIONS.flatMap(section => section.items).map(item => item.route);
-  for (const route of [ROUTES.LocalModel, ROUTES.Proposals, ROUTES.Relations, ROUTES.AdvancedMemos, ROUTES.Trash]) assert.ok(more.includes(route), route);
+  const spaceRoutes = SPACE_TOOLS.map(([route]) => route);
+  const moreRoutes = MORE_SECTIONS.flatMap(section => section.items).map(item => item.route);
+  const tabRoutes = TABS.flatMap(tab => tab.pages).map(item => item.route);
+  const reachable = [...spaceRoutes, ...moreRoutes];
+  for (const route of [ROUTES.LocalModel, ROUTES.Proposals, ROUTES.Relations, ROUTES.AdvancedMemos, ROUTES.Trash]) {
+    assert.ok(reachable.includes(route), route);
+  }
+  assert.equal(ROUTE_LABELS[ROUTES.Proposals], '작업 검토');
+  for (const route of moreRoutes) {
+    assert.equal(spaceRoutes.includes(route), false, `duplicate with SPACE_TOOLS: ${route}`);
+    assert.equal(tabRoutes.includes(route), false, `duplicate with TABS: ${route}`);
+  }
 });
 
 test('an AI rewrite of the long-pressed block becomes that block\'s proposed text, not a refused app command', () => {
