@@ -609,6 +609,25 @@ test('start: 저장하면 알아서 돌고, 실패하면 간격을 늘려 다시
   assert.deepEqual([failed, timers.list], [['account_mismatch'], []]);
 });
 
+test('공간별 상태는 다른 공간의 미전송과 충돌을 포함하지 않는다', async () => {
+  const t = world({ engineExtra: {
+    getSyncStatus: async (_, serverId) => serverId === SERVER_WS
+      ? { pending: 2, conflicts: 1, failed: 1, lastError: 'AUTH_REQUIRED: 로그인 만료' }
+      : { pending: 0, conflicts: 0, failed: 0, lastError: null },
+  } });
+  t.store.addMemo({ title: '다른 공간의 미전송 메모' });
+  const emptyTeam = t.store.createWorkspace({ name: '빈 공유 공간' });
+  t.store.linkWorkspace(emptyTeam, OTHER_WS);
+
+  const empty = await t.bridge.status(emptyTeam);
+  assert.deepEqual([empty.state, empty.unsent, Object.keys(empty.workspaces)], ['synced', 0, [emptyTeam]]);
+  const team = await t.bridge.status(t.team);
+  assert.deepEqual([team.state, team.unsent, team.workspaces[t.team].conflicts, team.workspaces[t.team].failed],
+    ['needs_login', 3, 1, 1]);
+  const account = await t.bridge.status();
+  assert.deepEqual([account.state, account.unsent], ['needs_login', 3]);
+});
+
 test('status와 signOut: 안 보낸 저장이 남아 있으면 지우지 않고 알려 준다', async () => {
   let pending = 2, lastError = null, cleared = 0;
   const engineExtra = {

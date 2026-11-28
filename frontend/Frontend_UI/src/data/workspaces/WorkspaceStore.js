@@ -77,8 +77,12 @@ export async function deleteWorkspace(id) {
   const own = runtime();
   const ws = getWorkspaces().find(w => w.id === id);
   if (!ws || ws.personal) throw new Error('개인 공간은 삭제할 수 없습니다');
-  const status = await own.bridge.status();
-  if (status.unsent || status.state === 'attention') throw new Error('미전송 기록과 충돌을 해결한 뒤 나가 주세요');
+  const status = await own.bridge.status(id);
+  const workspaceSync = status.workspaces[id];
+  if (status.unsent || workspaceSync?.conflicts || workspaceSync?.failed) {
+    throw new Error('이 공간의 미전송 기록과 충돌을 해결한 뒤 다시 시도해 주세요');
+  }
+  if (runtime() !== own) throw new Error('계정이 바뀌었습니다');
   if (ws.roleCode === 'OWNER') await api.deleteWorkspace(ws.serverId);
   else await api.leaveWorkspace(ws.serverId);
   if (runtime() !== own) throw new Error('계정이 바뀌었습니다');

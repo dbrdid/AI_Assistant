@@ -1,6 +1,6 @@
 // 탭 화면 공통 하단 (Notion 모바일과 같은 배치): 왼쪽 검색, 가운데 AI에게 질문하기, 오른쪽 새로 만들기.
 // 검색을 누르면 돋보기가 검색창으로 길게 늘어나며 검색 화면이 열린다: 맨 위 AI에게 묻기, 아래로 오늘, 어제, 이번 주,
-// 이번 달, 이전 문서. 검색창 오른쪽 필터에서 정렬과 제목만 검색을 고른다. 새로 만들기는 AI 노트, 채팅, 페이지.
+// 이번 달, 이전 문서. 검색창 오른쪽 필터에서 정렬과 제목만 검색을 고른다. 새로 만들기는 음성 메모, 캘린더, 문서, 프로젝트.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, BackHandler, Easing, Keyboard, Pressable, ScrollView, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import Icon from '../../shared/components/Icon';
@@ -87,7 +87,7 @@ export default function SearchDock({ docs, bottomInset, onOpen, onAskAI, onNew }
     {menu && <>
       <Pressable accessibilityLabel="새로 만들기 닫기" onPress={() => setMenu(false)} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
       <View style={{ position: 'absolute', right: 16, bottom: Math.max(10, bottomInset) + 60, minWidth: 180, backgroundColor: c.surface, borderRadius: 10, paddingVertical: 4 }}>
-        {[['mic', 'AI 노트', 'note'], ['message', '채팅', 'chat'], ['file', '페이지', 'page']].map(([icon, label, kind]) =>
+        {[['mic', '음성 메모', 'note'], ['calendar', '캘린더', 'event'], ['file', '문서', 'document'], ['folder', '프로젝트', 'project']].map(([icon, label, kind]) =>
           <Pressable key={kind} accessibilityRole="button" onPress={() => { setMenu(false); onNew(kind); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingHorizontal: 16 }, pressed && { backgroundColor: c.raised }]}>
             <Icon name={icon} size={18} color={c.muted} /><Text style={{ color: c.text, fontSize: 15 }}>{label}</Text>
           </Pressable>)}

@@ -98,6 +98,12 @@ export function WorkspaceHeader({
         flexShrink: 1
       }}><Text style={s.brandTitle} numberOfLines={1}>{title}</Text><Text style={s.brandSub}>Atria{LOCAL_PREVIEW ? ', 로컬 미리보기' : ''}</Text></View><Icon name="chevronDown" size={14} color={c.muted} /></Pressable><View style={s.actions}>{right || <>{onSearch && <IconButton name="search" label="문서 검색" onPress={onSearch} />}</>}</View></View>;
 }
+function documentIcon(memo) {
+  // Recording memos keep the "녹음" prefix even after the title is generated.
+  if (/^녹음(?:\s|$)/.test(memoTitle(memo))) return 'mic';
+  return memo.photos?.length ? 'paperclip' : 'pencil';
+}
+
 function DocumentRow({ memo, onPress, hasChildren, collapsed, onToggle, onMore, compact = false }) {
   const title = memoTitle(memo);
   const [showEmpty, setShowEmpty] = useState(false);
@@ -107,7 +113,7 @@ function DocumentRow({ memo, onPress, hasChildren, collapsed, onToggle, onMore, 
     <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress}
       style={({ pressed }) => [{ flex: 1, minHeight: 44, flexDirection: 'row',
         alignItems: 'center', gap: 8, paddingVertical: compact ? 0 : 6, opacity: pressed ? .6 : 1 }]}>
-      <Icon name="file" size={18} color={c.muted} />
+      <Icon name={documentIcon(memo)} size={18} color={c.muted} />
       <View style={{ flex: 1 }}>
         <Text style={s.rowTitle} numberOfLines={1}>{title}</Text>
         {!compact && <><Text style={s.rowBody} numberOfLines={1}>{memo.body || '필기나 첨부가 있는 문서'}</Text>
@@ -149,7 +155,7 @@ function RecentDocument({ memo, photo, onPress }) {
   return <Pressable accessibilityRole="button" accessibilityLabel={memoTitle(memo)} onPress={onPress} style={({ pressed }) => [s.recentCard, pressed && { opacity: .65 }]}>
     {photo?.uri && !imageFailed && <View style={s.recentCover}><Image source={{ uri: photo.uri }} resizeMode="cover" style={s.recentImage} onError={() => setImageFailed(true)} /></View>}
     <View style={s.recentCardContent}>
-      <View style={s.recentCardHeading}><Icon name="file" size={16} color={c.subtle} /><Text style={s.recentTitle} numberOfLines={2}>{memoTitle(memo)}</Text></View>
+      <View style={s.recentCardHeading}><Icon name={documentIcon(memo)} size={16} color={c.subtle} /><Text style={s.recentTitle} numberOfLines={2}>{memoTitle(memo)}</Text></View>
       {!!excerpt && <Text style={s.recentExcerpt} numberOfLines={3}>{excerpt}</Text>}
     </View>
   </Pressable>;
@@ -291,13 +297,21 @@ export default function WorkspaceScreen({
   // 탭 안에 들어간 쪽은 아래 공통 하단(검색, AI에게 질문하기, 새 문서)을 쓰고 자체 하단을 그리지 않는다
   const embedded = pagerIndex !== undefined || bodyOnly;
   // Notion 모바일 하단과 같은 형식: 왼쪽 검색, 가운데 AI에게 질문하기, 오른쪽 새 문서
-  // Notion 모바일과 같은 하단: 검색(펼쳐지는 검색창), AI에게 질문하기, 새로 만들기(AI 노트, 채팅, 페이지)
+  // Notion 모바일과 같은 하단: 검색(펼쳐지는 검색창), AI에게 질문하기, 새로 만들기
   const titleOf = new Map(memos.map(memo => [memo.id, memoTitle(memo)]));
   const parentOf = new Map(documents.map(document => [document.id, document.parentId]));
   const searchDocs = memos.map(memo => ({ id: memo.id, title: memoTitle(memo), body: memo.body || '', updatedAt: memo.updatedAt, createdAt: memo.createdAt ?? memo.updatedAt, parent: titleOf.get(parentOf.get(memo.id)) || '' }));
-  // AI 노트: 지금 탭에서 바로 녹음 (녹음 중에는 하단 막대 자리에 녹음 막대)
+  // 녹음 중에는 하단 메뉴 대신 녹음 막대를 표시한다.
+  function createFromDock(kind) {
+    switch (kind) {
+      case 'note': return note.start();
+      case 'event': return go(ROUTES.TaskEdit, { kind: 'event' });
+      case 'document': return go(ROUTES.MemoEdit);
+      case 'project': return go(ROUTES.ProjectEdit);
+    }
+  }
   const askDock = note.recording ? note.bar : <SearchDock docs={searchDocs} bottomInset={insets.bottom} onOpen={id => go(ROUTES.MemoEdit, { memoId: id })} onAskAI={() => go(ROUTES.AiChat)}
-    onNew={kind => kind === 'note' ? note.start() : go(kind === 'chat' ? ROUTES.AiChat : ROUTES.MemoEdit)} />;
+    onNew={createFromDock} />;
   let content;
   if (mode === 'documents') {
     content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={list} keyExtractor={memo => memo.id} contentContainerStyle={s.page} keyboardShouldPersistTaps="handled" ListHeaderComponent={<>{intro}<View style={s.search}><Icon name="search" size={17} color={c.muted} /><TextInput autoFocus={requestSearch} accessibilityLabel="문서 검색" placeholder="제목이나 내용으로 검색" placeholderTextColor={c.subtle} value={query} onChangeText={setQuery} style={s.searchInput} />{query ? <IconButton name="x" label="검색어 지우기" onPress={() => setQuery('')} /> : null}</View><View style={s.filters}>{[['all', '모든 문서'], ['favorites', '즐겨찾기']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{

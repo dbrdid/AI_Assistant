@@ -20,8 +20,9 @@ test('native service publishes verified downloads, handles memory pressure, and 
       this.uri = destination.uri;
     }
     static async downloadFileAsync(url, partial) {
-      const profile = Object.keys(policy.profiles).find(key => url.endsWith(key + '.gguf'));
-      stored.set(partial.uri, policy.profiles[profile].bytes);
+      const profile = Object.values(policy.deviceModels).find(model => model.url === url);
+      assert.ok(profile, 'download must use a supported device model');
+      stored.set(partial.uri, profile.bytes);
     }
   }
   function addListener(name, listener) {
@@ -34,7 +35,7 @@ test('native service publishes verified downloads, handles memory pressure, and 
   };
   const mocks = {
     'react-native': { Platform: { OS: 'android' }, AppState: { currentState: 'active', addEventListener: addListener } },
-    'expo-modules-core': { requireOptionalNativeModule: () => device },
+    'expo': { requireOptionalNativeModule: () => device },
     'expo-file-system': { File, Directory: class { create() {} }, Paths: { availableDiskSpace: 8e9 } },
     './mobileModelPolicy.mjs': policy,
     './s22Gate': { metrics: null },
@@ -55,11 +56,11 @@ test('native service publishes verified downloads, handles memory pressure, and 
   new Function('require', 'exports', code)(id => mocks[id], api);
   await assert.rejects(api.installMobileModel('Q4_K_M'), /무결성/);
   assert.equal(stored.size, 0);
-  for (const [id, profile] of Object.entries(policy.profiles)) {
+  for (const [id, profile] of Object.entries(policy.deviceModels)) {
     digest = profile.sha256;
     await api.installMobileModel(id);
   }
-  assert.deepEqual(await api.listMobileModels(), Object.keys(policy.profiles));
+  assert.deepEqual(await api.listMobileModels(), Object.keys(policy.deviceModels));
   const query = { model: 'Q5_K_M', prompt: 'hello' };
   const started = new Promise(resolve => { completionStarted = resolve; });
   const active = api.askMobileModel(query);

@@ -71,7 +71,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
     if (!own || !workspace || workspace.personal) return setSyncInfo({ loading: false, message: '' });
     if (!workspace.serverId) return setSyncInfo({ loading: false, message: '이 공간은 아직 서버와 연결되지 않았어요.' });
     try {
-      const status = await own.bridge.status();
+      const status = await own.bridge.status(workspace.id);
       const mine = status.workspaces?.[workspace.id];
       const head = (await listOutbox(own.syncDb, workspace.serverId))[0];
       const detail = head?.lastError ? `\n${head.lastError}` : '';

@@ -22,7 +22,7 @@ const TODAY_TIPS = [
 import { useSettings } from '../../../data/settings/SettingsStore';
 import { enterSpace, useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import { useProposals } from '../../../data/proposals/ProposalStore';
-import { classify, lastDate, occursOn, shortDate, taskIn, useAllTasks } from '../../../data/tasks/TaskStore';
+import { classify, getAllTasks, lastDate, occursOn, shortDate, taskIn, useAllTasks } from '../../../data/tasks/TaskStore';
 import { WEEKDAYS_LONG, toKey } from '../../calendar/utils/DateUtils';
 import ScheduleRow from '../../calendar/components/ScheduleRow';
 import { ROUTES } from '../../../navigation/routes';
@@ -35,6 +35,7 @@ import { selectHomeScheduleEvents } from '../utils/HomeSchedule.mjs';
 
 // 초 → "01:05"
 const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+const UNDO_DURATION_MS = 5000;
 
 function SectionHead({ title, onAdd, addLabel }) {
   return (
@@ -80,6 +81,12 @@ export default function HomeScreen({ navigation, route }) {
   const now = new Date();
   const todayKey = toKey(now);
   const tasks = useAllTasks();
+  const [undoableIds, setUndoableIds] = useState(() => new Set());
+  const completionTimers = useRef(new Map()).current;
+  useEffect(() => () => {
+    completionTimers.forEach(clearTimeout);
+    completionTimers.clear();
+  }, [completionTimers]);
   const events = tasks
     .filter((t) => t.kind === 'event' && occursOn(t, todayKey))
     .sort((a, b) => (a.start || '').localeCompare(b.start || ''));
@@ -87,18 +94,54 @@ export default function HomeScreen({ navigation, route }) {
     .filter((t) => t.kind !== 'event' && (occursOn(t, todayKey) || classify(t, todayKey) === 'overdue'))
     .sort((a, b) => (a.status === '완료') - (b.status === '완료') || a.date.localeCompare(b.date));
   const left = todos.filter((t) => t.status !== '완료').length;
+  const visibleEvents = events.filter(t => t.status !== '완료' || undoableIds.has(t.id));
+  const visibleTodos = todos.filter(t => t.status !== '완료' || undoableIds.has(t.id));
   // 지금 진행 중인 일정과 바로 다음 일정 (완료한 일정 제외)
   const nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const scheduleHighlights = selectHomeScheduleEvents(events.filter((t) => t.status !== '완료'), nowHM);
 
-  const toggle = (t) => {
+  const finishUndoWindow = id => {
+    clearTimeout(completionTimers.get(id));
+    completionTimers.delete(id);
+    setUndoableIds(ids => {
+      if (!ids.has(id)) return ids;
+      const next = new Set(ids);
+      next.delete(id);
+      return next;
+    });
+  };
+  const toggle = t => {
+    const readCurrent = () => getAllTasks().find(item => item.id === t.id && item.workspaceId === t.workspaceId);
+    let saved;
     try {
-      taskIn(t, 'toggleDone', t.id);
+      if (readCurrent()?.revision !== t.revision) return;
+      saved = taskIn(t, 'toggleDone', t.id);
     } catch (e) {
       snack.show(e.code === 'read_only' ? '보기 전용 공간이라 바꿀 수 없어요' : '바꾸지 못했어요');
       return;
     }
-    if (t.status !== '완료') snack.show(`“${t.title}” 완료`, { label: '되돌리기', onPress: () => taskIn(t, 'toggleDone', t.id) });
+    finishUndoWindow(t.id);
+    if (saved.status !== '완료') {
+      snack.hide();
+      return;
+    }
+    setUndoableIds(ids => new Set(ids).add(t.id));
+    completionTimers.set(t.id, setTimeout(() => finishUndoWindow(t.id), UNDO_DURATION_MS));
+    snack.show(`“${t.title}” 완료`, {
+      label: '되돌리기',
+      onPress: () => {
+        try {
+          if (readCurrent()?.revision !== saved.revision) {
+            snack.show('항목이 바뀌어 되돌릴 수 없어요.');
+            return;
+          }
+          taskIn(t, 'updateTask', t.id, { status: t.status });
+          finishUndoWindow(t.id);
+        } catch (error) {
+          snack.show(error.code === 'read_only' ? '보기 전용 공간이라 바꿀 수 없어요' : '되돌리지 못했어요.');
+        }
+      },
+    }, { durationMs: UNDO_DURATION_MS });
   };
 
   // 팀 공간 요약: 오늘 일정 수 · 남은 할 일 수 (실제 기록으로 계산)
@@ -165,31 +208,43 @@ export default function HomeScreen({ navigation, route }) {
             {`${state === 'ongoing' ? '진행 중' : '다음 일정'}, ${event.start}${event.end ? `~${event.end}` : ''} ${event.title}`}
           </Text>
         ))}
-        {events.length === 0 ? (
-          <Text style={styles.empty}>오늘은 일정이 없어요</Text>
+        {visibleEvents.length === 0 ? (
+          <Text style={styles.empty}>{events.length ? '남은 일정이 없어요' : '오늘은 일정이 없어요'}</Text>
         ) : (
-          events.map(t => (
-            <ScheduleRow
-              key={t.id}
-              item={t}
-              details={[spaces[t.workspaceId]?.name, t.endDate ? `${shortDate(t.endDate)}까지` : null, t.place]}
-              onPress={() => openTask(t)}
-            />
+          visibleEvents.map(t => (
+            <View key={t.id} style={styles.eventRow}>
+              <ScheduleRow
+                item={t}
+                details={[spaces[t.workspaceId]?.name, t.endDate ? `${shortDate(t.endDate)}까지` : null, t.place]}
+                onPress={() => openTask(t)}
+                style={styles.eventBody}
+              />
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: t.status === '완료' }}
+                aria-checked={t.status === '완료'}
+                accessibilityLabel={`${t.title} 완료 표시`}
+                onPress={() => toggle(t)}
+                style={styles.eventToggle}
+              >
+                <Icon name={t.status === '완료' ? 'checkSquare' : 'square'} size={22} color={t.status === '완료' ? colors.ink : colors.muted} />
+              </Pressable>
+            </View>
           ))
         )}
 
         {/* ---------- 오늘 할 일 (기한 지난 것 포함) ---------- */}
         <SectionHead title={left ? `오늘 할 일, ${left}개 남음` : '오늘 할 일'} addLabel="오늘 할 일 추가" onAdd={() => go(ROUTES.TaskEdit, { date: todayKey, kind: 'task' })} />
-        {todos.length === 0 ? (
-          <Text style={styles.empty}>오늘 할 일이 없어요</Text>
+        {visibleTodos.length === 0 ? (
+          <Text style={styles.empty}>{todos.length ? '남은 할 일이 없어요' : '오늘 할 일이 없어요'}</Text>
         ) : (
-          todos.map((t) => {
+          visibleTodos.map((t) => {
             const done = t.status === '완료';
             const late = !done && lastDate(t) < todayKey ? daysBetween(lastDate(t), todayKey) : 0;
             const mineTag = !!myName && !!t.assignee && t.assignee.trim() === myName; // 담당자가 내 이름이면 (이름으로만 비교)
             return (
               <View key={t.id} style={styles.todoRow}>
-                <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: done }} accessibilityLabel={`${t.title} 완료 표시`} onPress={() => toggle(t)} hitSlop={10}>
+                <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: done }} aria-checked={done} accessibilityLabel={`${t.title} 완료 표시`} onPress={() => toggle(t)} hitSlop={10}>
                   <Icon name={done ? 'checkSquare' : 'square'} size={22} color={done ? colors.mintDark : colors.muted} />
                 </Pressable>
                 <Pressable accessibilityRole="button" onPress={() => openTask(t)} style={styles.todoBody}>
@@ -233,6 +288,9 @@ const styles = StyleSheet.create({
   addLink: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 44 },
   addLinkText: { fontSize: font.caption, fontWeight: '500', color: colors.muted },
   empty: { fontSize: 13, color: colors.subtle ?? colors.muted, paddingVertical: spacing.xs },
+  eventRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  eventBody: { flex: 1 },
+  eventToggle: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
 
   subRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   itemSub: { flexShrink: 1, fontSize: font.caption, color: colors.muted },

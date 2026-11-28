@@ -20,10 +20,10 @@ export function useSnackbar({ bottom = spacing.lg } = {}) {
     clearTimeout(timer.current);
     setState(null);
   }, []);
-  const show = useCallback((text, action) => {
+  const show = useCallback((text, action, { durationMs } = {}) => {
     clearTimeout(timer.current);
     setState({ text, action });
-    timer.current = setTimeout(() => setState(null), action ? 4000 : 2400);
+    timer.current = setTimeout(() => setState(null), durationMs ?? (action ? 4000 : 2400));
   }, []);
 
   const view = state ? (

@@ -419,15 +419,15 @@ export function createBridge({
   }
 
   /**
-   * 지금 상태 (배지·배너·로그아웃 전 확인용).
+   * 지금 상태. 공간 ID를 넘기면 그 공간만 집계하고, 생략하면 계정 전체를 집계한다.
    *   state: 'needs_login'(로그인 만료) · 'attention'(충돌·거절: issues로 풀기) · 'pending'(안 보낸 저장 있음) · 'synced'
    *   unsent: 서버에 아직 안 올라간 저장 묶음 수 · workspaces: { 기기 공간 id: { waiting, pending, conflicts, failed, lastError, attempts } }
    */
-  async function status() {
+  async function status(workspaceId) {
     const out = {};
     let unsent = 0, attention = false, login = false;
     for (const ws of store.getWorkspaces()) {
-      if (ws.personal) continue;
+      if (ws.personal || (workspaceId !== undefined && ws.id !== workspaceId)) continue;
       let waitingRows = 0;
       for (const row of outboxOf(ws.id)) if (row) waitingRows++;
       const s = ws.serverId && typeof engine.getSyncStatus === 'function'

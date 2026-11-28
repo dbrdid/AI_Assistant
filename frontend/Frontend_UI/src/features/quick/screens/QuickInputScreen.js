@@ -3,22 +3,25 @@
 // ============================================================
 
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { useScreenEntry } from '../../../navigation/ScreenEntry';
 import { BarAction, BottomBar } from '../../../shared/components/Ui';
 import Icon from '../../../shared/components/Icon';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
-import { shortDateKey } from '../../agenda/utils/AgendaUtils';
 import { toKey } from '../../calendar/utils/DateUtils';
-import { addMemo } from '../../../data/memos/MemoStore';
+import { addMemo, memoTitle, useMemos } from '../../../data/memos/MemoStore';
 import { analyzeText } from '../../../services/ai/AiAnalyze';
 import { addAsset, checkAsset, pickAssets } from '../../../data/files/FileStore';
-import { linkItems, setItemProject, useProjects } from '../../../data/projects/ProjectStore';
+import { linkItems, projectOf, setItemProject, useProjects } from '../../../data/projects/ProjectStore';
 import { shortDate, tagText, useTasks } from '../../../data/tasks/TaskStore';
-import { scopedKey } from '../../../data/workspaces/WorkspaceStore';
+import { scopedKey, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import { useNotice } from '../../../shared/components/SettingsUi';
+import { useClaimSwipeGesture } from '../../../shared/hooks/useClaimSwipeGesture';
+import { canLinkProjectItems, canManageProjectItems } from '../../project/projectPermissions';
+import { maybeRuntime } from '../../../data/hooks';
+import { isProjectLeader } from '../../../lib/stella/project-team';
 
 const MAX_LEN = 2000;
 const DRAFT_KEY = 'myapp.quickinput.draft.v1';
@@ -26,12 +29,40 @@ const FILTERS = [
   { id: 'all', label: '전체' },
   { id: 'event', label: '일정' },
   { id: 'todo', label: '할 일' },
-  { id: 'project', label: '프로젝트' },
+  { id: 'memo', label: '메모' },
 ];
+const LINK_ICONS = { event: 'calendar', todo: 'checkSquare', memo: 'file', file: 'paperclip' };
+const LINK_HOLD_MS = 280;
+const DRAG_THRESHOLD = 6;
+const UNLINK_TARGET = Symbol('unlink');
+const PROJECT_PANEL_MIN_HEIGHT = 44;
+const PROJECT_PANEL_STEP = 56;
+const ProjectResizeHandle = Platform.OS === 'web' ? 'div' : View;
+
+function insideDropArea(bounds, x, y) {
+  return bounds && x >= bounds.x && x <= bounds.x + bounds.width && y >= bounds.y && y <= bounds.y + bounds.height;
+}
+
+function dragPoint(event) {
+  const touch = event.nativeEvent ?? event;
+  return Platform.OS === 'web' ? { x: touch.clientX ?? touch.pageX - window.scrollX, y: touch.clientY ?? touch.pageY - window.scrollY } : { x: touch.pageX, y: touch.pageY };
+}
+
+function measureDragArea(view, measured) {
+  if (Platform.OS === 'web') {
+    const bounds = view?.getBoundingClientRect();
+    if (bounds) measured(bounds);
+    return;
+  }
+  view?.measure((_, __, width, height, x, y) => measured({ x, y, width, height }));
+}
 
 export default function QuickInputScreen({ navigation, route }) {
   const tasks = useTasks();
   const projects = useProjects();
+  const memos = useMemos();
+  const { current: workspace } = useWorkspaces();
+  const canLink = canLinkProjectItems(workspace);
   const notice = useNotice();
   const [tab, setTab] = useState(route?.params?.tab === 'file' ? 'file' : 'memo');
   const [body, setBody] = useState('');
@@ -40,9 +71,84 @@ export default function QuickInputScreen({ navigation, route }) {
   const [filter, setFilter] = useState('all');
   const [staged, setStaged] = useState([]); // [{ key, asset, status:'ready'|'uploading'|'done'|'failed', reason, canRetry }]
   const [loaded, setLoaded] = useState(false);
+  const [dragging, setDragging] = useState(null);
+  const [picked, setPicked] = useState(null);
+  const [hoveredTarget, setHoveredTarget] = useState(null);
+  const [availableHeight, setAvailableHeight] = useState(0);
+  const [panelHeight, setPanelHeight] = useState(null);
+  const [laidOutPanelHeight, setLaidOutPanelHeight] = useState(0);
+  const panelResize = useRef(null);
+  const claimSwipe = useClaimSwipeGesture();
+  const screenRef = useRef(null);
+  const sourceViewport = useRef(null);
+  const unlinkedArea = useRef(null);
+  const projectArea = useRef(null);
+  const projectTargets = useRef(new Map());
+  const linkDrag = useRef(null);
+  const dragPosition = useRef(new Animated.ValueXY()).current;
   const leaving = useRef(null);
   const keySeq = useRef(0);
   const todayKey = toKey(new Date());
+  const maxPanelHeight = Math.max(PROJECT_PANEL_MIN_HEIGHT, Math.floor(availableHeight * 0.68));
+  const defaultPanelHeight = Math.max(PROJECT_PANEL_MIN_HEIGHT, Math.floor(availableHeight * 0.28));
+  const clampPanelHeight = height => Math.round(Math.max(PROJECT_PANEL_MIN_HEIGHT, Math.min(maxPanelHeight, height)));
+  const resizePanel = height => setPanelHeight(clampPanelHeight(height));
+  const beginPanelResize = (event) => {
+    if (linkDrag.current) return false;
+    claimSwipe();
+    panelResize.current = { startY: dragPoint(event).y, height: laidOutPanelHeight, moved: false };
+    return true;
+  };
+  const movePanelResize = (event) => {
+    const gesture = panelResize.current;
+    if (!gesture) return;
+    const distance = gesture.startY - dragPoint(event).y;
+    if (!gesture.moved && Math.abs(distance) < DRAG_THRESHOLD) return;
+    gesture.moved = true;
+    resizePanel(gesture.height + distance);
+  };
+  const togglePanel = () => resizePanel(laidOutPanelHeight <= PROJECT_PANEL_MIN_HEIGHT + 2 ? defaultPanelHeight : PROJECT_PANEL_MIN_HEIGHT);
+  const finishPanelResize = () => {
+    const gesture = panelResize.current;
+    panelResize.current = null;
+    if (gesture && !gesture.moved) togglePanel();
+  };
+  const cancelPanelResize = () => { panelResize.current = null; };
+  const panelHandleProps = Platform.OS === 'web'
+    ? {
+      role: 'slider', tabIndex: 0, 'aria-label': '프로젝트 높이 조절', 'aria-orientation': 'vertical',
+      'aria-valuemin': PROJECT_PANEL_MIN_HEIGHT, 'aria-valuemax': maxPanelHeight,
+      'aria-valuenow': clampPanelHeight(laidOutPanelHeight),
+      onPointerDown: event => {
+        if (!event.isPrimary || event.button !== 0 || !beginPanelResize(event)) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
+      },
+      onPointerMove: movePanelResize, onPointerUp: finishPanelResize, onLostPointerCapture: cancelPanelResize,
+      onKeyDown: event => {
+        if (event.key === 'ArrowUp') resizePanel(laidOutPanelHeight + PROJECT_PANEL_STEP);
+        else if (event.key === 'ArrowDown') resizePanel(laidOutPanelHeight - PROJECT_PANEL_STEP);
+        else if (event.key === 'Home') resizePanel(PROJECT_PANEL_MIN_HEIGHT);
+        else if (event.key === 'End') resizePanel(maxPanelHeight);
+        else if (event.key === 'Enter' || event.key === ' ') togglePanel();
+        else return;
+        event.preventDefault();
+      },
+    }
+    : {
+      accessible: true, accessibilityRole: 'adjustable', accessibilityLabel: '프로젝트 높이 조절',
+      accessibilityHint: '위아래로 끌어 높이를 조절하거나 눌러 접으세요',
+      accessibilityValue: { min: PROJECT_PANEL_MIN_HEIGHT, max: maxPanelHeight, now: clampPanelHeight(laidOutPanelHeight) },
+      accessibilityActions: [{ name: 'increment' }, { name: 'decrement' }, { name: 'activate' }],
+      onAccessibilityAction: ({ nativeEvent }) => {
+        if (nativeEvent.actionName === 'activate') togglePanel();
+        else resizePanel(laidOutPanelHeight + (nativeEvent.actionName === 'increment' ? PROJECT_PANEL_STEP : -PROJECT_PANEL_STEP));
+      },
+      onStartShouldSetResponder: () => !linkDrag.current,
+      onTouchStart: event => { event.stopPropagation(); claimSwipe(); },
+      onResponderGrant: beginPanelResize, onResponderMove: movePanelResize,
+      onResponderRelease: finishPanelResize, onResponderTerminate: cancelPanelResize,
+      onResponderTerminationRequest: () => false,
+    };
 
   // 임시 보존된 내용 불러오기
   useEffect(() => {
@@ -68,21 +174,161 @@ export default function QuickInputScreen({ navigation, route }) {
     AsyncStorage.setItem(scopedKey(DRAFT_KEY), JSON.stringify({ body, taskIds, projectId })).catch(() => {});
   }, [body, taskIds, projectId, loaded]);
 
-  // 연결 후보: 끝나지 않은 일정/할 일, 프로젝트
-  const open = tasks.filter((t) => t.status !== '완료');
-  const events = open.filter((t) => !!t.start);
-  const todos = open.filter((t) => !t.start);
-  const rows = [];
-  if (filter === 'all' || filter === 'event') events.forEach((t) => rows.push({ kind: 'task', id: t.id, title: t.title, sub: `${shortDate(t)}, ${tagText(t, todayKey)}` }));
-  if (filter === 'all' || filter === 'todo') todos.forEach((t) => rows.push({ kind: 'task', id: t.id, title: t.title, sub: `${shortDate(t)}, ${tagText(t, todayKey)}` }));
-  if (filter === 'all' || filter === 'project') projects.forEach((p) => rows.push({ kind: 'project', id: p.id, title: p.title || '(제목 없음)', sub: `${p.due ? `${shortDateKey(p.due)}, ` : ''}${p.priority}` }));
-  const shown = rows.slice(0, 40);
+  const taskRows = tasks.map(task => ({
+    id: task.id,
+    kind: 'task',
+    category: (task.kind ? task.kind === 'event' : !!task.start) ? 'event' : 'todo',
+    title: task.title,
+    sub: `${shortDate(task)}, ${tagText(task, todayKey)}`,
+    available: task.status !== '완료',
+  }));
+  const memoRows = memos.map(memo => ({ id: memo.id, kind: 'memo', category: 'memo', title: memoTitle(memo), available: true }));
+  const draft = tab === 'memo'
+    ? { id: 'draft', kind: 'draft', category: 'memo', title: body.trim().split('\n')[0].slice(0, 60) || '작성 중인 메모' }
+    : { id: 'draft', kind: 'draft', category: 'file', title: '선택한 파일' };
+  const itemKey = row => `${row.kind}-${row.id}`;
+  const tasksById = new Map(taskRows.map(row => [row.id, row]));
+  const memosById = new Map(memoRows.map(row => [row.id, row]));
+  const grouped = new Map(projects.map(project => {
+    const children = [
+      ...project.links.tasks.map(id => tasksById.get(id)),
+      ...project.links.memos.map(id => memosById.get(id)),
+    ].filter(Boolean)
+      .map(row => ({ ...row, projectId: project.id }));
+    if (projectId === project.id) children.unshift(draft);
+    return [project.id, children];
+  }));
+  const linked = new Set([...grouped.values()].flat().map(itemKey));
+  const candidates = [...(projectId ? [] : [draft]), ...[...taskRows, ...memoRows]
+    .filter(row => row.available && !linked.has(itemKey(row)) && (filter === 'all' || filter === row.category)).slice(0, 40)];
 
-  const toggle = (r) => {
-    if (r.kind === 'project') setProjectId((cur) => (cur === r.id ? null : r.id));
-    else setTaskIds((cur) => (cur.includes(r.id) ? cur.filter((x) => x !== r.id) : [...cur, r.id]));
+  const canMoveFrom = project => {
+    if (!project) return true;
+    const members = project.members.map(member => ({ account_id: member.accountId ?? null, role: member.role, deleted_at: null }));
+    return canManageProjectItems({ workspace, projectLeader: isProjectLeader(members, maybeRuntime()?.session.id) });
   };
-  const checked = (r) => (r.kind === 'project' ? projectId === r.id : taskIds.includes(r.id));
+
+  const isProjectLinked = row => Boolean(row && (row.kind === 'draft' ? projectId : row.projectId));
+
+  const changeProjectLink = (row, targetId, toggleDraft = false) => {
+    setPicked(null);
+    if (!row || !canLink) return;
+    if (targetId === null ? !isProjectLinked(row) : !projects.some(project => project.id === targetId)) return;
+    if (row.kind === 'draft') {
+      setProjectId(current => toggleDraft && current === targetId ? null : targetId);
+      return;
+    }
+    const currentProject = projectOf(row.kind, row.id);
+    const currentId = currentProject?.id ?? null;
+    if (currentId !== (row.projectId ?? null) || !canMoveFrom(currentProject) || currentId === targetId) return;
+    if (!setItemProject(row.kind, row.id, targetId)) return;
+    if (targetId === null) setFilter(current => current === 'all' ? current : row.category);
+    if (!workspace.personal && row.kind === 'memo') {
+      notice.show(targetId === null ? '연결 해제를 요청했어요' : '연결을 요청했어요');
+    }
+  };
+
+  const beginLinkDrag = (row, event) => {
+    if (!canLink || !projects.length) return;
+    claimSwipe();
+    const drag = { row, canUnlink: isProjectLinked(row), start: dragPoint(event), targets: new Map(), moved: false };
+    linkDrag.current = drag;
+    setPicked(row);
+    setDragging(row);
+    measureDragArea(screenRef.current, (bounds) => { drag.screen = bounds; });
+    measureDragArea(projectArea.current, (bounds) => { drag.viewport = bounds; });
+    if (drag.canUnlink) {
+      measureDragArea(sourceViewport.current, (bounds) => { drag.sourceViewport = bounds; });
+      measureDragArea(unlinkedArea.current, (bounds) => { drag.unlinkedArea = bounds; });
+    }
+    for (const [id, view] of projectTargets.current) {
+      measureDragArea(view, (bounds) => { drag.targets.set(id, bounds); });
+    }
+  };
+
+  const targetAt = (drag, { x, y }) => {
+    if (drag.canUnlink && insideDropArea(drag.sourceViewport, x, y) && insideDropArea(drag.unlinkedArea, x, y)) return UNLINK_TARGET;
+    if (!insideDropArea(drag.viewport, x, y)) return null;
+    for (const [id, bounds] of drag.targets) if (insideDropArea(bounds, x, y)) return id;
+    return null;
+  };
+
+  const endLinkDrag = (event) => {
+    const drag = linkDrag.current;
+    if (!drag) return;
+    linkDrag.current = null;
+    setDragging(null);
+    setHoveredTarget(null);
+    if (!drag.moved && event) return;
+    setPicked(null);
+    const target = event && targetAt(drag, dragPoint(event));
+    if (target) changeProjectLink(drag.row, target === UNLINK_TARGET ? null : target);
+  };
+
+  const moveLinkDrag = (event) => {
+    const drag = linkDrag.current;
+    if (!drag) return;
+    if (event.nativeEvent?.touches?.length > 1) { endLinkDrag(); return; }
+    const point = dragPoint(event);
+    if (!drag.moved && Math.hypot(point.x - drag.start.x, point.y - drag.start.y) < DRAG_THRESHOLD) return;
+    if (drag.screen) {
+      const x = Math.min(Math.max(8, point.x - drag.screen.x - 76), Math.max(8, drag.screen.width - 168));
+      dragPosition.setValue({ x, y: Math.max(0, point.y - drag.screen.y - 44) });
+    }
+    if (!drag.moved) setDragging({ ...drag.row });
+    drag.moved = true;
+    setHoveredTarget(targetAt(drag, point));
+  };
+
+  const dragHandlers = useRef(null);
+  dragHandlers.current = { moveLinkDrag, endLinkDrag };
+  useEffect(() => {
+    if (!dragging || Platform.OS !== 'web') return;
+    const move = event => dragHandlers.current.moveLinkDrag(event);
+    const release = event => dragHandlers.current.endLinkDrag(event);
+    const cancel = () => dragHandlers.current.endLinkDrag();
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', cancel);
+    window.addEventListener('blur', cancel);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', release);
+      window.removeEventListener('pointercancel', cancel);
+      window.removeEventListener('blur', cancel);
+    };
+  }, [dragging]);
+
+  const changeTab = next => {
+    endLinkDrag();
+    setPicked(null);
+    setTab(next);
+  };
+
+  const chooseLinkSource = row => setPicked(current => current && itemKey(current) === itemKey(row) ? null : row);
+  const linkRowContent = row => (
+    <>
+      <Icon name={LINK_ICONS[row.category]} size={17} color={colors.muted} />
+      <View style={styles.rowCopy}>
+        <Text style={styles.rowTitle} numberOfLines={1}>{row.title}</Text>
+        {!!row.sub && <Text style={styles.rowSub}>{row.sub}</Text>}
+      </View>
+    </>
+  );
+  const sourceRow = (row, nested = false) => {
+    const selected = picked && itemKey(picked) === itemKey(row);
+    const canMove = canLink && projects.length > 0 && canMoveFrom(projects.find(project => project.id === row.projectId));
+    if (!canMove) return <View key={itemKey(row)} style={[styles.row, nested && styles.childRow]}>{linkRowContent(row)}</View>;
+    return (
+      <Pressable key={itemKey(row)} accessibilityRole="button" accessibilityState={{ selected: Boolean(selected) }}
+        accessibilityLabel={row.title}
+        accessibilityHint={nested ? '길게 눌러 연결할 항목 목록으로 끌어내거나 다른 프로젝트로 옮기세요' : '길게 눌러 프로젝트로 끌거나, 항목을 누른 뒤 프로젝트를 선택하세요'}
+        onPress={() => chooseLinkSource(row)} onLongPress={event => beginLinkDrag(row, event)} delayLongPress={LINK_HOLD_MS}
+        style={[styles.row, nested && styles.childRow, selected && styles.rowOn]}>
+        {linkRowContent(row)}
+      </Pressable>
+    );
+  };
 
   // ---------- 메모 저장 ----------
   const saveMemo = () => {
@@ -156,7 +402,10 @@ export default function QuickInputScreen({ navigation, route }) {
   const readyCount = staged.filter((s) => s.status === 'ready').length;
 
   return (
-    <View style={styles.root}>
+    <View ref={screenRef} collapsable={false} style={styles.root}
+      onTouchMove={Platform.OS !== 'web' ? moveLinkDrag : undefined}
+      onTouchEnd={Platform.OS !== 'web' ? endLinkDrag : undefined}
+      onTouchCancel={() => endLinkDrag()}>
       <ScreenHeader
         title="빠른 입력"
         onBack={navigation.goBack}
@@ -165,14 +414,16 @@ export default function QuickInputScreen({ navigation, route }) {
       />
       <View style={styles.tabs}>
         {[{ id: 'memo', label: '메모' }, { id: 'file', label: '사진과 문서' }].map((t) => (
-          <Pressable key={t.id} accessibilityRole="tab" accessibilityState={{ selected: tab === t.id }} onPress={() => setTab(t.id)} style={[styles.tab, tab === t.id && styles.tabOn]}>
+          <Pressable key={t.id} accessibilityRole="tab" accessibilityState={{ selected: tab === t.id }} onPress={() => changeTab(t.id)} style={[styles.tab, tab === t.id && styles.tabOn]}>
             <Text style={[styles.tabText, tab === t.id && { color: colors.ink, fontWeight: '700' }]}>{t.label}</Text>
           </Pressable>
         ))}
       </View>
 
-      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-        <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}
+        onLayout={event => setAvailableHeight(Math.floor(event.nativeEvent.layout.height))}>
+        <View ref={sourceViewport} collapsable={false} style={styles.sourceViewport}>
+          <ScrollView scrollEnabled={!dragging} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {tab === 'memo' ? (
             <>
               <TextInput
@@ -185,7 +436,6 @@ export default function QuickInputScreen({ navigation, route }) {
                 multiline
                 textAlignVertical="top"
                 maxLength={MAX_LEN}
-                accessibilityLabel_1="메모 내용"
               />
             </>
           ) : (
@@ -218,28 +468,62 @@ export default function QuickInputScreen({ navigation, route }) {
             </>
           )}
 
-          <Text style={styles.sectionTitle}>{tab === 'memo' ? '메모와 연결' : '파일과 연결'}</Text>
-          <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-            {FILTERS.map((f) => (
-              <Pressable key={f.id} accessibilityRole="button" accessibilityState={{ selected: filter === f.id }} onPress={() => setFilter(f.id)} style={[styles.chip, filter === f.id && styles.chipOn]}>
-                <Text style={[styles.chipText, filter === f.id && { color: colors.ink, fontWeight: '700' }]}>{f.label}</Text>
-              </Pressable>
-            ))}
+          <View ref={unlinkedArea} collapsable={false} style={[styles.unlinkedArea, hoveredTarget === UNLINK_TARGET && styles.rowOn]}>
+            <Pressable accessibilityRole={isProjectLinked(picked) ? 'button' : 'header'}
+              accessibilityLabel={isProjectLinked(picked) ? '프로젝트 연결 해제' : '연결할 항목'}
+              disabled={!isProjectLinked(picked)} onPress={() => changeProjectLink(picked, null)} style={styles.unlinkedHeading}>
+              <Text style={styles.sectionTitle}>연결할 항목</Text>
+            </Pressable>
+            {canLink && (
+              <Text style={styles.counter}>
+                {isProjectLinked(picked) ? '여기에 놓으면 프로젝트 연결이 해제돼요' : !projects.length ? '연결하려면 프로젝트를 먼저 만드세요' : '항목을 길게 눌러 프로젝트로 끌어 놓으세요'}
+              </Text>
+            )}
+            <ScrollView showsHorizontalScrollIndicator={false} horizontal contentContainerStyle={styles.filters}>
+              {FILTERS.map((f) => (
+                <Pressable key={f.id} accessibilityRole="button" accessibilityState={{ selected: filter === f.id }} onPress={() => { setPicked(null); setFilter(f.id); }} style={styles.chip}>
+                  <Text style={[styles.chipText, filter === f.id && { color: colors.ink, fontWeight: '700' }]}>{f.label}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            {candidates.length ? candidates.map(row => sourceRow(row)) : <Text style={styles.counter}>연결할 항목이 없어요</Text>}
+          </View>
           </ScrollView>
-          {shown.length === 0 && <Text style={styles.counter}>연결할 항목이 없어요.</Text>}
-          {shown.map((r) => {
-            const on = checked(r);
-            return (
-              <Pressable key={`${r.kind}${r.id}`} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={`${r.title}, ${r.sub}`} onPress={() => toggle(r)} style={[styles.row, on && styles.rowOn]}>
-                <Icon name={on ? 'checkSquare' : 'square'} size={22} color={on ? colors.mintDark : colors.muted} />
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={styles.rowTitle} numberOfLines={1}>{r.title}</Text>
-                  <Text style={styles.rowSub}>{r.kind === 'project' ? '프로젝트, ' : ''}{r.sub}</Text>
+        </View>
+        {projects.length > 0 && (
+          <View ref={projectArea} collapsable={false}
+            onLayout={event => setLaidOutPanelHeight(Math.floor(event.nativeEvent.layout.height))}
+            style={[styles.projectArea, panelHeight === null
+              ? { maxHeight: availableHeight ? defaultPanelHeight : '28%' }
+              : { height: clampPanelHeight(panelHeight) }]}>
+            <ProjectResizeHandle {...panelHandleProps} style={Platform.OS === 'web'
+              ? { ...styles.panelHandle, display: 'flex', flexDirection: 'column', touchAction: 'none', cursor: 'ns-resize', userSelect: 'none' }
+              : styles.panelHandle}>
+              <View style={styles.panelHandleMark} />
+              <Text style={styles.projectTitle}>프로젝트</Text>
+            </ProjectResizeHandle>
+            <ScrollView scrollEnabled={!dragging} showsVerticalScrollIndicator persistentScrollbar={Platform.OS === 'android'}
+              keyboardShouldPersistTaps="handled">
+              {projects.map(project => (
+                <View key={project.id}>
+                  <View ref={view => {
+                    if (view) projectTargets.current.set(project.id, view);
+                    else projectTargets.current.delete(project.id);
+                  }} collapsable={false}>
+                    <Pressable accessibilityRole="button" accessibilityLabel={`${project.title}, 연결할 프로젝트`}
+                      accessibilityState={{ disabled: !picked }} disabled={!picked}
+                      onPress={() => changeProjectLink(picked, project.id, true)}
+                      style={[styles.row, hoveredTarget === project.id && styles.rowOn]}>
+                      <Icon name="folder" size={18} color={colors.muted} />
+                      <Text numberOfLines={1} style={styles.rowTitle}>{project.title}</Text>
+                    </Pressable>
+                  </View>
+                  {grouped.get(project.id).map(row => sourceRow(row, true))}
                 </View>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+              ))}
+            </ScrollView>
+          </View>
+        )}
         {/* 하단 줄: 홈 개요 도크와 같은 자리. 왼쪽 상태, 오른쪽 저장 */}
         {!embedded && <BottomBar style={{ justifyContent: 'space-between' }}>
           <Text style={[styles.counter, tab === 'memo' && body.length >= MAX_LEN && { color: colors.coral }]}>
@@ -248,6 +532,11 @@ export default function QuickInputScreen({ navigation, route }) {
           <BarAction label="저장" onPress={onSave} />
         </BottomBar>}
       </KeyboardAvoidingView>
+      {dragging && linkDrag.current?.moved && (
+        <Animated.View pointerEvents="none" accessible={false} style={[styles.dragPreview, { transform: dragPosition.getTranslateTransform() }]}>
+          <Text numberOfLines={1} style={styles.rowTitle}>{dragging.title}</Text>
+        </Animated.View>
+      )}
       {notice.view}
     </View>
   );
@@ -272,14 +561,23 @@ const styles = StyleSheet.create({
   miniBtn: { minHeight: 44, paddingHorizontal: spacing.md, borderRadius: 17, borderWidth: 0, borderColor: colors.hairline, alignItems: 'center', justifyContent: 'center' },
   miniText: { fontSize: font.caption, fontWeight: '500', color: colors.ink },
   remove: { fontSize: 18, color: colors.muted, paddingHorizontal: 4 },
-  sectionTitle: { fontSize: 12, fontWeight: '400', color: colors.muted, marginTop: spacing.lg },
+  sourceViewport: { flex: 1 },
+  unlinkedArea: { marginTop: spacing.lg, borderWidth: 1, borderColor: 'transparent', borderRadius: radius.sm, gap: spacing.sm },
+  unlinkedHeading: { minHeight: 28, justifyContent: 'center' },
+  sectionTitle: { fontSize: 12, fontWeight: '400', color: colors.muted },
   filters: { gap: 20 },
   chip: { minHeight: 44, justifyContent: 'center' },
   chipOn: {},
   chipText: { fontSize: 12, color: colors.muted },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: 14, paddingVertical: 12, borderRadius: radius.lg, backgroundColor: colors.card, minHeight: 52 },
-  rowOn: { backgroundColor: colors.raised },
-  box: { fontSize: 24, color: colors.muted },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: 'transparent', borderRadius: radius.sm, minHeight: 44 },
+  rowOn: { borderColor: colors.ink },
+  rowCopy: { flex: 1, gap: 2 },
+  childRow: { marginLeft: 18, minHeight: 42 },
+  projectArea: { marginHorizontal: 20, marginBottom: spacing.sm, borderTopWidth: 1, borderColor: colors.line, overflow: 'hidden' },
+  panelHandle: { height: 42, flexShrink: 0, justifyContent: 'center', gap: 4 },
+  panelHandleMark: { alignSelf: 'center', width: 30, height: 3, borderRadius: 2, backgroundColor: colors.muted },
+  projectTitle: { fontSize: font.caption, color: colors.muted, paddingHorizontal: 10 },
+  dragPreview: { position: 'absolute', top: 0, left: 0, zIndex: 10, width: 160, paddingHorizontal: 10, paddingVertical: 9, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.ink, backgroundColor: colors.card },
   rowTitle: { fontSize: 15, fontWeight: '500', color: colors.ink },
   rowSub: { fontSize: font.caption, color: colors.muted },
 });

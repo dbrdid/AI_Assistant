@@ -148,6 +148,24 @@ test('auto-save commits safe results and leaves the summary, missing-date, dupli
 });
 
 
+test('recording analysis keeps safe results pending against the finalized title revision', async () => {
+  const t = world();
+  const memo = t.store.updateMemo(t.source.id, { title: '녹음 주간 회의' });
+  t.policy({ route: 'self_hosted', allowedProviders: ['self_hosted'], consent: { self_hosted: true }, confirmMode: 'auto' });
+  t.response(async () => ({
+    ok: true,
+    draft: { tasks: [{ title: '자료 보내기', due_date: '2099-11-30', due_time: '' }], events: [] },
+  }));
+
+  const result = await t.service.analyzeMemo(memo.id, { requireReview: true });
+  assert.deepEqual([result.added, result.saved, result.pending], [1, 0, 1]);
+  assert.equal(t.store.getTasks().length, 0);
+  const [proposal] = t.store.getProposals();
+  assert.equal(proposal.sourceRevision, memo.revision);
+  t.store.approveProposal(proposal.id);
+  assert.equal(t.store.getTasks()[0].title, '자료 보내기');
+});
+
 // 원본: feature/planner-updates의 file-name-search.test.mjs (여기서는 main의 검색 함수로 같은 동작을 확인)
 test('matches filenames case-insensitively and across all query terms', () => {
   const files = [
