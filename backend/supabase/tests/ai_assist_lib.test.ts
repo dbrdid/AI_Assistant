@@ -78,6 +78,13 @@ Deno.test("query/plan: alternate title flag and bounded candidates", () => {
   eq(S.validatePlan(plan())?.title_candidates, []);
   eq(S.validatePlan({ ...plan(), title_candidates: ["Project Alpha", "Project Alpha", 2, "X".repeat(201), "Alpha Project"] })?.title_candidates,
     ["Project Alpha", "Alpha Project"]);
+  const actionPlan = S.validatePlan({
+    ...plan(), intent: "action", reply: null,
+    action: { op: "create", kind: "event", title: "치과 예약", date: "2026-11-16", start: "15:00" },
+  });
+  eq(actionPlan?.intent, "action");
+  eq(actionPlan?.action, { op: "create", kind: "event", title: "치과 예약", date: "2026-11-16", start: "15:00" });
+  eq(S.validatePlan({ ...plan(), intent: "action", reply: null, action: null }), null);
 });
 
 Deno.test("ai-chat.ts: 기기 기록 고르기·발췌", async (t) => {

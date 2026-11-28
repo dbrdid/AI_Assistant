@@ -89,6 +89,7 @@ function findProjectScope(question, projectTitles) {
 }
 
 export function guardPlan(plan, question, history = [], projectTitles = []) {
+  if (plan?.intent === 'action' && plan.action) return plan;
   const said = [question, ...(REFERS_BACK.test(question) ? history.filter(turn => turn.role === 'user').map(turn => turn.text) : [])].join('\n');
   const project = findProjectScope(question, projectTitles)
     ?? (plan.project && /프로젝트/.test(question) && searchKey(question).includes(searchKey(plan.project))

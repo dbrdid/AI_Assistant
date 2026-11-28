@@ -15,6 +15,7 @@ import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError } from '@s
 import { AiError } from './errors';
 import { guardPlan, isRecordExistenceQuestion, originalEvidence, sameProject } from '../../integration/recordEvidence.mjs';
 import { documentLookupTerms, findDocumentsByTitles } from '../../data/memos/memoSearch.mjs';
+import { taskActionFromPlan } from '../../features/ai/taskChatIntent.mjs';
 
 export const CHAT_LIMITS = {
   questionChars: 2000,
@@ -28,8 +29,16 @@ export const CHAT_LIMITS = {
 
 export type ChatRecordType = 'memo' | 'task' | 'event' | 'project' | 'meeting' | 'file';
 
+export interface PlannedTaskAction {
+  op: 'create' | 'complete' | 'reopen';
+  kind: 'task' | 'event' | null;
+  title: string;
+  date: string | null;
+  start: string | null;
+}
+
 export interface QueryPlan {
-  intent: 'search' | 'chitchat' | 'unsupported';
+  intent: 'search' | 'chitchat' | 'unsupported' | 'action';
   reply: string | null;
   keywords: string[];
   title_candidates?: string[];
@@ -42,6 +51,7 @@ export interface QueryPlan {
   project: string | null;
   sort: 'relevance' | 'newest' | 'oldest' | 'soonest';
   limit: number;
+  action?: PlannedTaskAction | null;
 }
 
 /** 기기에서 찾은 기록 하나 (앱이 SQLite 행에서 만듦) */
@@ -82,13 +92,14 @@ export interface ChatAnswer {
 export interface AssistantReply {
   text: string;
   sources: { id: string; type: ChatRecordType; title: string; quote?: string }[];
-  kind: 'answer' | 'direct' | 'not_found';
+  kind: 'answer' | 'direct' | 'not_found' | 'action';
   insufficient: boolean;
   followUps: string[];
   plan: QueryPlan;
   /** 이번 달 남은 질문 수 (답변까지 간 경우만) */
   remaining: number | null;
   documentLookup?: boolean;
+  taskAction?: ReturnType<typeof taskActionFromPlan>;
 }
 
 type GatewayOk<T> = { ok: true; request_id: string; draft: T; remaining?: number; today?: string };
@@ -321,6 +332,13 @@ export async function askAssistant(client: SupabaseClient, p: {
   const fileLocation = p.locateFile?.(plan);
   if (fileLocation) return { ...fileLocation, kind: fileLocation.sources.length ? 'answer' : 'not_found',
     insufficient: !fileLocation.sources.length, followUps: [], plan, remaining: null };
+  if (plan.intent === 'action') {
+    const taskAction = taskActionFromPlan(plan.action, p.today ?? todayIn(p.timezone));
+    if (taskAction) {
+      return { text: '저장할 내용을 확인해 주세요.', sources: [], kind: 'action', insufficient: false, followUps: [], plan, remaining: null, taskAction };
+    }
+    return { text: plan.reply ?? '저장할 내용을 확인하지 못했어요.', sources: [], kind: 'direct', insufficient: false, followUps: [], plan, remaining: null };
+  }
   if (plan.intent !== 'search') {
     return { text: plan.reply ?? '', sources: [], kind: 'direct', insufficient: false, followUps: [], plan, remaining: null };
   }
