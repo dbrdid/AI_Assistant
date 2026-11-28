@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { executeChatReadTool, planChatReadTool } from '../../frontend/Frontend_UI/src/integration/chatReadTools.mjs';
+import { executeChatReadTool, extractSemanticQuery, planChatReadTool } from '../../frontend/Frontend_UI/src/integration/chatReadTools.mjs';
 
 const today = '2026-11-28';
 const question = '마감일이 다음주인 프로젝트를 알려줘';
@@ -49,4 +49,13 @@ test('document search uses title and body without changing exact-name open seman
   assert.deepEqual(plan.args, { terms: ['이전', '테스트'] });
   assert.deepEqual(executeChatReadTool(plan, services).sources.map(source => source.id), ['title', 'body']);
   assert.equal(planChatReadTool('프로젝트 알파 문서를 열어줘', [], today), null);
+});
+
+test('semantic search accepts explicit and natural Korean phrasing without being intercepted by keyword lookup', () => {
+  assert.equal(extractSemanticQuery('의미 검색: 발표 예산 정리'), '발표 예산 정리');
+  assert.equal(extractSemanticQuery('발표 예산 관련 문서 의미 검색해줘'), '발표 예산');
+  assert.equal(extractSemanticQuery('일정 충돌과 비슷한 내용의 문서 찾아줘'), '일정 충돌');
+  assert.equal(extractSemanticQuery('이전 테스트의 문서 검색'), null);
+  assert.equal(planChatReadTool('발표 예산 관련 문서 의미 검색해줘', [], today), null);
+  assert.equal(planChatReadTool('일정 충돌과 비슷한 내용의 문서 찾아줘', [], today), null);
 });

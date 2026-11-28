@@ -9,6 +9,18 @@ const LOOKUP = /알려|보여|찾|목록|조회|검색|어떤|뭐|있/u;
 const CHANGE = /만들어|만들기|생성해|삭제|수정해|바꿔|추가해|옮겨|연결해/u;
 const READ_LIMIT = 12;
 
+export function extractSemanticQuery(question) {
+  const text = String(question ?? '').normalize('NFC').trim();
+  if (!text || CHANGE.test(text)) return null;
+  const prefixed = /^의미\s*검색\s*[:：]\s*(.+)$/u.exec(text);
+  if (prefixed) return prefixed[1].trim() || null;
+  const byMeaning = /^(.+?)(?:\s+관련)?(?:\s*(?:문서|메모)(?:를|을)?)?\s*의미(?:로|\s*기반(?:으로)?)?\s*(?:검색(?:\s*해\s*(?:줘|주세요))?|찾아\s*(?:줘|주세요))[.!?]?$/u.exec(text);
+  if (byMeaning) return byMeaning[1].trim() || null;
+  const similar = /^(.+?)(?:과|와)?\s*(?:내용이\s*)?비슷한\s*(?:내용의\s*)?(?:문서|메모)(?:를|을)?\s*(?:찾아\s*(?:줘|주세요)|검색(?:\s*해\s*(?:줘|주세요))?|알려\s*(?:줘|주세요)|보여\s*(?:줘|주세요))[.!?]?$/u.exec(text);
+  if (similar) return similar[1].trim() || null;
+  return null;
+}
+
 function weekRange(today, offset) {
   const start = new Date(`${today}T00:00:00Z`);
   if (!Number.isFinite(start.getTime())) return null;
@@ -29,6 +41,7 @@ function projectWeek(question) {
 
 export function planChatReadTool(question, history, today) {
   const text = question.normalize('NFC').trim();
+  if (extractSemanticQuery(text)) return null;
   const direct = projectWeek(text);
   const followUp = !CHANGE.test(text) && /^(?:그\s*(?:프로젝트(?:들)?|목록)|같은\s*프로젝트(?:들)?)(?:을|를)?(?:\s|[?!]|$)/u.test(text);
   const previous = followUp ? history.filter(turn => turn.role === 'user').at(-1) : null;

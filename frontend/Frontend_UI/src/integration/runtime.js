@@ -16,7 +16,7 @@ import { createAIService } from './ai-service';
 import { CHAT_LIMITS, answerQuery, askAssistant, excerptFor, planQuery, rankRecords, todayIn, toSources } from '../lib/stella/ai-chat';
 import { requireTransmission } from '../../../../shared/contracts/ai-policy.js';
 import { chatCatalogRecords, selectChatSources } from './ChatSourceScope.mjs';
-import { executeChatReadTool, planChatReadTool } from './chatReadTools.mjs';
+import { executeChatReadTool, extractSemanticQuery, planChatReadTool } from './chatReadTools.mjs';
 import { documentLookupTerms, findChatDocuments, memoTitle, rankSearchRows, searchTerms } from '../data/memos/memoSearch.mjs';
 import { ROUTES } from '../navigation/routes';
 import { retryPlan, transcribeErrorMessage, transcribeUploaded, uploadRecording } from '../lib/stella/transcribe';
@@ -643,7 +643,7 @@ export async function askFromDevice(question, signal, { history = [], attachment
     return { data: await gateway(name.replace(/^ai-gateway\//, ''), options.body, { route: policy.route, signal }), error: null };
   } } };
   const turns = history.filter(t => t.text && (t.role === 'user' || t.role === 'assistant'));
-  const semantic = !attachments.length && /^의미\s*검색\s*[:：]\s*(.+)$/u.exec(question.trim())?.[1];
+  const semantic = !attachments.length && extractSemanticQuery(question);
   let answer;
   if (semantic) {
     const documents = contextRecords.filter(record => record.type === 'memo' && (record.title || record.text));
