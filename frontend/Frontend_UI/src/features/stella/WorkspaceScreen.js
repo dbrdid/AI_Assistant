@@ -302,9 +302,9 @@ export default function WorkspaceScreen({
   const header = (highlight = selectedTab) => standalone ? <WorkspaceHeader title={title} onBack={() => navigation.goBack()} /> : <><WorkspaceHeader title={current?.name || '나의 작업 공간'} onMenu={() => setMenu(true)} team={!current || current.personal ? null : { name: current.name, color: spaceInfo[current.id]?.color ?? c.accent }} tabs={!favoritesOnly && <TabBar current={highlight} preview={tabPreview} onSelect={navigation.selectTab || navigation.navigate} />} onSearch={mode === "documents" ? undefined : () => go(ROUTES.Memos, {
       search: true
     })} />{error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}</>;
-  const intro = standalone ? null : <><View style={s.titleRow}><Text accessibilityRole="header" style={s.title}>{title}</Text></View></>;
   // 탭 안에 들어간 쪽은 아래 공통 하단(검색, AI에게 질문하기, 새 문서)을 쓰고 자체 하단을 그리지 않는다
   const embedded = pagerIndex !== undefined || bodyOnly;
+  const intro = standalone || embedded ? null : <><View style={s.titleRow}><Text accessibilityRole="header" style={s.title}>{title}</Text></View></>;
   // Notion 모바일 하단과 같은 형식: 왼쪽 검색, 가운데 AI에게 질문하기, 오른쪽 새 문서
   // Notion 모바일과 같은 하단: 검색(펼쳐지는 검색창), AI에게 질문하기, 새로 만들기
   const titleOf = new Map(memos.map(memo => [memo.id, memoTitle(memo)]));
@@ -321,7 +321,7 @@ export default function WorkspaceScreen({
       case 'project': return go(ROUTES.ProjectEdit);
     }
   }
-  const askDock = note.recording ? note.bar : <SearchDock docs={searchDocs} bottomInset={insets.bottom} onOpen={id => go(ROUTES.MemoEdit, { memoId: id })} onAskAI={() => go(ROUTES.AiChat)}
+  const askDock = note.recording ? note.bar : <SearchDock docs={searchDocs} bottomInset={insets.bottom} onOpen={id => go(ROUTES.MemoEdit, { memoId: id })} onAskAI={prompt => go(ROUTES.AiChat, prompt ? { initialPrompt: prompt } : undefined)}
     onAction={handleDockAction} />;
   let content;
   if (mode === 'documents') {

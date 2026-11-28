@@ -29,7 +29,7 @@ export default function MoreScreen({ navigation }) {
           <View style={styles.avatar}><Text style={styles.avatarText}>{name ? name.charAt(0) : '나'}</Text></View>
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={styles.name}>{name || '이름을 설정해 주세요'}</Text>
-            <Text style={styles.email} numberOfLines={1}>{s.profile.email || '로그인 전'}, {PLANS[s.plan].name}</Text>
+            <Text style={styles.email} numberOfLines={1}>{s.profile.email && s.profile.email !== name ? `${s.profile.email}, ${PLANS[s.plan].name}` : !s.profile.email ? `로그인 전, ${PLANS[s.plan].name}` : PLANS[s.plan].name}</Text>
           </View>
           <Icon name="chevronRight" size={14} color={colors.muted} />
         </Pressable>

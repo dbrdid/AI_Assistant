@@ -63,7 +63,7 @@ export default function SearchDock({ docs, bottomInset, onOpen, onAskAI, onActio
   const fade = grow.interpolate({ inputRange: [0, 0.5], outputRange: [1, 0], extrapolate: 'clamp' });
 
   return <>
-    {open && <Animated.View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: c.background, opacity: grow }}>
+    {open && <Animated.View accessibilityViewIsModal style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: c.background, opacity: grow }}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 56, paddingBottom: 120 }}>
         <Text style={[s.pageTitle ?? {}, { color: c.text, fontSize: 26, fontWeight: '700', marginBottom: 12 }]} accessibilityRole="header">검색</Text>
         <Pressable accessibilityRole="button" onPress={() => { hide(); onAskAI(query.trim()); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 }, pressed && { opacity: .6 }]}>

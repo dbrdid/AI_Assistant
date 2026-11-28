@@ -244,7 +244,7 @@ export default function AiChatScreen({ navigation, route: navRoute }) {
   const restored = useRef(navRoute?.params?.chatId ? getChat(navRoute.params.chatId) : null).current;
   const [chatId, setChatId] = useState(() => restored?.id ?? randomUUID()); // 지금 대화의 기록 id
   const [messages, setMessages] = useState(() => (restored?.messages ?? []).map((m) => (m.role === 'ai' ? { ...m, done: true } : m))); // { id, role, text, done, sources, attachments, error }
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(() => String(navRoute?.params?.initialPrompt ?? ''));
   const [status, setStatus] = useState('idle');              // 'idle' | 'thinking' | 'streaming'
   const [keyboardUp, setKeyboardUp] = useState(false);
   const [attachments, setAttachments] = useState([]);        // 보내기 전 첨부 { id, name, kind, status, text, error }

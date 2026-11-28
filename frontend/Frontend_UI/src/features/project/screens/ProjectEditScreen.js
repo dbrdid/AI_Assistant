@@ -66,7 +66,8 @@ export default function ProjectEditScreen({ navigation, route }) {
     <KeyboardAvoidingView style={styles.root} behavior="padding">
       <ScreenHeader title={existing ? '프로젝트 편집' : '새 프로젝트'} onBack={navigation.goBack} right={<Pressable accessibilityRole="button" accessibilityLabel="저장하기" onPress={save} style={styles.headerSave}><Text style={styles.headerSaveText}>저장</Text></Pressable>} />
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <TextInput style={styles.titleInput} value={f.title} onChangeText={set('title')} placeholder="제목" placeholderTextColor={colors.muted} maxLength={60} accessibilityLabel="제목" autoFocus={!existing} multiline />
+        <TextInput style={styles.titleInput} value={f.title} onChangeText={(v) => { set('title')(v); if (error) setError(''); }} placeholder="제목" placeholderTextColor={colors.muted} maxLength={60} accessibilityLabel="제목" autoFocus={!existing} multiline />
+        {!!error && <Text style={styles.error} accessibilityRole="alert" accessibilityLiveRegion="polite">{error}</Text>}
 
         <View>
           <Line icon="calendar" label="마감일" value={f.due ? `${fromKey(f.due).getFullYear()}년 ${fromKey(f.due).getMonth() + 1}월 ${fromKey(f.due).getDate()}일` : '없음'} onPress={() => setPickDate(true)} right={f.due ? <Pressable accessibilityRole="button" accessibilityLabel="마감일 지우기" onPress={() => set('due')('')} hitSlop={8} style={styles.clear}><Icon name="x" size={16} color={colors.muted} /></Pressable> : null} />
@@ -79,7 +80,6 @@ export default function ProjectEditScreen({ navigation, route }) {
         {f.alarm !== ALARMS[0] && <Text style={styles.note}>마감일 아침 9시에 알려 드려요.</Text>}
         <TextInput style={styles.desc} value={f.desc} onChangeText={set('desc')} placeholder="설명" placeholderTextColor={colors.muted} accessibilityLabel="설명" multiline />
 
-        {!!error && <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text>}
         {existing && (
           <Pressable accessibilityRole="button" onPress={() => setConfirmDelete(true)} style={styles.del}>
             <Text style={styles.delText}>프로젝트 삭제</Text>

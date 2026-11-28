@@ -247,13 +247,14 @@ export default function TaskEditScreen({ navigation, route }) {
           accessibilityLabel="제목"
           style={styles.titleInput}
           value={f.title}
-          onChangeText={set('title')}
+          onChangeText={(v) => { set('title')(v); if (error) setError(''); }}
           placeholder="제목"
           placeholderTextColor={colors.muted}
           maxLength={100}
           autoFocus={!existing}
           multiline
         />
+        {!!error && <Text style={styles.error} accessibilityRole="alert" accessibilityLiveRegion="polite">{error}</Text>}
 
         {/* ---------- 날짜, 시간 ---------- */}
         <View style={styles.group}>
@@ -293,7 +294,7 @@ export default function TaskEditScreen({ navigation, route }) {
             <View style={styles.field}>
               <Text style={styles.label}>프로젝트</Text>
               {projects.length === 0 ? (
-                <Text style={styles.note}>만들어 둔 프로젝트가 없어요. 더보기 › 프로젝트에서 먼저 만들어 주세요.</Text>
+                <Text style={styles.note}>만들어 둔 프로젝트가 없어요. 프로젝트 탭에서 먼저 만들어 주세요.</Text>
               ) : (
                 <View style={styles.chipRow}>
                   {[{ id: null, title: '없음' }, ...projects].map((p) => (
@@ -310,8 +311,6 @@ export default function TaskEditScreen({ navigation, route }) {
             <Input label="메모" value={f.desc} onChangeText={set('desc')} placeholder="설명" multiline style={[styles.input, { minHeight: 96, textAlignVertical: 'top', paddingTop: 12 }]} />
           </>
         )}
-
-        {!!error && <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text>}
 
         {existing && !viewOnly && (
           <Pressable accessibilityRole="button" onPress={() => setConfirmDelete(true)} style={styles.del}>

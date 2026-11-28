@@ -7,6 +7,7 @@ import { Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleS
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { useScreenEntry } from '../../../navigation/ScreenEntry';
+import { ROUTES } from '../../../navigation/routes';
 import { BarAction, BottomBar } from '../../../shared/components/Ui';
 import Icon from '../../../shared/components/Icon';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
@@ -400,24 +401,25 @@ export default function QuickInputScreen({ navigation, route }) {
   const onSave = tab === 'memo' ? saveMemo : saveFiles;
   const { embedded } = useScreenEntry();
   const readyCount = staged.filter((s) => s.status === 'ready').length;
+  const canSave = tab === 'memo' ? body.trim().length > 0 : readyCount > 0;
 
   return (
     <View ref={screenRef} collapsable={false} style={styles.root}
       onTouchMove={Platform.OS !== 'web' ? moveLinkDrag : undefined}
       onTouchEnd={Platform.OS !== 'web' ? endLinkDrag : undefined}
       onTouchCancel={() => endLinkDrag()}>
-      <ScreenHeader
-        title="빠른 입력"
-        onBack={navigation.goBack}
-        // 탭 안에서는 아래가 공통 하단(검색, AI, 새로 만들기)이라 저장은 위 오른쪽에
-        right={embedded ? <BarAction label="저장" onPress={onSave} /> : undefined}
-      />
+      {!embedded && <ScreenHeader title="빠른 입력" onBack={navigation.goBack} />}
       <View style={styles.tabs}>
         {[{ id: 'memo', label: '메모' }, { id: 'file', label: '사진과 문서' }].map((t) => (
           <Pressable key={t.id} accessibilityRole="tab" accessibilityState={{ selected: tab === t.id }} onPress={() => changeTab(t.id)} style={[styles.tab, tab === t.id && styles.tabOn]}>
             <Text style={[styles.tabText, tab === t.id && { color: colors.ink, fontWeight: '700' }]}>{t.label}</Text>
           </Pressable>
         ))}
+        {embedded && (
+          <View style={styles.embeddedSave}>
+            <BarAction label="저장" onPress={onSave} style={!canSave ? { opacity: 0.45 } : undefined} />
+          </View>
+        )}
       </View>
 
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}
@@ -476,17 +478,28 @@ export default function QuickInputScreen({ navigation, route }) {
             </Pressable>
             {canLink && (
               <Text style={styles.counter}>
-                {isProjectLinked(picked) ? '여기에 놓으면 프로젝트 연결이 해제돼요' : !projects.length ? '연결하려면 프로젝트를 먼저 만드세요' : '항목을 길게 눌러 프로젝트로 끌어 놓으세요'}
+                {isProjectLinked(picked) ? '여기에 놓으면 프로젝트 연결이 해제돼요' : !projects.length ? '프로젝트를 만들면 메모와 할 일을 바로 연결할 수 있어요' : '항목을 길게 눌러 프로젝트로 끌어 놓으세요'}
               </Text>
             )}
-            <ScrollView showsHorizontalScrollIndicator={false} horizontal contentContainerStyle={styles.filters}>
-              {FILTERS.map((f) => (
-                <Pressable key={f.id} accessibilityRole="button" accessibilityState={{ selected: filter === f.id }} onPress={() => { setPicked(null); setFilter(f.id); }} style={styles.chip}>
-                  <Text style={[styles.chipText, filter === f.id && { color: colors.ink, fontWeight: '700' }]}>{f.label}</Text>
+            {projects.length === 0 ? (
+              canLink && (
+                <Pressable accessibilityRole="button" onPress={() => navigation.navigate(ROUTES.ProjectEdit)} style={styles.createProjectLink}>
+                  <Icon name="plus" size={15} color={colors.ink} />
+                  <Text style={styles.createProjectText}>프로젝트 만들기</Text>
                 </Pressable>
-              ))}
-            </ScrollView>
-            {candidates.length ? candidates.map(row => sourceRow(row)) : <Text style={styles.counter}>연결할 항목이 없어요</Text>}
+              )
+            ) : (
+              <>
+                <ScrollView showsHorizontalScrollIndicator={false} horizontal contentContainerStyle={styles.filters}>
+                  {FILTERS.map((f) => (
+                    <Pressable key={f.id} accessibilityRole="button" accessibilityState={{ selected: filter === f.id }} onPress={() => { setPicked(null); setFilter(f.id); }} style={styles.chip}>
+                      <Text style={[styles.chipText, filter === f.id && { color: colors.ink, fontWeight: '700' }]}>{f.label}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+                {candidates.length ? candidates.map(row => sourceRow(row)) : <Text style={styles.counter}>연결할 항목이 없어요</Text>}
+              </>
+            )}
           </View>
           </ScrollView>
         </View>
@@ -545,7 +558,10 @@ export default function QuickInputScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   // 메모 / 사진 문서 전환: 밝은 채움 대신 Stella 필터처럼 밑줄로 선택을 표시
-  tabs: { flexDirection: 'row', gap: 20, marginHorizontal: 20, marginBottom: spacing.md },
+  tabs: { flexDirection: 'row', alignItems: 'center', gap: 20, marginHorizontal: 20, marginTop: spacing.xs, marginBottom: spacing.sm },
+  embeddedSave: { marginLeft: 'auto' },
+  createProjectLink: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, alignSelf: 'flex-start' },
+  createProjectText: { fontSize: 13, fontWeight: '600', color: colors.ink },
   tab: { minHeight: 44, justifyContent: 'center' },
   tabOn: {},
   tabText: { fontSize: 12, color: colors.muted },
