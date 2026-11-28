@@ -595,7 +595,7 @@ const styles = StyleSheet.create({
   childRow: { marginLeft: 18, minHeight: 42 },
   projectArea: { marginHorizontal: 20, marginBottom: spacing.sm, borderTopWidth: 1, borderColor: colors.line, overflow: 'hidden' },
   projectHeader: { position: 'relative' },
-  panelHandle: { flexShrink: 0, paddingTop: 8, gap: 4 },
+  panelHandle: { flexShrink: 0, paddingTop: 10, gap: 10 },
   panelHandleMark: { alignSelf: 'center', width: 30, height: 3, borderRadius: 2, backgroundColor: colors.muted },
   projectTitleRow: { height: 28, justifyContent: 'center', paddingHorizontal: 10 },
   projectTitle: { fontSize: font.caption, color: colors.muted },
