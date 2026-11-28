@@ -502,14 +502,16 @@ export default function QuickInputScreen({ navigation, route }) {
               ? { ...styles.panelHandle, display: 'flex', flexDirection: 'column', touchAction: 'none', cursor: 'ns-resize', userSelect: 'none' }
               : styles.panelHandle}>
               <View style={styles.panelHandleMark} />
-              <Text style={styles.projectTitle}>프로젝트</Text>
+              <View style={styles.projectTitleRow}>
+                <Text style={styles.projectTitle}>프로젝트</Text>
+              </View>
             </ProjectResizeHandle>
             {canLink && (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="프로젝트 추가"
                 onPress={() => navigation.navigate(ROUTES.ProjectEdit)}
-                hitSlop={6}
+                hitSlop={8}
                 style={({ pressed }) => [styles.projectAddBtn, pressed && { opacity: 0.6 }]}
               >
                 <Icon name="plus" size={16} color={colors.muted} />
@@ -592,11 +594,12 @@ const styles = StyleSheet.create({
   rowCopy: { flex: 1, gap: 2 },
   childRow: { marginLeft: 18, minHeight: 42 },
   projectArea: { marginHorizontal: 20, marginBottom: spacing.sm, borderTopWidth: 1, borderColor: colors.line, overflow: 'hidden' },
-  projectHeader: { position: 'relative', justifyContent: 'center' },
-  panelHandle: { height: 42, flexShrink: 0, justifyContent: 'center', gap: 4 },
+  projectHeader: { position: 'relative' },
+  panelHandle: { flexShrink: 0, paddingTop: 8, gap: 4 },
   panelHandleMark: { alignSelf: 'center', width: 30, height: 3, borderRadius: 2, backgroundColor: colors.muted },
-  projectTitle: { fontSize: font.caption, color: colors.muted, paddingHorizontal: 10 },
-  projectAddBtn: { position: 'absolute', right: 0, top: 0, width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
+  projectTitleRow: { height: 28, justifyContent: 'center', paddingHorizontal: 10 },
+  projectTitle: { fontSize: font.caption, color: colors.muted },
+  projectAddBtn: { position: 'absolute', right: 0, bottom: 0, width: 36, height: 28, alignItems: 'center', justifyContent: 'center' },
   projectEmpty: { fontSize: font.caption, color: colors.muted, paddingHorizontal: 10, paddingVertical: 8 },
   dragPreview: { position: 'absolute', top: 0, left: 0, zIndex: 10, width: 160, paddingHorizontal: 10, paddingVertical: 9, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.ink, backgroundColor: colors.card },
   rowTitle: { fontSize: 15, fontWeight: '500', color: colors.ink },
