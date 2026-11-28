@@ -3,10 +3,10 @@
 ## 버전 체계 안내
 
 - **Atria 0.0.x (2026-11-25~)**: 구 Stella 테스트 배포(`v1.0.0-preview.1` ~ `v1.1.0-preview.1`)에서 **Atria**로 리브랜딩하면서 앱 버전을 `0.0.0-atria.1`부터 `0.0.x` 사전 출시 계열로 재시작했습니다.
-- **Android `versionCode`**: 기존 설치 앱 위에서 바로 업데이트할 수 있도록 버전 리셋과 무관하게 `2`부터 `15`까지 단조 증가합니다(`applicationId`: `com.stella.notionpreview` 유지).
+- **Android `versionCode`**: 기존 설치 앱 위에서 바로 업데이트할 수 있도록 버전 리셋과 무관하게 `2`부터 `16`까지 단조 증가합니다(`applicationId`: `com.stella.notionpreview` 유지).
 - **브리지(`bridge-v0.1.0`)**: 앱과 독립적으로 SemVer를 적용합니다.
 
-## [Unreleased]
+## [0.0.14] - 2026-11-28 (versionCode 16)
 
 - **보안** Android 전역 `usesCleartextTraffic="true"`를 제거하고 `network_security_config.xml`로 HTTPS를 기본 강제(`localhost`, `127.0.0.1`, `10.0.2.2`, `.local`, `.lan`, `.home.arpa`만 예외 허용).
 - **CI** `integration.yml`에서 `bridge-relay.test.mjs`가 `@noble/ciphers`를 찾지 못해 실패하던 문제 수정.
