@@ -1,86 +1,70 @@
-// ============================================================
-// ProposalCard.js — AI 제안 카드 하나 (종류 · 제목 · 일시 · 근거 + [추가][수정][보류][무시])
-// ============================================================
-
-import React from 'react';
+﻿import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Icon from '../../../shared/components/Icon';
-import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import ReviewActions from '../../../shared/components/ReviewActions';
+import { colors } from '../../../shared/theme/theme';
 import { WEEKDAYS, fromKey } from '../../calendar/utils/DateUtils';
 import { reviewReason } from '../useProposalActions';
 
-export const KIND_LABEL = { event: '일정', task: '할 일', memo: '메모' };
-const SRC = { memo: '메모', record: '녹음' };
+export const KIND_LABEL = { event: '일정', task: '할 일', memo: '문서' };
+const KIND_ICON = { event: 'calendar', task: 'checkSquare', memo: 'file' };
 
-// '11/21 (금) 14:00 · 공학관 301'
 export function proposalWhen(p) {
   const parts = [];
   if (p.date) {
-    const d = fromKey(p.date);
-    parts.push(`${d.getMonth() + 1}/${d.getDate()} (${WEEKDAYS[d.getDay()]})${p.start ? ` ${p.start}` : ''}`);
+    const date = fromKey(p.date);
+    parts.push(`${date.getMonth() + 1}월 ${date.getDate()}일 (${WEEKDAYS[date.getDay()]})${p.start ? ` ${p.start}` : ''}`);
   }
   if (p.place) parts.push(p.place);
   return parts.join(', ');
 }
 
-function Btn({ label, onPress, primary, danger }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      hitSlop={4}
-      style={({ pressed }) => [styles.btn, primary && styles.btnPrimary, pressed && { opacity: 0.7 }]}
-    >
-      <Text style={[styles.btnText, primary && { color: colors.onPrimary }, danger && { color: colors.coral }]}>{label}</Text>
-    </Pressable>
-  );
-}
+export default function ProposalCard({ p, actions, expanded, onToggle, onSource, onPlace, confirmFirst, readOnly }) {
+  const [open, setOpen] = useState(false);
+  const selected = expanded ?? open;
+  const reason = selected ? reviewReason(p) : null;
+  const metadata = [KIND_LABEL[p.kind] || '제안', proposalWhen(p)].filter(Boolean).join(', ');
+  const source = p.sourceTitle || (p.sourceType === 'record' ? '녹음' : '원본 문서');
 
-export default function ProposalCard({ p, actions, showHold = true, tone = 'card' }) {
-  const reason = reviewReason(p);
-  const when = proposalWhen(p);
-  return (
-    <View style={[styles.card, tone === 'soft' && styles.soft, !!reason && tone === 'card' && styles.warnCard]}>
-      <View style={styles.head}>
-        <View style={styles.badge}><Text style={styles.badgeText}>{KIND_LABEL[p.kind] || '제안'}</Text></View>
-        <Text style={styles.src} numberOfLines={1}>
-          {SRC[p.sourceType] || '메모'}{p.sourceTitle ? ` “${p.sourceTitle}”` : ''}에서 찾음
-        </Text>
+  return <View style={[styles.item, selected && styles.selected]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={p.title || '제목 없는 제안'}
+      accessibilityState={{ expanded: selected }} onPress={onToggle ?? (() => setOpen(value => !value))} style={styles.heading}>
+      <Icon name={KIND_ICON[p.kind] ?? 'file'} size={17} color={colors.muted} />
+      <View style={styles.details}>
+        <Text style={styles.title}>{p.title || '제목 없는 제안'}</Text>
+        <Text style={styles.meta}>{metadata}</Text>
       </View>
-      <Text style={styles.title} numberOfLines={2}>{p.title || '(제목 없음)'}</Text>
-      {!!when && <Text style={styles.when}>{when}</Text>}
-      {!!p.evidence && <Text style={styles.evidence} numberOfLines={2}>“{p.evidence}”</Text>}
-      {!!reason && (
-        <View style={styles.reason} accessible accessibilityRole="alert" accessibilityLabel={`경고: ${reason}`}>
-          <Icon name="alert" size={14} color={colors.coral} />
-          <Text style={styles.reasonText}>{reason}</Text>
-        </View>
-      )}
-      <View style={styles.row}>
-        <Btn primary label={reason ? '확인하고 추가' : '추가'} onPress={() => actions.add(p)} />
-        {!reason && <Btn label="수정" onPress={() => actions.edit(p)} />}
-        {showHold && p.status !== 'hold' && <Btn label="보류" onPress={() => actions.hold(p)} />}
-        <Btn danger label="무시" onPress={() => actions.dismiss(p)} />
-      </View>
-    </View>
-  );
+      <Icon name={selected ? 'chevronUp' : 'chevronDown'} size={14} color={colors.muted} />
+    </Pressable>
+    {selected && <View style={styles.content}>
+      {!!(p.body || p.evidence) && <Text selectable style={styles.body}>{p.body || p.evidence}</Text>}
+      {!!p.body && !!p.evidence && p.evidence !== p.body && <Text selectable style={styles.meta}>근거: {p.evidence}</Text>}
+      {p.sourceType === 'memo' && p.sourceId && onSource
+        ? <Pressable accessibilityRole="button" onPress={onSource} style={styles.source}>
+            <Icon name="file" size={14} color={colors.muted} /><Text style={styles.meta}>출처: {source}</Text>
+          </Pressable>
+        : (p.sourceTitle || p.sourceType === 'record') && <Text style={styles.meta}>출처: {source}</Text>}
+      {!!reason && <Text style={styles.warning} accessibilityRole="alert" accessibilityLabel={`경고: ${reason}`}>{reason}</Text>}
+      {!readOnly && <ReviewActions actions={[
+        p.status !== 'hold' && { label: '보류', onPress: () => actions.hold(p) },
+        { label: '무시', onPress: () => actions.dismiss(p), danger: true },
+        onPlace && (p.kind === 'memo' || (p.sourceType === 'memo' && p.sourceId && !reason)) && { label: '문서에 넣기', onPress: onPlace },
+        !reason && !confirmFirst && { label: '수정', onPress: () => actions.edit(p) },
+        { label: reason ? '내용 확인' : confirmFirst ? '확인 후 저장' : '추가', onPress: () => (confirmFirst ? actions.edit : actions.add)(p), primary: true },
+      ]} />}
+    </View>}
+  </View>;
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, padding: spacing.lg, gap: 6 },
-  soft: { backgroundColor: colors.card, borderColor: colors.white, padding: spacing.md },
-  warnCard: { borderColor: colors.coral },
-  head: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  badge: { backgroundColor: colors.mintSoft, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 2 },
-  badgeText: { color: colors.mintDark, fontSize: font.caption, fontWeight: '600' },
-  src: { flex: 1, fontSize: font.caption, color: colors.muted },
-  title: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
-  when: { fontSize: font.body, color: colors.ink },
-  evidence: { fontSize: 13, color: colors.muted, lineHeight: 19 },
-  reason: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  reasonText: { flex: 1, fontSize: 13, fontWeight: '500', color: colors.coral },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: 4 },
-  btn: { minHeight: 44, paddingHorizontal: 14, borderRadius: radius.sm, borderWidth: 0, borderColor: colors.line, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
-  btnPrimary: { backgroundColor: colors.action, borderColor: colors.actionBorder },
-  btnText: { fontSize: font.body, fontWeight: '600', color: colors.ink },
+  item: { borderWidth: 1, borderColor: 'transparent', borderRadius: 6 },
+  selected: { borderColor: colors.ink },
+  heading: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10, paddingVertical: 8 },
+  details: { flex: 1, gap: 3 },
+  title: { fontSize: 15, fontWeight: '600', color: colors.ink },
+  meta: { fontSize: 12, color: colors.muted, lineHeight: 18, flexShrink: 1 },
+  content: { paddingHorizontal: 10, paddingBottom: 3, gap: 6 },
+  body: { fontSize: 14, lineHeight: 21, color: colors.ink },
+  source: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  warning: { fontSize: 13, lineHeight: 19, color: colors.coral },
 });

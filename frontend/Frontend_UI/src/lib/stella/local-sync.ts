@@ -64,6 +64,7 @@ export type LocalChange =
   | { kind: 'create'; entity: RevisionedEntity | ImmutableEntity; id: string; data: Record<string, unknown> }
   | { kind: 'update'; entity: RevisionedEntity; id: string; data: Record<string, unknown>;
       tableBase?: { revision: number; properties: unknown };
+      projectBase?: { revision: number; progressStatus: unknown };
       noteBase?: { revision: number; fields: Record<string, unknown> } }   // 바꾼 필드만
   | { kind: 'delete'; entity: RevisionedEntity; id: string }                                  // 휴지통으로
   | { kind: 'restore'; entity: RevisionedEntity; id: string }                                // 휴지통에서 복구 (#32부터 7가지 모두)
@@ -348,6 +349,13 @@ export async function saveLocal(ctx: SyncContext, changes: LocalChange[], opts: 
       }
     }
     const intent = await Promise.all(changes.map(async change => {
+      if (change.kind === 'update' && change.entity === 'projects' && change.projectBase) {
+        const record = await getLocal(ctx.db, ws, 'projects', change.id);
+        if (!record || record.data.deleted_at || record.serverRevision !== change.projectBase.revision ||
+            !sameValue(record.data.progress_status, change.projectBase.progressStatus)) {
+          throw new SyncError('PROJECT_CONFLICT', '프로젝트가 바뀌었어요. 최신 상태를 다시 확인해 주세요.');
+        }
+      }
       if (change.kind !== 'update' || change.entity !== 'notes' || change.noteBase) return change;
       const record = await getLocal(ctx.db, ws, 'notes', change.id);
       if (!record || record.serverRevision == null) return change;
@@ -379,12 +387,17 @@ async function buildOps(db: SqlDb, ws: string, intent: LocalChange[]): Promise<{
     const rev = rec?.server_revision;
     if (rev == null) throw new SyncError('NOT_FOUND', `서버에 없는 기록은 수정하거나 삭제할 수 없습니다 (${c.entity} ${c.id})`);
     const tableBase = c.kind === 'update' && c.entity === 'projects' && 'table_properties' in c.data ? c.tableBase : undefined;
+    const projectBase = c.kind === 'update' && c.entity === 'projects' && 'progress_status' in c.data ? c.projectBase : undefined;
     let baseRevision = tableBase?.revision ?? rev;
     if (c.kind === 'update') {
       const server = parse(rec?.server_data ?? null) ?? {};
       const was: Json = {};
       for (const f of Object.keys(c.data)) was[f] = server[f] ?? null;
       if (tableBase) was.table_properties = tableBase.properties;
+      if (projectBase && !sameValue(was.progress_status, projectBase.progressStatus)) {
+        baseRevision = projectBase.revision;
+        was.progress_status = projectBase.progressStatus;
+      }
       if (c.entity === 'notes' && c.noteBase && !sameValue(was, c.noteBase.fields)) {
         baseRevision = c.noteBase.revision;
         Object.assign(was, c.noteBase.fields);
@@ -569,6 +582,9 @@ export async function resolveConflict(ctx: SyncContext, outboxSeq: number, choic
         if (change?.kind === 'update' && change.noteBase && typeof revision === 'number') {
           const fields = Object.fromEntries(Object.keys(change.data).map(key => [key, conflict.server?.[key] ?? null]));
           intent[conflict.index] = { ...change, noteBase: { revision, fields } };
+        }
+        if (change?.kind === 'update' && change.projectBase && typeof revision === 'number') {
+          intent[conflict.index] = { ...change, projectBase: { revision, progressStatus: conflict.server?.progress_status } };
         }
       }
       await db.run(

@@ -36,7 +36,7 @@ export function chatCatalogRecords({ memos, tasks, projects, files, dateOf }) {
     })),
     ...projects.map(project => ({
       id: project.id, type: 'project', title: project.title, text: '', date: dateOf(project.updatedAt ?? project.createdAt),
-      ...dates(project), projects: [project.title],
+      dueDate: project.due || null, ...dates(project), projects: [project.title],
     })),
     ...files.map(file => ({
       id: file.id, type: 'file', title: file.name, text: '', date: dateOf(file.createdAt),

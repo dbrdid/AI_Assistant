@@ -23,6 +23,11 @@ const titleOf = messages => {
 const clean = m => ({
   id: m.id, role: m.role, text: m.text, error: !!m.error,
   ...(m.documentLookup && { documentLookup: true }),
+  ...(m.toolResult && { toolResult: true }),
+  ...(m.projectForm && { projectForm: m.projectForm }),
+  ...(m.taskForm && { taskForm: m.taskForm }),
+  ...(m.chatCommand && { chatCommand: m.chatCommand }),
+  ...(m.documentDraft && { documentDraft: m.documentDraft }),
   attachments: (m.attachments ?? []).map(a => ({ id: a.id, name: a.name, kind: a.kind })),
   sources: (m.sources ?? []).map(s => ({ id: s.id, type: s.type, title: s.title, route: s.route ?? null })),
 });

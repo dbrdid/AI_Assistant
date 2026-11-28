@@ -2,7 +2,7 @@
 // ProjectEditScreen.js — 프로젝트 추가 / 편집
 // ============================================================
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
@@ -12,11 +12,15 @@ import { colors, font, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { fromKey } from '../../calendar/utils/DateUtils';
 import { ALARMS, PRIORITIES } from '../../../data/tasks/TaskStore';
-import { PROJECT_STATUSES, addProject, deleteProject, getProject, updateProject } from '../../../data/projects/ProjectStore';
+import { PROJECT_STATUSES, deleteProject, getProject, projectScope, saveProject } from '../../../data/projects/ProjectStore';
+import { projectSnapshot } from '../../../data/projects/projectOperations.mjs';
+import { alertUser } from '../../../data/alert';
 import { DatePickerModal } from '../../../shared/components/DateTimePicker';
 
 export default function ProjectEditScreen({ navigation, route }) {
-  const existing = route?.params?.projectId ? getProject(route.params.projectId) : null;
+  const projectId = route?.params?.projectId;
+  const [existing] = useState(() => projectId ? getProject(projectId) : null);
+  const [scope] = useState(projectScope);
   const [f, setF] = useState(() => ({
     title: existing?.title ?? '',
     due: existing?.due ?? '',
@@ -31,19 +35,30 @@ export default function ProjectEditScreen({ navigation, route }) {
   const [pickDate, setPickDate] = useState(false);
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const saving = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
-  const save = () => {
+  const save = async () => {
+    if (saving.current) return;
     if (!f.title.trim()) return setError('제목을 입력해 주세요.');
-    const fields = { ...f, title: f.title.trim() };
-    if (existing) {
-      if (!updateProject(existing.id, fields)) return;
+    if (projectId && !existing) return setError('현재 공간에서 프로젝트를 찾을 수 없어요.');
+    saving.current = true;
+    setError('');
+    try {
+      const result = await saveProject(f, { scope, id: projectId, expected: existing && projectSnapshot(existing) });
+      if (!mounted.current) return;
+      if (result.status === 'conflict') return setError(result.message);
+      if (result.status === 'pending') alertUser('기기에 저장했어요', '공유 공간 동기화가 대기 중이에요.');
       navigation.goBack();
-    } else {
-      const p = addProject(fields);
-      if (!p) return; // 저장 실패는 저장소가 안내
-      // 만든 프로젝트의 상세 화면으로 (뒤로가기 하면 목록)
-      navigation.goBack();
-      setTimeout(() => navigation.navigate(ROUTES.ProjectDetail, { projectId: p.id }), 0);
+      if (!existing) setTimeout(() => navigation.navigate(ROUTES.ProjectDetail, { projectId: result.project.id }), 0);
+    } catch (error) {
+      if (mounted.current) setError(error.message);
+    } finally {
+      saving.current = false;
     }
   };
 

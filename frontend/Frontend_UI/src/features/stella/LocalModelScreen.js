@@ -279,7 +279,7 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
         </View>
         {!ready && <Text style={s.connNote}>{PROVIDERS[provider].label} 연결을 마치면 보낼 수 있습니다. 아래 AI 연결에서 설정해 주세요.</Text>}
         {errorView}
-        {!!reply && <View style={s.aiReply}><Text style={s.aiReplyLabel}>{reply.command ? '제안한 앱 작업' : reply.question ? 'AI 질문' : 'AI 답변'} ({reply.model})</Text>
+        {!!reply && <View style={reply.command ? s.reviewDetail : s.aiReply}><Text style={s.aiReplyLabel}>{reply.command ? '실행할 작업' : reply.question ? 'AI 질문' : 'AI 답변'}{reply.command ? '' : ` (${reply.model})`}</Text>
           {reply.command
             ? <InlineCommand key={reply.command + (reply.commands?.length ?? 1)} commands={reply.commands ?? [reply.command]} navigation={navigation}
                 originalRequest={target ? '"' + String(target.text ?? '').replace(/\s+/g, ' ').trim().slice(0, 300) + '" ' + reviewRequest : reviewRequest}

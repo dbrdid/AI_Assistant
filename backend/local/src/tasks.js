@@ -102,11 +102,12 @@ export function queueNoteLink(ctx, taskId, noteId) {
  * 일정·할 일을 만듦. title·date 필수. kind를 안 주면 시작 시간이 있을 때 일정('event'), 없으면 할 일('task').
  * memoId를 주면 그 메모에 연결함 (AI 제안 승인 때).
  */
-export function addTask(ctx, input, { memoId = null } = {}) {
+export function addTask(ctx, input, { memoId = null, creationId } = {}) {
   const v = checked(input, ADD_FIELDS, 'input');
   if (!('title' in v)) fail('invalid_input', 'title');
   if (!('date' in v)) fail('invalid_input', 'date');
-  const taskId = ctx.newId(), t = ctx.now();
+  const taskId = creationId === undefined ? ctx.newId() : id(creationId, 'creationId');
+  const t = ctx.now();
   const kind = v.kind ?? (v.start ? 'event' : 'task');
   ctx.db.runSync(
     `insert into tasks(workspace_id,id,kind,title,date,end_date,start_time,end_time,priority,status,alarm,assignee,place,project,project_id,description,revision,created_at,updated_at)

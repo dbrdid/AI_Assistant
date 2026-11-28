@@ -20,7 +20,7 @@ import { useMemos, memoTitle, setFavorites } from '../../data/memos/MemoStore';
 import { useProposals } from '../../data/proposals/ProposalStore';
 import { useSpaceInfo, useWorkspaces, switchWorkspace } from '../../data/workspaces/WorkspaceStore';
 import ConfirmDialog from '../../shared/components/ConfirmDialog';
-import { reviewReason, useProposalActions } from '../proposal/useProposalActions';
+import { useProposalActions } from '../proposal/useProposalActions';
 import { ROUTES, TABS } from '../../navigation/routes';
 import { filterDocuments } from './model.mjs';
 import { readMemoBlocks } from '../memo/utils/memoBlocks.mjs';
@@ -232,6 +232,7 @@ export default function WorkspaceScreen({
   const memos = memoRows;
   const actions = useProposalActions(navigation);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [selectedProposal, setSelectedProposal] = useState(null);
   const appUpdate = useAppUpdate();
   const [menu, setMenu] = useState(false);
   const [tabPreview, setTabPreview] = useState(null); // 길게 눌러 좌우로 고르는 중인 탭
@@ -256,7 +257,7 @@ export default function WorkspaceScreen({
   const [reviewTab, setReviewTab] = useState('pending');
   const [error, setError] = useState('');
   const current = spaces.current;
-  useEffect(() => setCollapsed(new Set()), [current?.id]);
+  useEffect(() => { setCollapsed(new Set()); setSelectedProposal(null); }, [current?.id]);
   const parentIds = new Set(documents.map(document => document.parentId).filter(Boolean));
   const shown = p => !actions.hidden.has(p.id) && !isPlaced(p, readPreference);
   const waiting = proposals.filter(p => p.status === 'pending' && shown(p));
@@ -268,6 +269,14 @@ export default function WorkspaceScreen({
   function place(p) {
     try { go(ROUTES.MemoEdit, { memoId: placeProposal(runtime(), p, { read: readPreference, write: writePreference }, randomUUID) }); }
     catch (e) { actions.snack.show(e.code === 'source_changed' ? '원본 문서가 바뀌었습니다. 다시 분석해 주세요.' : e.message); }
+  }
+  function renderProposal(proposal, confirmFirst = false) {
+    return <ProposalCard key={proposal.id} p={proposal} actions={actions}
+      expanded={selectedProposal === proposal.id}
+      onToggle={() => setSelectedProposal(id => id === proposal.id ? null : proposal.id)}
+      onSource={() => go(ROUTES.MemoEdit, { memoId: proposal.sourceId })}
+      onPlace={confirmFirst ? () => place(proposal) : undefined}
+      confirmFirst={confirmFirst} readOnly={!canEdit} />;
   }
   const open = memo => go(ROUTES.MemoEdit, {
     memoId: memo.id
@@ -331,18 +340,9 @@ export default function WorkspaceScreen({
     const items = proposals.filter(p => p.status === reviewTab && shown(p));
     content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={items} keyExtractor={p => p.id} contentContainerStyle={s.page} ListHeaderComponent={<>{intro}<View style={s.filters}>{[['pending', '확인 대기'], ['hold', '보류']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{
           selected: reviewTab === key
-        }} onPress={() => setReviewTab(key)} style={[s.filter, reviewTab === key && s.filterOn]}><Text style={[s.filterText, reviewTab === key && s.filterTextOn]}>{label}</Text></Pressable>)}</View></>} renderItem={({
+        }} onPress={() => { setReviewTab(key); setSelectedProposal(null); }} style={[s.filter, reviewTab === key && s.filterOn]}><Text style={[s.filterText, reviewTab === key && s.filterTextOn]}>{label}</Text></Pressable>)}</View></>} renderItem={({
       item: p
-    }) => <View style={s.proposal}><Text style={[s.meta, {
-        color: c.accent
-      }]}>{p.kind === 'memo' ? '문서 요약' : p.kind === 'event' ? '일정' : '할 일'} 제안</Text><Text style={[s.sectionTitle, {
-        marginTop: 9
-      }]}>{p.title}</Text><Text selectable style={s.proposalBody}>{p.body || p.evidence || [p.date, p.start, p.place].filter(Boolean).join(', ')}</Text>{p.sourceType === 'memo' && p.sourceId ? <Pressable accessibilityRole="button" onPress={() => go(ROUTES.MemoEdit, {
-        memoId: p.sourceId
-      })} style={s.link}><Icon name="file" size={14} color={c.muted} /><Text style={s.linkText} numberOfLines={1}>출처: {p.sourceTitle || '원본 문서'}</Text></Pressable> : null}{reviewReason(p) ? <Text style={s.note} accessibilityRole="alert" accessibilityLabel={`경고: ${reviewReason(p)}`}>{reviewReason(p)}</Text> : null}<View style={[s.actions, {
-        marginTop: 14,
-        gap: 8
-      }]}><Pressable accessibilityRole="button" onPress={() => actions.hold(p)} style={s.secondary}><Text style={s.secondaryText}>보류</Text></Pressable><Pressable accessibilityRole="button" onPress={() => actions.dismiss(p)} style={s.secondary}><Text style={s.secondaryText}>무시</Text></Pressable>{(p.kind === 'memo' || (p.sourceType === 'memo' && p.sourceId && !reviewReason(p))) && <Pressable accessibilityRole="button" onPress={() => place(p)} style={s.secondary}><Text style={s.secondaryText}>문서에 넣기</Text></Pressable>}<PrimaryButton label={reviewReason(p) ? '내용 확인' : '확인 후 저장'} icon="check" onPress={() => actions.edit(p)} /></View></View>} ListEmptyComponent={<Text style={s.empty}>{reviewTab === 'hold' ? '보류한 작업이 없습니다.' : '검토할 제안이 없습니다.'}</Text>} />;
+    }) => renderProposal(p, true)} ListEmptyComponent={<Text style={s.empty}>{reviewTab === 'hold' ? '보류한 작업이 없습니다.' : '검토할 제안이 없습니다.'}</Text>} />;
   } else if (mode === 'relations') {
     content = <GraphCanvas key={current?.id} navigation={navigation} />;
   } else {
@@ -360,9 +360,9 @@ export default function WorkspaceScreen({
           {list.length > 20 && <Pressable accessibilityRole="button" style={s.link} onPress={() => go(ROUTES.Memos)}><Text style={s.linkText}>모든 문서 보기</Text></Pressable>}
           {!documents.length && <Text style={s.emptyInline}>아직 작성한 문서가 없습니다.</Text>}
         </HomeSection>
-        {waiting.length > 0 && <Pressable accessibilityRole="button" accessibilityState={{ expanded: reviewOpen }} onPress={() => setReviewOpen(v => !v)} style={s.homeReview}><Icon name="checkSquare" size={18} color={c.muted} /><Text style={s.rowTitle}>검토할 작업</Text><Text style={s.linkText}>{waiting.length}</Text><Icon name={reviewOpen ? 'chevronUp' : 'chevronDown'} size={14} color={c.subtle} /></Pressable>}
+        {waiting.length > 0 && <Pressable accessibilityRole="button" accessibilityState={{ expanded: reviewOpen }} onPress={() => { setReviewOpen(v => !v); setSelectedProposal(null); }} style={s.homeReview}><Icon name="checkSquare" size={18} color={c.muted} /><Text style={s.rowTitle}>검토할 작업</Text><Text style={s.linkText}>{waiting.length}</Text><Icon name={reviewOpen ? 'chevronUp' : 'chevronDown'} size={14} color={c.subtle} /></Pressable>}
         {/* 검토할 작업은 따로 페이지로 가지 않고 이 자리에서 펼쳐 저장, 보류, 무시 */}
-        {reviewOpen && waiting.map(p => <View key={p.id} style={{ marginBottom: 8 }}><ProposalCard p={p} actions={actions} /></View>)}
+        {reviewOpen && waiting.map(p => renderProposal(p))}
         {appUpdate && <Pressable accessibilityRole="button" accessibilityLabel={`새 버전 ${appUpdate.version} 받기`} onPress={() => Linking.openURL(appUpdate.url)} style={s.homeReview}><Icon name="arrowUp" size={18} color={c.muted} /><Text style={s.rowTitle}>새 버전 {appUpdate.version}</Text><Text style={s.linkText}>받기</Text></Pressable>}
       </ScrollView>
       {!embedded && askDock}

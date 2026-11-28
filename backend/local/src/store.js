@@ -274,7 +274,7 @@ export function createLocalStore({ db, now = Date.now, newId = defaultId, timezo
     // tasks (일정·할 일)
     getTasks: () => (cache.tasks ??= Object.freeze(tasks.listTasks(ctx, false))),
     getTask: taskId => tasks.getTask(ctx, taskId),
-    addTask: input => edit(() => tasks.addTask(ctx, input)),
+    addTask: (input, options) => edit(() => tasks.addTask(ctx, input, options)),
     updateTask: (taskId, patch, options) => edit(() => tasks.updateTask(ctx, taskId, patch, options)),
     deleteTask: taskId => edit(() => tasks.deleteTask(ctx, taskId)),
     toggleDone: taskId => edit(() => tasks.toggleDone(ctx, taskId)),

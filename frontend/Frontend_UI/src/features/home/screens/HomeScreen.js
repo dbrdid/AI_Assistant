@@ -75,6 +75,7 @@ export default function HomeScreen({ navigation, route }) {
   const actions = useProposalActions(navigation);
   const snack = actions.snack;
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [selectedProposal, setSelectedProposal] = useState(null);
   const waiting = useProposals().filter((p) => p.status === 'pending' && !actions.hidden.has(p.id));
 
   // ---------- 오늘 일정 / 할 일 (모든 공간) ----------
@@ -177,7 +178,7 @@ export default function HomeScreen({ navigation, route }) {
         {/* ---------- AI 제안: 가장 먼저 확인할 것 하나 ---------- */}
         {/* 홈 개요와 같은 한 줄 (카드 안 카드, 강조색 버튼 없이). 추가, 수정, 무시는 작업 검토 화면에서 */}
         {waiting.length > 0 && (
-          <Pressable accessibilityRole="button" accessibilityLabel={`검토할 작업 ${waiting.length}개`} accessibilityState={{ expanded: reviewOpen }} onPress={() => setReviewOpen((v) => !v)} style={({ pressed }) => [st.homeReview, pressed && { opacity: 0.6 }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`검토할 작업 ${waiting.length}개`} accessibilityState={{ expanded: reviewOpen }} onPress={() => { setReviewOpen((v) => !v); setSelectedProposal(null); }} style={({ pressed }) => [st.homeReview, pressed && { opacity: 0.6 }]}>
             <Icon name="checkSquare" size={18} color={colors.muted} />
             <Text style={[st.rowTitle, { flex: 1 }]} numberOfLines={1}>검토할 작업</Text>
             <Text style={st.linkText}>{waiting.length}</Text>
@@ -185,7 +186,16 @@ export default function HomeScreen({ navigation, route }) {
           </Pressable>
         )}
         {/* 따로 페이지 대신 이 자리에서 펼쳐 저장, 보류, 무시 */}
-        {reviewOpen && waiting.map((p) => <ProposalCard key={p.id} p={p} actions={actions} tone="soft" />)}
+        {reviewOpen && waiting.map((p) => (
+          <ProposalCard
+            key={p.id}
+            p={p}
+            actions={actions}
+            expanded={selectedProposal === p.id}
+            onToggle={() => setSelectedProposal((id) => (id === p.id ? null : p.id))}
+            onSource={() => go(ROUTES.MemoEdit, { memoId: p.sourceId })}
+          />
+        ))}
 
         {/* ---------- 팀 공간 요약 (섹션 이름 + 줄, 상자 없이) ---------- */}
         {multi && (

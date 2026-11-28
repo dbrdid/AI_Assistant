@@ -19,12 +19,18 @@ import {
   View,
 } from 'react-native';
 import { randomUUID } from 'expo-crypto';
-import { askFromDevice, lookupChatDocument, titleForChat, runtime, writePreference } from '../../../integration/runtime';
+import { aiPolicy, askFromDevice, lookupChatDocument, lookupChatReadTool, titleForChat, runtime, writePreference } from '../../../integration/runtime';
 import { documentLookupTerms } from '../../../data/memos/memoSearch.mjs';
 import { readPreference } from '../../../data/hooks';
 import { createAiDocument } from '../../stella/aiPending.mjs';
-import { nextField, parseProjectRequest, summary as projectSummary } from '../projectTemplate.mjs';
-import { addProject, getProjects } from '../../../data/projects/ProjectStore';
+import { nextField, parseProjectRequest, parseProjectStatusRequest, projectDraftValues, summary as projectSummary } from '../projectTemplate.mjs';
+import { getProjects, projectScope, queryProjects, saveProject } from '../../../data/projects/ProjectStore';
+import { projectSnapshot } from '../../../data/projects/projectOperations.mjs';
+import { findOverlap, queryTasks, saveTask, taskScope } from '../../../data/tasks/TaskStore';
+import { taskSnapshot } from '../../../data/tasks/taskOperations.mjs';
+import { parseTaskAction } from '../taskChatIntent.mjs';
+import { planChatCommand } from '../chatCommands.mjs';
+import { planProjectBrief } from '../chatWorkflows.mjs';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import AtriaBook from '../components/AtriaBook';
 import OnceTip from '../../../shared/components/OnceTip';
@@ -41,7 +47,7 @@ import UpSheet from '../components/UpSheet';
 import { describe, extract, pickAttachments } from '../../../services/ai/ChatAttachments';
 import { canRecognize, getCloudFiles, getFiles, recognizeFile, useCloudFiles, useFiles } from '../../../data/files/FileStore';
 import { chatAttachmentsForTurn } from '../../../integration/ChatSourceScope.mjs';
-import { chatErrorMessage } from '../../../lib/stella/ai-chat';
+import { chatErrorMessage, todayIn } from '../../../lib/stella/ai-chat';
 import { colors, font, radius, shadow, spacing } from '../../../shared/theme/theme';
 
 // 대화가 비어 있을 때 보여줄 "추천 질문" 버튼들. 누르면 그 문장이 바로 전송됩니다.
@@ -75,16 +81,26 @@ const sourceIcons = { memo: 'file', file: 'paperclip', project: 'folder', task: 
 const sourceLabels = { memo: '메모', file: '파일', project: '프로젝트', task: '할 일', event: '일정' };
 const sourceIcon = src => src.route ? sourceIcons[src.type] ?? 'file' : 'paperclip';
 const getChatCatalog = () => ({ projects: getProjects(), files: [...getFiles(), ...getCloudFiles()] });
+const pendingProjectForm = messages => messages.slice().reverse().find(message => message.projectForm && !message.projectForm.created && !message.projectForm.cancelled);
 
 // ------------------------------------------------------------
 // 말풍선 하나 (내 메시지 / AI 메시지)
 // ------------------------------------------------------------
 // "프로젝트 만들어줘": 템플릿의 필수 항목을 하나씩 눌러 고르고, 다 고르면 만들기
 function ProjectForm({ form, onAction }) {
-  const chip = (label, onPress, strong) => <Pressable key={label} accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.formChip, strong && styles.formChipStrong, pressed && { opacity: 0.6 }]}>
-    <Text style={[styles.formChipText, strong && { color: colors.ink }]}>{label}</Text></Pressable>;
-  if (form.created) return <View style={styles.form}><Text style={styles.aiText}>'{form.values.title}' 프로젝트를 만들었어요.</Text><View style={styles.formRow}>{chip('프로젝트 열기', () => onAction('open'), true)}</View></View>;
-  if (form.cancelled) return <View style={styles.form}><Text style={styles.formNote}>프로젝트 만들기를 취소했어요.</Text></View>;
+  const chip = (label, onPress, strong, key = label) => <Pressable key={key} accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.formChip, pressed && { opacity: 0.6 }]}>
+    <Text style={[styles.formChipText, strong && styles.formChipPrimary]}>{label}</Text></Pressable>;
+  if (form.created) return <View style={styles.form}><Text style={styles.aiText}>{form.syncPending ? '기기에 저장했어요. 공유 공간 동기화를 기다리고 있어요.' : form.change ? '프로젝트 상태를 변경했어요.' : `'${form.values.title}' 프로젝트를 만들었어요.`}</Text><View style={styles.formRow}>{chip('프로젝트 열기', () => onAction('open'), true)}</View></View>;
+  if (form.cancelled || form.conflict) return <View style={styles.form}><Text style={styles.formNote}>{form.conflict ?? '프로젝트 작업을 취소했어요.'}</Text></View>;
+  if (form.change) return <View style={styles.form}>
+    {form.change.target ? <Text style={styles.aiText}>{form.change.target.title}{'\n'}{form.change.target.status} → {form.change.status}</Text>
+      : <Text style={styles.aiText}>이름이 같은 프로젝트가 있어요. 변경할 항목을 골라 주세요.</Text>}
+    <View style={styles.formRow}>
+      {form.change.target ? chip('상태 변경', () => onAction('create'), true)
+        : form.change.candidates.map(project => chip(`${project.title} (${project.status}, ${project.due || '마감 없음'})`, () => onAction('target', project.id), false, project.id))}
+      {chip('취소', () => onAction('cancel'))}
+    </View>
+  </View>;
   const field = nextField(form.values);
   return <View style={styles.form}>
     {!!field && Object.keys(form.values).length > 0 && <Text style={styles.formNote}>{projectSummary(form.values)}</Text>}
@@ -100,7 +116,36 @@ function ProjectForm({ form, onAction }) {
   </View>;
 }
 
-function MessageBubble({ message, onOpenSource, onMakeDoc, onProject }) {
+function TaskForm({ form, onAction }) {
+  const chip = (label, action, strong = false, key = label) => <Pressable key={key} accessibilityRole="button" onPress={action} style={({ pressed }) => [styles.formChip, pressed && { opacity: 0.6 }]}>
+    <Text style={[styles.formChipText, strong && styles.formChipPrimary]}>{label}</Text>
+  </Pressable>;
+  const name = form.kind === 'event' ? '일정' : '할 일';
+  if (form.cancelled || form.conflict) return <View style={styles.form}><Text style={styles.formNote}>{form.conflict ?? '작업을 취소했어요.'}</Text></View>;
+  if (form.savedId) return <View style={styles.form}>
+    <Text style={styles.aiText}>{form.pending ? '기기에 저장했어요. 공유 공간 동기화가 대기 중이에요.' : `${name}을 저장했어요.`}</Text>
+    <View style={styles.formRow}>{chip(`${name} 열기`, () => onAction('open'), true)}</View>
+  </View>;
+  const { target, candidates, fields } = form;
+  if (form.action === 'change' && !target) return <View style={styles.form}>
+    <Text style={styles.aiText}>이름이 같은 항목이 있어요. 변경할 항목을 골라 주세요.</Text>
+    <View style={styles.formRow}>
+      {candidates.map(item => chip(`${item.title} (${item.date}, ${item.status})`, () => onAction('target', item.id), false, item.id))}
+      {chip('취소', () => onAction('cancel'))}
+    </View>
+  </View>;
+  return <View style={styles.form}>
+    <Text style={styles.aiText}>{target ? `${target.title} (${target.date})\n${target.status} → ${fields.status}`
+      : `${fields.title}\n${fields.date}${fields.start ? ' ' + fields.start : ''}`}</Text>
+    {!!form.overlap && <Text style={styles.formNote}>같은 시간에 다른 항목이 있어요.</Text>}
+    <View style={styles.formRow}>
+      {chip(target ? '상태 변경' : `${name} 추가`, () => onAction('save'), true)}
+      {chip('취소', () => onAction('cancel'))}
+    </View>
+  </View>;
+}
+
+function MessageBubble({ message, onOpenSource, onMakeDoc, onProject, onTask, onCommand, onDraft }) {
   if (message.role === 'user') {
     return (
       <View style={styles.userRow}>
@@ -132,8 +177,23 @@ function MessageBubble({ message, onOpenSource, onMakeDoc, onProject }) {
           <Text style={[styles.aiText, message.error && styles.errorText]} selectable>{message.text}</Text>
         </View>
         {message.projectForm && <ProjectForm form={message.projectForm} onAction={(...args) => onProject(message, ...args)} />}
+        {message.taskForm && <TaskForm form={message.taskForm} onAction={(...args) => onTask(message, ...args)} />}
+        {message.chatCommand && <Pressable accessibilityRole="button" style={({ pressed }) => [styles.formChip, styles.formChipStart, pressed && { opacity: 0.6 }]} onPress={() => onCommand(message.chatCommand)}>
+          <Text style={[styles.formChipText, styles.formChipPrimary]}>작업 검토</Text>
+        </Pressable>}
+        {message.documentDraft && <View style={styles.formRow}>
+          {message.documentDraft.cancelled ? <Text style={styles.formNote}>초안을 취소했어요.</Text>
+            : <>
+              <Pressable accessibilityRole="button" style={({ pressed }) => [styles.formChip, pressed && { opacity: 0.6 }]} onPress={() => onDraft(message, false)}>
+                <Text style={[styles.formChipText, styles.formChipPrimary]}>{message.documentDraft.savedId ? '문서 열기' : '문서 만들기'}</Text>
+              </Pressable>
+              {!message.documentDraft.savedId && <Pressable accessibilityRole="button" style={({ pressed }) => [styles.formChip, pressed && { opacity: 0.6 }]} onPress={() => onDraft(message, true)}>
+                <Text style={styles.formChipText}>취소</Text>
+              </Pressable>}
+            </>}
+        </View>}
         {/* Notion AI의 "페이지로 만들기"처럼: 답의 제목, 목록, 체크리스트, 표가 실제 블록이 된 새 문서 */}
-        {message.done && !message.error && !message.projectForm && !message.documentLookup && !!onMakeDoc && (
+        {message.done && !message.error && !message.projectForm && !message.taskForm && !message.documentLookup && !message.toolResult && !!onMakeDoc && (
           <Pressable accessibilityRole="button" onPress={() => onMakeDoc(message)} hitSlop={6} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', minHeight: 36 }, pressed && { opacity: 0.6 }]}>
             <Icon name="file" size={15} color={colors.muted} /><Text style={{ fontSize: font.caption + 1, color: colors.muted }}>문서로 만들기</Text>
           </Pressable>
@@ -163,7 +223,7 @@ function MessageBubble({ message, onOpenSource, onMakeDoc, onProject }) {
   );
 }
 
-export default function AiChatScreen({ navigation }) {
+export default function AiChatScreen({ navigation, route: navRoute }) {
   // 왼쪽 위: 사이드 메뉴로 열었으면 ☰, 다른 화면(홈의 ✦ 등)에서 왔으면 ‹
   const lead = useLeadAction(navigation.goBack);
   const insets = useSafeAreaInsets();
@@ -181,8 +241,9 @@ export default function AiChatScreen({ navigation }) {
   ].filter(canRecognize);
 
   // ---------- 상태 ----------
-  const [chatId, setChatId] = useState(() => randomUUID()); // 지금 대화의 기록 id
-  const [messages, setMessages] = useState([]);              // { id, role, text, done, sources, attachments, error }
+  const restored = useRef(navRoute?.params?.chatId ? getChat(navRoute.params.chatId) : null).current;
+  const [chatId, setChatId] = useState(() => restored?.id ?? randomUUID()); // 지금 대화의 기록 id
+  const [messages, setMessages] = useState(() => (restored?.messages ?? []).map((m) => (m.role === 'ai' ? { ...m, done: true } : m))); // { id, role, text, done, sources, attachments, error }
   const [input, setInput] = useState('');
   const [status, setStatus] = useState('idle');              // 'idle' | 'thinking' | 'streaming'
   const [keyboardUp, setKeyboardUp] = useState(false);
@@ -194,7 +255,7 @@ export default function AiChatScreen({ navigation }) {
   const [banner, setBanner] = useState('');
   const [usage, setUsage] = useState({ data: null, error: '' }); // 서버 기준 이번 달 사용량
   const [headerBottom, setHeaderBottom] = useState(0);           // 업로드된 파일 창이 여기까지 올라옴
-  const [startedAt, setStartedAt] = useState(null);              // 대화 위 시간 구분선 (새 대화: 첫 질문 시각 · 불러온 대화: 저장 시각)
+  const [startedAt, setStartedAt] = useState(() => restored?.updatedAt ?? null); // 대화 위 시간 구분선 (새 대화: 첫 질문 시각 · 불러온 대화: 저장 시각)
 
   const openUsage = async () => {
     setPanel('usage');
@@ -233,7 +294,7 @@ export default function AiChatScreen({ navigation }) {
       const chat = getChat(chatId);
       const question = messages.find((m) => m.role === 'user')?.text;
       const answer = messages.find((m) => m.role === 'ai' && !m.error && m.text);
-      if (chat?.titleSource === 'question' && question && answer && !answer.documentLookup && !titled.current.has(chatId)) {
+      if (chat?.titleSource === 'question' && question && answer && !answer.documentLookup && !answer.toolResult && !answer.projectForm && !titled.current.has(chatId)) {
         titled.current.add(chatId);
         const id = chatId;
         titleForChat(question, answer.text)
@@ -302,17 +363,78 @@ export default function AiChatScreen({ navigation }) {
 
   // ---------- 메시지 보내기 ----------
   const requestRef = useRef(null);
+  const actionSaves = useRef(new Set());
   useEffect(() => () => requestRef.current?.abort(), []);
   const send = useCallback(
     async (raw) => {
       const text = raw.trim() || (ready.length ? ATTACH_ONLY_QUESTION : '');
       if (!text || status !== 'idle' || reading) return;
-      const waiting = [...messages].reverse().find((m) => m.projectForm && !m.projectForm.created && !m.projectForm.cancelled);
-      if (waiting && nextField(waiting.projectForm.values)?.key === 'title') {
+      const taskAction = !ready.length && parseTaskAction(text, todayIn(aiPolicy().timezone));
+      if (taskAction) {
+        const candidates = taskAction.action === 'change' ? queryTasks({ kind: taskAction.kind, title: taskAction.title })
+          .filter(task => !readPreference(`ai-excluded:${task.id}`, false)).map(taskSnapshot) : [];
+        const canDraft = !taskAction.error && (taskAction.action === 'create' || candidates.length);
+        const form = canDraft ? {
+          ...taskAction, candidates, scope: taskScope(), target: candidates.length === 1 ? candidates[0] : null,
+          ...(taskAction.action === 'create' && {
+            creationId: randomUUID(),
+            overlap: Boolean(findOverlap({ ...taskAction.fields, start: taskAction.fields.start ?? '', end: '' })),
+          }),
+        } : null;
+        dirty.current = true;
+        if (!messages.length) setStartedAt(Date.now());
+        setInput('');
+        setMessages(previous => [...previous, { id: nextId(), role: 'user', text },
+          { id: nextId(), role: 'ai', done: true, toolResult: true, sources: [],
+            text: taskAction.error || (form ? '저장할 내용을 확인해 주세요.' : '현재 공간에서 해당 항목을 찾지 못했어요.'),
+            ...(form && { taskForm: form }) }]);
+        return;
+      }
+      if (!ready.length && !chatAttachmentsForTurn(text, [], chatFiles.current).length) {
+        const own = runtime();
+        const scope = taskScope();
+        const isExcluded = id => readPreference(`ai-excluded:${id}`, false);
+        const canRead = !own.closedSpaces.has(scope.workspaceId);
+        const brief = canRead && planProjectBrief(text, todayIn(aiPolicy().timezone), { queryProjects, queryTasks, isExcluded });
+        const command = !brief && canRead && planChatCommand(text, {
+          memos: own.store.getMemos().filter(memo => !isExcluded(memo.id)),
+          recentSources: [...messages].reverse().find(entry => entry.sources?.length)?.sources ?? [],
+        });
+        if (brief || command) {
+          Keyboard.dismiss();
+          dirty.current = true;
+          if (!messages.length) setStartedAt(Date.now());
+          setInput('');
+          setMessages(previous => [...previous, { id: nextId(), role: 'user', text },
+            { id: nextId(), role: 'ai', done: true, toolResult: true, sources: [],
+              text: brief ? brief.text : command.message ?? '실행할 작업을 검토해 주세요.',
+              ...(brief?.sections && { documentDraft: { ...brief, request: text, scope } }),
+              ...(command?.command && { chatCommand: { ...command, scope } }) }]);
+          return;
+        }
+      }
+      const waiting = pendingProjectForm(messages);
+      if (!ready.length && waiting && !waiting.projectForm.change && nextField(waiting.projectForm.values)?.key === 'title') {
         dirty.current = true;
         setInput('');
         setMessages((prev) => [...prev.filter((m) => m.id !== waiting.id), { id: nextId(), role: 'user', text },
-          { ...waiting, projectForm: { ...waiting.projectForm, values: { ...waiting.projectForm.values, title: text.slice(0, 200) } } }]);
+          { ...waiting, projectForm: { ...waiting.projectForm, values: projectDraftValues(text.slice(0, 100)) } }]);
+        return;
+      }
+      const change = !ready.length && parseProjectStatusRequest(text);
+      if (change) {
+        const candidates = queryProjects({ title: change.title }).filter(project => !readPreference(`ai-excluded:${project.id}`, false));
+        const target = candidates.length === 1 ? projectSnapshot(candidates[0]) : null;
+        const form = candidates.length ? { values: {}, scope: projectScope(), change: {
+          status: change.status, target, candidates: candidates.map(project => ({ ...projectSnapshot(project), due: project.due })),
+        } } : null;
+        dirty.current = true;
+        if (!messages.length) setStartedAt(Date.now());
+        setInput('');
+        setMessages(previous => [...previous, { id: nextId(), role: 'user', text },
+          { id: nextId(), role: 'ai', done: true, toolResult: true, sources: [],
+            text: form ? '변경할 프로젝트 상태를 확인해 주세요.' : '현재 공간에서 해당 프로젝트를 찾지 못했어요.',
+            ...(form && { projectForm: form }) }]);
         return;
       }
       const project = !ready.length && parseProjectRequest(text);
@@ -321,18 +443,23 @@ export default function AiChatScreen({ navigation }) {
         if (!messages.length) setStartedAt(Date.now());
         setInput('');
         setMessages((prev) => [...prev, { id: nextId(), role: 'user', text },
-          { id: nextId(), role: 'ai', text: '프로젝트를 만들게요. 필요한 항목을 골라 주세요.', done: true, sources: [], projectForm: { values: project.title ? { title: project.title } : {} } }]);
+          { id: nextId(), role: 'ai', text: '프로젝트를 어떻게 만들지 확인해 주세요.', done: true, sources: [],
+            projectForm: { values: projectDraftValues(project.title.slice(0, 100)), scope: projectScope(), creationId: randomUUID() } }]);
         return;
       }
       const turnFiles = chatAttachmentsForTurn(text, ready, chatFiles.current);
-      const document = !turnFiles.length && lookupChatDocument(text);
-      if (document) {
+      const history = messages.filter(m => !m.error && m.text && !m.toolResult)
+        .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', text: m.text }));
+      const local = !turnFiles.length && (lookupChatDocument(text) ?? lookupChatReadTool(text, history, {
+        queryProjects, queryTasks, getFiles: () => getChatCatalog().files,
+      }));
+      if (local) {
         dirty.current = true;
         if (!messages.length) setStartedAt(Date.now());
         const userId = nextId(), aiId = nextId();
         setInput('');
         setMessages(previous => [...previous, { id: userId, role: 'user', text },
-          { id: aiId, role: 'ai', done: true, ...document }]);
+          { id: aiId, role: 'ai', done: true, ...local }]);
         return;
       }
       if (!routeReady) return setBanner('로컬 AI는 아직 연결 전이에요. 클라우드 AI로 바꿔 주세요');
@@ -340,7 +467,6 @@ export default function AiChatScreen({ navigation }) {
       const aiId = nextId();
       const userId = nextId();
       const sentFiles = ready.map(({ id, name, kind, text: body, sourceScope }) => ({ id, name, kind, text: body, sourceScope }));
-      const history = messages.filter((m) => !m.error && m.text).map((m) => ({ role: m.role === 'user' ? 'user' : 'assistant', text: m.text }));
       dirty.current = true;
       if (!messages.length) setStartedAt(Date.now());
       setMessages((prev) => [...prev, { id: userId, role: 'user', text, attachments: sentFiles }]);
@@ -429,8 +555,18 @@ export default function AiChatScreen({ navigation }) {
     setInput('');
     setStatus('idle');
     setPanel(null);
+    navigation.setParams?.({ chatId: next.messages.length ? next.id : undefined });
   };
   const newChat = () => reset();
+  // 작업 검토·출처·생성 항목 화면으로 이동했다가 뒤로 돌아와도 지금 대화가 유지되게 저장하고 id를 남김
+  const navigateFromChat = (targetRoute, params) => {
+    if (messages.length) {
+      if (dirty.current || !getChat(chatId)) saveChat(chatId, messages.map((m) => (m.role === 'ai' ? { ...m, done: true } : m)));
+      dirty.current = false;
+      navigation.setParams?.({ chatId });
+    }
+    navigation.navigate(targetRoute, params);
+  };
 
   // ---------- 고정 ----------
   const pinned = !!chats.find((c) => c.id === chatId)?.pinnedAt;
@@ -535,16 +671,95 @@ export default function AiChatScreen({ navigation }) {
             data={messages}
             keyExtractor={(m) => m.id}
             renderItem={({ item }) => (
-              <MessageBubble message={item} onOpenSource={(src) => src.route && navigation.navigate(src.route, openParams(src.type, src.id))}
-                onProject={(message, action, field, value) => {
+              <MessageBubble message={item} onOpenSource={(src) => src.route && navigateFromChat(src.route, openParams(src.type, src.id))}
+                onCommand={({ command, originalRequest, memoId, revision, scope }) => {
+                  Keyboard.dismiss();
+                  navigateFromChat(ROUTES.AppCommand, { command, originalRequest, memoId, fromChat: { ...scope, revision } });
+                }}
+                onDraft={(message, cancelled) => {
+                  const draft = message.documentDraft;
+                  const scope = taskScope();
+                  const own = runtime();
+                  if (scope.workspaceId !== draft.scope.workspaceId || scope.accountId !== draft.scope.accountId
+                      || own.closedSpaces.has(scope.workspaceId)) return setBanner('초안을 작성한 공간에서 열어 주세요.');
+                  if (draft.savedId) return navigateFromChat(ROUTES.MemoEdit, { memoId: draft.savedId });
+                  if (draft.cancelled || actionSaves.current.has(message.id)) return;
+                  let next = { ...draft, cancelled };
+                  if (!cancelled) {
+                    const space = own.store.getCurrentWorkspace();
+                    if (!space.personal && space.roleCode === 'VIEWER') {
+                      return setBanner('초안을 작성한 공간에서 편집 권한을 확인해 주세요.');
+                    }
+                    const latest = planProjectBrief(draft.request, todayIn(aiPolicy().timezone),
+                      { queryProjects, queryTasks, isExcluded: id => readPreference(`ai-excluded:${id}`, false) });
+                    if (JSON.stringify(latest?.sections) !== JSON.stringify(draft.sections)) return setBanner('초안에 사용한 항목이 바뀌었어요. 다시 요청해 주세요.');
+                    actionSaves.current.add(message.id);
+                    try {
+                      const savedId = createAiDocument(own, { title: draft.title, text: draft.text, pending: false }, { read: readPreference, write: writePreference }, randomUUID);
+                      next = { ...next, savedId };
+                    } catch (error) { actionSaves.current.delete(message.id); return setBanner(error.message); }
+                  }
+                  dirty.current = true;
+                  setMessages(previous => previous.map(entry => entry.id === message.id ? { ...entry, documentDraft: next } : entry));
+                }}
+                onTask={async (message, action, id) => {
+                  let form = message.taskForm;
+                  if (action === 'open') return navigateFromChat(ROUTES.TaskEdit, { taskId: form.savedId });
+                  if (actionSaves.current.has(message.id) || form.cancelled || form.conflict || form.savedId) return;
+                  if (action === 'target') {
+                    const target = form.candidates.find(item => item.id === id);
+                    if (!target) return;
+                    form = { ...form, target };
+                  }
+                  if (action === 'cancel') form = { ...form, cancelled: true };
+                  if (action === 'save') {
+                    if (form.action === 'change' && !form.target) return;
+                    actionSaves.current.add(message.id);
+                    try {
+                      if (form.target && readPreference(`ai-excluded:${form.target.id}`, false)) throw new Error('이 항목은 AI 작업에서 제외됐어요.');
+                      const result = await saveTask(form.fields, { scope: form.scope, id: form.target?.id, expected: form.target, creationId: form.creationId });
+                      form = { ...form, savedId: result.task.id, pending: result.status === 'pending' };
+                    } catch (error) {
+                      if (error.code !== 'revision_conflict') {
+                        actionSaves.current.delete(message.id);
+                        setBanner(error.message);
+                        return;
+                      }
+                      form = { ...form, conflict: error.message };
+                    }
+                  }
+                  dirty.current = true;
+                  setMessages(previous => previous.map(entry => entry.id === message.id ? { ...entry, taskForm: form } : entry));
+                }}
+                onProject={async (message, action, field, value) => {
                   let form = message.projectForm;
-                  if (action === 'open') return navigation.navigate(ROUTES.ProjectDetail, { projectId: form.createdId });
+                  if (action === 'open') return navigateFromChat(ROUTES.ProjectDetail, { projectId: form.createdId });
+                  if (actionSaves.current.has(message.id)) return;
+                  if (action === 'target') {
+                    const target = form.change.candidates.find(project => project.id === field);
+                    if (!target) return;
+                    const { due, ...snapshot } = target;
+                    form = { ...form, change: { ...form.change, target: snapshot } };
+                  }
                   if (action === 'set') form = { ...form, values: { ...form.values, [field]: value } };
                   if (action === 'cancel') form = { ...form, cancelled: true };
                   if (action === 'create') {
-                    const row = addProject({ ...form.values, desc: '' });
-                    if (!row?.id) return; // 실패 안내는 addProject가 띄움
-                    form = { ...form, created: true, createdId: row.id };
+                    if (form.created || form.cancelled || form.conflict || (form.change ? !form.change.target : nextField(form.values))) return;
+                    actionSaves.current.add(message.id);
+                    try {
+                      const activeScope = projectScope();
+                      const scope = form.scope ?? (form.workspaceId === activeScope.workspaceId ? activeScope : null);
+                      const target = form.change?.target;
+                      if (target && readPreference(`ai-excluded:${target.id}`, false)) throw new Error('이 프로젝트는 AI 작업에서 제외됐어요.');
+                      const result = await saveProject(target ? { status: form.change.status } : { ...form.values, desc: '' },
+                        { scope, id: target?.id, expected: target, creationId: form.creationId });
+                      if (result.status === 'conflict') form = { ...form, conflict: result.message };
+                      else form = { ...form, created: true, createdId: result.project.id, syncPending: result.status === 'pending' };
+                    } catch (error) {
+                      actionSaves.current.delete(message.id);
+                      setBanner(error.message);
+                      return;
+                    }
                   }
                   dirty.current = true;
                   setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, projectForm: form } : m)));
@@ -554,7 +769,7 @@ export default function AiChatScreen({ navigation }) {
                     const question = messages[messages.indexOf(answer) - 1]?.text ?? '';
                     const title = (/^#{1,6}\s+(.+)$/m.exec(answer.text)?.[1] || question || answer.text.split('\n')[0]).replace(/\*\*/g, '').trim().slice(0, 40);
                     const id = createAiDocument(runtime(), { title, text: answer.text }, { read: readPreference, write: writePreference }, randomUUID);
-                    navigation.navigate(ROUTES.MemoEdit, { memoId: id });
+                    navigateFromChat(ROUTES.MemoEdit, { memoId: id });
                   } catch (e) { setBanner(e.message); }
                 }} />
             )}
@@ -949,9 +1164,10 @@ const styles = StyleSheet.create({
   aiBubble: { maxWidth: '100%', paddingVertical: 2 },
   form: { gap: spacing.sm, marginTop: spacing.xs },
   formRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  formChip: { minHeight: 36, paddingHorizontal: 14, borderRadius: 18, backgroundColor: colors.raised, justifyContent: 'center' },
-  formChipStrong: { backgroundColor: colors.action },
-  formChipText: { fontSize: font.body, color: colors.muted },
+  formChip: { minHeight: 44, minWidth: 44, paddingHorizontal: 8, justifyContent: 'center' },
+  formChipStart: { alignSelf: 'flex-start' },
+  formChipPrimary: { color: colors.ink, fontWeight: '600' },
+  formChipText: { fontSize: 13, color: colors.muted },
   formNote: { fontSize: font.caption + 1, color: colors.muted, lineHeight: 19 },
   aiText: { fontSize: font.bodyLg, color: colors.ink, lineHeight: 22 },
   errorBubble: {},

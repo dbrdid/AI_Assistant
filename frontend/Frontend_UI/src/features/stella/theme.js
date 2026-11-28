@@ -398,5 +398,7 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 24,
     marginTop: 12
-  }
+  },
+  reviewDetail: { gap: 8, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  reviewText: { color: c.text, fontSize: 15, lineHeight: 23 },
 });

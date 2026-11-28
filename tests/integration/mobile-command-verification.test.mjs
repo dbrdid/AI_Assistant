@@ -166,7 +166,8 @@ test('결정11: 원문에 없는 시각은 값을 유지하고 승인 카드 경
   assert.match(read('proposal/useProposalActions.js'), /unstatedTimeWarning\(p, getMemo\(p\.sourceId\)\?\.body\)/);
   assert.match(read('proposal/components/ProposalCard.js'), /accessibilityLabel=\{`경고: \$\{reason\}`\}/);
   assert.match(read('proposal/screens/ProposalConfirmScreen.js'), /accessibilityLabel=\{`경고: \$\{timeWarning\}`\}/);
-  assert.match(read('stella/WorkspaceScreen.js'), /accessibilityLabel=\{`경고: \$\{reviewReason\(p\)\}`\}/);
+  assert.match(read('stella/WorkspaceScreen.js'), /mode === 'review'[\s\S]+renderProposal\(p, true\)/);
+  assert.match(read('stella/WorkspaceScreen.js'), /renderProposal\(proposal,[\s\S]+<ProposalCard /);
 });
 
 test('결정11: 정오·자정·원문 시각은 값을 유지하고 경고하지 않는다', async t => {

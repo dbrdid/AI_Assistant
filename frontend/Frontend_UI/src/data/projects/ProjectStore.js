@@ -17,8 +17,9 @@ import {
 } from '../../lib/stella/project-team';
 import { inviteMailErrorMessage, sendInviteMail } from '../../lib/stella/invite-mail';
 import { alertUser } from '../alert';
+import { filterProjects, PROJECT_STATUSES, verifyProjectSnapshot } from './projectOperations.mjs';
 
-export const PROJECT_STATUSES = ['진행 전', '진행 중', '완료', '보류'];
+export { PROJECT_STATUSES };
 export const isEmail = value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 const EMPTY = Object.freeze([]);
@@ -116,6 +117,7 @@ function buildShared(rt, entry, tasks, links) {
       ...map.projectFromServer(row),
       createdAt: Date.parse(row.created_at) || 0,
       updatedAt: Date.parse(row.updated_at) || 0,
+      revision: row.revision ?? null,
       sharedTable: row.table_properties,
       canEditSharedTable: wsCanEditTable(rt, row.workspace_id, row.id, entry.members),
       members: entry.members.filter(m => m.project_id === row.id)
@@ -221,6 +223,7 @@ export function getProjects() {
   const rt = maybeRuntime();
   if (!rt) return EMPTY;
   const ws = rt.store.getCurrentWorkspace();
+  if (rt.closedSpaces.has(ws.id)) return EMPTY;
   const tasks = rt.store.getTasks();
   const links = readLinks();
   const base = ws.personal ? list('projects') : ws.serverId ? sharedEntry(rt, ws.serverId) : EMPTY_SHARED;
@@ -233,6 +236,11 @@ export function getProjects() {
 export const useProjects = () => useValue(getProjects);
 export const subscribeProjects = runtimeSubscribe;
 export const getProject = id => getProjects().find(p => p.id === id) ?? null;
+export const queryProjects = filters => filterProjects(getProjects(), filters);
+export const projectScope = () => {
+  const { rt, ws } = current();
+  return { workspaceId: ws.id, accountId: rt.session.id };
+};
 export const projectOf = (kind, id) => getProjects().find(p => p.links[kindOf(kind)].includes(id)) ?? null;
 
 // ---------------------------------------------------------------------
@@ -270,7 +278,7 @@ const myName = () => {
 
 // Hand changes to the sync engine, then push. `before` first hands pending memo/task saves over so links never
 // reach the server before the record they point at.
-async function pushShared(rt, ws, changes, { before = false, onConflict } = {}) {
+async function pushShared(rt, ws, changes, { before = false, onConflict, handoffKey } = {}) {
   if (!changes.length) return;
   if (before) {
     const result = await rt.bridge.syncWorkspace(ws.id);
@@ -280,7 +288,7 @@ async function pushShared(rt, ws, changes, { before = false, onConflict } = {}) 
   guardShared(rt.store.getCurrentWorkspace());
   const operationIds = [];
   for (let i = 0; i < changes.length; i += 100) {
-    operationIds.push(await engine.saveLocal(syncContext(ws.serverId), changes.slice(i, i + 100)));
+    operationIds.push(await engine.saveLocal(syncContext(ws.serverId), changes.slice(i, i + 100), handoffKey ? { handoffKey } : undefined));
   }
   await refreshShared(ws.serverId);
   const result = await rt.bridge.syncWorkspace(ws.id);
@@ -294,7 +302,7 @@ async function pushShared(rt, ws, changes, { before = false, onConflict } = {}) 
       const pending = outbox.find(row => row.seq === flush.outboxSeq && operationIds.includes(row.operationId));
       if (pending) onConflict(pending);
     }
-    throw new Error(flush.conflicts?.some(isLeaderConflict) ? teamErrorMessage({ code: 'NOT_PROJECT_LEADER' }) : '다른 기기의 수정과 겹쳤어요. 동기화 상태를 확인해 주세요');
+    throw Object.assign(new Error(flush.conflicts?.some(isLeaderConflict) ? teamErrorMessage({ code: 'NOT_PROJECT_LEADER' }) : '다른 기기의 수정과 겹쳤어요. 동기화 상태를 확인해 주세요'), { code: 'PROJECT_CONFLICT' });
   }
   if (flush?.status === 'BLOCKED') throw new Error(flush.error || '서버가 저장을 거절했어요');
   if (flush?.status === 'OFFLINE') rt.bridge.requestSync(0);
@@ -364,12 +372,14 @@ export async function saveSharedProjectTable(projectId, expected, table) {
 // ---------------------------------------------------------------------
 // Projects
 // ---------------------------------------------------------------------
-export const addProject = fields => safely(() => {
+function saveNewProject(fields, waitForSync = false, creationId) {
   const { rt, ws } = current();
-  const id = randomUUID();
+  const id = creationId ?? randomUUID();
   const me = { accountId: rt.session.id, name: myName(), memberId: randomUUID() };
   const values = pickFields(fields);
   if (ws.personal) {
+    const existing = creationId && getProject(id);
+    if (existing) return existing;
     const now = Date.now();
     const row = { id, ...values, members: [{ id: me.memberId, name: me.name, role: LEADER_ROLE, accountId: me.accountId }], createdAt: now, updatedAt: now };
     saveList('projects', [row, ...list('projects')]);
@@ -377,24 +387,81 @@ export const addProject = fields => safely(() => {
   }
   guardShared(ws);
   const data = rt.store.serverMap.projectData(values);
-  background(pushShared(rt, ws, newProjectChanges(id, data, me)));
-  return { id, ...values };
-});
+  const row = { id, ...values };
+  const saving = pushShared(rt, ws, newProjectChanges(id, data, me),
+    creationId ? { handoffKey: `project-create:${ws.serverId}:${id}` } : undefined);
+  if (waitForSync) return saving.then(
+    result => ({ ...row, syncPending: result?.flush?.status === 'OFFLINE' }),
+    error => {
+      if (maybeRuntime() !== rt || rt.store.getCurrentWorkspace().id !== ws.id || rt.closedSpaces.has(ws.id) || !getProject(id)) throw error;
+      alertUser('동기화를 확인해 주세요', messageOf(error));
+      return { ...row, syncPending: true };
+    },
+  );
+  background(saving);
+  return row;
+}
 
-export const updateProject = (id, fields) => safely(() => {
+export const addProject = fields => safely(() => saveNewProject(fields));
+function startProjectUpdate(id, fields, expected) {
   const { rt, ws } = current();
   const values = pickFields(fields);
+  const before = getProject(id);
+  verifyProjectSnapshot(before, expected);
   if (ws.personal) {
-    saveList('projects', list('projects').map(p => (p.id === id ? { ...p, ...values, updatedAt: Date.now() } : p)));
-    return true;
+    saveList('projects', list('projects').map(p => (p.id === id
+      ? { ...p, ...values, updatedAt: Math.max(Date.now(), (p.updatedAt ?? 0) + 1) } : p)));
+    return null;
   }
   guardManage(rt, ws, id);
-  const before = getProject(id) ?? {};
   const changed = Object.fromEntries(Object.entries(values).filter(([k, v]) => before[k] !== v));
-  if (!Object.keys(changed).length) return true;
-  background(pushShared(rt, ws, [{ kind: 'update', entity: 'projects', id, data: rt.store.serverMap.projectData(changed) }]));
+  if (!Object.keys(changed).length) return null;
+  const data = rt.store.serverMap.projectData(changed);
+  return pushShared(rt, ws, [{
+    kind: 'update', entity: 'projects', id, data,
+    ...(expected && before.revision != null && 'progress_status' in data && {
+      projectBase: { revision: before.revision, progressStatus: rt.store.serverMap.projectData({ status: before.status }).progress_status },
+    }),
+  }]);
+}
+
+export const updateProject = (id, fields) => safely(() => {
+  const saving = startProjectUpdate(id, fields);
+  if (saving) background(saving);
   return true;
 }, false);
+
+export async function saveProject(fields, { scope, id, expected, creationId } = {}) {
+  const { rt, ws } = current();
+  if (!scope || scope.workspaceId !== ws.id || scope.accountId !== rt.session.id || rt.closedSpaces.has(ws.id)) {
+    throw new Error('프로젝트를 열었던 공간에서 다시 시도해 주세요.');
+  }
+  const values = typeof fields.title === 'string' ? { ...fields, title: fields.title.trim() } : fields;
+  if (!id && !values.title) throw new Error('제목을 입력해 주세요.');
+  if ('title' in fields && !values.title) throw new Error('제목을 입력해 주세요.');
+  if ('status' in values && !PROJECT_STATUSES.includes(values.status)) throw new Error('프로젝트 상태를 확인해 주세요.');
+  if (!id) {
+    const project = await saveNewProject(values, true, creationId);
+    if (maybeRuntime() !== rt || rt.store.getCurrentWorkspace().id !== ws.id || rt.closedSpaces.has(ws.id)) {
+      throw new Error('공간이 바뀌었어요. 저장 결과는 원래 공간에서 확인해 주세요.');
+    }
+    return { status: project.syncPending ? 'pending' : 'saved', project };
+  }
+  try {
+    const result = await startProjectUpdate(id, values, expected);
+    if (maybeRuntime() !== rt || rt.store.getCurrentWorkspace().id !== ws.id || rt.closedSpaces.has(ws.id)) {
+      throw new Error('공간이 바뀌었어요. 저장 결과는 원래 공간에서 확인해 주세요.');
+    }
+    const project = getProject(id);
+    if (!project || ('status' in values && project.status !== values.status)) {
+      throw new Error('저장된 프로젝트를 확인하지 못했어요. 목록에서 현재 상태를 확인해 주세요.');
+    }
+    return { status: result?.flush?.status === 'OFFLINE' ? 'pending' : 'saved', project };
+  } catch (error) {
+    if (error.code === 'PROJECT_CONFLICT') return { status: 'conflict', message: error.message };
+    throw error;
+  }
+}
 
 export const deleteProject = id => safely(() => {
   const { rt, ws } = current();

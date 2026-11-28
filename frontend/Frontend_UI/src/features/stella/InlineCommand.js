@@ -2,7 +2,7 @@
 // 검사는 앱 작업 화면과 같다: 모델 명령은 원래 요청의 값만 쓸 수 있고, 승인은 한 번만, 공간·문서가 바뀌면 거절.
 // 여러 작업이면 하나씩 보여 주고, 승인하면 다음 작업을 준비한다.
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 import { runtime, maybeRuntime, readPreference, writePreference } from '../../integration/runtime';
 import { proposeBlocks } from './aiPending.mjs';
@@ -11,8 +11,8 @@ import { splitRequest } from './commandSteps.mjs';
 import { planProjectCommand } from './projectCommands.mjs';
 import { planDocumentCommand, planItemCommand } from './itemCommands.mjs';
 import { addProject, getProjects, setItemProject, updateProject } from '../../data/projects/ProjectStore';
-import Icon from '../../shared/components/Icon';
-import { palette as c, styles as s } from './theme';
+import ReviewActions from '../../shared/components/ReviewActions';
+import { styles as s } from './theme';
 
 /** 앱 작업 검토 화면과 함께 쓰는 계획 세우기 (같은 검사) */
 export function useCommandPlanner(total = 1) {
@@ -113,23 +113,21 @@ export default function InlineCommand({ commands, originalRequest, memoId, navig
         setIndex(next); setTarget(memo); setStep(make(next, memo));
         return;
       }
-      setDone(true);
+      setDone('적용했어요.');
       if (result?.route && OPENS.test(commands[index])) { onLeave?.(); navigation.navigate(result.route, result.params); }
     } catch (error) { setMessage(error.message); feedback('failed', error.message); }
   }
-  const row = (icon, label, onPress, strong) => <Pressable accessibilityRole="button" onPress={onPress} style={strong ? s.aiSend : s.aiGhost}>
-    <Icon name={icon} size={15} color={c.text} /><Text style={strong ? s.aiSendText : s.aiGhostText}>{label}</Text></Pressable>;
   if (placed) return <Text accessibilityLiveRegion="polite" style={s.note}>문서에 제안으로 넣었어요. 문서에서 수용하거나 거절해 주세요.</Text>;
-  if (done) return <Text accessibilityLiveRegion="polite" style={s.note}>적용했어요.</Text>;
+  if (done) return <Text accessibilityLiveRegion="polite" style={s.note}>{done}</Text>;
   if (step.placed || step.waiting) return null;
   return <View style={{ gap: 8 }}>
     {commands.length > 1 && <Text style={s.note}>{`작업 ${commands.length}개 중 ${index + 1}번째`}</Text>}
     {step.plan ? <>
-      <Text selectable style={s.proposalBody}>{step.plan.summary}</Text>
-      <View style={s.aiActions}>
-        {row('check', index + 1 < commands.length ? '승인하고 다음' : '승인', approve, true)}
-        {row('x', commands.length > 1 ? '모두 취소' : '취소', () => setDone(true))}
-      </View>
+      <Text selectable style={s.reviewText}>{step.plan.summary}</Text>
+      <ReviewActions actions={[
+        { label: commands.length > 1 ? '남은 작업 취소' : '취소', onPress: () => { feedback('rejected'); setDone('작업을 취소했어요.'); } },
+        { label: index + 1 < commands.length ? '승인하고 다음' : '승인', onPress: approve, primary: true },
+      ]} />
     </> : <Text accessibilityRole="alert" style={s.error}>{step.error}</Text>}
     {!!message && <Text accessibilityRole="alert" style={s.error}>{message}</Text>}
   </View>;

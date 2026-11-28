@@ -94,7 +94,8 @@ export function guardPlan(plan, question, history = [], projectTitles = []) {
     ?? (plan.project && /프로젝트/.test(question) && searchKey(question).includes(searchKey(plan.project))
       ? projectTitles.find(title => projectKey(title) === projectKey(plan.project)) ?? plan.project : null)
     ?? /(?:^|\s)([^\s]+)\s*프로젝트(?:의|에서)/u.exec(question)?.[1] ?? null;
-  const dateBasis = /작성|생성|만든|만들어진|등록한/u.test(said) ? 'created'
+  const dateBasis = /프로젝트/u.test(question) && /마감|기한/u.test(question) ? 'due'
+    : /작성|생성|만든|만들어진|등록한/u.test(said) ? 'created'
     : /수정|편집|고친/u.test(said) ? 'updated' : undefined;
   const scoped = { ...plan, project, dateBasis, ...(PERIOD.test(said) ? {} : { date_from: null, date_to: null }),
     ...(STATUS.test(said) ? {} : { status: 'any' }) };

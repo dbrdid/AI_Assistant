@@ -74,12 +74,12 @@ function answerBlocks(text, newId) {
 }
 
 /** AI가 쓴 글 전체로 새 문서를 블록 단위로 만든다. 문서 전체가 "AI가 만든 문서"로 표시되어 수용 또는 거절을 기다린다. */
-export function createAiDocument({ store, documents }, { title, text }, prefs, newId) {
+export function createAiDocument({ store, documents }, { title, text, pending = true }, prefs, newId) {
   const blocks = markdownBlocks(text, newId);
   if (!blocks.length) throw new Error('문서로 만들 내용이 없습니다.');
   const memo = store.addMemo({ title: String(title ?? '').trim().slice(0, 200), body: blocksText(blocks) });
   const saved = documents.saveContent(memo.id, { title: memo.title, body: blocksText(blocks), blocks }, memo.revision);
-  prefs.write(pendingDocKey(saved.id), true);
+  if (pending) prefs.write(pendingDocKey(saved.id), true);
   return saved.id;
 }
 

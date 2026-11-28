@@ -1,12 +1,11 @@
-// ============================================================
-// ProposalConfirmScreen.js — AI 제안 확인 (스토리보드 99~101장)
-// ============================================================
-
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import ScreenHeader from '../../../shared/components/ScreenHeader';
+import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Icon from '../../../shared/components/Icon';
+import ReviewActions from '../../../shared/components/ReviewActions';
+import { useInsets } from '../../../shared/hooks/useInsets';
+import { WorkspaceHeader } from '../../stella/WorkspaceScreen';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
-import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import { colors, spacing } from '../../../shared/theme/theme';
 import { ROUTES } from '../../../navigation/routes';
 import { approveProposal, findDuplicate, getProposal, setProposalStatus } from '../../../data/proposals/ProposalStore';
 import { getMemo } from '../../../data/memos/MemoStore';
@@ -23,6 +22,7 @@ export default function ProposalConfirmScreen({ navigation, route }) {
   const id = route?.params?.id;
   const p = getProposal(id);
   const notice = useNotice();
+  const insets = useInsets();
   const [f, setF] = useState(() => (p ? { ...p, body: p.body || (p.evidence ? `${p.title}\n근거: ${p.evidence}` : p.title) } : null));
   const [picker, setPicker] = useState(null);
   const [dup, setDup] = useState(null);
@@ -33,7 +33,7 @@ export default function ProposalConfirmScreen({ navigation, route }) {
   if (!p || !f) {
     return (
       <View style={styles.root}>
-        <ScreenHeader title="AI 제안 확인" onBack={navigation.goBack} />
+        <WorkspaceHeader title="제안 확인" onBack={navigation.goBack} />
         <Text style={styles.empty}>{done.current ? completion.current : '이미 처리했거나 찾을 수 없는 제안이에요.'}</Text>
       </View>
     );
@@ -64,95 +64,101 @@ export default function ProposalConfirmScreen({ navigation, route }) {
     doSave();
   };
 
+  const statusChange = (status, message) => {
+    if (done.current) return;
+    try { setProposalStatus(id, status); finish(message); }
+    catch (error) { notice.show(error.message); }
+  };
+  const pickerRow = (label, value, onPress) => (
+    <Pressable accessibilityRole="button" accessibilityLabel={value ? label + ' ' + value : label}
+      onPress={onPress} style={styles.property}>
+      <Text style={styles.propertyLabel}>{label}</Text>
+      <Text style={styles.propertyValue}>{value || '선택'}</Text>
+      <Icon name="chevronRight" size={14} color={colors.muted} />
+    </Pressable>
+  );
+  const field = (label, key) => (
+    <View style={styles.property}>
+      <Text style={styles.propertyLabel}>{label}</Text>
+      <TextInput style={styles.field} value={f[key]} onChangeText={set(key)} placeholder="입력"
+        placeholderTextColor={colors.muted} accessibilityLabel={label} />
+    </View>
+  );
+
   return (
-    <View style={styles.root}>
-      <ScreenHeader title="AI 제안 확인" onBack={navigation.goBack} />
-      <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <View style={styles.seg}>
-          {['event', 'task', 'memo'].map((k) => (
-            <Pressable key={k} accessibilityRole="button" accessibilityState={{ selected: f.kind === k }} onPress={() => set('kind')(k)} style={[styles.segBtn, f.kind === k && styles.segOn]}>
-              <Text style={[styles.segText, f.kind === k && styles.segTextOn]}>{KIND_LABEL[k]}</Text>
+    <KeyboardAvoidingView style={styles.root} behavior="padding">
+      <WorkspaceHeader title="제안 확인" onBack={navigation.goBack} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <View style={styles.tabs}>
+          {['event', 'task', 'memo'].map(key => (
+            <Pressable key={key} accessibilityRole="tab" accessibilityState={{ selected: f.kind === key }}
+              onPress={() => set('kind')(key)} style={[styles.tab, f.kind === key && styles.tabOn]}>
+              <Text style={[styles.tabText, f.kind === key && styles.tabTextOn]}>{KIND_LABEL[key]}</Text>
             </Pressable>
           ))}
         </View>
 
-        <Text style={styles.label}>{isMemo ? '메모 제목' : f.kind === 'event' ? '일정명' : '할 일'}</Text>
-        <TextInput style={styles.input} value={f.title} onChangeText={set('title')} maxLength={100} placeholderTextColor={colors.muted} accessibilityLabel="제목" />
+        <TextInput style={styles.title} value={f.title} onChangeText={set('title')} maxLength={100}
+          placeholder="제목" placeholderTextColor={colors.muted} accessibilityLabel="제목" />
 
-        {!isMemo ? (
-          <>
-            <Text style={styles.label}>일시</Text>
-            <View style={styles.rowGap}>
-              <Pressable accessibilityRole="button" onPress={() => setPicker('date')} style={[styles.input, styles.pick]}><Text style={styles.pickText}>{dateLabel(f.date)}</Text></Pressable>
-              {!!f.end && <Pressable accessibilityRole="button" accessibilityLabel={`종료 시간 ${f.end}`} onPress={() => setPicker('end')} style={[styles.input, styles.pick]}><Text style={styles.pickText}>{f.end}</Text></Pressable>}
-              {(f.kind === 'event' || !!f.start) && (
-                <Pressable accessibilityRole="button" onPress={() => setPicker('start')} style={[styles.input, styles.pick]}><Text style={styles.pickText}>{f.start || '시간'}</Text></Pressable>
-              )}
-            </View>
-            {!!timeWarning && <Text style={styles.warning} accessibilityRole="alert" accessibilityLabel={`경고: ${timeWarning}`}>{timeWarning}</Text>}
-            <Text style={styles.label}>장소</Text>
-            <TextInput style={styles.input} value={f.place} onChangeText={set('place')} placeholder="장소" placeholderTextColor={colors.muted} accessibilityLabel="장소" />
-            <Text style={styles.label}>담당자</Text>
-            <TextInput style={styles.input} value={f.assignee} onChangeText={set('assignee')} placeholder="담당자" placeholderTextColor={colors.muted} accessibilityLabel="담당자" />
-          </>
-        ) : (
-          <>
-            <Text style={styles.label}>메모 미리보기</Text>
-            <TextInput style={[styles.input, { minHeight: 120, textAlignVertical: 'top' }]} multiline value={f.body} onChangeText={set('body')} placeholderTextColor={colors.muted} accessibilityLabel="메모 본문" />
-            <Pressable accessibilityRole="button" onPress={() => (paid ? notice.show('자료 분석은 서버가 연결되면 사용할 수 있어요') : navigation.navigate(ROUTES.Subscription))} style={styles.locked}>
-              <Text style={styles.lockedTitle}>{paid ? 'AI 자동 이미지' : '🔒 AI 자동 이미지'}</Text>
-              <Text style={styles.lockedSub}>{paid ? '서버 연결 후 사용할 수 있어요' : '이미지 포함 저장은 Pro / Team  ›'}</Text>
-            </Pressable>
-          </>
-        )}
+        {isMemo ? <>
+          <TextInput style={styles.document} multiline value={f.body} onChangeText={set('body')}
+            placeholder="문서 본문" placeholderTextColor={colors.muted} accessibilityLabel="메모 본문" />
+          <Pressable accessibilityRole="button"
+            onPress={() => (paid ? notice.show('자료 분석은 서버가 연결되면 사용할 수 있어요') : navigation.navigate(ROUTES.Subscription))}
+            style={styles.property}>
+            <Text style={styles.propertyLabel}>AI 자동 이미지</Text>
+            <Text style={styles.propertyValue}>{paid ? '서버 연결 필요' : 'Pro / Team'}</Text>
+            <Icon name={paid ? 'chevronRight' : 'lock'} size={14} color={colors.muted} />
+          </Pressable>
+        </> : <>
+          {pickerRow('날짜', f.date ? dateLabel(f.date) : '', () => setPicker('date'))}
+          {(f.kind === 'event' || !!f.start) && pickerRow('시작 시간', f.start, () => setPicker('start'))}
+          {!!f.end && pickerRow('종료 시간', f.end, () => setPicker('end'))}
+          {!!timeWarning && <Text style={styles.warning} accessibilityRole="alert" accessibilityLabel={`경고: ${timeWarning}`}>{timeWarning}</Text>}
+          {field('장소', 'place')}
+          {field('담당자', 'assignee')}
+        </>}
 
-        {!!p.evidence && (
-          <View style={styles.evBox}>
-            <Text style={styles.evLabel}>근거, {p.sourceType === 'record' ? '녹음' : '메모'}{p.sourceTitle ? ` “${p.sourceTitle}”` : ''}</Text>
-            <Text style={styles.evText}>“<Text style={styles.hl}>{p.evidence}</Text>”</Text>
-          </View>
-        )}
-
-        <Pressable accessibilityRole="button" onPress={save} style={styles.primary}><Text style={styles.primaryText}>저장하기</Text></Pressable>
-        <View style={styles.rowGap}>
-          <Pressable accessibilityRole="button" onPress={() => { if (done.current) return; setProposalStatus(id, 'hold'); finish('보류했어요. 나중에 다시 확인할 수 있어요'); }} style={[styles.ghost, { flex: 1 }]}><Text style={styles.ghostText}>보류</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={() => { if (done.current) return; setProposalStatus(id, 'rejected'); finish('거절했어요'); }} style={[styles.ghost, { flex: 1 }]}><Text style={[styles.ghostText, { color: colors.coral }]}>거절</Text></Pressable>
-        </View>
+        {!!p.evidence && <View style={styles.evidence}>
+          <Text style={styles.tabText}>근거{p.sourceTitle ? ', ' + p.sourceTitle : ''}</Text>
+          <Text selectable style={styles.quote}>{p.evidence}</Text>
+        </View>}
       </ScrollView>
+      <View style={[styles.footer, { paddingBottom: Math.max(4, insets.bottom) }]}>
+        <ReviewActions actions={[
+          p.status !== 'hold' && { label: '보류', onPress: () => statusChange('hold', '보류했어요. 나중에 다시 확인할 수 있어요') },
+          { label: '거절', danger: true, onPress: () => statusChange('rejected', '거절했어요') },
+          { label: '저장하기', primary: true, onPress: save },
+        ]} />
+      </View>
 
       <DatePickerModal visible={picker === 'date'} value={f.date} onPick={(k) => { set('date')(k); setPicker(null); }} onClose={() => setPicker(null)} />
       <TimePickerModal visible={picker === 'start'} value={f.start} title="시작 시간" onPick={(v) => { set('start')(v); setPicker(null); }} onClear={() => { set('start')(''); setPicker(null); }} onClose={() => setPicker(null)} />
       <TimePickerModal visible={picker === 'end'} value={f.end} title="종료 시간" onPick={(v) => { set('end')(v); setPicker(null); }} onClear={() => { set('end')(''); setPicker(null); }} onClose={() => setPicker(null)} />
       <ConfirmDialog visible={!!dup} title="이미 비슷한 일정이 있어요" sub={dup ? `“${dup.title}” (${dup.start || '종일'})와 겹쳐요. 그래도 저장할까요?` : ''} confirmText="그래도 저장" onCancel={() => setDup(null)} onConfirm={() => { setDup(null); doSave(); }} />
       {notice.view}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
-  empty: { textAlign: 'center', color: colors.muted, marginTop: spacing.xxl, fontSize: font.body },
-  body: { padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl },
-  seg: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, padding: 4, marginBottom: spacing.sm },
-  segBtn: { flex: 1, minHeight: 44, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
-  segOn: { backgroundColor: colors.action },
-  segText: { fontSize: font.body, fontWeight: '500', color: colors.ink },
-  segTextOn: { color: colors.onPrimary },
-  label: { fontSize: font.body, fontWeight: '500', color: colors.ink, marginTop: spacing.sm },
-  input: { minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card, paddingHorizontal: spacing.md, fontSize: font.bodyLg, color: colors.ink },
-  rowGap: { flexDirection: 'row', gap: spacing.sm },
-  pick: { flex: 1, justifyContent: 'center' },
-  pickText: { fontSize: font.bodyLg, color: colors.ink },
-  warning: { fontSize: 13, fontWeight: '500', color: colors.coral },
-  locked: { minHeight: 72, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.line, backgroundColor: colors.card, padding: spacing.md, justifyContent: 'center', gap: 4, marginTop: spacing.sm },
-  lockedTitle: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
-  lockedSub: { fontSize: font.body, color: colors.muted },
-  evBox: { backgroundColor: colors.mintSoft, borderRadius: radius.md, padding: spacing.md, gap: 4, marginTop: spacing.md },
-  evLabel: { fontSize: font.caption, fontWeight: '600', color: colors.mintDark },
-  evText: { fontSize: font.body, color: colors.ink, lineHeight: 21 },
-  hl: { backgroundColor: '#474022' },
-  primary: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', marginTop: spacing.lg },
-  primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
-  ghost: { minHeight: 48, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
-  ghostText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
+  empty: { color: colors.muted, margin: spacing.lg, fontSize: 14 },
+  body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
+  tabs: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.line, gap: 16 },
+  tab: { minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 2, borderBottomWidth: 1, borderColor: 'transparent' },
+  tabOn: { borderColor: colors.ink },
+  tabText: { fontSize: 13, color: colors.muted },
+  tabTextOn: { color: colors.ink, fontWeight: '600' },
+  title: { color: colors.ink, fontSize: 24, fontWeight: '600', minHeight: 68, paddingHorizontal: 0, paddingVertical: 12 },
+  property: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
+  propertyLabel: { color: colors.muted, minWidth: 76, fontSize: 14 },
+  propertyValue: { color: colors.ink, fontSize: 14, flex: 1, textAlign: 'right' },
+  field: { flex: 1, color: colors.ink, fontSize: 14, minHeight: 44, padding: 0, textAlign: 'right' },
+  warning: { fontSize: 13, color: colors.coral, lineHeight: 19, marginVertical: 8 },
+  document: { color: colors.ink, fontSize: 15, lineHeight: 23, minHeight: 96, padding: 0, textAlignVertical: 'top' },
+  evidence: { marginTop: 18, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.line, paddingTop: 12, gap: 6 },
+  quote: { color: colors.ink, fontSize: 14, lineHeight: 21 },
+  footer: { paddingHorizontal: spacing.lg, paddingVertical: 4, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.line },
 });

@@ -37,6 +37,19 @@ export function parseProjectRequest(text) {
 /** 아직 정하지 않은 첫 항목, 다 정했으면 null */
 export const nextField = values => PROJECT_TEMPLATE.find(field => !(field.key in values)) ?? null;
 
+export const projectDraftValues = title => ({ status: '진행 전', priority: '보통', due: '', ...(title && { title }) });
+
+export function parseProjectStatusRequest(question) {
+  const text = question.trim();
+  const command = /^프로젝트\s*상태\s*변경\s*[:：]\s*(.+?)\s*\/\s*(진행\s*전|진행\s*중|완료|보류)[.!?]?$/u.exec(text);
+  const natural = /^(.+?)\s*프로젝트(?:의|를|을)?\s*(?:상태(?:를|을)?\s*)?(진행\s*전|진행\s*중|완료|보류)\s*(?:으로|로)?\s*(?:바꿔|변경해|처리해|해)\s*(?:줘|주세요)[.!?]?$/u.exec(text);
+  const match = command ?? natural;
+  if (!match) return null;
+  const title = match[1].trim().replace(/^["“](.*)["”]$/u, '$1');
+  const status = match[2].replace(/^진행\s*/u, '진행 ');
+  return title ? { title, status } : null;
+}
+
 /** 지금까지 고른 항목만 한 줄씩 */
 export function summary(values) {
   const due = values.due ? values.due.replace(/^(\d+)-(\d+)-(\d+)$/, (_, y, m, d) => `${Number(m)}월 ${Number(d)}일`) : '정하지 않음';

@@ -36,7 +36,7 @@ export interface QueryPlan {
   types: ChatRecordType[];
   date_from: string | null;   // YYYY-MM-DD (그날 포함)
   date_to: string | null;
-  dateBasis?: 'created' | 'updated';
+  dateBasis?: 'created' | 'updated' | 'due';
   status: 'any' | 'open' | 'done';
   people: string[];
   project: string | null;
@@ -55,6 +55,7 @@ export interface ChatRecord {
   date?: string | null;
   createdDate?: string | null;
   updatedDate?: string | null;
+  dueDate?: string | null;
   /** 할 일·일정: 'open' 안 끝남 / 'done' 끝남 */
   status?: 'open' | 'done' | null;
   /** 담당자·참석자 이름 */
@@ -153,7 +154,8 @@ export function containsWord(text: string, word: string): boolean {
 
 const dayOf = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : null);
 const recordDay = (record: ChatRecord, basis: QueryPlan['dateBasis']) =>
-  dayOf(basis === 'created' ? record.createdDate : basis === 'updated' ? record.updatedDate : record.date);
+  dayOf(basis === 'created' ? record.createdDate : basis === 'updated' ? record.updatedDate
+    : basis === 'due' && record.type === 'project' ? record.dueDate : record.date);
 
 function countHits(text: string, word: string): number {
   const t = nospace(norm(text)), w = nospace(norm(word));

@@ -8,6 +8,7 @@ const CREATE = /^(?:새\s*)?프로젝트\s*(?:만들기|생성|추가)\s*[:：]\
 const CREATE_NATURAL = /^(.+?)(?:이)?라는\s*(?:새\s*)?프로젝트(?:를|을)?\s*(?:만들어|생성해|추가해)\s*(?:줘|주세요)?[.!]?$/;
 const STATUS = /^프로젝트\s*상태\s*변경\s*[:：]\s*(.+?)\s*\/\s*(.+)$/;
 const LINK = /^할\s*일\s*프로젝트\s*연결\s*[:：]\s*(.+?)\s*\/\s*(.+)$/;
+const UNLINK = /^할\s*일\s*프로젝트\s*연결\s*해제\s*[:：]\s*(.+?)\s*\/\s*(.+)$/;
 const squash = text => String(text ?? '').replace(/\s+/g, '');
 
 // Clear project requests skip the model, like routeCommand does for documents.
@@ -19,7 +20,7 @@ export function routeProjectCommand(input) {
 
 export function isProjectCommand(input) {
   const text = String(input ?? '').trim();
-  return CREATE.test(text) || STATUS.test(text) || LINK.test(text);
+  return CREATE.test(text) || STATUS.test(text) || LINK.test(text) || UNLINK.test(text);
 }
 
 /**
@@ -41,7 +42,7 @@ export function planProjectCommand(tools, input, originalRequest) {
     return found[0];
   };
   let used = false;
-  const proposal = (summary, apply) => ({ summary, approve() {
+  const proposal = (summary, apply, taskId) => ({ summary, ...(taskId && { taskId }), approve() {
     if (used) throw new Error('이미 처리한 요청입니다.');
     used = true;
     if (!tools.canWrite()) throw new Error('이 공간에서 프로젝트를 바꿀 권한이 없거나 공간이 바뀌었습니다.');
@@ -69,12 +70,23 @@ export function planProjectCommand(tools, input, originalRequest) {
       return { route: ROUTES.ProjectDetail, params: { projectId: project.id } };
     });
   }
-  match = LINK.exec(request);
+  const unlink = UNLINK.exec(request);
+  match = unlink ?? LINK.exec(request);
+  if (originalRequest != null && unlink && !/해제|끊|빼|분리/u.test(originalRequest)) {
+    throw new Error('연결 해제 요청인지 확인해 주세요.');
+  }
   const task = one(tools.getTasks().filter(item => item.kind === 'task'), stated(match[1].trim()), '할 일');
   const project = one(tools.getProjects(), stated(match[2].trim()), '프로젝트');
-  return proposal('할 일을 프로젝트에 연결, ' + task.title + ' → ' + project.title, () => {
-    tools.setTaskProject(task.id, project.id);
-    if (tools.getTask(task.id)?.projectId !== project.id) throw new Error('연결 결과가 요청과 달라 확인이 필요합니다.');
+  if (unlink && task.projectId !== project.id) throw new Error('이 프로젝트에 연결된 할 일이 아니에요.');
+  return proposal((unlink ? '프로젝트 연결 해제, ' : '할 일을 프로젝트에 연결, ') + task.title + ' → ' + project.title, () => {
+    const latest = tools.getTask(task.id);
+    if (!latest || latest.revision !== task.revision || latest.projectId !== task.projectId ||
+        !tools.getProjects().some(row => row.id === project.id && row.title === project.title)) {
+      throw new Error('연결할 항목이 바뀌었어요. 다시 확인해 주세요.');
+    }
+    const target = unlink ? null : project.id;
+    tools.setTaskProject(task.id, target);
+    if ((tools.getTask(task.id)?.projectId ?? null) !== target) throw new Error('연결 결과가 요청과 달라 확인이 필요합니다.');
     return { route: ROUTES.ProjectDetail, params: { projectId: project.id } };
-  });
+  }, task.id);
 }

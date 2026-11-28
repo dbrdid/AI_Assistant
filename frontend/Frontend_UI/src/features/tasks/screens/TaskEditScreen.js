@@ -14,9 +14,10 @@ import Icon from '../../../shared/components/Icon';
 import { Chip } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { WEEKDAYS_LONG, fromKey, toKey } from '../../calendar/utils/DateUtils';
-import { ALARMS, PRIORITIES, STATUSES, addTask, deleteTask, findOverlap, getTask, shiftKey, updateTask } from '../../../data/tasks/TaskStore';
+import { ALARMS, PRIORITIES, STATUSES, deleteTask, findOverlap, getTask, saveTask, shiftKey, taskScope } from '../../../data/tasks/TaskStore';
+import { taskSnapshot } from '../../../data/tasks/taskOperations.mjs';
 import { DatePickerModal, TimePickerModal } from '../../../shared/components/DateTimePicker';
-import { projectOf, setItemProject, useItemAccess, useProjects } from '../../../data/projects/ProjectStore';
+import { projectOf, useItemAccess, useProjects } from '../../../data/projects/ProjectStore';
 import GroupAccessRow from '../../project/components/GroupAccessRow';
 import { enterSpace, useSpaceInfo, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 import {SheetModal} from '../../../shared/components/Motion';
@@ -110,7 +111,8 @@ export default function TaskEditScreen({ navigation, route }) {
   const params = route?.params || {};
   const existing = params.taskId ? getTask(params.taskId) : null;
   // 연 순간의 판(revision). 편집 중 다른 곳(팀원, 다른 기기)이 먼저 바꾸면 저장할 때 덮어쓰지 않고 알린다
-  const openedRevision = useRef(existing?.revision).current;
+  const openedTask = useRef(existing && taskSnapshot(existing)).current;
+  const openedScope = useRef(taskScope()).current;
   // 공간: 새 항목은 저장할 공간을 고름 (고르면 그 공간으로 바뀌어 프로젝트 목록도 그 공간 것). 편집은 항목의 공간 그대로
   const { list: spaceList, current: currentSpace } = useWorkspaces();
   const spaces = useSpaceInfo();
@@ -154,6 +156,12 @@ export default function TaskEditScreen({ navigation, route }) {
   // 공개 그룹에서 '보기' 권한만 있으면 저장·삭제를 막음 (서버도 거절함)
   const viewOnly = ['view', 'unknown'].includes(useItemAccess('task', existing?.id));
   const [pending, setPending] = useState(null); // 겹침 확인 뒤 저장할 값
+  const saving = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   // 화면 상태(종일·여러 날)를 반영한 저장 값
   const draft = () => ({
@@ -164,22 +172,21 @@ export default function TaskEditScreen({ navigation, route }) {
     endDate: isEvent && multiDay ? f.endDate : '',
   });
 
-  const persist = (fields) => {
-    // project(글자)는 프로젝트 이름을 같이 저장해서 검색에도 걸리게 함
-    const v = { ...fields, project: projects.find((p) => p.id === projectId)?.title ?? '' };
+  const persist = async (fields) => {
+    if (saving.current) return;
+    if (params.taskId && !openedTask) return setError('현재 공간에서 이 항목을 찾을 수 없어요.');
+    const scope = openedTask ? openedScope : { accountId: openedScope.accountId, workspaceId: currentSpace.id };
+    saving.current = true;
     try {
-      if (existing) {
-        updateTask(existing.id, v, openedRevision ? { expectedRevision: openedRevision } : undefined);
-        setItemProject('tasks', existing.id, projectId);
-      } else {
-        const t = addTask({ ...v, kind });
-        if (projectId) setItemProject('tasks', t.id, projectId);
-      }
+      await saveTask(openedTask ? fields : { ...fields, kind }, { scope, id: openedTask?.id, expected: openedTask, projectId });
     } catch (e) {
+      if (!mounted.current) return;
       if (e.code === 'revision_conflict') return setError('다른 곳에서 이 항목이 먼저 바뀌었어요. 입력한 내용을 확인한 뒤 화면을 다시 열어 주세요.');
-      return setError(e.code === 'read_only' ? '보기 전용 공간이라 저장할 수 없어요. 다른 공간을 골라 주세요.' : '저장하지 못했어요. 입력한 내용을 확인해 주세요.');
+      return setError(e.code === 'read_only' ? e.message : e.code ? '저장하지 못했어요. 입력한 내용을 확인해 주세요.' : e.message);
+    } finally {
+      saving.current = false;
     }
-    navigation.goBack();
+    if (mounted.current) navigation.goBack();
   };
 
   const save = () => {
