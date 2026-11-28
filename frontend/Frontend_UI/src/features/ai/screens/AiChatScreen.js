@@ -32,7 +32,7 @@ import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets'
 import AtriaBook from '../components/AtriaBook';
 import ChatMessageBubble from '../components/ChatMessageBubble';
 import ChatPanels from '../components/ChatPanels';
-import useChatActions, { buildTaskApprovalDraft } from '../hooks/useChatActions';
+import useChatActions, { buildCommandApprovalDraft, buildTaskApprovalDraft } from '../hooks/useChatActions';
 import OnceTip from '../../../shared/components/OnceTip';
 import Icon from '../../../shared/components/Icon';
 import { CircleButton } from '../../../shared/components/Ui';
@@ -246,14 +246,15 @@ export default function AiChatScreen({ navigation, route: navRoute }) {
         });
         if (brief || command) {
           Keyboard.dismiss();
+          const commandDraft = command?.command ? buildCommandApprovalDraft({ ...command, scope }) : null;
           dirty.current = true;
           if (!messages.length) setStartedAt(Date.now());
           setInput('');
           setMessages(previous => [...previous, { id: nextId(), role: 'user', text },
             { id: nextId(), role: 'ai', done: true, toolResult: true, sources: [],
-              text: brief ? brief.text : command.message ?? '실행할 작업을 검토해 주세요.',
+              text: brief ? brief.text : commandDraft ? commandDraft.text : command.message ?? '실행할 작업을 확인해 주세요.',
               ...(brief?.sections && { documentDraft: { ...brief, request: text, scope } }),
-              ...(command?.command && { chatCommand: { ...command, scope } }) }]);
+              ...(commandDraft?.chatCommand && { chatCommand: commandDraft.chatCommand }) }]);
           return;
         }
       }

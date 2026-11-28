@@ -1,17 +1,72 @@
-// useChatActions.js — AI 채팅 승인 카드(할 일/일정·프로젝트·문서 초안·명령) 생성 및 저장 핸들러
+// useChatActions.js — AI 채팅 승인 카드(할 일/일정·프로젝트·문서 초안·명령) 생성 및 인라인 승인 핸들러
 import { useCallback } from 'react';
 import { Keyboard } from 'react-native';
 import { randomUUID } from 'expo-crypto';
-import { aiPolicy, runtime, writePreference } from '../../../integration/runtime';
+import { aiPolicy, maybeRuntime, runtime, writePreference } from '../../../integration/runtime';
 import { readPreference } from '../../../data/hooks';
 import { createAiDocument } from '../../stella/aiPending.mjs';
+import { planCommand } from '../../stella/appCommands.mjs';
+import { planProjectCommand } from '../../stella/projectCommands.mjs';
+import { planDocumentCommand, planItemCommand } from '../../stella/itemCommands.mjs';
 import { nextField } from '../projectTemplate.mjs';
-import { projectScope, queryProjects, saveProject } from '../../../data/projects/ProjectStore';
+import { addProject, getProjects, itemAccessOf, projectScope, queryProjects, saveProject, setItemProject, updateProject } from '../../../data/projects/ProjectStore';
 import { findOverlap, queryTasks, saveTask, taskScope } from '../../../data/tasks/TaskStore';
 import { taskSnapshot } from '../../../data/tasks/taskOperations.mjs';
 import { planProjectBrief } from '../chatWorkflows.mjs';
 import { ROUTES } from '../../../navigation/routes';
 import { todayIn } from '../../../lib/stella/ai-chat';
+
+function resolveChatCommandPlan(own, { command, originalRequest, memoId, scope, revision }) {
+  const space = own.store.getCurrentWorkspace();
+  if (maybeRuntime() !== own || space.id !== scope.workspaceId || own.session.id !== scope.accountId || own.closedSpaces.has(scope.workspaceId)) {
+    throw new Error('요청한 공간에서 작업을 다시 실행해 주세요.');
+  }
+  if (memoId) {
+    const memo = own.store.getMemo(memoId);
+    if (!memo || memo.deletedAt || memo.revision !== revision) {
+      throw new Error('문서가 바뀌었어요. 작업을 다시 요청해 주세요.');
+    }
+  }
+  const canWrite = () => {
+    const ws = own.store.getCurrentWorkspace();
+    return maybeRuntime() === own && ws.id === scope.workspaceId && !own.closedSpaces.has(scope.workspaceId) && (ws.personal || ws.roleCode !== 'VIEWER');
+  };
+  const projectTools = {
+    getProjects, addProject, updateProject,
+    getTasks: () => own.store.getTasks(),
+    getTask: id => own.store.getTask(id),
+    setTaskProject: (taskId, projectId) => setItemProject('task', taskId, projectId),
+    canWrite,
+  };
+  const original = originalRequest && originalRequest !== command ? originalRequest : undefined;
+  const appPlan = planProjectCommand(projectTools, command, original)
+    ?? planDocumentCommand(own, command, { originalRequest: original, canWrite })
+    ?? planItemCommand(own, command, { memoId, originalRequest: original, canWrite });
+  if (appPlan) return appPlan;
+  const legacy = planCommand(own, command, memoId, randomUUID, original);
+  const summary = legacy.summary.replace(/(^새 문서 만들기|\n기존 (?:값|내용)) \u00b7 /, '$1, ');
+  return { ...legacy, summary };
+}
+
+export function buildCommandApprovalDraft(commandSpec) {
+  if (!commandSpec?.command) return null;
+  const own = runtime();
+  try {
+    const plan = resolveChatCommandPlan(own, commandSpec);
+    const memo = commandSpec.memoId ? own.store.getMemo(commandSpec.memoId) : null;
+    return {
+      text: '실행할 작업을 확인해 주세요.',
+      chatCommand: {
+        ...commandSpec,
+        summary: plan.summary,
+        taskId: plan.taskId ?? null,
+        memoTitle: memo ? (memo.title || '제목 없는 문서') : '',
+      },
+    };
+  } catch (error) {
+    return { text: error.message, chatCommand: null };
+  }
+}
 
 export function buildTaskApprovalDraft(taskAction) {
   if (!taskAction) return null;
@@ -36,10 +91,52 @@ export function buildTaskApprovalDraft(taskAction) {
 }
 
 export default function useChatActions({ messages, setMessages, dirty, actionSaves, setBanner, navigateFromChat }) {
-  const onCommand = useCallback(({ command, originalRequest, memoId, revision, scope }) => {
+  const onCommand = useCallback(async (message, action) => {
+    const form = message.chatCommand;
+    if (!form) return;
+    if (action === 'open' && form.resultRoute) {
+      return navigateFromChat(form.resultRoute, form.resultParams);
+    }
+    if (actionSaves.current.has(message.id) || form.cancelled || form.applied || form.error) return;
+    if (action === 'cancel') {
+      dirty.current = true;
+      setMessages(previous => previous.map(entry => (entry.id === message.id
+        ? { ...entry, chatCommand: { ...form, cancelled: true } }
+        : entry)));
+      return;
+    }
+    if (action !== 'approve') return;
     Keyboard.dismiss();
-    navigateFromChat(ROUTES.AppCommand, { command, originalRequest, memoId, fromChat: { ...scope, revision } });
-  }, [navigateFromChat]);
+    actionSaves.current.add(message.id);
+    setMessages(previous => previous.map(entry => (entry.id === message.id
+      ? { ...entry, chatCommand: { ...form, applying: true } }
+      : entry)));
+    try {
+      const own = runtime();
+      const plan = resolveChatCommandPlan(own, form);
+      const target = plan.taskId ? ['task', plan.taskId] : form.memoId ? ['memo', form.memoId] : null;
+      if (target && (readPreference(`ai-excluded:${target[1]}`, false) || ['view', 'unknown'].includes(await itemAccessOf(...target)))) {
+        throw new Error('이 항목에 대한 변경 권한을 확인해 주세요.');
+      }
+      const verified = resolveChatCommandPlan(own, form);
+      const result = verified.approve(maybeRuntime());
+      const resultRoute = result?.route ?? (form.memoId ? ROUTES.MemoEdit : null);
+      const resultParams = result?.params ?? (form.memoId ? { memoId: form.memoId } : undefined);
+      const openLabel = resultRoute === ROUTES.MemoEdit ? '문서 열기'
+        : resultRoute === ROUTES.TaskEdit ? '항목 열기'
+        : resultRoute === ROUTES.ProjectDetail ? '프로젝트 열기' : '결과 열기';
+      dirty.current = true;
+      setMessages(previous => previous.map(entry => (entry.id === message.id
+        ? { ...entry, chatCommand: { ...form, applying: false, applied: true, resultRoute, resultParams, openLabel } }
+        : entry)));
+    } catch (error) {
+      actionSaves.current.delete(message.id);
+      dirty.current = true;
+      setMessages(previous => previous.map(entry => (entry.id === message.id
+        ? { ...entry, chatCommand: { ...form, applying: false, error: error.message } }
+        : entry)));
+    }
+  }, [actionSaves, dirty, navigateFromChat, setMessages]);
 
   const onDraft = useCallback((message, cancelled) => {
     const draft = message.documentDraft;

@@ -112,6 +112,37 @@ export function TaskForm({ form, onAction }) {
   );
 }
 
+export function CommandForm({ form, onAction }) {
+  const chip = (label, action, strong = false, key = label) => (
+    <Pressable key={key} accessibilityRole="button" disabled={form.applying} onPress={action} style={({ pressed }) => [styles.formChip, (pressed || form.applying) && { opacity: 0.6 }]}>
+      <Text style={[styles.formChipText, strong && styles.formChipPrimary]}>{label}</Text>
+    </Pressable>
+  );
+  if (form.cancelled || form.error) {
+    return <View style={styles.form}><Text style={styles.formNote}>{form.error ?? '작업을 취소했어요.'}</Text></View>;
+  }
+  if (form.applied) {
+    return (
+      <View style={styles.form}>
+        <Text style={styles.aiText}>승인한 변경을 저장했어요.</Text>
+        {!!form.resultRoute && (
+          <View style={styles.formRow}>{chip(form.openLabel || '결과 열기', () => onAction('open'), true)}</View>
+        )}
+      </View>
+    );
+  }
+  return (
+    <View style={styles.form}>
+      <Text style={styles.aiText} selectable>{form.summary}</Text>
+      {!!form.memoTitle && !form.summary?.startsWith(form.memoTitle) && <Text style={styles.formNote}>{form.memoTitle}</Text>}
+      <View style={styles.formRow}>
+        {chip(form.applying ? '적용 중…' : '승인하고 실행', () => onAction('approve'), true)}
+        {chip('취소', () => onAction('cancel'))}
+      </View>
+    </View>
+  );
+}
+
 export default function ChatMessageBubble({ message, onOpenSource, onMakeDoc, onProject, onTask, onCommand, onDraft }) {
   if (message.role === 'user') {
     return (
@@ -145,11 +176,7 @@ export default function ChatMessageBubble({ message, onOpenSource, onMakeDoc, on
         </View>
         {message.projectForm && <ProjectForm form={message.projectForm} onAction={(...args) => onProject(message, ...args)} />}
         {message.taskForm && <TaskForm form={message.taskForm} onAction={(...args) => onTask(message, ...args)} />}
-        {message.chatCommand && (
-          <Pressable accessibilityRole="button" style={({ pressed }) => [styles.formChip, styles.formChipStart, pressed && { opacity: 0.6 }]} onPress={() => onCommand(message.chatCommand)}>
-            <Text style={[styles.formChipText, styles.formChipPrimary]}>작업 검토</Text>
-          </Pressable>
-        )}
+        {message.chatCommand && <CommandForm form={message.chatCommand} onAction={(action) => onCommand(message, action)} />}
         {message.documentDraft && (
           <View style={styles.formRow}>
             {message.documentDraft.cancelled ? (
