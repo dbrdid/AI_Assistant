@@ -9,6 +9,7 @@ import { createDocumentWorkspace } from '../../frontend/Frontend_UI/src/integrat
 import { createAIService } from '../../frontend/Frontend_UI/src/integration/ai-service.js';
 import { planCommand } from '../../frontend/Frontend_UI/src/features/stella/appCommands.mjs';
 import { guardPlan, locateFile, originalEvidence, unstatedTimeWarning } from '../../frontend/Frontend_UI/src/integration/recordEvidence.mjs';
+import { chatAttachmentsForTurn, chatCatalogRecords, selectChatSources } from '../../frontend/Frontend_UI/src/integration/ChatSourceScope.mjs';
 
 // errors.ts uses parameter properties, which Node's type stripping rejects; ai-chat only needs the class.
 // ai-chat also takes three error classes from @supabase/supabase-js. CI installs no frontend packages and the tests pass
@@ -19,7 +20,7 @@ const AI_CHAT_STUBS = {
 };
 registerHooks({ resolve: (specifier, context, next) => AI_CHAT_STUBS[specifier] && context.parentURL?.endsWith('/ai-chat.ts')
   ? { url: 'data:text/javascript,' + encodeURIComponent(AI_CHAT_STUBS[specifier]), shortCircuit: true } : next(specifier, context) });
-const { askAssistant } = await import('../../frontend/Frontend_UI/src/lib/stella/ai-chat.ts');
+const { askAssistant, rankRecords } = await import('../../frontend/Frontend_UI/src/lib/stella/ai-chat.ts');
 
 function fixture(t) {
   const { store, db } = setup();
@@ -261,6 +262,101 @@ test('결함4: 기록과 무관한 직접 답변은 검색으로 바꾸지 않�
   const reply = await askAssistant(c.client, { question: '내일 날씨 어때?', newId: c.newId, findRecords: () => { searched = true; return []; } });
   assert.equal(searched, false);
   assert.equal(reply.kind, 'direct');
+});
+
+const catalog = chatCatalogRecords({
+  memos: [{ id: 'memo', title: '합성 문서', body: '초안', createdAt: '2026-11-20', updatedAt: '2026-11-27' }],
+  tasks: [{ id: 'alpha', kind: 'task', title: '합성 보고서', assignee: '지민' }, { id: 'beta', kind: 'task', title: '합성 보고서' }],
+  projects: [
+    { id: 'project', title: 'A 프로젝트', links: { tasks: ['alpha'], memos: [], files: ['file'] } },
+    { id: 'other', title: 'AB 프로젝트', links: { tasks: ['beta'], memos: [], files: [] } },
+  ],
+  files: [{ id: 'file', name: '서리 보고서.pdf', text: '첨부로 보내지 않은 본문' }],
+  dateOf: date => date ?? null,
+});
+
+test('AI 채팅에서 파일 보관함 이름과 프로젝트를 검색하고 파일 본문은 포함하지 않는다', async () => {
+  const filePlanner = chat(plan({ types: ['memo'], keywords: ['서리 보고서'] }));
+  const file = await askAssistant(filePlanner.client, { question: '서리 보고서 파일 어디 있어?', newId: filePlanner.newId, findRecords: () => catalog });
+  assert.deepEqual(file.sources.map(source => [source.type, source.id]), [['file', 'file']]);
+  assert.equal(catalog.find(record => record.id === 'file').text, '');
+  const project = guardPlan(plan({ types: ['event'] }), 'A 프로젝트 찾아줘', [], ['A 프로젝트', 'AB 프로젝트']);
+  assert.deepEqual(rankRecords(catalog, project).map(record => record.id), ['project']);
+});
+
+test('보관함 첨부는 현재 턴과 첨부를 가리키는 후속 질문에만 적용된다', () => {
+  const old = { id: 'old-file', sourceScope: 'vault' };
+  const current = { id: 'new-file', sourceScope: 'picker' };
+  const sources = (question, newlyAttached) => {
+    const attachments = chatAttachmentsForTurn(question, newlyAttached, [old]);
+    return selectChatSources({ attachments, records: catalog, fileVaultOnly: attachments.some(file => file.sourceScope === 'vault') });
+  };
+  assert.deepEqual(sources('합성 문서 찾아줘', []), { attachments: [], records: catalog });
+  assert.deepEqual(sources('이번 일정 보여 줘', [current]), { attachments: [current], records: catalog });
+  assert.deepEqual(sources('아까 첨부한 자료 요약해줘', []), { attachments: [old], records: [] });
+});
+
+test('명시한 프로젝트의 업무만 검색한다', () => {
+  const titles = ['A 프로젝트', 'AB 프로젝트'];
+  const scoped = guardPlan(plan({ types: ['memo'], project: 'AB 프로젝트' }), 'A 프로젝트의 할 일만 보여줘', [], titles);
+  assert.deepEqual(rankRecords(catalog, scoped).map(record => record.id), ['alpha']);
+  assert.deepEqual(catalog.find(record => record.id === 'alpha').people, ['지민']);
+  const unknown = guardPlan(plan({ types: ['task'] }), 'C 프로젝트의 할 일만 보여줘', [], titles);
+  assert.deepEqual(rankRecords(catalog, unknown), []);
+});
+
+test('문서 작성일과 수정일은 서로 다른 기간 조건에 사용한다', () => {
+  const draft = plan({ date_from: '2026-11-16', date_to: '2026-11-22' });
+  const created = guardPlan(draft, '지난주에 작성한 문서 보여줘');
+  const updated = guardPlan(draft, '지난주에 수정한 문서 보여줘');
+  assert.deepEqual(rankRecords(catalog, created).map(record => record.id), ['memo']);
+  assert.deepEqual(rankRecords(catalog, updated), []);
+});
+
+test('긍정 답변, 잘못된 종류와 관계없는 키워드가 실제 기록 조회를 건너뛰지 못한다', async () => {
+  const planner = chat(plan({ intent: 'chitchat', reply: '합성 문서가 있어요.', types: ['file'], keywords: ['초안 마감'] }));
+  const question = '합성 문서가 있어?';
+  const ask = records => askAssistant(planner.client, { question, newId: planner.newId, findRecords: () => records });
+  assert.equal((await ask([])).kind, 'not_found');
+  assert.deepEqual((await ask(catalog)).sources.map(record => record.id), ['memo']);
+  assert.ok(planner.paths.every(path => path.endsWith('/plan')));
+  const task = guardPlan(plan({ types: ['file'], keywords: ['초안 마감'] }), '합성 보고서 할 일 찾아줘');
+  assert.deepEqual(rankRecords(catalog, task).map(record => record.id), ['alpha', 'beta']);
+});
+
+test('다른 표기의 문서를 찾을 때 질문만 보내고 현재 기록의 제목으로 후보를 검증한다', async () => {
+  const calls = [];
+  const client = { functions: { invoke: async (path, { body }) => {
+    calls.push({ path, body });
+    const draft = plan({
+      types: ['memo'], title_candidates: ['Project Alpha', 'Project Alpha 문서', '없는 문서', 'X'.repeat(201), 42],
+    });
+    return { data: { ok: true, request_id: 'fixture', draft }, error: null };
+  } } };
+  const records = [
+    { id: 'alpha', type: 'memo', title: 'Project Alpha', text: '로컬 본문' },
+    { id: 'alpha-note', type: 'memo', title: 'Project Alpha 문서', text: '또 다른 로컬 본문' },
+    { id: 'alpha-2', type: 'memo', title: 'Project Alpha 2', text: '' },
+    { id: 'too-long', type: 'memo', title: 'X'.repeat(201), text: '' },
+    { id: 'project', type: 'project', title: 'Project Alpha', text: '' },
+    { id: 'deleted', type: 'memo', title: 'Project Alpha', text: '', deletedAt: 1 },
+  ];
+  const question = '프로젝트 알파 문서를 열어줘';
+  const ask = visible => askAssistant(client, { question, history: [{ role: 'user', text: '이전 대화' }],
+    allowTitleLookup: true, newId: () => '00000000-0000-4000-8000-000000000001', findRecords: () => visible });
+  const result = await ask(records);
+  assert.equal(result.documentLookup, true);
+  assert.deepEqual(result.sources.map(({ id }) => id), ['alpha', 'alpha-note']);
+  assert.match(result.text, /골라/);
+  assert.equal((await ask(records.slice(2))).kind, 'not_found');
+  assert.deepEqual(calls.map(({ path }) => path), ['ai-gateway/query/plan', 'ai-gateway/query/plan']);
+  for (const { body } of calls) {
+    assert.equal(body.question, question);
+    assert.equal(body.title_lookup, true);
+    assert.deepEqual(body.history, []);
+    assert.equal(body.sources, undefined);
+    assert.doesNotMatch(JSON.stringify(body), /로컬 본문|Project Alpha/);
+  }
 });
 
 test('결함5: 원문에 없는 검색 기간을 제거해 기간 밖 기록을 찾는다', async () => {

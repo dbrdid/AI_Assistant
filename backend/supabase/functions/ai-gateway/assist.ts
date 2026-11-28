@@ -168,13 +168,14 @@ function historyBlock(history: Turn[]): string {
 // =====================================================================
 // 1단계: /query/plan — 질문 → 검색 조건
 // =====================================================================
-export type PlanInput = Common & { question: string; history: Turn[] };
+export type PlanInput = Common & { question: string; history: Turn[]; titleLookup: boolean };
 
 export function parsePlanInput(b: Record<string, unknown>, now = new Date()): PlanInput {
   const c = parseCommonFields(b, now);
   const question = str(b.question, "question", QUERY_LIMITS.questionChars, { required: true })!.trim();
   if (!question) throw bad("question이 비었습니다");
-  return { ...c, question, history: parseHistory(b.history) };
+  if (b.title_lookup !== undefined && typeof b.title_lookup !== "boolean") throw bad("title_lookup은 참 또는 거짓이어야 합니다");
+  return { ...c, question, history: parseHistory(b.history), titleLookup: b.title_lookup === true };
 }
 
 export const PLAN_SCHEMA = {
@@ -186,6 +187,7 @@ export const PLAN_SCHEMA = {
     },
     reply: { type: ["string", "null"], description: "chitchat·unsupported일 때만 짧은 답(200자 이내). search면 null" },
     keywords: { type: "array", items: { type: "string" }, description: "기록에서 찾을 핵심 낱말 0~8개 (바꿔 쓴 말·줄임말 포함). '알려줘', '일정' 같은 일반 낱말은 빼기" },
+    title_candidates: { type: "array", items: { type: "string" }, description: "title_lookup이 있는 문서 제목 검색에서만 쓸 제목 전체의 다른 표기 (최대 5개, 각 200자 이내). 나머지는 빈 배열" },
     types: { type: "array", items: { type: "string", enum: [...RECORD_TYPES] }, description: "찾을 기록 종류. 모르면 빈 배열(전부)" },
     date_from: { type: ["string", "null"], description: "기간 시작 YYYY-MM-DD (오늘 기준으로 '지난주', '내일' 등을 실제 날짜로). 기간이 없으면 null" },
     date_to: { type: ["string", "null"], description: "기간 끝 YYYY-MM-DD (그날 포함). 없으면 null" },
@@ -195,7 +197,7 @@ export const PLAN_SCHEMA = {
     sort: { type: "string", enum: ["relevance", "newest", "oldest", "soonest"], description: "정렬: 관련도 / 최근 것 먼저 / 오래된 것 먼저 / 다가오는 것 먼저(마감·일정)" },
     limit: { type: "integer", description: "가져올 기록 수 1~20 (보통 8)" },
   },
-  required: ["intent", "reply", "keywords", "types", "date_from", "date_to", "status", "people", "project", "sort", "limit"],
+  required: ["intent", "reply", "keywords", "title_candidates", "types", "date_from", "date_to", "status", "people", "project", "sort", "limit"],
   additionalProperties: false,
 } as const;
 
@@ -209,16 +211,19 @@ export const PLAN_INSTRUCTIONS = [
   "5. 일정·마감 질문이면 types에 task·event, 회의 내용이면 meeting·memo, 파일·자료면 file을 넣는다. 애매하면 빈 배열.",
   "6. 기록이 필요 없는 인사·감사는 intent chitchat, 앱 기록과 관계없는 일반 지식·글쓰기 요청은 unsupported로 하고 reply에 한두 문장으로 답한다(unsupported면 '기록에 관한 질문에 답할 수 있어요'라고 안내).",
   "7. 한국어 질문이면 reply도 한국어로.",
+  "8. <title_lookup>이 있고 사용자가 이름을 댄 하나의 문서를 찾거나 열려는 경우, title_candidates에 같은 제목의 가능한 다른 표기를 넣는다. 예: '프로젝트 알파 문서를 열어줘' → 'Project Alpha', 'Project Alpha 문서'. 제목의 각 단어와 구분 번호를 보존하고, 언어 간 발음·철자 차이 또는 널리 쓰이는 약칭만 고려한다. 일반 단어 하나, 관련 주제, 임의의 문서명, 앱에 존재한다는 판단은 넣지 않는다. 문서 제목이 명확하지 않거나 파일·일정·프로젝트 자체를 찾는 요청이면 빈 배열을 반환한다.",
 ].join("\n");
 
 export function planInputText(p: PlanInput): string {
-  return `<today>${p.today} (${p.weekday}) · ${escapeTagText(p.timezone)}</today>\n${historyBlock(p.history)}<question>${escapeTagText(p.question)}</question>`;
+  const titleLookup = p.titleLookup ? "<title_lookup>true</title_lookup>\n" : "";
+  return `<today>${p.today} (${p.weekday}) · ${escapeTagText(p.timezone)}</today>\n${titleLookup}${historyBlock(p.history)}<question>${escapeTagText(p.question)}</question>`;
 }
 
 export type QueryPlan = {
   intent: "search" | "chitchat" | "unsupported";
   reply: string | null;
   keywords: string[];
+  title_candidates: string[];
   types: RecordType[];
   date_from: string | null;
   date_to: string | null;
@@ -241,6 +246,9 @@ export function validatePlan(raw: unknown): QueryPlan | null {
   if (!["search", "chitchat", "unsupported"].includes(o.intent as string)) return null;
   const keywords = cleanList(o.keywords, 8, 30);
   const people = cleanList(o.people, 5, 30);
+  const titles = Array.isArray(o.title_candidates) ? o.title_candidates.filter(
+    (title): title is string => typeof title === "string" && title.trim().length <= QUERY_LIMITS.titleChars,
+  ) : [];
   if (!keywords || !people) return null;
   if (!Array.isArray(o.types) || !o.types.every((t) => RECORD_TYPES.includes(t as RecordType))) return null;
   if (!["any", "open", "done"].includes(o.status as string)) return null;
@@ -259,6 +267,7 @@ export function validatePlan(raw: unknown): QueryPlan | null {
     intent,
     reply: intent === "search" ? null : reply,
     keywords,
+    title_candidates: cleanList(titles, 5, QUERY_LIMITS.titleChars) ?? [],
     types: uniq(o.types as string[]) as RecordType[],
     date_from: from,
     date_to: to,

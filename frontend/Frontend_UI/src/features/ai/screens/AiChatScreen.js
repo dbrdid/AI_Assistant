@@ -19,11 +19,12 @@ import {
   View,
 } from 'react-native';
 import { randomUUID } from 'expo-crypto';
-import { askFromDevice, titleForChat, runtime, writePreference } from '../../../integration/runtime';
+import { askFromDevice, lookupChatDocument, titleForChat, runtime, writePreference } from '../../../integration/runtime';
+import { documentLookupTerms } from '../../../data/memos/memoSearch.mjs';
 import { readPreference } from '../../../data/hooks';
 import { createAiDocument } from '../../stella/aiPending.mjs';
 import { nextField, parseProjectRequest, summary as projectSummary } from '../projectTemplate.mjs';
-import { addProject } from '../../../data/projects/ProjectStore';
+import { addProject, getProjects } from '../../../data/projects/ProjectStore';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import AtriaBook from '../components/AtriaBook';
 import OnceTip from '../../../shared/components/OnceTip';
@@ -38,7 +39,8 @@ import { ROUTES } from '../../../navigation/routes';
 import { TITLE_MAX, deleteChat, getChat, saveChat, setChatTitle, setPinned, sortChats, useChats } from '../../../data/ai/ChatStore';
 import UpSheet from '../components/UpSheet';
 import { describe, extract, pickAttachments } from '../../../services/ai/ChatAttachments';
-import { canRecognize, recognizeFile, useCloudFiles, useFiles } from '../../../data/files/FileStore';
+import { canRecognize, getCloudFiles, getFiles, recognizeFile, useCloudFiles, useFiles } from '../../../data/files/FileStore';
+import { chatAttachmentsForTurn } from '../../../integration/ChatSourceScope.mjs';
 import { chatErrorMessage } from '../../../lib/stella/ai-chat';
 import { colors, font, radius, shadow, spacing } from '../../../shared/theme/theme';
 
@@ -69,7 +71,10 @@ const dayLabel = (ms) => {
 };
 
 // 출처 칩 아이콘: 메모 · 일정 · 첨부
-const sourceIcon = (src) => (!src.route ? 'paperclip' : src.type === 'memo' ? 'file' : 'calendar');
+const sourceIcons = { memo: 'file', file: 'paperclip', project: 'folder', task: 'checkSquare', event: 'calendar' };
+const sourceLabels = { memo: '메모', file: '파일', project: '프로젝트', task: '할 일', event: '일정' };
+const sourceIcon = src => src.route ? sourceIcons[src.type] ?? 'file' : 'paperclip';
+const getChatCatalog = () => ({ projects: getProjects(), files: [...getFiles(), ...getCloudFiles()] });
 
 // ------------------------------------------------------------
 // 말풍선 하나 (내 메시지 / AI 메시지)
@@ -128,7 +133,7 @@ function MessageBubble({ message, onOpenSource, onMakeDoc, onProject }) {
         </View>
         {message.projectForm && <ProjectForm form={message.projectForm} onAction={(...args) => onProject(message, ...args)} />}
         {/* Notion AI의 "페이지로 만들기"처럼: 답의 제목, 목록, 체크리스트, 표가 실제 블록이 된 새 문서 */}
-        {message.done && !message.error && !message.projectForm && !!onMakeDoc && (
+        {message.done && !message.error && !message.projectForm && !message.documentLookup && !!onMakeDoc && (
           <Pressable accessibilityRole="button" onPress={() => onMakeDoc(message)} hitSlop={6} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', minHeight: 36 }, pressed && { opacity: 0.6 }]}>
             <Icon name="file" size={15} color={colors.muted} /><Text style={{ fontSize: font.caption + 1, color: colors.muted }}>문서로 만들기</Text>
           </Pressable>
@@ -141,12 +146,11 @@ function MessageBubble({ message, onOpenSource, onMakeDoc, onProject }) {
                 <Pressable
                   key={src.id}
                   accessibilityRole={src.route ? 'button' : 'text'}
-                  accessibilityLabel={src.route ? `출처 ${src.type === 'memo' ? '메모' : '일정'} ${src.title} 열기` : `첨부 ${src.title}`}
+                  accessibilityLabel={src.route ? `출처 ${sourceLabels[src.type] ?? '기록'} ${src.title} 열기` : `첨부 ${src.title}`}
                   disabled={!src.route}
                   onPress={() => onOpenSource(src)}
                   style={({ pressed }) => [styles.sourceChip, pressed && { backgroundColor: colors.mintSoft }]}
                 >
-                  {/* 종류는 아이콘으로 구분 (메모 = 문서, 일정 = 달력, 첨부 = 클립) */}
                   <Icon name={sourceIcon(src)} size={15} color={colors.mintDark} />
                   <Text style={styles.sourceText} numberOfLines={1}>{src.title}</Text>
                 </Pressable>
@@ -228,11 +232,11 @@ export default function AiChatScreen({ navigation }) {
       saveChat(chatId, messages);
       const chat = getChat(chatId);
       const question = messages.find((m) => m.role === 'user')?.text;
-      const answer = messages.find((m) => m.role === 'ai' && !m.error && m.text)?.text;
-      if (chat?.titleSource === 'question' && question && answer && !titled.current.has(chatId)) {
+      const answer = messages.find((m) => m.role === 'ai' && !m.error && m.text);
+      if (chat?.titleSource === 'question' && question && answer && !answer.documentLookup && !titled.current.has(chatId)) {
         titled.current.add(chatId);
         const id = chatId;
-        titleForChat(question, answer)
+        titleForChat(question, answer.text)
           .then((title) => setChatTitle(id, title, 'ai'))
           .catch(() => { /* 제목 만들기 실패: 첫 질문 제목을 그대로 둠 */ });
       }
@@ -320,6 +324,17 @@ export default function AiChatScreen({ navigation }) {
           { id: nextId(), role: 'ai', text: '프로젝트를 만들게요. 필요한 항목을 골라 주세요.', done: true, sources: [], projectForm: { values: project.title ? { title: project.title } : {} } }]);
         return;
       }
+      const turnFiles = chatAttachmentsForTurn(text, ready, chatFiles.current);
+      const document = !turnFiles.length && lookupChatDocument(text);
+      if (document) {
+        dirty.current = true;
+        if (!messages.length) setStartedAt(Date.now());
+        const userId = nextId(), aiId = nextId();
+        setInput('');
+        setMessages(previous => [...previous, { id: userId, role: 'user', text },
+          { id: aiId, role: 'ai', done: true, ...document }]);
+        return;
+      }
       if (!routeReady) return setBanner('로컬 AI는 아직 연결 전이에요. 클라우드 AI로 바꿔 주세요');
 
       const aiId = nextId();
@@ -342,8 +357,9 @@ export default function AiChatScreen({ navigation }) {
       try {
         answer = await askFromDevice(text, controller.signal, {
           history,
-          attachments: chatFiles.current,
-          fileVaultOnly: chatFiles.current.some((file) => file.sourceScope === 'vault'),
+          attachments: turnFiles,
+          fileVaultOnly: turnFiles.some(file => file.sourceScope === 'vault'),
+          getCatalog: getChatCatalog,
         });
       }
       catch (error) {
@@ -361,6 +377,11 @@ export default function AiChatScreen({ navigation }) {
             : file),
         } : message));
         setBanner(`AI 요청 자료 한도를 넘어 이번 답변에서 제외된 파일: ${answer.attachmentWarnings.map(file => file.name).join(', ')}`);
+      }
+      if (answer.documentLookup) {
+        setMessages((prev) => [...prev, { id: aiId, role: 'ai', text: answer.text, sources: answer.sources, documentLookup: true, done: true }]);
+        setStatus('idle');
+        return;
       }
       const full = answer.text;
 
@@ -451,7 +472,8 @@ export default function AiChatScreen({ navigation }) {
   };
   const allow = () => toggleSending(true);
 
-  const canSend = (input.trim().length > 0 || ready.length > 0) && status === 'idle' && !reading && routeReady;
+  const canLookup = !chatAttachmentsForTurn(input, ready, chatFiles.current).length && documentLookupTerms(input).length > 0;
+  const canSend = (input.trim().length > 0 || ready.length > 0) && status === 'idle' && !reading && (routeReady || canLookup);
 
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>

@@ -1,8 +1,8 @@
 import { accessibleRecords, maybeRuntime, runtime, useValue, readPreference, writePreference } from '../hooks';
 import { listOutbox } from '../../lib/stella/local-sync';
 import { ROUTES } from '../../navigation/routes';
-import { fileSearchRow, rankSearchRows, searchTerms } from './memoSearch.mjs';
-export { searchTerms } from './memoSearch.mjs';
+import { fileSearchRow, memoTitle, rankSearchRows, searchTerms } from './memoSearch.mjs';
+export { memoTitle, searchTerms } from './memoSearch.mjs';
 export const TYPE_INFO = { memo: { label: '메모', icon: '📝', route: ROUTES.MemoEdit }, task: { label: '일정', icon: '✓', route: ROUTES.TaskEdit }, event: { label: '일정', icon: '◷', route: ROUTES.TaskEdit }, project: { label: '프로젝트', icon: '▣', route: ROUTES.ProjectDetail }, file: { label: '파일', icon: '📄', route: ROUTES.Files } };
 export const STORAGE_INFO = { local: { icon: '▣', label: '기기', desc: '이 기기에 저장된 파일' }, cloud: { icon: '☁', label: '클라우드', desc: '공유 공간 멤버가 함께 보는 파일' } };
 export const getMemos = () => runtime().store.getMemos();
@@ -69,7 +69,6 @@ export async function findMemoSyncConflict(memoId) {
     },
   };
 }
-export const memoTitle = memo => memo?.title || memo?.body?.split('\n')[0]?.slice(0, 60) || '제목 없는 메모';
 export const formatMD = value => { const d = new Date(value); return `${d.getMonth()+1}.${d.getDate()}`; };
 export function highlightParts(text, terms) {
   const s = String(text ?? '').normalize('NFC'); if (!terms?.length) return [{ text: s, hit: false }];

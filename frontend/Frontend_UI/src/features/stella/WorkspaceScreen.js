@@ -302,16 +302,18 @@ export default function WorkspaceScreen({
   const parentOf = new Map(documents.map(document => [document.id, document.parentId]));
   const searchDocs = memos.map(memo => ({ id: memo.id, title: memoTitle(memo), body: memo.body || '', updatedAt: memo.updatedAt, createdAt: memo.createdAt ?? memo.updatedAt, parent: titleOf.get(parentOf.get(memo.id)) || '' }));
   // 녹음 중에는 하단 메뉴 대신 녹음 막대를 표시한다.
-  function createFromDock(kind) {
+  function handleDockAction(kind) {
     switch (kind) {
       case 'note': return note.start();
-      case 'event': return go(ROUTES.TaskEdit, { kind: 'event' });
+      case 'calendar':
+        if (route?.name === ROUTES.Tasks) return navigation.setParams({ subpage: ROUTES.Calendar });
+        return navigation.selectTab ? navigation.selectTab(ROUTES.Tasks) : go(ROUTES.Tasks, { subpage: ROUTES.Calendar });
       case 'document': return go(ROUTES.MemoEdit);
       case 'project': return go(ROUTES.ProjectEdit);
     }
   }
   const askDock = note.recording ? note.bar : <SearchDock docs={searchDocs} bottomInset={insets.bottom} onOpen={id => go(ROUTES.MemoEdit, { memoId: id })} onAskAI={() => go(ROUTES.AiChat)}
-    onNew={createFromDock} />;
+    onAction={handleDockAction} />;
   let content;
   if (mode === 'documents') {
     content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={list} keyExtractor={memo => memo.id} contentContainerStyle={s.page} keyboardShouldPersistTaps="handled" ListHeaderComponent={<>{intro}<View style={s.search}><Icon name="search" size={17} color={c.muted} /><TextInput autoFocus={requestSearch} accessibilityLabel="문서 검색" placeholder="제목이나 내용으로 검색" placeholderTextColor={c.subtle} value={query} onChangeText={setQuery} style={s.searchInput} />{query ? <IconButton name="x" label="검색어 지우기" onPress={() => setQuery('')} /> : null}</View><View style={s.filters}>{[['all', '모든 문서'], ['favorites', '즐겨찾기']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{

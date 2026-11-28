@@ -1,4 +1,29 @@
 export const searchTerms = query => String(query ?? '').normalize('NFC').trim().split(/\s+/).filter(Boolean);
+export const memoTitle = memo => memo?.title || memo?.body?.split('\n')[0]?.slice(0, 60) || '제목 없는 메모';
+
+export function documentLookupTerms(question) {
+  const match = /^([^\r\n]{1,210}?)\s*(?:찾아|검색\s*해|열어)\s*(?:줘|주세요)[.?!]?$/u.exec(question.trim());
+  if (!match) return [];
+  const title = match[1].trim();
+  const withoutParticle = title.replace(/[를을]$/u, '').trimEnd();
+  const withoutKind = withoutParticle.replace(/\s+문서$/u, '');
+  return [...new Set([title, withoutParticle, withoutKind].map(value => value.replace(/^["'“‘](.*)["'”’]$/u, '$1').trim()).filter(Boolean))];
+}
+
+const titleKey = title => title.normalize('NFC').toLowerCase().replace(/\s+/g, '');
+
+export function findDocumentsByTitles(titles, memos) {
+  const keys = new Set(titles.map(titleKey).filter(Boolean));
+  return memos.filter(memo => !memo.deletedAt && keys.has(titleKey(memoTitle(memo)))).slice(0, 8);
+}
+
+export function findChatDocuments(question, memos) {
+  for (const title of documentLookupTerms(question)) {
+    const matches = findDocumentsByTitles([title], memos);
+    if (matches.length) return matches;
+  }
+  return [];
+}
 
 export function rankSearchRows(rows, terms) {
   const keywords = [...new Set(terms.map(term => term.toLowerCase()))];

@@ -10,6 +10,9 @@ test('project requests are recognized with or without a name', () => {
   assert.deepEqual(parseProjectRequest('프로젝트 만들기: 웹사이트 개편'), { title: '웹사이트 개편' });
   assert.equal(parseProjectRequest('중간고사 일정 알려줘'), null);
   assert.equal(parseProjectRequest('프로젝트 삭제해줘'), null);
+  assert.equal(parseProjectRequest('프로젝트 알파 문서를 열어줘'), null);
+  assert.equal(parseProjectRequest('알파 프로젝트 하나 찾아줘'), null);
+  assert.equal(parseProjectRequest('프로젝트에 문서를 추가해줘'), null);
 });
 
 test('the template asks each required field in order, then summarizes', () => {

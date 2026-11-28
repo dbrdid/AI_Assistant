@@ -13,7 +13,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError } from '@supabase/supabase-js';
 import { AiError } from './errors';
-import { guardPlan, originalEvidence } from '../../integration/recordEvidence.mjs';
+import { guardPlan, isRecordExistenceQuestion, originalEvidence, sameProject } from '../../integration/recordEvidence.mjs';
+import { documentLookupTerms, findDocumentsByTitles } from '../../data/memos/memoSearch.mjs';
 
 export const CHAT_LIMITS = {
   questionChars: 2000,
@@ -31,9 +32,11 @@ export interface QueryPlan {
   intent: 'search' | 'chitchat' | 'unsupported';
   reply: string | null;
   keywords: string[];
+  title_candidates?: string[];
   types: ChatRecordType[];
   date_from: string | null;   // YYYY-MM-DD (그날 포함)
   date_to: string | null;
+  dateBasis?: 'created' | 'updated';
   status: 'any' | 'open' | 'done';
   people: string[];
   project: string | null;
@@ -50,12 +53,15 @@ export interface ChatRecord {
   text: string;
   /** 대표 날짜: 할 일 = 마감, 일정 = 시작, 회의 = 회의 날짜, 나머지 = 수정 시각 (ISO 또는 YYYY-MM-DD) */
   date?: string | null;
+  createdDate?: string | null;
+  updatedDate?: string | null;
   /** 할 일·일정: 'open' 안 끝남 / 'done' 끝남 */
   status?: 'open' | 'done' | null;
   /** 담당자·참석자 이름 */
   people?: string[];
   /** 프로젝트·공간 이름 */
   project?: string | null;
+  projects?: string[];
   /** 공유 공간 기록이면 공간 id (서버가 지금도 멤버인지 확인), 개인 기록이면 생략 */
   workspaceId?: string | null;
 }
@@ -81,6 +87,7 @@ export interface AssistantReply {
   plan: QueryPlan;
   /** 이번 달 남은 질문 수 (답변까지 간 경우만) */
   remaining: number | null;
+  documentLookup?: boolean;
 }
 
 type GatewayOk<T> = { ok: true; request_id: string; draft: T; remaining?: number; today?: string };
@@ -117,16 +124,18 @@ export function trimHistory(history: ChatTurn[] = []): ChatTurn[] {
 
 /** 1단계: 질문 → 검색 조건 */
 export async function planQuery(client: SupabaseClient, p: {
-  clientRequestId: string; question: string; history?: ChatTurn[]; timezone?: string; today?: string;
+  clientRequestId: string; question: string; history?: ChatTurn[]; timezone?: string; today?: string; projectTitles?: string[];
+  titleLookup?: boolean;
 }): Promise<QueryPlan> {
   const question = p.question.trim();
   if (!question) throw new AiError('INVALID_REQUEST', '질문을 입력해 주세요');
   if (question.length > CHAT_LIMITS.questionChars) throw new AiError('INPUT_TOO_LONG', `질문은 ${CHAT_LIMITS.questionChars}자까지 쓸 수 있어요`);
   const r = await invoke<QueryPlan>(client, 'query/plan', {
-    client_request_id: p.clientRequestId, question, history: trimHistory(p.history),
+    client_request_id: p.clientRequestId, question, history: trimHistory(p.titleLookup ? [] : p.history),
     timezone: p.timezone ?? 'Asia/Seoul', today: p.today ?? null,
+    ...(p.titleLookup && { title_lookup: true }),
   });
-  return guardPlan(r.draft, question, p.history);
+  return guardPlan(r.draft, question, p.history, p.projectTitles) as QueryPlan;
 }
 
 // ---------------------------------------------------------------------
@@ -143,6 +152,8 @@ export function containsWord(text: string, word: string): boolean {
 }
 
 const dayOf = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : null);
+const recordDay = (record: ChatRecord, basis: QueryPlan['dateBasis']) =>
+  dayOf(basis === 'created' ? record.createdDate : basis === 'updated' ? record.updatedDate : record.date);
 
 function countHits(text: string, word: string): number {
   const t = nospace(norm(text)), w = nospace(norm(word));
@@ -154,8 +165,8 @@ function countHits(text: string, word: string): number {
 
 /**
  * 검색 조건으로 기록을 고르고 순서를 정함
- *   - 종류·기간·상태는 거름 (기간 조건이 있으면 날짜 없는 기록은 뺌)
- *   - 키워드가 있으면 하나 이상 맞아야 함 (제목 3점, 본문 1점), 사람·프로젝트가 맞으면 2점 더
+ *   - 종류, 프로젝트, 기간, 상태로 거름 (기간 조건이 있으면 날짜 없는 기록은 뺌)
+ *   - 키워드가 있으면 하나 이상 맞아야 함 (제목 3점, 본문 1점), 사람이 맞으면 2점 더
  *   - today: 'soonest'에서 지난 것보다 다가오는 것을 먼저
  */
 export function rankRecords(records: ChatRecord[], plan: QueryPlan, opts: { today?: string; limit?: number } = {}): ChatRecord[] {
@@ -164,7 +175,9 @@ export function rankRecords(records: ChatRecord[], plan: QueryPlan, opts: { toda
   const scored: { r: ChatRecord; score: number; day: string | null }[] = [];
   for (const r of records) {
     if (types.size > 0 && !types.has(r.type)) continue;
-    const day = dayOf(r.date);
+    const projects = r.projects ?? (r.project ? [r.project] : []);
+    if (plan.project && !projects.some(project => sameProject(project, plan.project))) continue;
+    const day = recordDay(r, plan.dateBasis);
     if (plan.date_from || plan.date_to) {
       if (!day) continue;
       if (plan.date_from && day < plan.date_from) continue;
@@ -175,7 +188,7 @@ export function rankRecords(records: ChatRecord[], plan: QueryPlan, opts: { toda
     let kwHit = false;
     for (const k of plan.keywords) {
       const t = countHits(r.title, k) * 3 + Math.min(countHits(r.text, k), 3)
-        + ((r.project && containsWord(r.project, k)) || (r.people ?? []).some((p) => containsWord(p, k)) ? 1 : 0);
+        + (projects.some(project => containsWord(project, k)) || (r.people ?? []).some((p) => containsWord(p, k)) ? 1 : 0);
       if (t > 0) kwHit = true;
       score += t;
     }
@@ -183,7 +196,6 @@ export function rankRecords(records: ChatRecord[], plan: QueryPlan, opts: { toda
     for (const name of plan.people) {
       if ((r.people ?? []).some((p) => containsWord(p, name)) || containsWord(r.text, name)) score += 2;
     }
-    if (plan.project && r.project && containsWord(r.project, plan.project)) score += 2;
     scored.push({ r, score, day });
   }
   const byDay = (a: string | null, b: string | null, dir: 1 | -1) => (a === b ? 0 : !a ? 1 : !b ? -1 : a < b ? -dir : dir);
@@ -236,7 +248,7 @@ export function todayIn(timezone = 'Asia/Seoul', now = new Date()): string {
 }
 
 /** rankRecords 결과 → 서버에 보낼 발췌 (글자 합계 한도 안으로) */
-export function toSources(records: ChatRecord[], keywords: string[], perSource = 1500) {
+export function toSources(records: ChatRecord[], keywords: string[], perSource = 1500, dateBasis?: QueryPlan['dateBasis']) {
   const out: { id: string; type: ChatRecordType; title: string; date: string | null; text: string; workspace_id: string | null }[] = [];
   let total = 0;
   for (const r of records.slice(0, CHAT_LIMITS.sources)) {
@@ -245,7 +257,7 @@ export function toSources(records: ChatRecord[], keywords: string[], perSource =
     if (left < 100) break;
     const text = excerptFor(r.text ?? '', keywords, Math.min(perSource, left, CHAT_LIMITS.sourceChars));
     total += title.length + text.length;
-    out.push({ id: r.id, type: r.type, title, date: dayOf(r.date), text, workspace_id: r.workspaceId ?? null });
+    out.push({ id: r.id, type: r.type, title, date: recordDay(r, dateBasis), text, workspace_id: r.workspaceId ?? null });
   }
   return out;
 }
@@ -279,8 +291,31 @@ export async function askAssistant(client: SupabaseClient, p: {
   locateFile?: (plan: QueryPlan) => Pick<AssistantReply, 'text' | 'sources'> | null;
   timezone?: string;
   today?: string;
+  projectTitles?: string[];
+  allowTitleLookup?: boolean;
 }): Promise<AssistantReply> {
-  const plan = await planQuery(client, { clientRequestId: p.newId(), question: p.question, history: p.history, timezone: p.timezone, today: p.today });
+  const title = p.allowTitleLookup ? documentLookupTerms(p.question)[0]?.replace(/[을를]$/u, '') : null;
+  const titleLookup = Boolean(title &&
+    !/^(?:그|이|저|아까|방금|이전)\s*(?:문서|메모)|^(?:문서|메모)$/u.test(title) &&
+    !/(?:파일|일정|할\s*일|프로젝트|회의|기록|자료)$/u.test(title));
+  const plan = await planQuery(client, { clientRequestId: p.newId(), question: p.question, history: p.history, timezone: p.timezone, today: p.today,
+    projectTitles: p.projectTitles, titleLookup });
+  if (titleLookup && Array.isArray(plan.title_candidates) && (!plan.types.length || plan.types.includes('memo'))) {
+    const candidates = plan.title_candidates.filter(title => typeof title === 'string' && title.trim() && title.length <= 200).slice(0, 5);
+    if (candidates.length) {
+      const records = (await p.findRecords(plan)).filter(record => record.type === 'memo');
+      const matches: ChatRecord[] = findDocumentsByTitles(candidates, records);
+      const ranked = rankRecords(matches, { ...plan, keywords: [] }, { today: p.today });
+      if (ranked.length) {
+        return {
+          text: ranked.length === 1 ? '요청한 이름으로 문서를 찾았어요.' : '일치하는 문서가 여러 개예요. 아래에서 골라 주세요.',
+          sources: ranked.map(({ id, type, title }) => ({ id, type, title })),
+          kind: 'answer', insufficient: false, followUps: [], plan, remaining: null, documentLookup: true,
+        };
+      }
+      return { text: NOT_FOUND_TEXT, sources: [], kind: 'not_found', insufficient: true, followUps: [], plan, remaining: null, documentLookup: true };
+    }
+  }
   const fileLocation = p.locateFile?.(plan);
   if (fileLocation) return { ...fileLocation, kind: fileLocation.sources.length ? 'answer' : 'not_found',
     insufficient: !fileLocation.sources.length, followUps: [], plan, remaining: null };
@@ -292,7 +327,11 @@ export async function askAssistant(client: SupabaseClient, p: {
   if (ranked.length === 0) {
     return { text: NOT_FOUND_TEXT, sources: [], kind: 'not_found', insufficient: true, followUps: [], plan, remaining: null };
   }
-  const sources = toSources(ranked, plan.keywords);
+  if (isRecordExistenceQuestion(p.question) || (plan.types.length === 1 && plan.types[0] === 'file' && /어디/u.test(p.question))) {
+    return { text: '일치하는 기록을 찾았어요.', sources: ranked.map(({ id, type, title }) => ({ id, type, title })),
+      kind: 'answer', insufficient: false, followUps: [], plan, remaining: null };
+  }
+  const sources = toSources(ranked, plan.keywords, undefined, plan.dateBasis);
   const { answer, remaining } = await answerQuery(client, {
     clientRequestId: p.newId(), question: p.question, history: p.history, timezone: p.timezone, today: p.today, sources,
   });

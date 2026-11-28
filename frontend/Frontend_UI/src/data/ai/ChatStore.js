@@ -22,6 +22,7 @@ const titleOf = messages => {
 // 대화를 다시 표시하는 데 필요한 값만 저장합니다(진행 중인 응답이나 첨부 파일 데이터는 제외).
 const clean = m => ({
   id: m.id, role: m.role, text: m.text, error: !!m.error,
+  ...(m.documentLookup && { documentLookup: true }),
   attachments: (m.attachments ?? []).map(a => ({ id: a.id, name: a.name, kind: a.kind })),
   sources: (m.sources ?? []).map(s => ({ id: s.id, type: s.type, title: s.title, route: s.route ?? null })),
 });

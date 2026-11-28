@@ -69,6 +69,17 @@ const RECORDS: C.ChatRecord[] = [
   { id: "f1", type: "file", title: "발표 자료.pdf", text: "", date: "2026-11-12" },
 ];
 
+Deno.test("query/plan: alternate title flag and bounded candidates", () => {
+  const request = { client_request_id: newId(), question: "프로젝트 알파 문서를 열어줘" };
+  eq(S.parsePlanInput(request, NOW).titleLookup, false);
+  const lookup = S.parsePlanInput({ ...request, title_lookup: true }, NOW);
+  nodeAssert.match(S.planInputText(lookup), /<title_lookup>true<\/title_lookup>/u);
+  nodeAssert.throws(() => S.parsePlanInput({ ...request, title_lookup: "true" }, NOW), S.InputError);
+  eq(S.validatePlan(plan())?.title_candidates, []);
+  eq(S.validatePlan({ ...plan(), title_candidates: ["Project Alpha", "Project Alpha", 2, "X".repeat(201), "Alpha Project"] })?.title_candidates,
+    ["Project Alpha", "Alpha Project"]);
+});
+
 Deno.test("ai-chat.ts: 기기 기록 고르기·발췌", async (t) => {
   await t.step("키워드 (띄어쓰기 무시, 제목 가중치)", () => {
     const r = C.rankRecords(RECORDS, plan({ keywords: ["중간고사"] }));

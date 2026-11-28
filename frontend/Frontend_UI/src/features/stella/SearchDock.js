@@ -23,7 +23,7 @@ export function groupByAge(items, now = Date.now()) {
   return groups;
 }
 
-export default function SearchDock({ docs, bottomInset, onOpen, onAskAI, onNew }) {
+export default function SearchDock({ docs, bottomInset, onOpen, onAskAI, onAction }) {
   const { width } = useWindowDimensions();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -87,8 +87,8 @@ export default function SearchDock({ docs, bottomInset, onOpen, onAskAI, onNew }
     {menu && <>
       <Pressable accessibilityLabel="새로 만들기 닫기" onPress={() => setMenu(false)} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
       <View style={{ position: 'absolute', right: 16, bottom: Math.max(10, bottomInset) + 60, minWidth: 180, backgroundColor: c.surface, borderRadius: 10, paddingVertical: 4 }}>
-        {[['mic', '음성 메모', 'note'], ['calendar', '캘린더', 'event'], ['file', '문서', 'document'], ['folder', '프로젝트', 'project']].map(([icon, label, kind]) =>
-          <Pressable key={kind} accessibilityRole="button" onPress={() => { setMenu(false); onNew(kind); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingHorizontal: 16 }, pressed && { backgroundColor: c.raised }]}>
+        {[['mic', '음성 메모', 'note'], ['calendar', '캘린더', 'calendar'], ['file', '문서', 'document'], ['folder', '프로젝트', 'project']].map(([icon, label, kind]) =>
+          <Pressable key={kind} accessibilityRole="button" onPress={() => { setMenu(false); onAction(kind); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingHorizontal: 16 }, pressed && { backgroundColor: c.raised }]}>
             <Icon name={icon} size={18} color={c.muted} /><Text style={{ color: c.text, fontSize: 15 }}>{label}</Text>
           </Pressable>)}
       </View>

@@ -1102,9 +1102,12 @@ async function handleQueryPlan(req: Request, userId: string): Promise<Response> 
   return execute({
     routePolicy: req.headers.get("x-ai-route"),
     userId, route: ROUTES.query_plan, clientRequestId: p.clientRequestId, workspaceId: null,
-    inputHash: await sha256Hex(JSON.stringify(["query_plan", p.today, p.timezone, p.history, p.question])),
+    inputHash: await sha256Hex(JSON.stringify(["query_plan", p.today, p.timezone, p.history, p.question, ...(p.titleLookup ? [true] : [])])),
     instructions: PLAN_INSTRUCTIONS, input: planInputText(p),
-    schemaName: "chat_search_plan", schema: PLAN_SCHEMA, validate: validatePlan,
+    schemaName: "chat_search_plan", schema: PLAN_SCHEMA, validate: (raw) => {
+      const plan = validatePlan(raw);
+      return plan && (p.titleLookup ? plan : { ...plan, title_candidates: [] });
+    },
     extra: { today: p.today },
   });
 }

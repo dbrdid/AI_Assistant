@@ -58,15 +58,62 @@ export function unstatedTimeWarning({ start, end }, source) {
 const PERIOD = /오늘|어제|그제|그저께|내일|모레|글피|(?:이번|지난|저번|지지난|다음)\s*(?:주|달|해|분기|학기)|올해|작년|재작년|내년|최근|요즘|\d+\s*(?:년|월|일|주|개월)|\d{4}-\d{2}|\d{1,2}[/.]\d{1,2}|[월화수목금토일]요일|부터|까지|이전|이후|상반기|하반기|주말|평일|일주일|보름|며칠|이달|[한두세네]\s*달|[한두세네]\s*주\s*전/;
 const STATUS = /완료|끝|마친|마쳤|남은|남아|밀린|진행|처리|안\s*(?:한|했|된)|못\s*(?:한|했)|해야|예정|다가오/;
 const REFERS_BACK = /(?:^|\s)그(?:\s|때)|아까|방금|당시|거기/;
-const RECORD_WORD = /파일|자료|기록|문서|메모|일정|할\s*일|회의|첨부/;
+const RECORD_WORD = /파일|자료|기록|문서|메모|일정|할\s*일|회의|첨부|프로젝트/;
 const ABSENCE_CLAIM = /없(?:습니다|어요|네요|음|다)|찾(?:을 수 없|지 못)|못 찾/;
+const EXISTENCE = /있(?:어|나|는지|을까|나요|습니까)|없(?:어|나|는지|을까|나요|습니까)|존재하/;
+const LOOKUP = /찾|검색|보여|목록|알려|어디|열어/;
+const CATEGORY = {
+  memo: /문서|메모/, task: /할\s*일/, event: /일정/, file: /파일|첨부(?:물|파일)?/, project: /프로젝트/,
+};
+const searchKey = text => text.normalize('NFC').toLowerCase().replace(/\s+/gu, '');
+const projectKey = text => searchKey(text).replace(/프로젝트$/u, '');
 
-// A planner may narrow a search only by what the user said, and may not report a record missing before the search runs.
-export function guardPlan(plan, question, history = []) {
+export function isRecordExistenceQuestion(question) {
+  return RECORD_WORD.test(question) && EXISTENCE.test(question);
+}
+
+export function sameProject(left, right) {
+  return Boolean(left && right && searchKey(left) === searchKey(right));
+}
+
+// Project names are read locally. The planner never receives a catalog of names.
+function findProjectScope(question, projectTitles) {
+  const normalized = question.normalize('NFC').toLowerCase();
+  const named = projectTitles.filter(title => {
+    const name = title.normalize('NFC').toLowerCase().trim().replace(/\s*프로젝트$/u, '');
+    if (!name) return false;
+    const pattern = name.split(/\s+/u).map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*');
+    return new RegExp('(?<![\\p{L}\\p{N}])' + pattern + '\\s*프로젝트', 'u').test(normalized);
+  });
+  return named.length === 1 ? named[0] : null;
+}
+
+export function guardPlan(plan, question, history = [], projectTitles = []) {
   const said = [question, ...(REFERS_BACK.test(question) ? history.filter(turn => turn.role === 'user').map(turn => turn.text) : [])].join('\n');
-  const scoped = { ...plan, ...(PERIOD.test(said) ? {} : { date_from: null, date_to: null }), ...(STATUS.test(said) ? {} : { status: 'any' }) };
-  if (scoped.intent === 'search' || !RECORD_WORD.test(question) || !ABSENCE_CLAIM.test(scoped.reply ?? '')) return scoped;
-  return { ...scoped, intent: 'search', reply: null, types: scoped.types.length || !/파일/.test(question) ? scoped.types : ['file'] };
+  const project = findProjectScope(question, projectTitles)
+    ?? (plan.project && /프로젝트/.test(question) && searchKey(question).includes(searchKey(plan.project))
+      ? projectTitles.find(title => projectKey(title) === projectKey(plan.project)) ?? plan.project : null)
+    ?? /(?:^|\s)([^\s]+)\s*프로젝트(?:의|에서)/u.exec(question)?.[1] ?? null;
+  const dateBasis = /작성|생성|만든|만들어진|등록한/u.test(said) ? 'created'
+    : /수정|편집|고친/u.test(said) ? 'updated' : undefined;
+  const scoped = { ...plan, project, dateBasis, ...(PERIOD.test(said) ? {} : { date_from: null, date_to: null }),
+    ...(STATUS.test(said) ? {} : { status: 'any' }) };
+  if (!RECORD_WORD.test(question) || !(LOOKUP.test(question) || EXISTENCE.test(question) || ABSENCE_CLAIM.test(scoped.reply ?? ''))) return scoped;
+  const types = Object.keys(CATEGORY).filter(type => CATEGORY[type].test(question) && !(type === 'project' && project));
+  const keywords = plan.keywords.filter(word => searchKey(word) && searchKey(said).includes(searchKey(word))
+    && !/^(?:파일|자료|기록|문서|메모|일정|할\s*일|프로젝트|첨부|그)$/u.test(word.trim()));
+  if (!keywords.length && !project) {
+    const term = question.normalize('NFC').replace(new RegExp('(?:' + PERIOD.source + ')(?:부터|까지|에는|에|의)?', 'gu'), ' ')
+      .replace(/(?:작성|생성|수정|편집|완료|등록)(?:한|된|했던)|만든|고친|이번|지난|오늘|어제|전체|모든|현재|아직/gu, ' ')
+      .replace(/(?:파일|자료|기록|문서|메모|일정|할\s*일|프로젝트|첨부)(?:만|을|를|이|가|은|는|의)?/gu, ' ')
+      .replace(/(?:찾|검색|보여|알려|열어|있|없|존재하|어디|목록)[^\s!?]*?(?=\s|[!?]|$)|(?:^|\s)(?:해\s*줘|줘|해주세요|그|내|좀|수|몇|개)(?=\s|$)/gu, ' ')
+      .replace(/[?!.,]/gu, ' ').trim().replace(/\s+/gu, ' ');
+    if (term) keywords.push(term);
+  }
+  const requestedTypes = types.length ? types
+    : CATEGORY.project.test(question) && !/프로젝트(?:의|에서).*(?:기록|항목)/u.test(question) ? ['project']
+    : project ? [] : scoped.types;
+  return { ...scoped, intent: 'search', reply: null, keywords, types: requestedTypes };
 }
 
 export function locateFile(question, history, keywords, files, types = []) {

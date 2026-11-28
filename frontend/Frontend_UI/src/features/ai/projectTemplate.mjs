@@ -22,10 +22,11 @@ export const PROJECT_TEMPLATE = [
 ];
 
 const GENERIC = /^(?:새|새로운|신규|하나|한\s*개|간단한|내|우리|그|이)$/;
+const CREATE_PROJECT = /프로젝트(?:를|을)?(?:\s*(?:하나|한\s*개|새로))*\s*(?:만들(?:어|기)|(?:생성|추가|시작)(?:해|하기)?)(?=\s|[.!?：:]|줘|주세요|$)/u;
 /** 프로젝트를 만들어 달라는 요청인지와, 요청에 들어 있는 이름. 예: "신제품 출시 프로젝트 만들어줘" → { title: '신제품 출시' } */
 export function parseProjectRequest(text) {
   const t = String(text ?? '').trim();
-  if (!/프로젝트/.test(t) || !/(만들|생성|추가|시작|열어\s*줘|하나)/.test(t) || /(삭제|지워|상태\s*변경|연결)/.test(t)) return null;
+  if (!CREATE_PROJECT.test(t) || /(삭제|지워|상태\s*변경|연결)/.test(t)) return null;
   const quoted = /["'“‘「『](.+?)["'”’」』]/.exec(t)?.[1];
   const colon = /프로젝트[^:：]*[:：]\s*(.+)$/.exec(t)?.[1];
   const before = /^(.+?)\s*(?:이?라는|이란)?\s*(?:새\s*)?프로젝트/.exec(t)?.[1];

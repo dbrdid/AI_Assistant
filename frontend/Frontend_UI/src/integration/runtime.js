@@ -15,7 +15,9 @@ import { listNoteFavorites, setNoteFavorites } from '../lib/stella/favorites';
 import { createAIService } from './ai-service';
 import { CHAT_LIMITS, answerQuery, askAssistant, excerptFor, planQuery, rankRecords, todayIn } from '../lib/stella/ai-chat';
 import { requireTransmission } from '../../../../shared/contracts/ai-policy.js';
-import { selectChatSources } from './ChatSourceScope.mjs';
+import { chatCatalogRecords, selectChatSources } from './ChatSourceScope.mjs';
+import { documentLookupTerms, findChatDocuments, memoTitle } from '../data/memos/memoSearch.mjs';
+import { ROUTES } from '../navigation/routes';
 import { retryPlan, transcribeErrorMessage, transcribeUploaded, uploadRecording } from '../lib/stella/transcribe';
 import {
   RecordingError, ackRecordingTranscript, createRecording, getRecordingStatus, getRecordingTranscript, isRecordingSettled,
@@ -546,7 +548,7 @@ export async function titleForChat(question, answer, signal) {
 }
 
 // 이 기기에서 이미 텍스트로 변환한 첨부 파일을 먼저 넣고, 플래너가 찾은 기기 기록을 뒤에 넣습니다.
-function mergeSources(attached, ranked, keywords) {
+function mergeSources(attached, ranked, keywords, dateBasis) {
   const out = [];
   let total = 0;
   const omittedAttachments = [];
@@ -560,37 +562,67 @@ function mergeSources(attached, ranked, keywords) {
     out.push({ id: a.id, type: 'file', title: a.title.slice(0, 200), date: null, text, workspace_id: a.workspaceId ?? null });
     total += a.title.length + text.length;
   }
-  for (const s of toSources(ranked, keywords)) {
+  for (const s of toSources(ranked, keywords, undefined, dateBasis)) {
     if (out.length >= CHAT_LIMITS.sources || total + s.title.length + s.text.length > CHAT_LIMITS.sourcesTotalChars) break;
     out.push(s); total += s.title.length + s.text.length;
   }
   return { sources: out, omittedAttachments };
 }
 
-export async function askFromDevice(question, signal, { history = [], attachments = [], fileVaultOnly = false, memoOnly = false } = {}) {
+export function lookupChatDocument(question) {
+  if (!documentLookupTerms(question).length) return null;
+  const own = runtime();
+  if (own.closedSpaces.has(own.store.getCurrentWorkspace().id)) return null;
+  const matches = findChatDocuments(question, own.store.getMemos().filter(memo => !readPreference(`ai-excluded:${memo.id}`, false)));
+  if (!matches.length) return null;
+  return {
+    text: matches.length === 1 ? '제목이 일치하는 문서를 찾았어요.' : '같은 제목의 문서를 찾았어요. 아래에서 골라 주세요.',
+    sources: matches.map(memo => ({ id: memo.id, type: 'memo', title: memoTitle(memo), route: ROUTES.MemoEdit })),
+    documentLookup: true,
+  };
+}
+
+export async function askFromDevice(question, signal, { history = [], attachments = [], fileVaultOnly = false, memoOnly = false, getCatalog } = {}) {
   const own = runtime(); const generation = own.session.generation;
   const ws = own.store.getCurrentWorkspace().id;
   const policy = aiPolicy();
   requireTransmission(policy.route, [policy], policy.consent);
-  // 멤버가 아니게 된(닫힌) 공유 공간의 기록은 검색 화면과 같이 AI에도 보내지 않음
-  const records = fileVaultOnly || own.closedSpaces?.has(ws) ? [] : [
-    ...own.store.getMemos().map(m => ({ id: m.id, type: 'memo', title: m.title || m.body.split('\n')[0].slice(0, 60), text: m.body, revision: m.revision, date: new Date(m.updatedAt).toISOString() })),
-    ...(!memoOnly ? own.store.getTasks().map(t => ({ id: t.id, type: t.kind, title: t.title, text: t.desc, revision: t.revision, date: t.date, status: t.status === '완료' ? 'done' : 'open' })) : []),
-  ].filter(r => !aiPolicy(r).excluded).map(r => ({ ...r, workspaceId: policy.workspaceId }));
+  const dateOf = value => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) ? todayIn(policy.timezone, date) : null;
+  };
+  const readRecords = () => {
+    if (fileVaultOnly || own.closedSpaces.has(ws)) return [];
+    const catalog = memoOnly ? null : getCatalog?.();
+    return chatCatalogRecords({
+      memos: own.store.getMemos(),
+      tasks: memoOnly ? [] : own.store.getTasks(),
+      projects: catalog?.projects.filter(project => !aiPolicy(project).excluded) ?? [],
+      files: catalog?.files ?? [],
+      dateOf,
+    }).filter(record => !aiPolicy(record).excluded).map(record => ({ ...record, workspaceId: policy.workspaceId }));
+  };
+  const records = readRecords();
   const attachmentSources = attachments.filter(a => a.text).map(a => ({
     id: a.id, title: a.name, text: a.text, workspaceId: policy.workspaceId, sourceScope: a.sourceScope,
   }));
   const { attachments: attached, records: contextRecords } = selectChatSources({
     attachments: attachmentSources, records, fileVaultOnly,
   });
+  const projectTitles = contextRecords.filter(record => record.type === 'project').map(record => record.title);
+  const recordKey = record => `${record.type}:${record.id}`;
   const checkSnapshot = () => {
     if (signal?.aborted || current !== own || own.session.generation !== generation) throw new Error('요청이 취소됐습니다');
     if (own.store.getCurrentWorkspace().id !== ws) throw new Error('작업 공간이 바뀌었습니다');
     requireTransmission(policy.route, [aiPolicy()], aiPolicy().consent);
-    for (const record of contextRecords) {
-      const now = record.type === 'memo' ? own.store.getMemo(record.id) : own.store.getTask(record.id);
-      if (!now || now.deletedAt || now.revision !== record.revision) throw new Error('검색 대상 기록이 바뀌었습니다. 다시 질문해 주세요');
-      requireTransmission(policy.route, [aiPolicy(now)], aiPolicy().consent);
+    if (contextRecords.length) {
+      const currentRecords = new Map(readRecords().map(record => [recordKey(record), record]));
+      for (const record of contextRecords) {
+        if (JSON.stringify(currentRecords.get(recordKey(record))) !== JSON.stringify(record)) {
+          throw new Error('검색 대상 기록이 바뀌었습니다. 다시 질문해 주세요');
+        }
+      }
     }
   };
   const client = { functions: { invoke: async (name, options) => {
@@ -601,12 +633,13 @@ export async function askFromDevice(question, signal, { history = [], attachment
   const turns = history.filter(t => t.text && (t.role === 'user' || t.role === 'assistant'));
   let answer;
   if (!attached.length) {
-    answer = await askAssistant(client, { question, history: turns, newId: randomUUID, timezone: policy.timezone, findRecords: async () => contextRecords });
+    answer = await askAssistant(client, { question, history: turns, newId: randomUUID, timezone: policy.timezone,
+      projectTitles, allowTitleLookup: !memoOnly && !attachments.length && !fileVaultOnly, findRecords: () => contextRecords });
   } else {
     // 사용자가 자료를 제공했으므로 질문에서 기록 검색이 필요하지 않다고 판단되더라도 해당 자료를 바탕으로 답변합니다.
-    const plan = await planQuery(client, { clientRequestId: randomUUID(), question, history: turns, timezone: policy.timezone });
+    const plan = await planQuery(client, { clientRequestId: randomUUID(), question, history: turns, timezone: policy.timezone, projectTitles });
     const ranked = !fileVaultOnly && plan.intent === 'search' ? rankRecords(contextRecords, plan, { today: todayIn(policy.timezone) }) : [];
-    const { sources, omittedAttachments } = mergeSources(attached, ranked, plan.keywords ?? []);
+    const { sources, omittedAttachments } = mergeSources(attached, ranked, plan.keywords, plan.dateBasis);
     const { answer: a } = await answerQuery(client, { clientRequestId: randomUUID(), question, history: turns, timezone: policy.timezone, sources });
     const byId = new Map(sources.map(s => [s.id, s]));
     answer = {
@@ -616,16 +649,9 @@ export async function askFromDevice(question, signal, { history = [], attachment
     };
   }
   checkSnapshot();
-  if (signal?.aborted || current !== own || own.session.generation !== generation) throw new Error('요청이 취소됐습니다');
-  if (own.store.getCurrentWorkspace().id !== ws) throw new Error('작업 공간이 바뀌었습니다');
   const attachedIds = new Set(attached.map(a => a.id));
-  for (const ref of answer.sources) {
-    if (attachedIds.has(ref.id)) continue; // 첨부 파일은 기기 기록이 아닙니다.
-    const before = contextRecords.find(r => r.id === ref.id); const after = before?.type === 'memo' ? own.store.getMemo(ref.id) : own.store.getTask(ref.id);
-    if (!after || after.revision !== before.revision || aiPolicy(after).excluded) throw new Error('답변에 사용한 원본이 바뀌었습니다. 다시 질문해 주세요');
-  }
-  requireTransmission(policy.route, [aiPolicy()], aiPolicy().consent);
-  return { ...answer, sources: answer.sources.map(s => ({ ...s, route: attachedIds.has(s.id) ? null : s.type === 'memo' ? 'MemoEdit' : 'TaskEdit' })) };
+  const routes = { memo: ROUTES.MemoEdit, task: ROUTES.TaskEdit, event: ROUTES.TaskEdit, file: ROUTES.Files, project: ROUTES.ProjectDetail };
+  return { ...answer, sources: answer.sources.map(source => ({ ...source, route: attachedIds.has(source.id) ? null : routes[source.type] ?? null })) };
 }
 
 export async function recommendMemoForPhoto(photoText, signal) {
