@@ -3,7 +3,7 @@
     "name": "Atria",
     "slug": "planner",
     "scheme": "ai-assistant-planner",
-    "version": "0.0.14",
+    "version": "0.0.15",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -15,7 +15,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "versionCode": 16
+      "versionCode": 17
     },
     "web": {
       "favicon": "./assets/favicon.png"
