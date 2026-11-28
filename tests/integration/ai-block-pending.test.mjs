@@ -119,20 +119,13 @@ test('a replace answer keeps the original until accepted; reject restores the do
   assert.equal(blocks()[0].id, 'b1');
 });
 
-test('top tabs keep daily destinations; review, AI settings and tools stay reachable without menu duplication', () => {
+test('top tabs keep daily destinations; review, AI settings and tools stay reachable', () => {
   assert.deepEqual(TABS.map(tab => tab.route), [ROUTES.Home, ROUTES.Tasks, ROUTES.Memos, ROUTES.Projects]);
-  const spaceRoutes = SPACE_TOOLS.map(([route]) => route);
-  const moreRoutes = MORE_SECTIONS.flatMap(section => section.items).map(item => item.route);
-  const tabRoutes = TABS.flatMap(tab => tab.pages).map(item => item.route);
-  const reachable = [...spaceRoutes, ...moreRoutes];
+  const more = MORE_SECTIONS.flatMap(section => section.items).map(item => item.route);
   for (const route of [ROUTES.LocalModel, ROUTES.Proposals, ROUTES.Relations, ROUTES.AdvancedMemos, ROUTES.Trash]) {
-    assert.ok(reachable.includes(route), route);
+    assert.ok(more.includes(route), route);
   }
   assert.equal(ROUTE_LABELS[ROUTES.Proposals], '작업 검토');
-  for (const route of moreRoutes) {
-    assert.equal(spaceRoutes.includes(route), false, `duplicate with SPACE_TOOLS: ${route}`);
-    assert.equal(tabRoutes.includes(route), false, `duplicate with TABS: ${route}`);
-  }
 });
 
 test('an AI rewrite of the long-pressed block becomes that block\'s proposed text, not a refused app command', () => {

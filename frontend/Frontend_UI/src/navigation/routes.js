@@ -87,14 +87,34 @@ export const SPACE_TOOLS = [
   [ROUTES.Settings, '설정', 'settings', '관리'],
   [ROUTES.More, '모든 도구', 'grid', '관리'],
 ];
-// '모든 도구' 화면: 상단 탭·하단 도크·작업 공간 메뉴와 겹치지 않는 고급 도구만 둔다.
+// '모든 도구' 화면: 모든 AI·도구·계정 항목에 직접 접근할 수 있게 유지한다.
 export const MORE_SECTIONS = [
   {
-    title: '고급 도구',
+    title: 'AI',
     items: [
+      { route: ROUTES.AiChat, label: 'AI 채팅', icon: 'message' },
+      { route: ROUTES.Proposals, label: '작업 검토', icon: 'sparkles' },
+      { route: ROUTES.LocalModel, label: 'AI 연결', icon: 'sparkles' },
+    ],
+  },
+  {
+    title: '도구',
+    items: [
+      { route: ROUTES.Search, label: '검색', icon: 'search' },
       { route: ROUTES.Relations, label: '문서 관계', icon: 'link' },
       { route: ROUTES.AdvancedMemos, label: '가져오기와 내보내기', icon: 'arrowUp' },
       { route: ROUTES.AgendaCompare, label: '안건 비교', icon: 'compare' },
+      { route: ROUTES.QuickInput, label: '사진, 문서 올리기', icon: 'arrowUp', params: { tab: 'file' } },
+      { route: ROUTES.Favorites, label: '즐겨찾기', icon: 'star' },
+      { route: ROUTES.Files, label: '파일 보관함', icon: 'paperclip' },
+      { route: ROUTES.Trash, label: '휴지통', icon: 'trash' },
+    ],
+  },
+  {
+    title: '계정',
+    items: [
+      { route: ROUTES.Backup, label: '백업 및 복원', icon: 'cloud' },
+      { route: ROUTES.Settings, label: '설정', icon: 'settings' },
     ],
   },
 ];

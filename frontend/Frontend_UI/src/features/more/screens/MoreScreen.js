@@ -9,6 +9,7 @@ import { Group, Row, SectionTitle } from '../../../shared/components/SettingsUi'
 import Icon from '../../../shared/components/Icon';
 import { colors, spacing } from '../../../shared/theme/theme';
 import { MORE_SECTIONS, ROUTES } from '../../../navigation/routes';
+import { useProposals } from '../../../data/proposals/ProposalStore';
 import { PLANS, useSettings } from '../../../data/settings/SettingsStore';
 import { useInsets } from '../../../shared/hooks/useInsets';
 
@@ -16,6 +17,8 @@ export default function MoreScreen({ navigation }) {
   const insets = useInsets();
   const s = useSettings();
   const name = s.profile.name.trim();
+  const waiting = useProposals().filter((p) => p.status === 'pending').length;
+  const valueOf = { [ROUTES.Proposals]: waiting ? `${waiting}건` : '' };
 
   return (
     <View style={styles.root}>
@@ -34,7 +37,7 @@ export default function MoreScreen({ navigation }) {
             <SectionTitle>{sec.title}</SectionTitle>
             <Group>
               {sec.items.map((i) => (
-                <Row key={i.route} icon={i.icon} label={i.label} onPress={() => navigation.navigate(i.route, i.params)} />
+                <Row key={i.route} icon={i.icon} label={i.label} value={valueOf[i.route] || undefined} onPress={() => navigation.navigate(i.route, i.params)} />
               ))}
             </Group>
           </View>
