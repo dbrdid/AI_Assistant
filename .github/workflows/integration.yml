@@ -17,6 +17,10 @@ jobs:
           cache-dependency-path: tests/sync-verify/package-lock.json
       - run: npm ci --ignore-scripts
         working-directory: tests/sync-verify
+      - name: Expose @noble/ciphers for integration bridge-relay test
+        run: |
+          mkdir -p node_modules
+          ln -sfn "$PWD/tests/sync-verify/node_modules/@noble" node_modules/@noble
       - run: npm run test:local
       - run: npm run test:ai
       - run: npm run test:integration
