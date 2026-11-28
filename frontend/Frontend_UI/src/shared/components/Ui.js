@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   inlineDeleteButton: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
   inlineDeleteText: { fontSize: font.caption, fontWeight: '600', color: colors.coral },
   circle: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.line },
-  badgeDot: { position: 'absolute', top: 7, right: 8, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.coral, borderWidth: 1, borderColor: colors.white },
+  badgeDot: { position: 'absolute', top: 7, right: 8, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.coral, borderWidth: 1, borderColor: colors.cream },
   dock: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: 16, paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.cream },
   dockButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm },
   // Stella 주요 버튼(features/stella/theme.js primary·secondary)과 같은 4px 모서리
@@ -181,8 +181,8 @@ const styles = StyleSheet.create({
   pillGhost: { backgroundColor: 'transparent', borderWidth: 0, borderColor: colors.actionBorder },
   pillText: { fontSize: 14, fontWeight: '600' },
   card: { backgroundColor: colors.card, borderRadius: radius.card, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, padding: spacing.lg },
-  // 선택 전 칩은 면 없이 흐린 글자, 선택된 칩만 낮은 대비의 면으로 표시한다(밝은 채움 금지).
-  chip: { minHeight: 44, marginRight: 20, justifyContent: 'center' },
+  // 선택 전 칩은 면 없이 흐린 글자, 선택된 칩만 강조(최소 44x44 터치 영역 확보, 여백은 부모 gap 사용)
+  chip: { minHeight: 44, minWidth: 44, paddingHorizontal: 10, justifyContent: 'center', alignItems: 'center' },
   chipActive: {},
   chipText: { fontSize: 12, color: colors.muted },
   chipTextActive: { color: colors.ink, fontWeight: '700' },
@@ -191,8 +191,8 @@ const styles = StyleSheet.create({
   tagMuted: { backgroundColor: colors.raised, borderRadius: radius.pill },
   tagText: { fontSize: font.caption, fontWeight: '500', color: colors.mintDark },
   tile: { alignItems: 'center', justifyContent: 'center' },
-  // '+ 추가' 행: Notion의 새 페이지 행처럼 흐린 글자, 누를 때만 면 표시
-  dashed: { flexDirection: 'row', gap: 8, minHeight: 44, borderRadius: radius.md, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'flex-start' },
+  // '+ 추가' 행: Notion의 새 페이지 행처럼 흐린 글자, 섹션 제목과 좌측선 정렬
+  dashed: { flexDirection: 'row', gap: 8, minHeight: 44, borderRadius: radius.md, paddingHorizontal: 0, alignItems: 'center', justifyContent: 'flex-start' },
   dashedText: { fontSize: 14, fontWeight: '500', color: colors.muted },
   stat: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 48, paddingHorizontal: spacing.md, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline, backgroundColor: colors.card },
   statLabel: { flex: 1, fontSize: font.body, color: colors.muted },

@@ -38,7 +38,7 @@ export function flushSessionDrafts() {
   for (const flush of sessionFlushers) flush({ analyze: false });
 }
 export const runtimeSubscribe = fn => { listeners.add(fn); return () => listeners.delete(fn); };
-const emit = () => { for (const fn of listeners) fn(); };
+const emit = (domain = 'all', detail) => { for (const fn of listeners) fn(domain, detail); };
 // Adapters whose data lives outside the local store (server sync records, server RPC caches) call this after they change.
 export const emitRuntime = emit;
 // Sync-engine context for one shared workspace (projects, team, invites are written to the engine directly).
@@ -88,7 +88,7 @@ export function readPreference(key, fallback) {
 export function writePreference(key, value) {
   persistPreference(runtime().db, key, value);
   preferenceCache.set(key, value);
-  emit(); return value;
+  emit('prefs', key); return value;
 }
 
 function persistPreference(db, key, value) {

@@ -5,15 +5,84 @@
 // 아래(children)에는 선택한 날의 일정 목록(흰 시트)이 붙습니다.
 
 import React, { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { colors, radius, spacing } from '../../../shared/theme/theme';
+import { SheetModal } from '../../../shared/components/Motion';
 import { CircleButton } from '../../../shared/components/Ui';
 import Icon from '../../../shared/components/Icon';
+import YearMonthWheel from '../../../shared/components/YearMonthWheel';
 import { WEEKDAYS, isSameDay, monthMatrix, toKey } from '../utils/DateUtils';
 
 const OUTSIDE = '#6a6e71'; // 이번 달이 아닌 날짜: 어두운 배경에서 한 단계 물러난 회색
 const WEEKEND = '#d79b9b'; // 일요일·공휴일: 코랄을 낮춘 색(강조보다 구분용)
 const TODAY = '#ffffff'; // 오늘: 가장 밝은 글자 + 굵게(녹색 없이 구분)
+
+function MonthPickerBody({ initialYear, initialMonth, todayYear, todayMonth, onClose, onConfirm }) {
+  const [pickYear, setPickYear] = useState(initialYear);
+  const [pickMonth, setPickMonth] = useState(initialMonth);
+  const [jumpVersion, setJumpVersion] = useState(0);
+
+  return (
+    <>
+      <View style={styles.pickerHandle} />
+      <View style={styles.pickerHeader}>
+        <Text style={styles.pickYear}>{pickYear}년 {pickMonth + 1}월</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="이번 달로 이동"
+          onPress={() => {
+            setPickYear(todayYear);
+            setPickMonth(todayMonth);
+            setJumpVersion((n) => n + 1);
+          }}
+          style={({ pressed }) => [styles.thisMonthBtn, pressed && styles.pickerPressed]}
+        >
+          <Text style={styles.thisMonthText}>이번 달</Text>
+        </Pressable>
+      </View>
+      <View style={styles.pickerDivider} />
+      <YearMonthWheel
+        year={pickYear}
+        month={pickMonth}
+        jumpVersion={jumpVersion}
+        onChangeYear={setPickYear}
+        onChangeMonth={setPickMonth}
+      />
+      <View style={styles.pickerFooter}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onClose}
+          style={({ pressed }) => [styles.pickerBtn, styles.pickerCancel, pressed && styles.pickerPressed]}
+        >
+          <Text style={styles.pickerCancelText}>취소</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => onConfirm(pickYear, pickMonth)}
+          style={({ pressed }) => [styles.pickerBtn, styles.pickerConfirm, pressed && { opacity: 0.85 }]}
+        >
+          <Text style={styles.pickerConfirmText}>이동</Text>
+        </Pressable>
+      </View>
+    </>
+  );
+}
+
+function MonthPickerSheet({ visible, session, initialYear, initialMonth, todayYear, todayMonth, onClose, onConfirm }) {
+  return (
+    <SheetModal visible={visible} onClose={onClose} label="연도와 월 선택" style={styles.pickerSheet}>
+      <MonthPickerBody
+        key={session}
+        initialYear={initialYear}
+        initialMonth={initialMonth}
+        todayYear={todayYear}
+        todayMonth={todayMonth}
+        onClose={onClose}
+        onConfirm={onConfirm}
+      />
+    </SheetModal>
+  );
+}
 
 export default function MonthCalendar({
   year,
@@ -35,9 +104,15 @@ export default function MonthCalendar({
 }) {
   // 이 달의 달력 표(주 단위 배열)를 계산
   const weeks = monthMatrix(year, month);
-  // 연·월 고르기 창
+  // 연·월 2열 스크롤 휠 바텀시트 (상태를 MonthPickerSheet로 격리해 휠 스크롤 중 달력 리렌더 방지)
   const [picking, setPicking] = useState(false);
-  const [pickYear, setPickYear] = useState(year);
+  const [pickerSession, setPickerSession] = useState(0);
+  const todayYear = today.getFullYear();
+  const todayMonth = today.getMonth();
+  const openPicker = () => {
+    setPickerSession((n) => n + 1);
+    setPicking(true);
+  };
 
   return (
     <ScrollView scrollEnabled={scrollEnabled} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} style={styles.root} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -48,10 +123,7 @@ export default function MonthCalendar({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="연도와 월 선택"
-            onPress={() => {
-              setPickYear(year);
-              setPicking(true);
-            }}
+            onPress={openPicker}
             hitSlop={6}
             style={styles.monthBtnRow}
           >
@@ -60,8 +132,8 @@ export default function MonthCalendar({
           </Pressable>
           <View style={styles.monthNav}>
             {actions}
-            <CircleButton icon="chevronLeft" label="이전 달" onPress={onPrev} size={34} iconSize={18} />
-            <CircleButton icon="chevronRight" label="다음 달" onPress={onNext} size={34} iconSize={18} />
+            <CircleButton icon="chevronLeft" label="이전 달" onPress={onPrev} size={40} iconSize={18} />
+            <CircleButton icon="chevronRight" label="다음 달" onPress={onNext} size={40} iconSize={18} />
           </View>
         </View>
 
@@ -147,40 +219,20 @@ export default function MonthCalendar({
       {/* ---------- 4) 아래: 선택한 날의 일정 목록 등 ---------- */}
       {children}
 
-      {/* ---------- 연·월 고르기 창 ---------- */}
-      <Modal transparent visible={picking} animationType="fade" onRequestClose={() => setPicking(false)}>
-        <View style={styles.backdrop}>
-          <View style={styles.dialog} accessibilityViewIsModal>
-            <View style={styles.yearRow}>
-              <CircleButton icon="chevronLeft" label="이전 해" onPress={() => setPickYear((y) => Math.max(1900, y - 1))} size={36} iconSize={18} />
-              <Text style={styles.pickYear}>{pickYear}년</Text>
-              <CircleButton icon="chevronRight" label="다음 해" onPress={() => setPickYear((y) => Math.min(2100, y + 1))} size={36} iconSize={18} />
-            </View>
-            <View style={styles.monthGrid}>
-              {Array.from({ length: 12 }).map((_, m) => {
-                const on = pickYear === year && m === month;
-                return (
-                  <Pressable
-                    key={m}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: on }}
-                    onPress={() => {
-                      setPicking(false);
-                      onPickMonth(pickYear, m);
-                    }}
-                    style={[styles.monthBtn, on && styles.monthBtnOn]}
-                  >
-                    <Text style={[styles.monthBtnText, on && { color: colors.onPrimary, fontWeight: '600' }]}>{m + 1}월</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Pressable accessibilityRole="button" onPress={() => setPicking(false)} style={styles.closeBtn}>
-              <Text style={styles.closeText}>닫기</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      {/* ---------- 연·월 2열 스크롤 휠 바텀시트 ---------- */}
+      <MonthPickerSheet
+        visible={picking}
+        session={pickerSession}
+        initialYear={year}
+        initialMonth={month}
+        todayYear={todayYear}
+        todayMonth={todayMonth}
+        onClose={() => setPicking(false)}
+        onConfirm={(y, m) => {
+          setPicking(false);
+          onPickMonth(y, m);
+        }}
+      />
     </ScrollView>
   );
 }
@@ -192,7 +244,7 @@ const styles = StyleSheet.create({
   grid: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   // 맨 위 줄: 왼쪽 달 이름, 오른쪽 ‹ › 버튼
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, marginBottom: spacing.sm, paddingLeft: spacing.xs },
-  monthBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  monthBtnRow: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44 },
   month: { fontSize: 18, fontWeight: '600', letterSpacing: -0.3, color: colors.ink },
   monthNav: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   search: { marginBottom: spacing.md },
@@ -219,25 +271,19 @@ const styles = StyleSheet.create({
   titles: { alignSelf: 'stretch', paddingHorizontal: 2, gap: 1, marginTop: 2 },
   titleText: { fontSize: 10, lineHeight: 13, color: colors.ink, backgroundColor: colors.raised, borderRadius: 3, paddingHorizontal: 2, overflow: 'hidden' },
 
-  // 연·월 고르기 창
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  dialog: { width: '100%', maxWidth: 340, backgroundColor: colors.cream, borderRadius: radius.lg, padding: spacing.xl, gap: spacing.lg },
-  yearRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  pickYear: { fontSize: font.title, fontWeight: '600', color: colors.ink },
-  monthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  monthBtn: {
-    width: '23%',
-    flexGrow: 1,
-    minHeight: 44,
-    borderRadius: radius.pill,
-    backgroundColor: 'transparent',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.hairline,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  monthBtnOn: { backgroundColor: colors.raised, borderColor: colors.raised },
-  monthBtnText: { fontSize: 15, color: colors.ink, fontWeight: '500' },
-  closeBtn: { minHeight: 44, borderRadius: radius.sm, borderWidth: 0, borderColor: colors.hairline, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
-  closeText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
+  // 연·월 2열 스크롤 휠 바텀시트 (Stella/Notion 절제된 무채색 · 4~6px 모서리 톤 통일)
+  pickerSheet: { paddingTop: 12, gap: 0 },
+  pickerHandle: { alignSelf: 'center', width: 32, height: 4, borderRadius: 3, backgroundColor: '#666', marginBottom: 12 },
+  pickerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, marginBottom: 6 },
+  pickYear: { fontSize: 16, fontWeight: '600', letterSpacing: -0.3, color: colors.ink, fontVariant: ['tabular-nums'] },
+  thisMonthBtn: { minHeight: 44, paddingHorizontal: 10, marginRight: -10, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
+  thisMonthText: { fontSize: 13, fontWeight: '500', color: colors.muted },
+  pickerDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line, marginBottom: 10 },
+  pickerFooter: { flexDirection: 'row', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
+  pickerBtn: { flex: 1, minHeight: 44, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
+  pickerCancel: { backgroundColor: 'transparent' },
+  pickerCancelText: { fontSize: 14, fontWeight: '500', color: colors.muted },
+  pickerConfirm: { backgroundColor: colors.action },
+  pickerConfirmText: { fontSize: 14, fontWeight: '600', color: colors.onPrimary },
+  pickerPressed: { backgroundColor: colors.raised },
 });

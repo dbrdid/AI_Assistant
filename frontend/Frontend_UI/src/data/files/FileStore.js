@@ -101,7 +101,8 @@ function refreshCloud() {
 }
 // 런타임 변경(동기화 결과, 작업 공간 전환 등) 후 다시 읽습니다. 여러 요청은 하나로 합칩니다.
 let cloudTimer = null;
-runtimeSubscribe(() => {
+runtimeSubscribe((domain, key) => {
+  if (domain === 'prefs' && !String(key || '').includes('cloud-file-texts')) return;
   if (cloudTimer) return;
   cloudTimer = setTimeout(() => { cloudTimer = null; void refreshCloud(); }, 150);
 });

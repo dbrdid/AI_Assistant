@@ -9,12 +9,14 @@ import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import Icon from '../../../shared/components/Icon';
 import { Chip, CircleButton, InlineDeletePrompt, Tag } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import { useInsets } from '../../../shared/hooks/useInsets';
 import { ROUTES } from '../../../navigation/routes';
 import {
   GROUP_ACCESS, deleteGroup, getProject, moveMembers, removeMembers, saveGroup, setGroupMember, updateMember, useProjects,
 } from '../../../data/projects/ProjectStore';
 
 export default function TeamScreen({ navigation, route }) {
+  const insets = useInsets();
   const projectId = route?.params?.projectId;
   const projects = useProjects();
   const project = getProject(projectId);
@@ -154,7 +156,7 @@ export default function TeamScreen({ navigation, route }) {
       </ScrollView>
 
       {selecting && (
-        <View style={styles.bar}>
+        <View style={[styles.bar, { paddingBottom: Math.max(spacing.md, insets.bottom + spacing.xs) }]}>
           <Text style={styles.barCount}>{notice || `${picked.length}명 선택`}</Text>
           <View style={styles.barRow}>
             <Pressable accessibilityRole="button" onPress={exit} style={styles.barBtn}><Text style={styles.barText}>취소</Text></Pressable>
@@ -299,7 +301,7 @@ const styles = StyleSheet.create({
   count: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   selectText: { fontSize: font.body, fontWeight: '500', color: colors.mintDark },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: 4, borderWidth: 1, borderColor: 'transparent', minHeight: 56 },
-  rowOn: { borderColor: '#fff' },
+  rowOn: { borderColor: colors.actionBorder, backgroundColor: colors.card },
   name: { flex: 1, fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   roleTag: { alignSelf: 'center' },
   sub: { fontSize: font.body, fontWeight: '500', color: colors.muted },

@@ -19,15 +19,18 @@ export default function WithdrawScreen({ navigation }) {
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null); // 서버 미리 보기: 공간별로 삭제·넘김·나가기
   const [previewError, setPreviewError] = useState('');
+  const [reloadCount, setReloadCount] = useState(0);
   const notice = useNotice();
 
   useEffect(() => {
     let alive = true;
+    setPreview(null);
+    setPreviewError('');
     loadWithdrawPreview()
       .then((rows) => alive && setPreview(rows))
       .catch((e) => alive && setPreviewError(withdrawErrorMessage(e)));
     return () => { alive = false; };
-  }, []);
+  }, [reloadCount]);
 
   return (
     <View style={styles.root}>
@@ -46,7 +49,14 @@ export default function WithdrawScreen({ navigation }) {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>내 공유 공간은 이렇게 돼요</Text>
           {preview === null && !previewError && <ActivityIndicator color={colors.mintDark} style={{ alignSelf: 'flex-start' }} />}
-          {!!previewError && <Text style={[styles.line, { color: colors.coral }]}>{previewError}</Text>}
+          {!!previewError && (
+            <View style={{ gap: spacing.sm }}>
+              <Text style={[styles.line, { color: colors.coral }]}>{previewError}</Text>
+              <Pressable accessibilityRole="button" onPress={() => setReloadCount((n) => n + 1)} style={styles.retry}>
+                <Text style={styles.cancelText}>다시 불러오기</Text>
+              </Pressable>
+            </View>
+          )}
           {preview && preview.length === 0 && <Text style={styles.line}>참여 중인 공유 공간이 없어요.</Text>}
           {preview && preview.map((p) => <Text key={p.workspace_id} style={styles.line}>• {withdrawPreviewText(p)}</Text>)}
         </View>
@@ -101,5 +111,6 @@ const styles = StyleSheet.create({
   danger: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.coralSoft, alignItems: 'center', justifyContent: 'center' },
   dangerText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },
   cancel: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  retry: { minHeight: 44, paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.cream, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
   cancelText: { fontSize: font.bodyLg, fontWeight: '500', color: colors.ink },
 });

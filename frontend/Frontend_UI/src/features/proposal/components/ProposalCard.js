@@ -58,7 +58,7 @@ export default function ProposalCard({ p, actions, expanded, onToggle, onSource,
 
 const styles = StyleSheet.create({
   item: { borderWidth: 1, borderColor: 'transparent', borderRadius: 6 },
-  selected: { borderColor: colors.ink },
+  selected: { borderColor: colors.actionBorder, backgroundColor: colors.card },
   heading: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10, paddingVertical: 8 },
   details: { flex: 1, gap: 3 },
   title: { fontSize: 15, fontWeight: '600', color: colors.ink },

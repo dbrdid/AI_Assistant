@@ -25,7 +25,7 @@ export default function MoreScreen({ navigation }) {
       <ScreenHeader title="모든 도구" onBack={navigation.goBack} />
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: spacing.xxl + insets.bottom }]}>
         <Pressable accessibilityRole="button" accessibilityLabel="계정 정보 보기" onPress={() => navigation.navigate(ROUTES.Account)} style={({ pressed }) => [styles.account, pressed && { backgroundColor: colors.raised }]}>
-          <View style={styles.avatar}><Text style={styles.avatarText}>{name ? name.charAt(0) : '나'}</Text></View>
+          <View style={styles.avatar}><Text style={styles.avatarText}>{name ? name.charAt(0).toUpperCase() : '나'}</Text></View>
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={styles.name}>{name || '이름을 설정해 주세요'}</Text>
             <Text style={styles.email} numberOfLines={1}>{s.profile.email && s.profile.email !== name ? `${s.profile.email}, ${PLANS[s.plan].name}` : !s.profile.email ? `로그인 전, ${PLANS[s.plan].name}` : PLANS[s.plan].name}</Text>

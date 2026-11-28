@@ -2,7 +2,7 @@
 // AccountScreen.js — 계정 / 프로필 수정
 // ============================================================
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { checkPasswordRule, PASSWORD_RULE_MESSAGE } from '../../../lib/stella/login-rules';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
@@ -49,6 +49,8 @@ export default function AccountScreen({ navigation }) {
   };
   const dirty = !same({ name: name.trim(), affiliation: aff.trim() }, { name: saved.profile.name, affiliation: saved.profile.affiliation });
 
+  const backTimer = useRef(null);
+  useEffect(() => () => clearTimeout(backTimer.current), []);
   const save = async () => {
     if (busy) return;
     if (!name.trim()) return setError('이름을 입력해 주세요.');
@@ -58,7 +60,8 @@ export default function AccountScreen({ navigation }) {
     catch (e) { setError(e.message); return; }
     finally { setBusy(false); }
     notice.show('저장했어요');
-    setTimeout(() => navigation.goBack(), 600);
+    clearTimeout(backTimer.current);
+    backTimer.current = setTimeout(() => navigation.goBack(), 600);
   };
 
   return (
@@ -66,7 +69,7 @@ export default function AccountScreen({ navigation }) {
       <ScreenHeader title="계정" onBack={navigation.goBack} />
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{name.trim() ? name.trim().charAt(0) : '?'}</Text>
+          <Text style={styles.avatarText}>{name.trim() ? name.trim().charAt(0).toUpperCase() : '?'}</Text>
         </View>
         <Text style={styles.email}>{saved.profile.email || '로그인 전 (이메일은 가입 후 표시돼요)'}</Text>
 

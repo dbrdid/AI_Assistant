@@ -27,7 +27,7 @@ export default function SettingsScreen({ navigation }) {
       <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Pressable accessibilityRole="button" accessibilityLabel="계정 정보 보기" onPress={() => navigation.navigate(ROUTES.Account)} style={({ pressed }) => [styles.account, pressed && { backgroundColor: colors.mintSoft }]}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{name ? name.charAt(0) : '?'}</Text>
+            <Text style={styles.avatarText}>{name ? name.charAt(0).toUpperCase() : '?'}</Text>
           </View>
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={styles.name}>{name || '이름을 설정해 주세요'}</Text>

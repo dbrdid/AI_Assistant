@@ -171,10 +171,15 @@ export default function DocumentEditor({
   }
   useEffect(() => {
     const unregister = registerSessionFlush(() => saveRef.current());
-    const back = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (attemptSave() !== false) navigation.goBack();
-      return true;
-    });
+    const removeBack = navigation.registerHardwareBackGuard
+      ? navigation.registerHardwareBackGuard(() => attemptSave() !== false)
+      : (() => {
+        const back = BackHandler.addEventListener('hardwareBackPress', () => {
+          if (attemptSave() !== false) navigation.goBack();
+          return true;
+        });
+        return () => back.remove();
+      })();
     const background = AppState.addEventListener('change', state => {
       if (state !== 'active') attemptSave();
     });
@@ -214,7 +219,7 @@ export default function DocumentEditor({
       localRequest.current?.abort();
       unregister();
       background.remove();
-      back.remove();
+      removeBack();
       if (Platform.OS === 'web') globalThis.removeEventListener?.('keydown', saveVersionKey);
       if (Platform.OS === 'web') globalThis.removeEventListener?.('beforeunload', beforeUnload);
     };
@@ -592,7 +597,7 @@ export default function DocumentEditor({
         position:'absolute', top:Math.min(menuAnchor.bottom + 4, viewport.height / 2),
         right:Math.max(8, viewport.width - menuAnchor.right), width:Math.min(292, viewport.width - 24),
         maxHeight:Math.max(100,viewport.height - menuAnchor.bottom - 24), backgroundColor:c.background,
-        padding:12,borderWidth:1,borderColor:c.line,borderRadius:8
+        padding:12,borderWidth:1,borderColor:c.line,borderRadius:14
       } : {width:'85%',maxWidth:340,backgroundColor:c.background,padding:16,paddingTop:Math.max(12,insets.top)}}>
         <View style={s.titleRow}><Text style={s.sectionTitle}>{panel==='tree'?'문서 탐색':'문서 작업'}</Text><IconButton name="x" label="닫기" onPress={()=>setPanel(null)}/></View>
         <ScrollView keyboardShouldPersistTaps="handled">{panel==='tree'?<><View style={s.section}><View style={s.titleRow}><Text style={s.sectionTitle}>하위 문서</Text><Pressable accessibilityRole="button" accessibilityLabel="하위 문서 만들기" disabled={readOnly} onPress={createChild} style={{flexDirection:'row',alignItems:'center',gap:6,minHeight:44,opacity:readOnly ? 0.4 : 1}}><Icon name="plus" size={17} color={c.muted}/><Text style={s.linkText}>새 문서</Text></Pressable></View>{children.map(child => <View key={child.id} style={s.row}><Pressable accessibilityRole="button" accessibilityLabel={`하위 문서 열기: ${child.title || '제목 없는 문서'}`} onPress={() => openDocument(child.id)} style={{flex:1,minWidth:0,minHeight:44,flexDirection:'row',alignItems:'center',gap:10}}><Icon name="file" size={18} color={c.muted}/><Text numberOfLines={1} style={[s.rowTitle,{flex:1}]}>{child.title || '제목 없는 문서'}</Text></Pressable><IconButton name="trash" label={`하위 문서 삭제: ${child.title || '제목 없는 문서'}`} disabled={readOnly} onPress={() => {setPanel(null);setChildToDelete(child);}}/></View>)}{deletedChild && <View style={s.row}><Text accessibilityLiveRegion="polite" style={[s.meta,{flex:1}]}>휴지통으로 이동했습니다.</Text><Pressable accessibilityRole="button" accessibilityLabel="하위 문서 삭제 취소" disabled={readOnly} onPress={undoChildDelete} style={{minHeight:44,justifyContent:'center'}}><Text style={s.linkText}>삭제 취소</Text></Pressable></View>}</View><Pressable style={s.menuRow} accessibilityRole="button" onPress={()=>{if(attemptSave()!==false)navigation.navigate(ROUTES.Memos);}}><Text style={s.menuLabel}>전체 문서 열기</Text></Pressable></>:<><View style={[s.editorTools, { paddingBottom: 8 }]}><IconButton name="type" label="선택한 블록 형식" onPress={() => {setPanel(null);blockEditorRef.current?.format();}} disabled={missing || readOnly || editorMode !== "blocks"} /><IconButton name="undo" label="되돌리기" onPress={() => stepHistory("undo")} disabled={readOnly || !history.current.undo.length} /><IconButton name="redo" label="다시 실행" onPress={() => stepHistory("redo")} disabled={readOnly || !history.current.redo.length} /><IconButton name="pencil" label="필기와 첨부 편집" onPress={() => leave('advanced')} disabled={missing || readOnly} /><IconButton name="sparkles" label={busy ? "분석 중" : "문서 요약 제안"} onPress={() => {setPanel(null);analyze();}} disabled={busy || readOnly || missing} /></View>{(linked.length > 0 || documentLinks.length > 0) && <View style={s.section}><View style={s.titleRow}><Text style={s.sectionTitle}>연결된 기록</Text><IconButton name="link" label="할 일과 일정 연결" disabled={readOnly} onPress={() => { setPanel(null);

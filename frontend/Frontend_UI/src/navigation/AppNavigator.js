@@ -43,7 +43,6 @@ import NoticeScreen from '../features/notice/screens/NoticeScreen';
 import { onNotificationTap } from '../services/notify/Notify';
 import { getTask } from '../data/tasks/TaskStore';
 import { getProject } from '../data/projects/ProjectStore';
-import ProposalListScreen from '../features/proposal/screens/ProposalListScreen';
 import ProposalConfirmScreen from '../features/proposal/screens/ProposalConfirmScreen';
 import { AnalysisFailedScreen, NetworkErrorScreen, ServerErrorScreen } from '../features/error/screens/ErrorScreens';
 import QuickInputScreen from '../features/quick/screens/QuickInputScreen';

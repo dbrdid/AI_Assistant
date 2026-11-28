@@ -6,7 +6,8 @@
 
 import React, { useMemo, useRef } from 'react';
 import { Animated, PanResponder, StyleSheet, View } from 'react-native';
-import { colors, font, radius } from '../../../shared/theme/theme';
+import { colors, font } from '../../../shared/theme/theme';
+import { useClaimSwipeGesture } from '../../../shared/hooks/useClaimSwipeGesture';
 
 const REVEAL = 88;   // 뒤 버튼 너비
 const TRIGGER = 72;  // 이만큼 넘게 밀고 놓으면 실행
@@ -15,14 +16,19 @@ export default function SwipeRow({ actionLabel, onAction, children, style }) {
   const x = useRef(new Animated.Value(0)).current;
   const latest = useRef(onAction);
   latest.current = onAction;
+  const claimSwipe = useClaimSwipeGesture();
 
   const pan = useMemo(
     () =>
       PanResponder.create({
         // 가로로 확실히 밀 때만 가져감 (세로 스크롤 · 탭과 충돌하지 않게)
         onMoveShouldSetPanResponder: (_, g) => g.dx < -10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+        onPanResponderGrant: () => claimSwipe(),
         onPanResponderTerminationRequest: () => false,
-        onPanResponderMove: (_, g) => x.setValue(Math.max(-REVEAL - 24, Math.min(0, g.dx))),
+        onPanResponderMove: (_, g) => {
+          claimSwipe();
+          x.setValue(Math.max(-REVEAL - 24, Math.min(0, g.dx)));
+        },
         onPanResponderRelease: (_, g) => {
           const fire = g.dx < -TRIGGER;
           Animated.spring(x, { toValue: 0, friction: 8, useNativeDriver: false }).start();
@@ -30,7 +36,7 @@ export default function SwipeRow({ actionLabel, onAction, children, style }) {
         },
         onPanResponderTerminate: () => Animated.spring(x, { toValue: 0, useNativeDriver: false }).start(),
       }),
-    [x],
+    [x, claimSwipe],
   );
 
   // 미루기는 지우기가 아니라서 붉은색 대신 회색. TRIGGER를 넘으면 밝아져 놓으면 실행됨을 알림
@@ -59,7 +65,7 @@ export default function SwipeRow({ actionLabel, onAction, children, style }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { borderRadius: radius.card, overflow: 'hidden' },
-  under: { position: 'absolute', top: 0, bottom: 0, right: 0, width: REVEAL + 40, alignItems: 'flex-end', justifyContent: 'center', paddingRight: 16, borderRadius: radius.card },
+  wrap: { borderRadius: 0, overflow: 'hidden' },
+  under: { position: 'absolute', top: 0, bottom: 0, right: 0, width: REVEAL + 40, alignItems: 'flex-end', justifyContent: 'center', paddingRight: 16 },
   underText: { fontSize: font.body, fontWeight: '600', width: REVEAL - 16, textAlign: 'center' },
 });

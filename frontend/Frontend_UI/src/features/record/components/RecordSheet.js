@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   note: { fontSize: font.body, color: colors.mintDark, lineHeight: 20, fontWeight: '600' },
   error: { fontSize: font.body, color: colors.coral, lineHeight: 20, fontWeight: '600' },
 
-  textBox: { padding: spacing.md, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
+  textBox: { padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.card },
   text: { fontSize: font.body, color: colors.ink, lineHeight: 21 },
   primary: { minHeight: 52, borderRadius: radius.sm, backgroundColor: colors.action, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.sm },
   primaryText: { fontSize: font.bodyLg, fontWeight: '600', color: colors.onPrimary },

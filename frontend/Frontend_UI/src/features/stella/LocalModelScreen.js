@@ -303,12 +303,13 @@ export default function LocalModelScreen({ navigation, route, sheet = null }) {
       <View style={s.titleRow}><Text style={s.sectionTitle}>AI 연결</Text><IconButton name="x" label="AI 연결 닫기" onPress={() => setShowSettings(false)} /></View>
       <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: 4 }}>{cards}{errorView}</ScrollView>
     </SheetModal>
-    <Modal visible={!!picker} transparent onRequestClose={() => setPicker(null)}><View style={s.modalShade}><View style={s.sheet}>
+    <SheetModal visible={!!picker} onClose={() => setPicker(null)} label={picker === 'provider' ? 'AI 연결' : '모델 선택'}>
+      <View style={s.handle} />
       <View style={s.titleRow}><Text style={s.sectionTitle}>{picker === 'provider' ? 'AI 연결' : '모델 선택'}</Text><IconButton name="x" label="닫기" onPress={() => setPicker(null)} /></View>
       {picker === 'provider' && Object.entries(PROVIDERS).filter(([id]) => native || id !== 'device').map(([id, item]) => <View key={id}>
         {row(item.label, () => { setPicker(null); update({ provider: id }); }, id === provider)}</View>)}
       {picker === 'device' && deviceList.map(id => <View key={id}>{row(deviceModels[id]?.label || id, () => { setDeviceModel(id); setPicker(null); }, id === deviceModel)}</View>)}
       {picker === 'server' && serverList.map(id => <View key={id}>{row(id, () => { update({ serverModel: id }); setPicker(null); }, id === connection.serverModel)}</View>)}
-    </View></View></Modal>
+    </SheetModal>
   </View>;
 }

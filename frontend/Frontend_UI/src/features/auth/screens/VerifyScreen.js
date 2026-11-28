@@ -37,15 +37,16 @@ export default function VerifyScreen({ email, purpose, initial, onVerified, onBa
   const submit = async () => {
     if (busy) return;
     setBusy(true);
-    const r = await verifyCode(email, code);
-    if (!r.ok) {
-      setDialog({ icon: '⚠', title: r.error.title, message: r.error.message, expired: r.error.type === 'expired' });
+    try {
+      const r = await verifyCode(email, code);
+      if (!r.ok) {
+        setDialog({ icon: '⚠', title: r.error.title, message: r.error.message, expired: r.error.type === 'expired' });
+        return;
+      }
+      await onVerified();
+    } finally {
       setBusy(false);
-      return;
     }
-    setBusy(true);
-    await onVerified();
-    setBusy(false);
   };
 
   const resend = async () => {

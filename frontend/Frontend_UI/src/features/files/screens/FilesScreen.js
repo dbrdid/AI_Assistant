@@ -12,7 +12,7 @@ import {
   recognizeFile, useCloudFiles, useFiles,
 } from '../../../data/files/FileStore';
 import { alertUser } from '../../../data/alert';
-import { colors, font, spacing } from '../../../shared/theme/theme';
+import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import Icon from '../../../shared/components/Icon';
 import { Chip, DashedButton } from '../../../shared/components/Ui';
 
@@ -106,7 +106,7 @@ export default function FilesScreen({ navigation, route }) {
         {files.length === 0 && (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>
-              {tab === 'cloud' ? (shared ? '이 공간에 올린 파일이 없어요' : '클라우드 파일은 공유 공간에서 쓸 수 있어요') : '로컬에 저장된 파일이 없어요'}
+              {tab === 'cloud' ? (shared ? '이 공간에 올린 파일이 없어요' : '클라우드 파일은 공유 공간에서 쓸 수 있어요') : '기기에 저장된 파일이 없어요'}
             </Text>
             <Text style={styles.emptySub}>
               {tab === 'cloud'
@@ -178,14 +178,14 @@ const styles = StyleSheet.create({
   list: {padding:spacing.lg,gap:12,paddingBottom:spacing.xxl,paddingHorizontal:20},
   count: { fontSize: 12, color: colors.muted },
   // 탭
-  tabs: { flexDirection: 'row' },
+  tabs: { flexDirection: 'row', gap: 8 },
   // 파일이 없을 때 안내
   // 빈 상태는 큰 제목 대신 Stella 문서 목록처럼 낮은 대비의 안내 두 줄
   empty: {alignItems:'flex-start',paddingTop:24,paddingHorizontal:4,gap:4},
   emptyTitle: { fontSize: 13, fontWeight: '400', color: colors.subtle },
   emptySub: {fontSize:13,color:colors.muted,textAlign:'left',lineHeight:21},
   card: {flexDirection:'row',gap:spacing.md,backgroundColor:colors.cream,borderRadius:0,borderWidth:0,borderColor:colors.line,padding:spacing.lg,borderBottomWidth:1,paddingHorizontal:0,paddingVertical:18},
-  cardFocus: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
+  cardFocus: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft, paddingHorizontal: 10, marginHorizontal: -10, borderRadius: radius.md },
   icon: {width:32,height:36,borderRadius:0,backgroundColor:'transparent',alignItems:'center',justifyContent:'center'},
   info: { flex: 1, gap: 4 },
   name: {fontSize:15,fontWeight:'500',color:colors.ink},

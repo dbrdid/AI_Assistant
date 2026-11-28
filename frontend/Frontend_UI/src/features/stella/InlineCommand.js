@@ -92,7 +92,13 @@ export default function InlineCommand({ commands, originalRequest, memoId, navig
   const feedback = (decision, detail = '') => {
     try { owner.store.recordAiFeedback({ surface: 'command', decision, request: originalRequest, output: commands[index], detail }); } catch { /* never blocks */ }
   };
-  if (step.error && !message) feedback('failed', step.error);
+  const loggedError = useRef('');
+  useEffect(() => {
+    const key = step.error && !message ? `${index}:${step.error}` : '';
+    if (!key || loggedError.current === key) return;
+    loggedError.current = key;
+    feedback('failed', step.error);
+  }, [index, step.error, message]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!step.placed) return;
     onApplied?.();

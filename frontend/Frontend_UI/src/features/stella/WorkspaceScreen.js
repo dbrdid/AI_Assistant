@@ -85,7 +85,7 @@ export function WorkspaceHeader({
   if (tabs) return <View style={[s.navigationHeader, { paddingTop: insets.top + 10 }, team && { borderBottomWidth: 2, borderBottomColor: team.color }]}>
     <Pressable accessibilityRole="button" accessibilityLabel={`작업 공간 메뉴 열기: ${title}${team ? ', 팀 공간' : ', 개인 공간'}`} hitSlop={{ left: 6, right: 6 }} onPress={onMenu} style={s.workspaceAvatar}>
       <Text style={[s.workspaceInitial, team && { borderWidth: 2, borderColor: team.color, lineHeight: 26 }]}>{initial}</Text>
-      {team && <Text numberOfLines={1} style={{ position: 'absolute', bottom: -6, fontSize: 9, fontWeight: '700', color: c.background, backgroundColor: team.color, borderRadius: 6, paddingHorizontal: 4, overflow: 'hidden' }}>팀</Text>}
+      {team && <Text numberOfLines={1} style={{ position: 'absolute', bottom: 0, fontSize: 9, fontWeight: '700', color: c.background, backgroundColor: team.color, borderRadius: 6, paddingHorizontal: 4, overflow: 'hidden' }}>팀</Text>}
     </Pressable>
     {tabs}
   </View>;
@@ -239,6 +239,7 @@ export default function WorkspaceScreen({
   const [selectedProposal, setSelectedProposal] = useState(null);
   const appUpdate = useAppUpdate();
   const [menu, setMenu] = useState(false);
+  const [dockOverlay, setDockOverlay] = useState(false);
   const [tabPreview, setTabPreview] = useState(null); // 길게 눌러 좌우로 고르는 중인 탭
   const [rowMenu, setRowMenu] = useState(null);       // 문서 줄의 … 메뉴를 연 문서
   const [rowDelete, setRowDelete] = useState(null);   // 휴지통으로 옮길지 묻는 문서
@@ -285,6 +286,7 @@ export default function WorkspaceScreen({
   const open = memo => go(ROUTES.MemoEdit, {
     memoId: memo.id
   });
+  const parentOf = new Map(documents.map(document => [document.id, document.parentId]));
   const list = filterDocuments(documents, {
     query,
     favoritesOnly: filter === 'favorites'
@@ -295,7 +297,7 @@ export default function WorkspaceScreen({
     while (parent && !visited.has(parent)) {
       if (collapsed.has(parent)) return false;
       visited.add(parent);
-      parent = documents.find(item => item.id === parent)?.parentId;
+      parent = parentOf.get(parent);
     }
     return true;
   });
@@ -312,7 +314,6 @@ export default function WorkspaceScreen({
   // Notion 모바일 하단과 같은 형식: 왼쪽 검색, 가운데 AI에게 질문하기, 오른쪽 새 문서
   // Notion 모바일과 같은 하단: 검색(펼쳐지는 검색창), AI에게 질문하기, 새로 만들기
   const titleOf = new Map(memos.map(memo => [memo.id, memoTitle(memo)]));
-  const parentOf = new Map(documents.map(document => [document.id, document.parentId]));
   const duplicateTitles = duplicateTitleSet(documents, memoTitle);
   const searchDocs = memos.map(memo => ({ id: memo.id, title: memoTitle(memo), body: memo.body || '', updatedAt: memo.updatedAt, createdAt: memo.createdAt ?? memo.updatedAt, parent: titleOf.get(parentOf.get(memo.id)) || '' }));
   const spaceNames = Object.fromEntries(Object.entries(spaceInfo).map(([id, info]) => [id, info?.name]));
@@ -336,7 +337,7 @@ export default function WorkspaceScreen({
     }
   }
   const askDock = note.recording ? note.bar : <SearchDock docs={searchDocs} tasks={allTasks} projects={allProjects} files={[...files, ...cloudFiles]} spaceNames={spaceNames} bottomInset={insets.bottom} onOpen={id => go(ROUTES.MemoEdit, { memoId: id })} onOpenEntity={openSearchEntity} onAskAI={prompt => go(ROUTES.AiChat, prompt ? { initialPrompt: prompt } : undefined)}
-    onAction={handleDockAction} />;
+    onAction={handleDockAction} onOverlayChange={setDockOverlay} />;
   let content;
   if (mode === 'documents') {
     content = <FlatList showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false} data={list} keyExtractor={memo => memo.id} contentContainerStyle={s.page} keyboardShouldPersistTaps="handled" ListHeaderComponent={<>{intro}<View style={s.search}><Icon name="search" size={17} color={c.muted} /><TextInput autoFocus={requestSearch} accessibilityLabel="문서 검색" placeholder="제목이나 내용으로 검색" placeholderTextColor={c.subtle} value={query} onChangeText={setQuery} style={s.searchInput} />{query ? <IconButton name="x" label="검색어 지우기" onPress={() => setQuery('')} /> : null}</View><View style={[s.filters, { alignItems: 'center' }]}>{[['all', '모든 문서'], ['favorites', '즐겨찾기']].map(([key, label]) => <Pressable key={key} accessibilityRole="tab" accessibilityState={{
@@ -394,12 +395,12 @@ export default function WorkspaceScreen({
     const select = name => navigation.setParams({ subpage: name });
     return <PageRail index={subIndex} pages={pages} header={active => pages.length < 2 ? null :
       <View><ScrollView horizontal showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 16, alignItems: 'center' }}>
+        contentContainerStyle={{ paddingHorizontal: 12, gap: 4, alignItems: 'center' }}>
         {pages.map(page => {
           const selected = page.route === active.route;
           return <Pressable key={page.route} accessibilityRole="tab" accessibilityLabel={page.label}
             aria-selected={selected} accessibilityState={{ selected }} onPress={() => select(page.route)}
-            style={{ minHeight: 44, justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: selected ? c.text : 'transparent' }}>
+            style={{ minHeight: 44, minWidth: 44, paddingHorizontal: 8, justifyContent: 'center', alignItems: 'center', borderBottomWidth: 2, borderBottomColor: selected ? c.text : 'transparent' }}>
             <Text style={{ color: selected ? c.text : c.muted, fontSize: 14 }}>{page.label}</Text>
           </Pressable>;
         })}
@@ -413,13 +414,15 @@ export default function WorkspaceScreen({
           route={{ name: page.route, params: i === pagerIndex ? route?.params ?? {} : {} }} /></ScreenEntryProvider>;
       }} />;
   };  return <View style={s.root}>{pagerIndex !== undefined
-    ? <><SwipeNav tabs={TABS} current={TABS[pagerIndex]?.route} onPreview={setTabPreview} onTab={route => (navigation.selectTab || navigation.navigate)(route)}
+    ? <><View style={{ flex: 1 }} importantForAccessibility={dockOverlay ? 'no-hide-descendants' : 'auto'} accessibilityElementsHidden={dockOverlay}>
+      <SwipeNav tabs={TABS} current={TABS[pagerIndex]?.route} onPreview={setTabPreview} onTab={route => (navigation.selectTab || navigation.navigate)(route)}
         onPage={step => {
           const pages = TABS[pagerIndex].pages, next = subIndexOf(TABS[pagerIndex], pagerIndex) + step;
           if (step && next >= 0 && next < pages.length) navigation.setParams({ subpage: pages[next].route });
         }}>
         <PageRail index={pagerIndex} pages={TABS} keepVisited header={tab => header(tab.route)} renderPage={renderTab} />
       </SwipeNav>
+      </View>
       {!OWN_BOTTOM_BAR.has(TABS[pagerIndex]?.pages[subIndexOf(TABS[pagerIndex], pagerIndex)]?.route) && askDock}</>
     : <>{!bodyOnly && header()}{content}</>}{actions.snack.view}{note.sheet}
       <SheetModal visible={!!rowMenu} onClose={() => setRowMenu(null)} label="문서 메뉴"><View style={s.handle} />

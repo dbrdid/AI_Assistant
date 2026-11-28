@@ -51,9 +51,23 @@ export default function GraphCanvas({
     pointers = useRef(new Map());
   const initialized = useRef(Boolean(savedCamera)),
     space = useRef(false),
-    connectionRef = useRef(null);
+    connectionRef = useRef(null),
+    activeWorkspace = useRef(workspaceId);
   useEffect(() => {
-    cameraCache.get(own).set(workspaceId, view);
+    if (activeWorkspace.current === workspaceId) return;
+    activeWorkspace.current = workspaceId;
+    const nextCamera = cameraCache.get(own).get(workspaceId);
+    setRouteOverrides(readPreference(routePreferenceKey, {}));
+    setPositions(readPreference(taskPositionKey, {}));
+    setView(nextCamera || { x: 24, y: 24, zoom: 1 });
+    initialized.current = Boolean(nextCamera);
+    setSelected(null);
+    setConnection(null);
+    connectionRef.current = null;
+    setError('');
+  }, [own, workspaceId, routePreferenceKey, taskPositionKey]);
+  useEffect(() => {
+    if (activeWorkspace.current === workspaceId) cameraCache.get(own).set(workspaceId, view);
   }, [own, workspaceId, view]);
   const scene = useMemo(() => {
     const nodes = documents.map((doc, i) => ({
@@ -591,7 +605,7 @@ export default function GraphCanvas({
             }} />
           </g>)}
           {connection && <path className="graph-preview" d={pathData(preview)} vectorEffect="non-scaling-stroke" />}
-          {connection && preview.length > 0 && [preview[0], preview[preview.length - 1]].map((point, i) => <circle key={`preview-${i}`} cx={point.x} cy={point.y} r={3.5 / view.zoom} fill="#c0d8b6" pointerEvents="none" />)}
+          {connection && preview.length > 0 && [preview[0], preview[preview.length - 1]].map((point, i) => <circle key={`preview-${i}`} cx={point.x} cy={point.y} r={3.5 / view.zoom} fill="#d9d9d6" pointerEvents="none" />)}
         </svg>
         <svg className="graph-lines graph-editor-overlay" aria-label="선 조작 핸들">{selectedRoute&&selectedRoute.points.length>0&&[['source',selectedRoute.points[0]],['target',selectedRoute.points.at(-1)]].map(([end,point])=><circle key={end} cx={point.x} cy={point.y} r={6/view.zoom} className="graph-end-handle" data-edge-end={end} data-edge-key={selectedRoute.key} role="button" aria-label={end==='source'?'시작 연결 위치 이동':'끝 연결 위치 이동'}/>)}</svg>
         {nodes.map(node => <div key={node.key} data-node={node.key} className={`graph-node ${selected?.node === node.key ? 'is-selected' : ''} ${connection?.target === node.key ? 'is-target' : ''}`} style={{
@@ -662,27 +676,27 @@ export default function GraphCanvas({
 const CSS = `
 .stella-graph{display:flex;flex:1;flex-direction:column;min-height:0;width:100%;color:#f0f0ee;font-family:inherit;background:#191a1b}
 .stella-graph *{box-sizing:border-box}.stella-graph button{font:inherit;color:inherit;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent}
-.stella-graph button:focus-visible{outline:2px solid #bfd4b8;outline-offset:2px}
+.stella-graph button:focus-visible{outline:2px solid #d9d9d6;outline-offset:2px}
 .graph-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:18px 18px 12px}
 .graph-heading h1{font-size:22px;line-height:28px;letter-spacing:-.6px;margin:0;font-weight:600}.graph-heading>span{font-size:12px;color:#a9adae;white-space:nowrap}
-.graph-tools{display:flex;align-items:center;gap:4px;padding:0 12px 10px}.graph-tools button,.graph-context button{background:transparent;border:1px solid transparent;border-radius:4px;min-height:36px;padding:6px 10px;font-size:12px;white-space:nowrap}
-.graph-tools button[aria-pressed=true]{background:#303234;border-color:#4c5151}.graph-tools button:hover,.graph-context button:hover{background:#303234}.graph-tools-gap{flex:1}
+.graph-tools{display:flex;align-items:center;gap:4px;padding:0 12px 10px}.graph-tools button,.graph-context button{background:transparent;border:1px solid transparent;border-radius:4px;min-height:44px;padding:6px 10px;font-size:12px;white-space:nowrap}
+.graph-tools button[aria-pressed=true]{background:#2a2c2e;border-color:#4b4f52}.graph-tools button:hover,.graph-context button:hover{background:#2a2c2e}.graph-tools-gap{flex:1}
 .graph-stage{position:relative;flex:1;min-height:300px;overflow:hidden;background:#17191a;border-block:1px solid #2d3032;touch-action:none;user-select:none;outline:none;cursor:default}
 .graph-stage.is-pan{cursor:grab}.graph-stage.is-moving,.graph-stage.is-moving *{cursor:grabbing!important}.graph-stage.is-connecting{cursor:crosshair}
 .graph-grid{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.graph-world{position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0}
 .graph-lines{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
-.graph-line{fill:none;stroke:#929d96;stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round;pointer-events:none}.graph-line.is-hierarchy{stroke:#7e8985}.graph-line.is-selected{stroke:#d4e6cc;stroke-width:2.5}
+.graph-line{fill:none;stroke:#8a8e91;stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round;pointer-events:none}.graph-line.is-hierarchy{stroke:#6c7073}.graph-line.is-selected{stroke:#f0f0ee;stroke-width:2.5}
 .graph-line-hit{fill:none;stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:pointer}.graph-line-hit:focus{outline:none;stroke:#d9d9d633;stroke-width:12}
-.graph-preview{fill:none;stroke:#c0d8b6;stroke-width:2;stroke-dasharray:6 4;pointer-events:none}
-.graph-node{position:absolute;background:#242729;border:1px solid #3d4540;border-radius:4px}.graph-node:hover{border-color:#9ca99e}.graph-node.is-selected{border:2px solid #c4d8b9}.graph-node.is-target{border-color:#c4d8b9;background:#303a32}
-.graph-node-body{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;width:100%;height:100%;padding:11px 17px;background:transparent;border:0;text-align:left;border-radius:4px;cursor:grab!important}
-.graph-node-title{width:100%;flex-shrink:0;font-size:var(--graph-title-size);font-weight:500;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:keep-all;overflow-wrap:anywhere}.graph-node-type{flex-shrink:0;font-size:var(--graph-type-size);color:#aeb6b0;margin-top:5px;line-height:1.25}.is-far .graph-node-type{display:none}.is-far .graph-node-title{-webkit-line-clamp:1}
-.graph-editor-overlay{z-index:3}.graph-end-handle{fill:#191a1b;stroke:#d4e6cc;stroke-width:1.5;vector-effect:non-scaling-stroke;pointer-events:all;cursor:crosshair}
-.graph-edit-hint{position:absolute;bottom:12px;left:12px;right:12px;pointer-events:none;background:#222325;padding:9px 12px;border:1px solid #2d3032;border-radius:4px;font-size:12px;line-height:19px;color:#c8ccca}.graph-edit-hint button{pointer-events:auto;display:block;background:transparent;border:0;color:#f0f0ee;padding:6px 0;font-size:12px}
+.graph-preview{fill:none;stroke:#d9d9d6;stroke-width:2;stroke-dasharray:6 4;pointer-events:none}
+.graph-node{position:absolute;background:#222325;border:1px solid #34373a;border-radius:6px}.graph-node:hover{border-color:#7c8083}.graph-node.is-selected{border:2px solid #d9d9d6}.graph-node.is-target{border-color:#d9d9d6;background:#2a2c2e}
+.graph-node-body{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;width:100%;height:100%;padding:11px 17px;background:transparent;border:0;text-align:left;border-radius:6px;cursor:grab!important}
+.graph-node-title{width:100%;flex-shrink:0;font-size:var(--graph-title-size);font-weight:500;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:keep-all;overflow-wrap:anywhere}.graph-node-type{flex-shrink:0;font-size:var(--graph-type-size);color:#a9adae;margin-top:5px;line-height:1.25}.is-far .graph-node-type{display:none}.is-far .graph-node-title{-webkit-line-clamp:1}
+.graph-editor-overlay{z-index:3}.graph-end-handle{fill:#191a1b;stroke:#f0f0ee;stroke-width:1.5;vector-effect:non-scaling-stroke;pointer-events:all;cursor:crosshair}
+.graph-edit-hint{position:absolute;bottom:12px;left:12px;right:12px;pointer-events:none;background:#222325;padding:9px 12px;border:1px solid #2d3032;border-radius:6px;font-size:12px;line-height:19px;color:#c8ccca}.graph-edit-hint button{pointer-events:auto;display:block;background:transparent;border:0;color:#f0f0ee;padding:6px 0;min-height:44px;font-size:12px}
 .graph-connect-border{position:absolute;z-index:1;cursor:crosshair}.border-left{left:-2px;top:0;bottom:0;width:var(--border-hit)}.border-right{right:-2px;top:0;bottom:0;width:var(--border-hit)}.border-top{top:-2px;left:0;right:0;height:var(--border-hit)}.border-bottom{bottom:-2px;left:0;right:0;height:var(--border-hit)}
-.graph-port{position:absolute;z-index:2;display:flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;background:transparent;opacity:0;cursor:crosshair!important}.graph-port span{display:block;width:var(--port-dot-size);height:var(--port-dot-size);background:#17191a;border:1px solid #c2d6b8;border-radius:50%;pointer-events:none}
+.graph-port{position:absolute;z-index:2;display:flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;background:transparent;opacity:0;cursor:crosshair!important}.graph-port span{display:block;width:var(--port-dot-size);height:var(--port-dot-size);background:#17191a;border:1px solid #d9d9d6;border-radius:50%;pointer-events:none}
 .graph-node:hover .graph-port,.graph-node.is-selected .graph-port,.is-connecting .graph-port,.graph-port:focus-visible{opacity:1}.port-left{left:-13px;height:16px;transform:translateY(-50%)}.port-right{right:-13px;height:16px;transform:translateY(-50%)}.port-top{top:-13px;width:16px;transform:translateX(-50%)}.port-bottom{bottom:-13px;width:16px;transform:translateX(-50%)}
-.graph-context{display:flex;align-items:center;gap:6px;min-height:54px;padding:6px 10px;font-size:12px}.graph-context>span{flex:1;min-width:0;line-height:17px}.graph-selected-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px}.graph-muted{color:#a9adae;font-size:11px}.graph-context>.graph-muted{max-width:220px}.graph-zoom{margin-left:auto;display:flex;flex-shrink:0;align-items:center;border:1px solid #3d4142;border-radius:4px}.graph-zoom button{padding:4px 7px;min-width:32px;min-height:36px}.graph-zoom button:nth-child(2){font-size:11px;min-width:42px}.graph-delete{color:#f0abab!important}
-.graph-error{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#f0abab;padding:8px 16px;line-height:18px}.graph-error button{background:transparent;border:0;min-height:32px;min-width:32px}.graph-empty{position:absolute;top:40%;width:100%;text-align:center;font-size:14px;color:#a9adae;pointer-events:none}
+.graph-context{display:flex;align-items:center;gap:6px;min-height:54px;padding:6px 10px;font-size:12px}.graph-context>span{flex:1;min-width:0;line-height:17px}.graph-selected-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px}.graph-muted{color:#a9adae;font-size:11px}.graph-context>.graph-muted{max-width:220px}.graph-zoom{margin-left:auto;display:flex;flex-shrink:0;align-items:center;border:1px solid #3d4142;border-radius:4px}.graph-zoom button{padding:4px 7px;min-width:44px;min-height:44px}.graph-zoom button:nth-child(2){font-size:11px;min-width:48px}.graph-delete{color:#f0abab!important}
+.graph-error{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#f0abab;padding:8px 16px;line-height:18px}.graph-error button{background:transparent;border:0;min-height:44px;min-width:44px}.graph-empty{position:absolute;top:40%;width:100%;text-align:center;font-size:14px;color:#a9adae;pointer-events:none}
 @media(pointer:coarse){.graph-port{opacity:1}}
 `;

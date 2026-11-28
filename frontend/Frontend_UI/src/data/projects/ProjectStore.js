@@ -75,7 +75,8 @@ function refreshShared(serverId) {
 
 // Re-read after any runtime change (bridge results arrive this way). Coalesced so typing does not hammer the DB.
 let refreshTimer = null;
-runtimeSubscribe(() => {
+runtimeSubscribe((domain) => {
+  if (domain === 'prefs') return;
   if (refreshTimer) return;
   refreshTimer = setTimeout(() => {
     refreshTimer = null;

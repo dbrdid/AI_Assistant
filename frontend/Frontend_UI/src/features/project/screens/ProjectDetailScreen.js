@@ -10,6 +10,7 @@ import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import Icon from '../../../shared/components/Icon';
 import { Chip, CircleButton, DashedButton, InlineDeletePrompt, Tag } from '../../../shared/components/Ui';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import { useInsets } from '../../../shared/hooks/useInsets';
 import { ROUTES } from '../../../navigation/routes';
 import { memoTitle, trashMemos, useMemos } from '../../../data/memos/MemoStore';
 import { deleteTask, useTasks } from '../../../data/tasks/TaskStore';
@@ -29,6 +30,7 @@ import { projectTableKey, projectViewKey } from '../../../data/projects/projectT
 // 받침이 있으면 '이', 없으면 '가'(메모가, 할 일이, 파일이, 일정이)
 const hasBatchim = word => { const code = String(word).trim().slice(-1).charCodeAt(0) - 0xac00; return code >= 0 && code <= 11171 && code % 28 !== 0; };
 export default function ProjectDetailScreen({ navigation, route }) {
+  const insets = useInsets();
   const projectId = route?.params?.projectId;
   const projects = useProjects(); // 바뀌면 다시 그리기 위해 구독
   const project = getProject(projectId);
@@ -418,7 +420,7 @@ export default function ProjectDetailScreen({ navigation, route }) {
       </ScrollView>
 
       {editing && (
-        <View style={styles.bar}>
+        <View style={[styles.bar, { paddingBottom: Math.max(spacing.md, insets.bottom + spacing.xs) }]}>
           <Text style={styles.barCount}>{picked.length}개 선택</Text>
           <View style={styles.barRow}>
             <Pressable accessibilityRole="button" onPress={exitEdit} style={styles.barBtn}><Text style={styles.barText}>취소</Text></Pressable>
@@ -547,8 +549,8 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 14, color: colors.ink },
   flip: { transform: [{ rotate: '180deg' }] },
   none: { fontSize: 13, color: colors.muted, paddingVertical: 8 },
-  item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 8, paddingHorizontal: 8, marginHorizontal: -8, borderRadius: 4, borderWidth: 1, borderColor: 'transparent', minHeight: 48 },
-  itemOn: { borderColor: '#fff' },
+  item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 8, paddingHorizontal: 8, borderRadius: 6, borderWidth: 1, borderColor: 'transparent', minHeight: 48 },
+  itemOn: { borderColor: colors.actionBorder, backgroundColor: colors.card },
   itemTitle: { fontSize: 14, color: colors.ink },
   itemSub: { fontSize: font.caption, color: colors.muted },
   linkBtn: { minHeight: 44, borderRadius: radius.md },

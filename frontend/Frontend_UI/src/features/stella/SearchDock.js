@@ -24,7 +24,7 @@ export function groupByAge(items, now = Date.now()) {
   return groups;
 }
 
-export default function SearchDock({ docs, tasks = [], projects = [], files = [], spaceNames = {}, bottomInset, onOpen, onOpenEntity, onAskAI, onAction }) {
+export default function SearchDock({ docs, tasks = [], projects = [], files = [], spaceNames = {}, bottomInset, onOpen, onOpenEntity, onAskAI, onAction, onOverlayChange }) {
   const { width } = useWindowDimensions();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -46,10 +46,18 @@ export default function SearchDock({ docs, tasks = [], projects = [], files = []
   const show = () => { setMenu(false); setOpen(true); animate(1).start(() => input.current?.focus()); };
   const hide = () => { Keyboard.dismiss(); animate(0).start(() => { setOpen(false); setQuery(''); }); };
   useEffect(() => {
-    if (!open) return undefined;
-    const back = BackHandler.addEventListener('hardwareBackPress', () => { hide(); return true; });
+    onOverlayChange?.(open || menu);
+    return () => onOverlayChange?.(false);
+  }, [open, menu, onOverlayChange]);
+  useEffect(() => {
+    if (!open && !menu) return undefined;
+    const back = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (menu) { setMenu(false); return true; }
+      hide();
+      return true;
+    });
     return () => back.remove();
-  }, [open]);
+  }, [open, menu]);
 
   const duplicateTitles = useMemo(() => duplicateTitleSet(docs, d => d.title), [docs]);
   const results = useMemo(() => {
@@ -71,8 +79,9 @@ export default function SearchDock({ docs, tasks = [], projects = [], files = []
   const entityIcon = type => (type === 'event' ? 'calendar' : type === 'task' ? 'checkSquare' : type === 'project' ? 'folder' : 'paperclip');
   const hasAnyResult = results.length > 0 || entitySections.length > 0;
 
-  // 검색창 너비: 돋보기 원(44)에서 닫기 버튼만 남기고 가로 전체로
-  const fieldWidth = grow.interpolate({ inputRange: [0, 1], outputRange: [44, width - 32 - 44 - 8] });
+  // 검색창 너비: 돋보기 원(44)에서 닫기 버튼만 남기고 루트 최대폭(412) 안에서 가로 전체로
+  const dockWidth = Math.min(width, 412);
+  const fieldWidth = grow.interpolate({ inputRange: [0, 1], outputRange: [44, Math.max(44, dockWidth - 32 - 44 - 8)] });
   const fade = grow.interpolate({ inputRange: [0, 0.5], outputRange: [1, 0], extrapolate: 'clamp' });
 
   return <>
@@ -113,7 +122,7 @@ export default function SearchDock({ docs, tasks = [], projects = [], files = []
 
     {menu && <>
       <Pressable accessibilityLabel="새로 만들기 닫기" onPress={() => setMenu(false)} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
-      <View style={{ position: 'absolute', right: 16, bottom: Math.max(10, bottomInset) + 60, minWidth: 180, backgroundColor: c.surface, borderRadius: 10, paddingVertical: 4 }}>
+      <View accessibilityViewIsModal style={{ position: 'absolute', right: 16, bottom: Math.max(10, bottomInset) + 60, minWidth: 180, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, borderRadius: 10, paddingVertical: 4, elevation: 6, shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } }}>
         {[['mic', '음성 메모', 'note'], ['calendar', '캘린더', 'calendar'], ['file', '문서', 'document'], ['folder', '프로젝트', 'project']].map(([icon, label, kind]) =>
           <Pressable key={kind} accessibilityRole="button" onPress={() => { setMenu(false); onAction(kind); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingHorizontal: 16 }, pressed && { backgroundColor: c.raised }]}>
             <Icon name={icon} size={18} color={c.muted} /><Text style={{ color: c.text, fontSize: 15 }}>{label}</Text>

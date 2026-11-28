@@ -150,13 +150,13 @@ const styles = StyleSheet.create({
   sub: { fontSize: 13, color: colors.muted },
 
   // '+ 추가': 홈 오늘의 '+ 추가'와 같은 면 없는 흐린 글자
-  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 44 },
+  addBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2, minHeight: 44, minWidth: 44 },
   addText: { fontSize: font.caption, fontWeight: '500', color: colors.muted },
 
   empty: { fontSize: font.body, color: colors.muted, paddingVertical: spacing.sm },
 
-  item: { paddingVertical: 6, paddingHorizontal: 8, marginHorizontal: -8, borderRadius: 4, borderWidth: 1, borderColor: 'transparent', gap: spacing.sm },
-  itemOpen: { borderColor: '#fff' },
+  item: { paddingVertical: 6, paddingHorizontal: 8, marginHorizontal: -8, borderRadius: 6, borderWidth: 1, borderColor: 'transparent', gap: spacing.sm },
+  itemOpen: { borderColor: colors.actionBorder, backgroundColor: colors.card },
   itemMain: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   itemBody: { flex: 1 },
   itemMeta: { flex: 1, fontSize: 13, color: colors.muted },

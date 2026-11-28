@@ -8,12 +8,14 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import { useInsets } from '../../../shared/hooks/useInsets';
 import { CircleButton, DashedButton } from '../../../shared/components/Ui';
 import Icon from '../../../shared/components/Icon';
 import { ROUTES } from '../../../navigation/routes';
 import { deleteWorkspace, switchWorkspace, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
 
 export default function WorkspaceScreen({ navigation }) {
+  const insets = useInsets();
   const { list, current } = useWorkspaces();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -83,7 +85,7 @@ export default function WorkspaceScreen({ navigation }) {
       </ScrollView>
 
       {!!notice && (
-        <View pointerEvents="none" style={styles.notice}>
+        <View pointerEvents="none" style={[styles.notice, { bottom: Math.max(spacing.xl, insets.bottom + spacing.md) }]}>
           <Text style={styles.noticeText}>{notice}</Text>
         </View>
       )}
@@ -114,7 +116,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.cream },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.sm, borderRadius: radius.sm, borderWidth: 1, borderColor: 'transparent', minHeight: 52 },
-  cardOn: { borderColor: colors.ink },
+  cardOn: { borderColor: colors.actionBorder, backgroundColor: colors.card },
   name: { fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },
   sub: { fontSize: font.body, color: colors.muted },
   desc: { fontSize: font.caption, color: colors.muted },

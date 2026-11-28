@@ -395,5 +395,5 @@ const styles = StyleSheet.create({
   savedList: { maxHeight: 220 },
   backdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg, backgroundColor: 'rgba(0,0,0,0.35)' },
   dialog: { width: '100%', maxWidth: 360, padding: spacing.lg, gap: spacing.sm, borderRadius: 12, backgroundColor: colors.card },
-  input: { minHeight: 44, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: colors.line, color: colors.ink },
+  input: { minHeight: 44, paddingHorizontal: spacing.md, borderRadius: 6, backgroundColor: colors.cream, borderWidth: 1, borderColor: colors.line, color: colors.ink },
 });

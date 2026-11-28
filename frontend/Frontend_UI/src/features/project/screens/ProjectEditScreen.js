@@ -98,8 +98,8 @@ export default function ProjectEditScreen({ navigation, route }) {
         onConfirm={() => {
           deleteProject(existing.id);
           setConfirmDelete(false);
-          navigation.goBack(); // 편집 화면 닫고
-          navigation.goBack(); // 지워진 프로젝트의 상세 화면도 닫아 목록으로
+          if (navigation.selectTab) navigation.selectTab(ROUTES.Projects);
+          else navigation.goBack();
         }}
       />
     </KeyboardAvoidingView>

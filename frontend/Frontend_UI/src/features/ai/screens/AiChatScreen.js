@@ -357,20 +357,21 @@ export default function AiChatScreen({ navigation, route: navRoute }) {
         return;
       }
       const full = answer.text;
+      const step = Math.max(6, Math.ceil(full.length / 25));
       timers.current.think = setTimeout(() => {
         setMessages((prev) => [...prev, { id: aiId, role: 'ai', text: '' }]);
         setStatus('streaming');
         let shown = 0;
         timers.current.type = setInterval(() => {
-          shown = Math.min(full.length, shown + 2);
+          shown = Math.min(full.length, shown + step);
           const finished = shown >= full.length;
           setMessages((prev) => prev.map((m) => (m.id === aiId ? { ...m, text: full.slice(0, shown), sources: answer.sources, done: finished } : m)));
           if (finished) {
             clearInterval(timers.current.type);
             setStatus('idle');
           }
-        }, 30);
-      }, 300);
+        }, 60);
+      }, 240);
     },
     [status, nextId, messages, ready, reading, routeReady],
   );
@@ -632,11 +633,11 @@ const styles = StyleSheet.create({
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   inputArea: { backgroundColor: colors.cream, paddingHorizontal: spacing.md, paddingTop: spacing.sm },
   inputTools: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: 6, paddingBottom: 6 },
-  routeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radius.pill, backgroundColor: colors.card, borderWidth: 0, borderColor: colors.line },
+  routeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 40, paddingHorizontal: spacing.md, borderRadius: radius.pill, backgroundColor: colors.card },
   routeText: { fontSize: font.caption + 1, fontWeight: '700', color: colors.ink },
   notice: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.lg, marginBottom: spacing.sm, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.coralSoft, borderWidth: 1, borderColor: colors.coral },
   noticeText: { flex: 1, fontSize: font.caption + 1, color: colors.ink, lineHeight: 19 },
-  noticeBtn: { paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: colors.action },
+  noticeBtn: { minHeight: 44, paddingHorizontal: spacing.md, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.action },
   noticeBtnText: { fontSize: font.caption, fontWeight: '800', color: colors.onPrimary },
   banner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.lg, marginBottom: spacing.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.mintSoft },
   bannerText: { flex: 1, fontSize: font.caption + 1, color: colors.ink },
@@ -651,9 +652,9 @@ const styles = StyleSheet.create({
   pendingName: { fontSize: font.caption, fontWeight: '700', color: colors.ink },
   pendingSub: { fontSize: 11, color: colors.muted },
   inputBox: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
-  toolBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  toolBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   input: { minHeight: 44, maxHeight: 140, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 6, fontSize: 15, color: colors.ink },
-  sendBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  sendBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   sendOn: { backgroundColor: colors.action },
   sendOff: { backgroundColor: colors.line },
 });

@@ -283,7 +283,7 @@ export default function GraphCanvas({
             ...positions[b],
             width: WIDTH,
             height: HEIGHT
-          })} fill="none" stroke="#78847c" strokeWidth={1.5} />)}</Svg>{nodes.map(node => <GraphNode key={node.key} node={node} position={positions[node.key]} offset={{
+          })} fill="none" stroke={c.subtle} strokeWidth={1.5} />)}</Svg>{nodes.map(node => <GraphNode key={node.key} node={node} position={positions[node.key]} offset={{
           x: minX,
           y: minY
         }} zoom={view.zoom} onMove={position => {
@@ -300,7 +300,7 @@ export default function GraphCanvas({
         padding: 25
       }}><Text style={s.empty}>문서를 작성하면 여기에 나타납니다.</Text></View>}<View onPointerDown={Platform.OS === 'web' ? event => event.stopPropagation() : undefined} style={{
         position: 'absolute',
-        bottom: 15 + insets.bottom,
+        bottom: 15,
         right: 15,
         flexDirection: 'row',
         backgroundColor: c.surface,

@@ -6,7 +6,7 @@
 // 맨 아래: 바로 쓰는 입력줄 (어느 공간에 쓸지 고르는 칩 · 글 메모 저장 · 사진 · 카메라 · 녹음)
 
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useInsets as useSafeAreaInsets } from '../../../shared/hooks/useInsets';
 import { useScreenEntry } from '../../../navigation/ScreenEntry';
 import Bell from '../../notice/components/Bell';
@@ -158,7 +158,7 @@ export default function HomeScreen({ navigation, route }) {
   const dateText = `${now.getMonth() + 1}월 ${now.getDate()}일 ${WEEKDAYS_LONG[now.getDay()]}`;
 
   return (
-    <KeyboardAvoidingView style={styles.root}>
+    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* ---------- 머리: 나, 날짜, AI, 검색, 알림 ---------- */}
       <View style={[styles.header, { paddingTop: embedded ? 18 : insets.top + spacing.sm }]}>
         {!embedded && <Pressable accessibilityRole="button" accessibilityLabel="나, 설정" onPress={() => go(ROUTES.More)} hitSlop={6} style={({ pressed }) => [styles.me, pressed && { opacity: 0.7 }]}>
@@ -289,13 +289,13 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: spacing.sm, paddingBottom: spacing.xxl * 2, gap: spacing.sm },
 
 
-  teamRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 38 },
+  teamRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 44 },
   teamName: { maxWidth: '40%', fontSize: font.body, fontWeight: '600', color: colors.ink },
   teamText: { flex: 1, fontSize: font.caption, color: colors.muted },
 
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md },
   sectionTitle: { fontSize: 12, fontWeight: '400', color: colors.muted },
-  addLink: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 44 },
+  addLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2, minHeight: 44, minWidth: 44 },
   addLinkText: { fontSize: font.caption, fontWeight: '500', color: colors.muted },
   empty: { fontSize: 13, color: colors.subtle ?? colors.muted, paddingVertical: spacing.xs },
   eventRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },

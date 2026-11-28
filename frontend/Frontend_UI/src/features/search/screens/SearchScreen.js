@@ -181,6 +181,7 @@ export default function SearchScreen({ navigation, route }) {
                       setRecent([]);
                     }}
                     hitSlop={8}
+                    style={{ minHeight: 44, justifyContent: 'center' }}
                   >
                     <Text style={styles.blockAction}>모두 지우기</Text>
                   </Pressable>

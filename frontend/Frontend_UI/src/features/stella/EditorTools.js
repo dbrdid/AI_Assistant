@@ -27,6 +27,7 @@ export default function EditorTools({
   const own = runtime();
   const [panel, setPanel] = useState('menu');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [selectedVersion, setSelectedVersion] = useState(null);
   const [confirmation, setConfirmation] = useState(null);
   const [, update] = useState(0);
@@ -43,19 +44,23 @@ export default function EditorTools({
     try {
       const saved = flush();
       if (!saved) {
+        setNotice('');
         setError('문서를 먼저 작성해 주세요. 저장 오류가 있으면 해결한 뒤 다시 시도하세요.');
         return;
       }
-      action(saved);
       setError('');
+      setNotice('');
+      action(saved);
       update(n => n + 1);
     } catch (e) {
+      setNotice('');
       setError(e.message);
     }
   }
   function close() {
     setPanel('menu');
     setError('');
+    setNotice('');
     setSelectedVersion(null);
     onClose();
   }
@@ -76,7 +81,7 @@ export default function EditorTools({
             move: '문서 이동',
             links: '문서 연결',
             compare: '저장본과 비교'
-          }[panel]}</Text><Pressable accessibilityRole="button" accessibilityLabel="문서 도구 닫기" onPress={close} style={s.iconButton}><Icon name="x" size={20} color={c.text} /></Pressable></View>{error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}<ScrollView showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false}>
+          }[panel]}</Text><Pressable accessibilityRole="button" accessibilityLabel="문서 도구 닫기" onPress={close} style={s.iconButton}><Icon name="x" size={20} color={c.text} /></Pressable></View>{error ? <Text accessibilityRole="alert" style={s.error}>{error}</Text> : null}{notice ? <Text accessibilityLiveRegion="polite" style={s.note}>{notice}</Text> : null}<ScrollView showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false}>
     {panel === 'menu' && <>
       {row(favorite ? '즐겨찾기 해제' : '즐겨찾기에 추가', favorite ? 'starFilled' : 'star', onFavorite, readOnly)}
       {row(editorMode === 'blocks' ? '텍스트로 편집' : '블록으로 편집', 'type', onToggleEditor, readOnly)}
@@ -84,7 +89,7 @@ export default function EditorTools({
             const number = own.documents.createVersion(saved.id, saved.revision);
             setPanel('versions');
             setSelectedVersion(null);
-            setError(`버전 ${number} 저장됨`);
+            setNotice(`버전 ${number} 저장됨`);
           }), readOnly)}
       {row('버전 기록', 'clock', () => setPanel('versions'))}
       {row('원문과 출처', 'file', () => setPanel('original'))}
@@ -144,6 +149,7 @@ export default function EditorTools({
     {panel !== 'menu' && row('문서 도구로 돌아가기', 'chevronLeft', () => {
           setPanel('menu');
           setError('');
+          setNotice('');
         })}
     </ScrollView></SheetModal><ConfirmDialog visible={Boolean(confirmation)} title={confirmation === 'trash' ? '문서를 휴지통으로 옮길까요?' : confirmation === 'restore' ? '선택한 버전을 복원할까요?' : '입력 내용을 최신 저장본으로 바꿀까요?'} sub={confirmation === 'trash' ? '휴지통에서 복원할 수 있습니다. 하위 문서는 상위 단계로 이동합니다.' : confirmation === 'restore' ? '현재 저장본도 버전으로 보존한 후 복원합니다.' : '현재 입력 중인 내용은 바뀝니다. 필요한 내용을 먼저 복사해 두세요.'} confirmText="확인" onCancel={() => setConfirmation(null)} onConfirm={() => {
       const action = confirmation;

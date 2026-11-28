@@ -93,7 +93,7 @@ export const MORE_SECTIONS = [
     title: 'AI',
     items: [
       { route: ROUTES.AiChat, label: 'AI 채팅', icon: 'message' },
-      { route: ROUTES.Proposals, label: '작업 검토', icon: 'sparkles' },
+      { route: ROUTES.Proposals, label: '작업 검토', icon: 'checkSquare' },
       { route: ROUTES.LocalModel, label: 'AI 연결', icon: 'sparkles' },
     ],
   },

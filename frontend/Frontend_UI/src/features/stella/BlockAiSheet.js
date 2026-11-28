@@ -6,9 +6,11 @@ import Icon from '../../shared/components/Icon';
 import LocalModelScreen from './LocalModelScreen';
 import { palette as c, styles as s } from './theme';
 import { useKeyboardHeight } from '../../shared/hooks/useKeyboardHeight';
+import { useInsets } from '../../shared/hooks/useInsets';
 
 export default function BlockAiSheet({ block, navigation, memoId, prepare, onPlaced, onApplied, onClose }) {
   const { height } = useWindowDimensions();
+  const insets = useInsets();
   const keyboard = useKeyboardHeight();   // 입력칸이 키보드에 가리지 않게 시트를 키보드 위로
   const sheetHeight = Math.round(height * 0.45);
   const y = useRef(new Animated.Value(sheetHeight)).current;
@@ -29,8 +31,8 @@ export default function BlockAiSheet({ block, navigation, memoId, prepare, onPla
     onPanResponderRelease: (_, g) => (g.dy > 80 || g.vy > 0.8 ? close() : Animated.spring(y, { toValue: 0, bounciness: 0, useNativeDriver: true }).start()),
   })).current;
 
-  return <Animated.View style={{ position: 'absolute', left: 0, right: 0, bottom: keyboard, height: Math.min(sheetHeight, height - keyboard - 96), backgroundColor: c.surface,
-    borderTopLeftRadius: 12, borderTopRightRadius: 12, borderTopWidth: 1, borderColor: c.line, transform: [{ translateY: y }] }}>
+  return <Animated.View style={{ position: 'absolute', left: 0, right: 0, bottom: keyboard, height: Math.min(sheetHeight, height - keyboard - 96), paddingBottom: keyboard ? 0 : insets.bottom, backgroundColor: c.surface,
+    borderTopLeftRadius: 14, borderTopRightRadius: 14, borderTopWidth: 1, borderColor: c.line, transform: [{ translateY: y }] }}>
     <View {...pan.panHandlers}>
       <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 2 }}><View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: c.subtle }} /></View>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 20, paddingRight: 8, minHeight: 44 }}>

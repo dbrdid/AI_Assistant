@@ -101,9 +101,9 @@ const Toggle = ({ value, onValueChange, label }) => (
     accessibilityLabel={label}
     value={value}
     onValueChange={onValueChange}
-    trackColor={{ false: colors.line, true: colors.mint }}
-    thumbColor={colors.white}
-    {...(Platform.OS === 'web' ? { activeThumbColor: colors.white } : {})}
+    trackColor={{ false: colors.raised, true: colors.subtle }}
+    thumbColor={colors.ink}
+    {...(Platform.OS === 'web' ? { activeThumbColor: colors.ink } : {})}
   />
 );
 
@@ -281,7 +281,6 @@ export default function TaskEditScreen({ navigation, route }) {
         </View>
 
         <Chips label="알림" options={ALARMS} value={f.alarm} onChange={set('alarm')} />
-        {f.alarm !== ALARMS[0] && <Text style={styles.note}>아직 알림은 울리지 않아요. 설정만 저장돼요.</Text>}
         {isEvent && <FieldLine icon="pin" label="장소" value={f.place} onChangeText={set('place')} />}
 
         {/* ---------- 더보기 ---------- */}

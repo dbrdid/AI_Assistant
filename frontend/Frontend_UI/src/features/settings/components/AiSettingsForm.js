@@ -52,12 +52,18 @@ export default function AiSettingsForm({ onOpenUsage, contentStyle, compact = fa
               consentBusy.current = true;
               const own = runtime();
               const selected = ai.route ?? 'external';
+              const previous = { route: ai.route, transmissionDisabled: ai.transmissionDisabled, allowedProviders: ai.allowedProviders, consent: ai.consent };
               set({ transmissionDisabled: true, allowedProviders: [], consent: {} });
               try {
                 const next = await setAiTransmission(selected, enabled);
                 const { route, transmissionDisabled, allowedProviders, consent } = next.ai; // 다른 칸의 저장 전 수정은 유지
                 if (maybeRuntime() === own) set({ route, transmissionDisabled, allowedProviders, consent });
-              } catch (error) { if (maybeRuntime() === own) notice.show(error.message); }
+              } catch (error) {
+                if (maybeRuntime() === own) {
+                  set(previous);
+                  notice.show(error.message);
+                }
+              }
               finally { consentBusy.current = false; }
             }} />
           <ToggleRow label="AI 자동 분석" sub="입력한 내용을 AI가 자동으로 분석해요" value={ai.autoAnalyze} onValueChange={(v) => set({ autoAnalyze: v })} />

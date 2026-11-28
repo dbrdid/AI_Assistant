@@ -72,7 +72,7 @@ export default function NoticeScreen({ navigation }) {
                 }}
                 style={({ pressed }) => [styles.card, !n.read && styles.cardNew, pressed && { opacity: 0.75 }]}
               >
-                <IconTile icon={k.icon} size={40} bg={n.read ? colors.mintSoft : colors.white} />
+                <IconTile icon={k.icon} size={40} bg={n.read ? colors.cream : colors.card} color={n.read ? colors.muted : colors.ink} />
                 <View style={{ flex: 1, gap: 2 }}>
                   <View style={styles.titleRow}>
                     {!n.read && <View style={styles.dot} />}
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 13, fontWeight: '400', color: colors.subtle },
   emptySub: { fontSize: 12, color: colors.subtle, textAlign: 'center', lineHeight: 18 },
   card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.card, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  cardNew: { borderColor: colors.mint, backgroundColor: colors.mintSoft },
+  cardNew: { borderColor: colors.line, backgroundColor: colors.mintSoft },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.mint },
   title: { flex: 1, fontSize: font.bodyLg, fontWeight: '600', color: colors.ink },

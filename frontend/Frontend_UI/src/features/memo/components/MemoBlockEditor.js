@@ -1,6 +1,6 @@
 import { SheetModal } from '../../../shared/components/Motion';
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
 import { BLOCK_TYPES, readMemoBlocks, splitEditedBlock, writeMemoBlocks } from '../utils/memoBlocks.mjs';
 
@@ -76,28 +76,26 @@ export default function MemoBlockEditor({ body, onChange }) {
         <Text style={styles.actionText}>+ 블록 추가</Text>
       </Pressable>
       <SheetModal visible={menuIndex !== null} onClose={() => setMenuIndex(null)} label="블록 설정">
-        <View style={styles.backdrop}>
-          <View style={styles.menu} accessibilityViewIsModal>
-            <Text accessibilityRole="header" style={styles.heading}>블록 설정</Text>
-            {BLOCK_TYPES.map(({ id, label }) => (
-              <Pressable key={id} accessibilityRole="radio" accessibilityState={{ checked: blocks[menuIndex]?.type === id }} style={styles.action} onPress={() => {
-                pendingFocus.current = menuIndex;
-                updateBlock(menuIndex, { type: id });
-                setMenuIndex(null);
-              }}>
-                <Text style={styles.actionText}>{label}</Text>
-              </Pressable>
-            ))}
-            {menuIndex > 0 && <Pressable accessibilityRole="button" style={styles.action} onPress={() => moveBlock(-1)}><Text style={styles.actionText}>위로 이동</Text></Pressable>}
-            {menuIndex !== null && menuIndex < blocks.length - 1 && <Pressable accessibilityRole="button" style={styles.action} onPress={() => moveBlock(1)}><Text style={styles.actionText}>아래로 이동</Text></Pressable>}
-            <Pressable accessibilityRole="button" style={styles.action} onPress={() => {
-              pendingFocus.current = Math.max(0, Math.min(menuIndex, blocks.length - 2));
-              onChange(writeMemoBlocks(blocks.filter((_, index) => index !== menuIndex)));
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <Text accessibilityRole="header" style={[styles.heading, { marginBottom: spacing.xs }]}>블록 설정</Text>
+          {BLOCK_TYPES.map(({ id, label }) => (
+            <Pressable key={id} accessibilityRole="radio" accessibilityState={{ checked: blocks[menuIndex]?.type === id }} style={styles.action} onPress={() => {
+              pendingFocus.current = menuIndex;
+              updateBlock(menuIndex, { type: id });
               setMenuIndex(null);
-            }}><Text style={styles.actionText}>블록 삭제</Text></Pressable>
-            <Pressable accessibilityRole="button" style={styles.action} onPress={() => setMenuIndex(null)}><Text style={styles.actionText}>닫기</Text></Pressable>
-          </View>
-        </View>
+            }}>
+              <Text style={styles.actionText}>{label}</Text>
+            </Pressable>
+          ))}
+          {menuIndex > 0 && <Pressable accessibilityRole="button" style={styles.action} onPress={() => moveBlock(-1)}><Text style={styles.actionText}>위로 이동</Text></Pressable>}
+          {menuIndex !== null && menuIndex < blocks.length - 1 && <Pressable accessibilityRole="button" style={styles.action} onPress={() => moveBlock(1)}><Text style={styles.actionText}>아래로 이동</Text></Pressable>}
+          <Pressable accessibilityRole="button" style={styles.action} onPress={() => {
+            pendingFocus.current = Math.max(0, Math.min(menuIndex, blocks.length - 2));
+            onChange(writeMemoBlocks(blocks.filter((_, index) => index !== menuIndex)));
+            setMenuIndex(null);
+          }}><Text style={styles.actionText}>블록 삭제</Text></Pressable>
+          <Pressable accessibilityRole="button" style={styles.action} onPress={() => setMenuIndex(null)}><Text style={styles.actionText}>닫기</Text></Pressable>
+        </ScrollView>
       </SheetModal>
     </View>
   );

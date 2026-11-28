@@ -178,10 +178,13 @@ const later = () => {
 };
 
 // 로그인 후 앱을 쓰는 동안 켜 두기
+let startSeq = 0;
 export async function startNotifier() {
   if (started) return;
   started = true;
+  const seq = ++startSeq;
   await ensurePermission();
+  if (!started || seq !== startSeq) return;
   // 서버 알림 등록 (권한은 바로 위에서 이미 물어봄). 등록 상태가 바뀌면 기기 예약을 다시 계산
   unsubs = [subscribeTasks(later), subscribeProjects(later), subscribeSettings(later), onPushState(later)];
   void registerPush();
@@ -191,6 +194,7 @@ export async function startNotifier() {
 }
 export async function stopNotifier() {
   started = false;
+  startSeq++;
   clearTimeout(timer);
   clearInterval(tick);
   unsubs.forEach((u) => u());

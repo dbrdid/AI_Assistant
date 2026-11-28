@@ -3,7 +3,7 @@
 // ============================================================
 
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import ScreenHeader from '../../../shared/components/ScreenHeader';
 import { IconTile } from '../../../shared/components/Ui';
@@ -226,8 +226,8 @@ export default function CameraScreen({ navigation }) {
 
       {/* 사진은 먼저 기기에 저장하고, AI 결과는 승인 전까지 초안으로만 둡니다. */}
       <Modal transparent visible={!!shot} animationType="slide" onRequestClose={() => finish('사진을 기기에 저장했어요')}>
-        <View style={styles.backdrop}>
-          <View style={styles.sheet} accessibilityViewIsModal>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.backdrop}>
+          <View style={[styles.sheet, { paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.md) }]} accessibilityViewIsModal>
             <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
               {shot && <AccessibleFileImage file={shot} style={styles.preview} resizeMode="cover" accessibilityLabel="방금 찍은 사진" />}
               <Text style={styles.sheetTitle}>사진을 기기에 저장했어요</Text>
@@ -288,7 +288,7 @@ export default function CameraScreen({ navigation }) {
               </Pressable>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

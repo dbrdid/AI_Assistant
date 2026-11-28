@@ -50,7 +50,12 @@ import { CircleButton, PillButton } from '../../../shared/components/Ui';
 import { dateLabel } from '../components/MemoCard';
 
 // 펜 색 / 굵기 선택지
-const PEN_COLORS = [colors.ink, colors.coral, colors.mintDark, '#4A6FA5'];
+const PEN_COLORS = [
+  { color: colors.ink, label: '흰색' },
+  { color: colors.coral, label: '빨강' },
+  { color: '#6CA68A', label: '초록' },
+  { color: '#4A6FA5', label: '파랑' },
+];
 const PEN_WIDTHS = [2, 4, 8];
 
 // 도구 줄의 버튼 하나 (아이콘 위 + 작은 글자 아래). 켜진 도구는 연한 민트 바탕 + 굵게
@@ -128,7 +133,7 @@ export default function MemoEditScreen({ navigation, route }) {
   const [strokes, setStrokes] = useState(original?.strokes || []); // 손글씨 획들
   const [editMode, setMode] = useState('keyboard');
   const mode = canEdit ? editMode : 'move';
-  const [penColor, setPenColor] = useState(PEN_COLORS[0]);
+  const [penColor, setPenColor] = useState(PEN_COLORS[0].color);
   const [penWidth, setPenWidth] = useState(PEN_WIDTHS[1]);
   const [confirmDelete, setConfirmDelete] = useState(false); // 삭제 확인 창 표시 여부
   const [keyboardUp, setKeyboardUp] = useState(false);       // 키보드가 올라와 있나 (아래 여백 조절용)
@@ -895,15 +900,15 @@ export default function MemoEditScreen({ navigation, route }) {
             </Text>
             <ScrollView style={styles.parentList}>
               <Text style={styles.projOptText}>내 변경</Text>
-              {'title' in (syncConflict?.fields ?? {}) && <Text selectable>{syncConflict.fields.title || '제목 없음'}</Text>}
-              {'body' in (syncConflict?.fields ?? {}) && <Text selectable>{syncConflict.fields.body || '본문 없음'}</Text>}
-              {'strokes' in (syncConflict?.fields ?? {}) && <Text>손글씨 변경 포함</Text>}
-              {'parent_note_id' in (syncConflict?.fields ?? {}) && <Text>상위 페이지, {conflictParentTitle(syncConflict.fields.parent_note_id)}</Text>}
+              {'title' in (syncConflict?.fields ?? {}) && <Text selectable style={styles.dialogSub}>{syncConflict.fields.title || '제목 없음'}</Text>}
+              {'body' in (syncConflict?.fields ?? {}) && <Text selectable style={styles.dialogSub}>{syncConflict.fields.body || '본문 없음'}</Text>}
+              {'strokes' in (syncConflict?.fields ?? {}) && <Text style={styles.dialogSub}>손글씨 변경 포함</Text>}
+              {'parent_note_id' in (syncConflict?.fields ?? {}) && <Text style={styles.dialogSub}>상위 페이지, {conflictParentTitle(syncConflict.fields.parent_note_id)}</Text>}
               {syncConflict?.server && <>
                 <Text style={styles.projOptText}>서버 문서</Text>
-                <Text selectable>{syncConflict.server.title || '제목 없음'}</Text>
-                <Text selectable>{syncConflict.server.body || '본문 없음'}</Text>
-                {'parent_note_id' in syncConflict.fields && <Text>상위 페이지, {conflictParentTitle(syncConflict.server.parent_note_id)}</Text>}
+                <Text selectable style={styles.dialogSub}>{syncConflict.server.title || '제목 없음'}</Text>
+                <Text selectable style={styles.dialogSub}>{syncConflict.server.body || '본문 없음'}</Text>
+                {'parent_note_id' in syncConflict.fields && <Text style={styles.dialogSub}>상위 페이지, {conflictParentTitle(syncConflict.server.parent_note_id)}</Text>}
               </>}
             </ScrollView>
             {isResolvingSyncConflict && <Text accessibilityLiveRegion="polite" style={styles.edited}>처리 중…</Text>}
@@ -1019,14 +1024,14 @@ export default function MemoEditScreen({ navigation, route }) {
       {mode === 'pen' && (
         <View style={styles.penOptions}>
           <View style={styles.optGroup}>
-            {PEN_COLORS.map((c) => (
+            {PEN_COLORS.map(({ color: c, label }) => (
               <Pressable
                 key={c}
                 accessibilityRole="button"
-                accessibilityLabel="펜 색"
+                accessibilityLabel={`펜 색 ${label}`}
                 accessibilityState={{ selected: penColor === c }}
                 onPress={() => setPenColor(c)}
-                hitSlop={6}
+                hitSlop={8}
                 style={[styles.colorRing, penColor === c && { borderColor: c }]}
               >
                 <View style={[styles.colorDot, { backgroundColor: c }]} />

@@ -9,6 +9,7 @@ import { WorkspaceHeader } from '../../stella/WorkspaceScreen';
 import { palette as c, styles as s } from '../../stella/theme';
 import ConfirmDialog from '../../../shared/components/ConfirmDialog';
 import { colors, font, radius, spacing } from '../../../shared/theme/theme';
+import { useInsets } from '../../../shared/hooks/useInsets';
 import Icon from '../../../shared/components/Icon';
 import { MAX_BACKUPS, createBackup, deleteBackup, restoreBackup, useBackups } from '../../../data/backup/BackupStore';
 import { switchWorkspace, useWorkspaces } from '../../../data/workspaces/WorkspaceStore';
@@ -20,6 +21,7 @@ const fmt = (ms) => {
 };
 
 export default function BackupScreen({ navigation }) {
+  const insets = useInsets();
   const { current } = useWorkspaces();
   const [order, setOrder] = useState('new'); // 'new' 최신순 | 'old' 오래된순
   const list = useBackups(order);
@@ -91,7 +93,9 @@ export default function BackupScreen({ navigation }) {
         // 팀(공유) 공간에서는 백업·복원을 쓸 수 없음 → 개인 공간으로
         <ScrollView contentContainerStyle={s.page}>
           <Text style={[s.meta, styles.line]}>백업과 복원은 개인 공간에서만 할 수 있어요</Text>
-          {row('home', '개인 공간으로 전환', () => switchWorkspace('personal'))}
+          {row('home', '개인 공간으로 전환', () => runAction(async () => {
+            await switchWorkspace('personal');
+          }), { disabled: busy })}
         </ScrollView>
       ) : (
       <ScrollView contentContainerStyle={s.page}>
@@ -135,7 +139,7 @@ export default function BackupScreen({ navigation }) {
       )}
 
       {!!notice && (
-        <View pointerEvents="none" style={styles.notice}>
+        <View pointerEvents="none" style={[styles.notice, { bottom: Math.max(spacing.xl, insets.bottom + spacing.md) }]}>
           <Text accessibilityLiveRegion="polite" style={styles.noticeText}>{notice}</Text>
         </View>
       )}

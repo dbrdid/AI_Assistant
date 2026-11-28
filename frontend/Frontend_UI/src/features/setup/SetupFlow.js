@@ -79,16 +79,20 @@ export default function SetupFlow({ user, onDone }) {
   };
 
   const start = async () => {
+    if (busy) return;
     setBusy(true);
-    const r = {};
-    for (const k of ['mic', 'camera', 'media', 'notification']) r[k] = await requestPermission(k);
-    setPerm(r);
-    setBusy(false);
-    if (r.notification === 'denied') {
-      setDenied('알림'); // 필수 권한이 거부됨
-      return;
+    try {
+      const r = {};
+      for (const k of ['mic', 'camera', 'media', 'notification']) r[k] = await requestPermission(k);
+      setPerm(r);
+      if (r.notification === 'denied') {
+        setDenied('알림'); // 필수 권한이 거부됨
+        return;
+      }
+      await finish();
+    } finally {
+      setBusy(false);
     }
-    await finish();
   };
 
   const header = (title, canSkip, canBack) => (

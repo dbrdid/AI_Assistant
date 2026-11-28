@@ -90,7 +90,7 @@ export default function InviteScreen({ navigation, route }) {
         {method === '링크' && (
           <View style={styles.field}>
             <Text style={styles.label}>몇 명까지</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {[1, 5, 10, 50].map((n) => <Chip key={n} label={`${n}명`} active={uses === n} onPress={() => setUses(n)} style={styles.chip} />)}
             </View>
             <Text style={styles.left}>링크 하나를 단체방에 공유하면 {uses}명까지 이 프로젝트에 들어올 수 있어요.</Text>

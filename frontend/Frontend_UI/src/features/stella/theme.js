@@ -7,7 +7,7 @@ export const styles = StyleSheet.create({
   blockTypeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 12 },
   blockTypeOption: { width: '48%', minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: c.surface, borderRadius: 7 },
   navigationHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: c.background },
-  workspaceAvatar: { width: 32, height: 44, alignItems: 'center', justifyContent: 'center' },
+  workspaceAvatar: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   workspaceInitial: { color: c.text, backgroundColor: '#343638', width: 30, height: 30, borderRadius: 15, textAlign: 'center', lineHeight: 30, fontSize: 16, fontWeight: '600', fontFamily: 'Georgia' },
   homePage: { paddingHorizontal: 20, paddingTop: 0, paddingBottom: 30 },
   homeSection: { marginBottom: 25 },
@@ -286,12 +286,15 @@ export const styles = StyleSheet.create({
   },
   filters: {
     flexDirection: 'row',
-    gap: 20,
+    gap: 8,
     marginTop: 17
   },
   filter: {
     minHeight: 44,
-    justifyContent: 'center'
+    minWidth: 44,
+    paddingHorizontal: 8,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   filterOn: {},
   // 고른 항목: 글자만 밝고 굵게 (밑줄·배경 없음)
@@ -333,8 +336,10 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 15,
     paddingBottom: 30,
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 4,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    borderTopWidth: 1,
+    borderTopColor: c.line,
     maxHeight: '85%'
   },
   handle: {
@@ -380,9 +385,9 @@ export const styles = StyleSheet.create({
   editorTools: {
     flexDirection: 'row',
     gap: 0,
-    paddingHorizontal: 16,
+    paddingHorizontal: 4,
     paddingTop: 8,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: c.line,
     backgroundColor: c.background,
     alignItems: 'center',

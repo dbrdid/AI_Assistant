@@ -296,7 +296,6 @@ export default function MemosScreen({ navigation, route, favoritesOnly = false, 
 
   return (
     <View style={styles.root}>
-      {!bodyOnly && !favoritesOnly && <WorkspaceHeader title={spaceList.find(item => item.id === space)?.name || "나의 문서"} onMenu={() => navigation.navigate(ROUTES.Workspace)} tabs={<TabBar current={ROUTES.Memos} onSelect={navigation.selectTab || navigation.navigate} />} />}
       <ScreenHeader
         title={selecting ? `${ids.length}개 선택` : title}
         onBack={selecting ? exitSelect : navigation.goBack}

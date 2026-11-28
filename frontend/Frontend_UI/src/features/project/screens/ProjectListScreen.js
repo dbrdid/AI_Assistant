@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 13, fontWeight: '400', color: colors.subtle },
   hint: { fontSize: font.caption, color: colors.muted },
   card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 12, paddingHorizontal: spacing.sm, borderRadius: 4, borderWidth: 1, borderColor: 'transparent' },
-  cardOn: { borderColor: '#fff' },
+  cardOn: { borderColor: colors.actionBorder, backgroundColor: colors.card },
   listEnd: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   title: {flex:1,fontSize:17,fontWeight:'500',color:colors.ink},

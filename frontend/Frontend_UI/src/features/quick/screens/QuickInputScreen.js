@@ -36,7 +36,7 @@ const LINK_ICONS = { event: 'calendar', todo: 'checkSquare', memo: 'file', file:
 const LINK_HOLD_MS = 280;
 const DRAG_THRESHOLD = 6;
 const UNLINK_TARGET = Symbol('unlink');
-const PROJECT_PANEL_MIN_HEIGHT = 44;
+const PROJECT_PANEL_MIN_HEIGHT = 56;
 const PROJECT_PANEL_STEP = 56;
 const ProjectResizeHandle = Platform.OS === 'web' ? 'div' : View;
 
@@ -70,8 +70,9 @@ export default function QuickInputScreen({ navigation, route }) {
   const [taskIds, setTaskIds] = useState([]);
   const [projectId, setProjectId] = useState(null);
   const [filter, setFilter] = useState('all');
+  const workspaceId = workspace?.id || 'default';
   const [staged, setStaged] = useState([]); // [{ key, asset, status:'ready'|'uploading'|'done'|'failed', reason, canRetry }]
-  const [loaded, setLoaded] = useState(false);
+  const [loadedWorkspace, setLoadedWorkspace] = useState(null);
   const [dragging, setDragging] = useState(null);
   const [picked, setPicked] = useState(null);
   const [hoveredTarget, setHoveredTarget] = useState(null);
@@ -151,9 +152,13 @@ export default function QuickInputScreen({ navigation, route }) {
       onResponderTerminationRequest: () => false,
     };
 
-  // 임시 보존된 내용 불러오기
+  // 임시 보존된 내용 불러오기 (공간이 바뀌면 이전 공간 초안이 새 공간에 덮어쓰이지 않도록 다시 불러온다)
   useEffect(() => {
     let alive = true;
+    setLoadedWorkspace(null);
+    setBody('');
+    setTaskIds([]);
+    setProjectId(null);
     AsyncStorage.getItem(scopedKey(DRAFT_KEY))
       .then((raw) => {
         if (!alive || !raw) return;
@@ -163,17 +168,17 @@ export default function QuickInputScreen({ navigation, route }) {
         if (d.projectId) setProjectId(d.projectId);
       })
       .catch(() => {})
-      .finally(() => alive && setLoaded(true));
+      .finally(() => alive && setLoadedWorkspace(workspaceId));
     return () => {
       alive = false;
       clearTimeout(leaving.current);
     };
-  }, []);
-  // 바뀔 때마다 임시 저장 (불러오기가 끝난 뒤부터)
+  }, [workspaceId]);
+  // 바뀔 때마다 임시 저장 (현재 공간 불러오기가 끝난 뒤부터)
   useEffect(() => {
-    if (!loaded) return;
+    if (loadedWorkspace !== workspaceId) return;
     AsyncStorage.setItem(scopedKey(DRAFT_KEY), JSON.stringify({ body, taskIds, projectId })).catch(() => {});
-  }, [body, taskIds, projectId, loaded]);
+  }, [body, taskIds, projectId, loadedWorkspace, workspaceId]);
 
   const taskRows = tasks.map(task => ({
     id: task.id,
@@ -514,8 +519,14 @@ export default function QuickInputScreen({ navigation, route }) {
               </Pressable>
             )}
           </View>
-          <ScrollView scrollEnabled={!dragging} showsVerticalScrollIndicator persistentScrollbar={Platform.OS === 'android'}
-            keyboardShouldPersistTaps="handled">
+          <ScrollView
+            scrollEnabled={!dragging && laidOutPanelHeight > PROJECT_PANEL_MIN_HEIGHT + 2}
+            pointerEvents={laidOutPanelHeight > 0 && laidOutPanelHeight <= PROJECT_PANEL_MIN_HEIGHT + 2 ? 'none' : 'auto'}
+            importantForAccessibility={laidOutPanelHeight > 0 && laidOutPanelHeight <= PROJECT_PANEL_MIN_HEIGHT + 2 ? 'no-hide-descendants' : 'auto'}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            style={laidOutPanelHeight > 0 && laidOutPanelHeight <= PROJECT_PANEL_MIN_HEIGHT + 2 ? { opacity: 0 } : undefined}
+          >
             {projects.length === 0 ? (
               <Text style={styles.projectEmpty}>아직 프로젝트가 없어요</Text>
             ) : projects.map(project => (
@@ -566,7 +577,7 @@ const styles = StyleSheet.create({
   tabOn: {},
   tabText: { fontSize: 12, color: colors.muted },
   content: { paddingHorizontal: 20, paddingBottom: spacing.xxl, gap: spacing.sm },
-  memo: { minHeight: 180, paddingVertical: 8, paddingHorizontal: 2, fontSize: 16, color: colors.ink, lineHeight: 24 },
+  memo: { minHeight: 120, paddingVertical: 8, paddingHorizontal: 2, fontSize: 16, color: colors.ink, lineHeight: 24 },
   counter: { fontSize: font.caption, color: colors.muted, lineHeight: 18 },
   pick: { padding: spacing.xl, borderRadius: radius.card, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.actionBorder, backgroundColor: 'transparent', alignItems: 'center', gap: 4 },
   pickText: { fontSize: 15, fontWeight: '500', color: colors.ink },
@@ -579,16 +590,16 @@ const styles = StyleSheet.create({
   remove: { fontSize: 18, color: colors.muted, paddingHorizontal: 4 },
   sourceViewport: { flex: 1 },
   unlinkedArea: { marginTop: spacing.lg, gap: spacing.sm },
-  unlinkedHeading: { minHeight: 28, justifyContent: 'center' },
+  unlinkedHeading: { minHeight: 44, justifyContent: 'center' },
   sectionTitle: { fontSize: 12, fontWeight: '400', color: colors.muted },
   filters: { gap: 20 },
   chip: { minHeight: 44, justifyContent: 'center' },
   chipOn: {},
   chipText: { fontSize: 12, color: colors.muted },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: 'transparent', borderRadius: radius.sm, minHeight: 44 },
-  rowOn: { borderColor: colors.ink },
+  rowOn: { borderColor: colors.actionBorder, backgroundColor: colors.mintSoft },
   rowCopy: { flex: 1, gap: 2 },
-  childRow: { marginLeft: 18, minHeight: 42 },
+  childRow: { marginLeft: 18, minHeight: 44 },
   projectArea: { marginHorizontal: 20, marginBottom: spacing.sm, borderTopWidth: 1, borderColor: colors.line, overflow: 'hidden' },
   projectHeader: { position: 'relative' },
   panelHandle: { flexShrink: 0, paddingTop: 10, gap: 10 },
@@ -597,7 +608,7 @@ const styles = StyleSheet.create({
   projectTitle: { fontSize: font.caption, color: colors.muted },
   projectAddBtn: { position: 'absolute', right: 0, bottom: 0, width: 36, height: 28, alignItems: 'center', justifyContent: 'center' },
   projectEmpty: { fontSize: font.caption, color: colors.muted, paddingHorizontal: 10, paddingVertical: 8 },
-  dragPreview: { position: 'absolute', top: 0, left: 0, zIndex: 10, width: 160, paddingHorizontal: 10, paddingVertical: 9, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.ink, backgroundColor: colors.card },
+  dragPreview: { position: 'absolute', top: 0, left: 0, zIndex: 10, width: 160, paddingHorizontal: 10, paddingVertical: 9, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.actionBorder, backgroundColor: colors.card },
   rowTitle: { fontSize: 15, fontWeight: '500', color: colors.ink },
   rowSub: { fontSize: font.caption, color: colors.muted },
 });

@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: colors.mint,
-    backgroundColor: 'rgba(93,201,178,0.15)',
+    borderColor: colors.actionBorder,
+    backgroundColor: 'rgba(240,240,238,0.10)',
   },
 });

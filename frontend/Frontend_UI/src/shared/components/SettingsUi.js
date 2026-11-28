@@ -10,6 +10,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import Icon from './Icon';
 import { colors, font, radius, spacing } from '../theme/theme';
+import { useInsets } from '../hooks/useInsets';
 
 // Group 안에 있는 줄인지, 첫 줄인지 알려 주는 통로 (null 이면 혼자 있는 줄)
 const GroupCtx = createContext(null);
@@ -86,8 +87,8 @@ export function ToggleRow({ label, sub, value, onValueChange, disabled, icon }) 
         disabled={disabled}
         value={!!value}
         onValueChange={onValueChange}
-        trackColor={{ false: colors.line, true: colors.mint }}
-        thumbColor={colors.white}
+        trackColor={{ false: colors.raised, true: colors.subtle }}
+        thumbColor={colors.ink}
       />
     </View>
   );
@@ -117,6 +118,7 @@ export function SaveButton({ onPress, disabled, label = '저장하기' }) {
 }
 
 export function useNotice() {
+  const insets = useInsets();
   const [text, setText] = useState('');
   const timer = useRef(null);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -126,7 +128,7 @@ export function useNotice() {
     timer.current = setTimeout(() => setText(''), 2400);
   };
   const view = text ? (
-    <View pointerEvents="none" style={styles.notice}>
+    <View pointerEvents="none" style={[styles.notice, { bottom: Math.max(spacing.xl, insets.bottom + spacing.md) }]}>
       <Text style={styles.noticeText}>{text}</Text>
     </View>
   ) : null;
