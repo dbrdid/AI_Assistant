@@ -238,18 +238,14 @@ export default function QuickInputScreen({ navigation, route }) {
     setDragging(row);
     measureDragArea(screenRef.current, (bounds) => { drag.screen = bounds; });
     measureDragArea(projectArea.current, (bounds) => { drag.viewport = bounds; });
-    if (drag.canUnlink) {
-      measureDragArea(sourceViewport.current, (bounds) => { drag.sourceViewport = bounds; });
-      measureDragArea(unlinkedArea.current, (bounds) => { drag.unlinkedArea = bounds; });
-    }
     for (const [id, view] of projectTargets.current) {
       measureDragArea(view, (bounds) => { drag.targets.set(id, bounds); });
     }
   };
 
   const targetAt = (drag, { x, y }) => {
-    if (drag.canUnlink && insideDropArea(drag.sourceViewport, x, y) && insideDropArea(drag.unlinkedArea, x, y)) return UNLINK_TARGET;
-    if (!insideDropArea(drag.viewport, x, y)) return null;
+    if (!drag.viewport) return null;
+    if (!insideDropArea(drag.viewport, x, y)) return drag.canUnlink ? UNLINK_TARGET : null;
     for (const [id, bounds] of drag.targets) if (insideDropArea(bounds, x, y)) return id;
     return null;
   };
@@ -323,7 +319,7 @@ export default function QuickInputScreen({ navigation, route }) {
     return (
       <Pressable key={itemKey(row)} accessibilityRole="button" accessibilityState={{ selected: Boolean(selected) }}
         accessibilityLabel={row.title}
-        accessibilityHint={nested ? '길게 눌러 연결할 항목 목록으로 끌어내거나 다른 프로젝트로 옮기세요' : '길게 눌러 프로젝트로 끌거나, 항목을 누른 뒤 프로젝트를 선택하세요'}
+        accessibilityHint={nested ? '길게 눌러 프로젝트 밖으로 끌어 놓으면 연결이 해제돼요' : '길게 눌러 프로젝트로 끌거나, 항목을 누른 뒤 프로젝트를 선택하세요'}
         onPress={() => chooseLinkSource(row)} onLongPress={event => beginLinkDrag(row, event)} delayLongPress={LINK_HOLD_MS}
         style={[styles.row, nested && styles.childRow, selected && styles.rowOn]}>
         {linkRowContent(row)}
@@ -478,7 +474,7 @@ export default function QuickInputScreen({ navigation, route }) {
             </Pressable>
             {canLink && (
               <Text style={styles.counter}>
-                {isProjectLinked(picked) ? '여기에 놓으면 프로젝트 연결이 해제돼요' : !projects.length ? '아래 프로젝트에서 + 를 눌러 만든 뒤 항목을 연결하세요' : '항목을 길게 눌러 프로젝트로 끌어 놓으세요'}
+                {isProjectLinked(picked) ? '프로젝트 밖으로 끌어 놓으면 연결이 해제돼요' : !projects.length ? '아래 프로젝트에서 + 를 눌러 만든 뒤 항목을 연결하세요' : '항목을 길게 눌러 프로젝트로 끌어 놓으세요'}
               </Text>
             )}
             <ScrollView showsHorizontalScrollIndicator={false} horizontal contentContainerStyle={styles.filters}>
