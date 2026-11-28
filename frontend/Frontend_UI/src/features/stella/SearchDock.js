@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, BackHandler, Easing, Keyboard, Pressable, ScrollView, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import Icon from '../../shared/components/Icon';
 import { SheetModal } from '../../shared/components/Motion';
+import { documentSubtitle, duplicateTitleSet, filterDockEntities } from './model.mjs';
 import { palette as c, styles as s } from './theme';
 
 const DAY = 86400000;
@@ -23,7 +24,7 @@ export function groupByAge(items, now = Date.now()) {
   return groups;
 }
 
-export default function SearchDock({ docs, bottomInset, onOpen, onAskAI, onAction }) {
+export default function SearchDock({ docs, tasks = [], projects = [], files = [], spaceNames = {}, bottomInset, onOpen, onOpenEntity, onAskAI, onAction }) {
   const { width } = useWindowDimensions();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -50,13 +51,25 @@ export default function SearchDock({ docs, bottomInset, onOpen, onAskAI, onActio
     return () => back.remove();
   }, [open]);
 
+  const duplicateTitles = useMemo(() => duplicateTitleSet(docs, d => d.title), [docs]);
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     const hit = d => !q || d.title.toLowerCase().includes(q) || (!titleOnly && d.body.toLowerCase().includes(q));
     const list = docs.filter(hit).map(d => ({ ...d, time: sort === 'created' ? d.createdAt : d.updatedAt }));
-    if (sort === 'title') return [{ name: '제목순', items: list.sort((a, b) => a.title.localeCompare(b.title, 'ko')) }];
+    if (sort === 'title') return list.length ? [{ name: '제목순', items: list.sort((a, b) => a.title.localeCompare(b.title, 'ko')) }] : [];
     return groupByAge(list.sort((a, b) => b.time - a.time));
   }, [docs, query, sort, titleOnly]);
+  const entities = useMemo(
+    () => filterDockEntities({ query, titleOnly, tasks, projects, files, spaceNames }),
+    [query, titleOnly, tasks, projects, files, spaceNames],
+  );
+  const entitySections = [
+    { key: 'tasks', label: '일정 · 할 일', items: entities.tasks },
+    { key: 'projects', label: '프로젝트', items: entities.projects },
+    { key: 'files', label: '파일', items: entities.files },
+  ].filter(section => section.items.length > 0);
+  const entityIcon = type => (type === 'event' ? 'calendar' : type === 'task' ? 'checkSquare' : type === 'project' ? 'folder' : 'paperclip');
+  const hasAnyResult = results.length > 0 || entitySections.length > 0;
 
   // 검색창 너비: 돋보기 원(44)에서 닫기 버튼만 남기고 가로 전체로
   const fieldWidth = grow.interpolate({ inputRange: [0, 1], outputRange: [44, width - 32 - 44 - 8] });
@@ -72,15 +85,29 @@ export default function SearchDock({ docs, bottomInset, onOpen, onAskAI, onActio
         </Pressable>
         {results.map(group => <View key={group.name}>
           <Text style={[s.homeSectionLabel, { marginTop: 14, marginBottom: 4 }]}>{group.name}</Text>
-          {group.items.map(d => <Pressable key={d.id} accessibilityRole="button" onPress={() => { hide(); onOpen(d.id); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56 }, pressed && { opacity: .6 }]}>
-            <Icon name="file" size={18} color={c.subtle} />
+          {group.items.map(d => {
+            const sub = duplicateTitles.has(d.title) ? documentSubtitle(d) : '';
+            const detail = [d.parent ? `(${d.parent})` : '', sub].filter(Boolean).join(' · ');
+            return <Pressable key={d.id} accessibilityRole="button" onPress={() => { hide(); onOpen(d.id); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56 }, pressed && { opacity: .6 }]}>
+              <Icon name="file" size={18} color={c.subtle} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: c.text, fontSize: 15 }} numberOfLines={1}>{d.title}</Text>
+                {!!detail && <Text style={{ color: c.subtle, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{detail}</Text>}
+              </View>
+            </Pressable>;
+          })}
+        </View>)}
+        {entitySections.map(section => <View key={section.key}>
+          <Text style={[s.homeSectionLabel, { marginTop: 14, marginBottom: 4 }]}>{section.label}</Text>
+          {section.items.map(item => <Pressable key={`${item.type}-${item.id}`} accessibilityRole="button" onPress={() => { hide(); onOpenEntity?.(item); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56 }, pressed && { opacity: .6 }]}>
+            <Icon name={entityIcon(item.type)} size={18} color={c.subtle} />
             <View style={{ flex: 1 }}>
-              <Text style={{ color: c.text, fontSize: 15 }} numberOfLines={1}>{d.title}</Text>
-              {!!d.parent && <Text style={{ color: c.subtle, fontSize: 12, marginTop: 2 }} numberOfLines={1}>({d.parent})</Text>}
+              <Text style={{ color: c.text, fontSize: 15 }} numberOfLines={1}>{item.title}</Text>
+              {!!item.meta && <Text style={{ color: c.subtle, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{item.meta}</Text>}
             </View>
           </Pressable>)}
         </View>)}
-        {!results.length && <Text style={[s.emptyInline ?? {}, { color: c.subtle, marginTop: 16 }]}>{query.trim() ? '검색 결과가 없어요' : '아직 문서가 없어요'}</Text>}
+        {!hasAnyResult && <Text style={[s.emptyInline ?? {}, { color: c.subtle, marginTop: 16 }]}>{query.trim() ? '검색 결과가 없어요' : '아직 문서가 없어요'}</Text>}
       </ScrollView>
     </Animated.View>}
 
@@ -100,7 +127,7 @@ export default function SearchDock({ docs, bottomInset, onOpen, onAskAI, onActio
           <Icon name="search" size={19} color={c.muted} />
         </Pressable>
         {open && <>
-          <TextInput ref={input} accessibilityLabel="문서 검색" value={query} onChangeText={setQuery} placeholder="무엇이든 검색하기..." placeholderTextColor={c.subtle} returnKeyType="search"
+          <TextInput ref={input} accessibilityLabel="통합 검색" value={query} onChangeText={setQuery} placeholder="문서, 일정, 프로젝트 검색..." placeholderTextColor={c.subtle} returnKeyType="search"
             style={{ flex: 1, color: c.text, fontSize: 15, paddingVertical: 0 }} />
           <Pressable accessibilityRole="button" accessibilityLabel="검색 필터" onPress={() => { if (keyboard) { filterAfterKeyboard.current = true; Keyboard.dismiss(); } else setFilters(true); }} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="list" size={18} color={sort !== 'updated' || titleOnly ? c.text : c.muted} />

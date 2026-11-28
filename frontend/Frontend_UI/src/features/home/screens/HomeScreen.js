@@ -168,7 +168,7 @@ export default function HomeScreen({ navigation, route }) {
           <Text style={styles.date} accessibilityRole="header" numberOfLines={1}>{dateText}</Text>
           {multi && <Text style={styles.scope}>모든 공간, 개인 + 팀 {teams.length}개</Text>}
         </View>
-        <CircleButton icon="search" label="전체 검색" onPress={() => go(ROUTES.Search)} />
+        {!embedded && <CircleButton icon="search" label="전체 검색" onPress={() => go(ROUTES.Search)} />}
         <Bell onPress={() => go(ROUTES.Notices)} />
       </View>
 

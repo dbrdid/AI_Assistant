@@ -4,11 +4,12 @@ import { Animated, Easing, Platform, FlatList, Image, Linking, Pressable, Scroll
 import { useAppUpdate } from '../../services/update/AppUpdate';
 import TabBar from '../../navigation/TabBar';
 import { ScreenEntryProvider } from '../../navigation/ScreenEntry';
-import { useFiles } from '../../data/files/FileStore';
+import { useCloudFiles, useFiles } from '../../data/files/FileStore';
 import GraphCanvas from './GraphCanvas';
 import SearchDock from './SearchDock';
 import SwipeNav from './SwipeNav';
-import { itemAccessOf } from '../../data/projects/ProjectStore';
+import { useAllTasks } from '../../data/tasks/TaskStore';
+import { itemAccessOf, useProjects } from '../../data/projects/ProjectStore';
 import { useNoteRecorder } from '../record/components/useNoteRecorder';
 import ProposalCard from '../proposal/components/ProposalCard';
 import { runtime, useValue, readPreference, writePreference } from '../../data/hooks';
@@ -18,11 +19,11 @@ import Icon from '../../shared/components/Icon';
 import { useInsets } from '../../shared/hooks/useInsets';
 import { useMemos, memoTitle, setFavorites } from '../../data/memos/MemoStore';
 import { useProposals } from '../../data/proposals/ProposalStore';
-import { useSpaceInfo, useWorkspaces, switchWorkspace } from '../../data/workspaces/WorkspaceStore';
+import { enterSpace, useSpaceInfo, useWorkspaces, switchWorkspace } from '../../data/workspaces/WorkspaceStore';
 import ConfirmDialog from '../../shared/components/ConfirmDialog';
 import { useProposalActions } from '../proposal/useProposalActions';
 import { ROUTES, TABS } from '../../navigation/routes';
-import { filterDocuments } from './model.mjs';
+import { documentSubtitle, duplicateTitleSet, filterDocuments } from './model.mjs';
 import { readMemoBlocks } from '../memo/utils/memoBlocks.mjs';
 import { readMemoReference } from '../memo/utils/memoReferences.mjs';
 import { palette as c, styles as s } from './theme';
@@ -104,18 +105,20 @@ function documentIcon(memo) {
   return memo.photos?.length ? 'paperclip' : 'pencil';
 }
 
-function DocumentRow({ memo, onPress, hasChildren, collapsed, onToggle, onMore, compact = false }) {
+function DocumentRow({ memo, onPress, hasChildren, collapsed, onToggle, onMore, compact = false, duplicate = false }) {
   const title = memoTitle(memo);
   const [showEmpty, setShowEmpty] = useState(false);
   const expanded = hasChildren ? !collapsed : showEmpty;
+  const sub = compact && duplicate ? documentSubtitle(memo) : '';
   return <View style={{ paddingLeft: Math.min(memo.depth ?? 0, 5) * 12 }}>
     <View style={[s.row, { alignItems: 'center', paddingVertical: 0, gap: 6 }]}>
     <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress}
       style={({ pressed }) => [{ flex: 1, minHeight: 44, flexDirection: 'row',
-        alignItems: 'center', gap: 8, paddingVertical: compact ? 0 : 6, opacity: pressed ? .6 : 1 }]}>
+        alignItems: 'center', gap: 8, paddingVertical: compact ? (sub ? 4 : 0) : 6, opacity: pressed ? .6 : 1 }]}>
       <Icon name={documentIcon(memo)} size={18} color={c.muted} />
       <View style={{ flex: 1 }}>
         <Text style={s.rowTitle} numberOfLines={1}>{title}</Text>
+        {!!sub && <Text style={[s.meta, { marginTop: 1 }]} numberOfLines={1}>{sub}</Text>}
         {!compact && <><Text style={s.rowBody} numberOfLines={1}>{memo.body || '필기나 첨부가 있는 문서'}</Text>
           <Text style={s.meta}>{memo.favorite ? '즐겨찾기, ' : ''}{new Date(memo.updatedAt).toLocaleDateString('ko-KR')}, 기기 저장</Text></>}
       </View>
@@ -148,15 +151,17 @@ function HomeSection({ title, children, action }) {
     {expanded && children}
   </View>;
 }
-function RecentDocument({ memo, photo, onPress }) {
+function RecentDocument({ memo, photo, onPress, duplicate = false }) {
   const [imageFailed, setImageFailed] = useState(false);
   const excerpt = readMemoBlocks(memo.body || '').map(({ text }) => readMemoReference(text)?.label ?? text.trim())
     .filter(Boolean).slice(0, 3).join(' / ');
+  const sub = duplicate ? documentSubtitle(memo) : '';
   return <Pressable accessibilityRole="button" accessibilityLabel={memoTitle(memo)} onPress={onPress} style={({ pressed }) => [s.recentCard, pressed && { opacity: .65 }]}>
     {photo?.uri && !imageFailed && <View style={s.recentCover}><Image source={{ uri: photo.uri }} resizeMode="cover" style={s.recentImage} onError={() => setImageFailed(true)} /></View>}
     <View style={s.recentCardContent}>
       <View style={s.recentCardHeading}><Icon name={documentIcon(memo)} size={16} color={c.subtle} /><Text style={s.recentTitle} numberOfLines={2}>{memoTitle(memo)}</Text></View>
-      {!!excerpt && <Text style={s.recentExcerpt} numberOfLines={3}>{excerpt}</Text>}
+      {!!sub && <Text style={s.recentExcerpt} numberOfLines={1}>{sub}</Text>}
+      {!!excerpt && !sub && <Text style={s.recentExcerpt} numberOfLines={3}>{excerpt}</Text>}
     </View>
   </Pressable>;
 }
@@ -224,6 +229,9 @@ export default function WorkspaceScreen({
   const note = useNoteRecorder((name, params) => go(name, params), insets.bottom);
   const memoRows = useMemos();
   const files = useFiles();
+  const cloudFiles = useCloudFiles();
+  const allTasks = useAllTasks();
+  const allProjects = useProjects();
   const documents = useValue(() => runtime().documents.listDocuments());
   const proposals = useProposals();
   const spaces = useWorkspaces();
@@ -309,7 +317,17 @@ export default function WorkspaceScreen({
   // Notion 모바일과 같은 하단: 검색(펼쳐지는 검색창), AI에게 질문하기, 새로 만들기
   const titleOf = new Map(memos.map(memo => [memo.id, memoTitle(memo)]));
   const parentOf = new Map(documents.map(document => [document.id, document.parentId]));
+  const duplicateTitles = duplicateTitleSet(documents, memoTitle);
   const searchDocs = memos.map(memo => ({ id: memo.id, title: memoTitle(memo), body: memo.body || '', updatedAt: memo.updatedAt, createdAt: memo.createdAt ?? memo.updatedAt, parent: titleOf.get(parentOf.get(memo.id)) || '' }));
+  const spaceNames = Object.fromEntries(Object.entries(spaceInfo).map(([id, info]) => [id, info?.name]));
+  const openSearchEntity = item => {
+    if (item.type === 'task' || item.type === 'event') {
+      if (item.workspaceId) enterSpace(item.workspaceId);
+      return go(ROUTES.TaskEdit, { taskId: item.id });
+    }
+    if (item.type === 'project') return go(ROUTES.ProjectDetail, { projectId: item.id });
+    if (item.type === 'file') return go(ROUTES.Files, { focusId: item.id });
+  };
   // 녹음 중에는 하단 메뉴 대신 녹음 막대를 표시한다.
   function handleDockAction(kind) {
     switch (kind) {
@@ -321,7 +339,7 @@ export default function WorkspaceScreen({
       case 'project': return go(ROUTES.ProjectEdit);
     }
   }
-  const askDock = note.recording ? note.bar : <SearchDock docs={searchDocs} bottomInset={insets.bottom} onOpen={id => go(ROUTES.MemoEdit, { memoId: id })} onAskAI={prompt => go(ROUTES.AiChat, prompt ? { initialPrompt: prompt } : undefined)}
+  const askDock = note.recording ? note.bar : <SearchDock docs={searchDocs} tasks={allTasks} projects={allProjects} files={[...files, ...cloudFiles]} spaceNames={spaceNames} bottomInset={insets.bottom} onOpen={id => go(ROUTES.MemoEdit, { memoId: id })} onOpenEntity={openSearchEntity} onAskAI={prompt => go(ROUTES.AiChat, prompt ? { initialPrompt: prompt } : undefined)}
     onAction={handleDockAction} />;
   let content;
   if (mode === 'documents') {
@@ -329,7 +347,7 @@ export default function WorkspaceScreen({
           selected: filter === key
         }} onPress={() => setFilter(key)} style={[s.filter, filter === key && s.filterOn]}><Text style={[s.filterText, filter === key && s.filterTextOn]}>{label}</Text></Pressable>)}</View></>} renderItem={({
       item
-    }) => <DocumentRow memo={item} compact={!query} onMore={onMore} onPress={() => open(item)} hasChildren={parentIds.has(item.id)} collapsed={collapsed.has(item.id)} onToggle={() => setCollapsed(previous => {
+    }) => <DocumentRow memo={item} compact={!query} duplicate={duplicateTitles.has(memoTitle(item))} onMore={onMore} onPress={() => open(item)} hasChildren={parentIds.has(item.id)} collapsed={collapsed.has(item.id)} onToggle={() => setCollapsed(previous => {
       const next = new Set(previous);
       if (next.has(item.id)) next.delete(item.id);else next.add(item.id);
       return next;
@@ -349,14 +367,14 @@ export default function WorkspaceScreen({
     content = <>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.homePage}>
         {memos.length > 0 && <HomeSection title="최근 문서"><ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.recentRail} contentContainerStyle={s.recentRailContent}>
-          {memos.slice(0, 6).map(memo => <RecentDocument key={memo.id} memo={memo} photo={files.find(file => file.id === memo.photos?.[0])} onPress={() => open(memo)} />)}
+          {memos.slice(0, 6).map(memo => <RecentDocument key={memo.id} memo={memo} duplicate={duplicateTitles.has(memoTitle(memo))} photo={files.find(file => file.id === memo.photos?.[0])} onPress={() => open(memo)} />)}
         </ScrollView></HomeSection>}
         {memos.some(memo => memo.favorite) && <HomeSection title="즐겨찾기">
-          {memos.filter(memo => memo.favorite).slice(0, 5).map(memo => <DocumentRow key={memo.id} memo={memo} compact onMore={onMore} onPress={() => open(memo)} />)}
+          {memos.filter(memo => memo.favorite).slice(0, 5).map(memo => <DocumentRow key={memo.id} memo={memo} compact duplicate={duplicateTitles.has(memoTitle(memo))} onMore={onMore} onPress={() => open(memo)} />)}
           {memos.filter(memo => memo.favorite).length > 5 && <Pressable accessibilityRole="button" style={s.link} onPress={() => go(ROUTES.Favorites)}><Text style={s.linkText}>모두 보기</Text></Pressable>}
         </HomeSection>}
         <HomeSection title={current?.personal ? '개인 문서' : '공간 문서'}>
-          {list.slice(0, 20).map(memo => <DocumentRow key={memo.id} memo={memo} compact onMore={onMore} onPress={() => open(memo)} hasChildren={parentIds.has(memo.id)} collapsed={collapsed.has(memo.id)} onToggle={() => setCollapsed(previous => { const next = new Set(previous); if (next.has(memo.id)) next.delete(memo.id); else next.add(memo.id); return next; })} />)}
+          {list.slice(0, 20).map(memo => <DocumentRow key={memo.id} memo={memo} compact duplicate={duplicateTitles.has(memoTitle(memo))} onMore={onMore} onPress={() => open(memo)} hasChildren={parentIds.has(memo.id)} collapsed={collapsed.has(memo.id)} onToggle={() => setCollapsed(previous => { const next = new Set(previous); if (next.has(memo.id)) next.delete(memo.id); else next.add(memo.id); return next; })} />)}
           {list.length > 20 && <Pressable accessibilityRole="button" style={s.link} onPress={() => go(ROUTES.Memos)}><Text style={s.linkText}>모든 문서 보기</Text></Pressable>}
           {!documents.length && <Text style={s.emptyInline}>아직 작성한 문서가 없습니다.</Text>}
         </HomeSection>
