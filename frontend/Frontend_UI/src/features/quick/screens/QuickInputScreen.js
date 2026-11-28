@@ -466,7 +466,7 @@ export default function QuickInputScreen({ navigation, route }) {
             </>
           )}
 
-          <View ref={unlinkedArea} collapsable={false} style={[styles.unlinkedArea, hoveredTarget === UNLINK_TARGET && styles.rowOn]}>
+          <View ref={unlinkedArea} collapsable={false} style={styles.unlinkedArea}>
             <Pressable accessibilityRole={isProjectLinked(picked) ? 'button' : 'header'}
               accessibilityLabel={isProjectLinked(picked) ? '프로젝트 연결 해제' : '연결할 항목'}
               disabled={!isProjectLinked(picked)} onPress={() => changeProjectLink(picked, null)} style={styles.unlinkedHeading}>
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
   miniText: { fontSize: font.caption, fontWeight: '500', color: colors.ink },
   remove: { fontSize: 18, color: colors.muted, paddingHorizontal: 4 },
   sourceViewport: { flex: 1 },
-  unlinkedArea: { marginTop: spacing.lg, borderWidth: 1, borderColor: 'transparent', borderRadius: radius.sm, gap: spacing.sm },
+  unlinkedArea: { marginTop: spacing.lg, gap: spacing.sm },
   unlinkedHeading: { minHeight: 28, justifyContent: 'center' },
   sectionTitle: { fontSize: 12, fontWeight: '400', color: colors.muted },
   filters: { gap: 20 },
